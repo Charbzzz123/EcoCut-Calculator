@@ -1,0 +1,69 @@
+{
+  "name": "ecocut-calculator",
+  "version": "0.0.0",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve --open",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "test": " ng test --coverage && start \"\" \"./coverage/ecocut-calculator/index.html\" ",
+    "test:dev": "ng test",
+    "lint": "ng lint",
+    "lint:fix": "ng lint --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "husky",
+    "ls": "lint-staged",
+    "tui": "vitest --ui --coverage"
+  },
+  "prettier": {
+    "printWidth": 100,
+    "singleQuote": true,
+    "semi": true,
+    "tabWidth": 2,
+    "overrides": [
+      {
+        "files": "*.html",
+        "options": {
+          "parser": "angular"
+        }
+      }
+    ]
+  },
+  "private": true,
+  "packageManager": "npm@11.2.0",
+  "dependencies": {
+    "@angular/common": "^21.0.0",
+    "@angular/compiler": "^21.0.0",
+    "@angular/core": "^21.0.0",
+    "@angular/forms": "^21.0.0",
+    "@angular/platform-browser": "^21.0.0",
+    "@angular/router": "^21.0.0",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@angular/build": "^21.0.2",
+    "@angular/cli": "^21.0.2",
+    "@angular/compiler-cli": "^21.0.0",
+    "@vitest/coverage-v8": "^4.0.15",
+    "@vitest/ui": "^4.0.15",
+    "angular-eslint": "21.0.1",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "jsdom": "^27.1.0",
+    "prettier": "^3.7.4",
+    "typescript": "~5.9.2",
+    "typescript-eslint": "8.46.4",
+    "vitest": "^4.0.8"
+  },
+  "lint-staged": {
+    "**/*.ts": [
+      "eslint"
+    ],
+    "**/*.{html,scss,css,md,json}": [
+      "prettier --check"
+    ]
+  }
+}
