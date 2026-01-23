@@ -11,7 +11,7 @@
     "ecocut-calculator": {
       "projectType": "application",
       "schematics": {
-        "@schematics/angular:component": {9np
+        "@schematics/angular:component": {
           "style": "scss"
         }
       },
@@ -61,10 +61,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "codex:build:production"
+              "buildTarget": "ecocut-calculator:build:production"
             },
             "development": {
-              "buildTarget": "codex:build:development"
+              "buildTarget": "ecocut-calculator:build:development"
             }
           },
           "defaultConfiguration": "development"
