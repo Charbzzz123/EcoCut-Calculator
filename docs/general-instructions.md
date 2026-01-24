@@ -1,7 +1,7 @@
 # Project Working Agreement
 
 ## Mission
-Build and maintain the EcoCut Calculator, an Angular 21 single-page app (SPA) that helps EcoCut estimate jobs quickly.
+Build and maintain the EcoCut Calculator, an Angular 21 single-page app (SPA) that helps EcoCut estimate jobs quickly with a **speed-first ethos**—performance and snappy UX take priority while still delivering polished visuals.
 
 ## Development Environment
 - Node.js 20.11+ (or >=18.18) with npm 11.x; prefer `npm ci` for clean installs.
@@ -10,23 +10,29 @@ Build and maintain the EcoCut Calculator, an Angular 21 single-page app (SPA) th
 
 ## Coding Guidelines
 1. Follow Angular style guide (standalone components, strict typing, feature-based folders when we outgrow `src/app`).
-2. Write pure, testable functions; keep components dumb and move business logic into services/helpers as they emerge.
-3. Stick to SCSS; avoid inline styles except for quick prototypes.
-4. Favor RxJS streams or Angular Signals for state over ad-hoc globals.
-5. Keep templates accessible (semantic tags, ARIA labels, keyboard flows).
+2. Default to a **facade-driven feature structure**: components talk to a feature facade that orchestrates services, adapters, and API clients so the codebase stays evolutive.
+3. Prioritize performance: keep bundle size lean, avoid blocking operations on the main thread, budget for sub-second interactions, and profile hot paths regularly.
+4. Write pure, testable functions; keep components dumb and move business logic into services/helpers as they emerge.
+5. Stick to SCSS; avoid inline styles except for quick prototypes.
+6. Favor RxJS streams or Angular Signals for state over ad-hoc globals.
+7. Keep templates accessible (semantic tags, ARIA labels, keyboard flows) and UX copy purposeful—speed should never sacrifice usability.
+8. Never code without a plan: document the intended approach (sketch, checklist, or ADR) before opening a PR.
+9. Never assume requirements—ask, discuss, and capture the agreement before implementing.
 
 ## Tooling Rules
 - Run `npm run lint` and `npm run test` before pushing.
+- Aim for full file coverage; add or update specs alongside every feature/fix.
 - Use Prettier for formatting; never hand-format conflicting styles.
 - Husky hooks run automatically after `npm install`; do not bypass unless broken.
 - Prefer `npm.cmd` when PowerShell policies block scripts.
 
 ## Workflow
-1. Create a task ticket; write down acceptance criteria.
-2. Branch from `main`, naming `feature/<ticket-id>-short-desc`.
-3. Build iteratively: design -> implement -> lint/test -> review.
-4. Keep commits focused and descriptive; squash only when merging to `main` via PR.
-5. Document UI/UX changes in the functionality doc and changelog (to add later).
+1. Create a task ticket; write down acceptance criteria and planned approach.
+2. Branch from the active integration branch (`dev`) using `feature/<ticket-id>-short-desc`.
+3. Keep `main`/`master` pristine for tagged releases only (alpha/beta/GA). Merge feature PRs into `dev`; promote to `main` only when the version is publish-ready.
+4. Build iteratively: design -> implement -> lint/test (all passing) -> review.
+5. Keep commits focused, logically sized, and descriptive; commit often enough to capture milestones without noise.
+6. Document UI/UX changes in the functionality doc and changelog (to add later).
 
 ## Communication
 - Document major decisions in pull requests and in `docs/app-documentation.md`.
