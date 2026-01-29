@@ -22,31 +22,24 @@ export class HomeDataService {
   getQuickActions(): QuickAction[] {
     return [
       {
-        id: 'new-job',
-        label: 'New Job',
-        description: 'Start a calculation',
-        icon: '?',
-        command: 'new-job',
-      },
-      {
         id: 'undo-job',
         label: 'Undo Last',
         description: 'Reverse previous log',
-        icon: '??',
+        icon: '↩️',
         command: 'undo-job',
       },
       {
         id: 'manage-employees',
         label: 'Manage Employees',
         description: 'Update availability & rates',
-        icon: '??',
+        icon: '👥',
         command: 'manage-employees',
       },
       {
         id: 'advanced-options',
         label: 'Advanced Options',
         description: 'Adjust calculation rules',
-        icon: '??',
+        icon: '🎛️',
         command: 'advanced-options',
       },
     ];
