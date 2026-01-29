@@ -1,0 +1,21 @@
+<section class="prf-trend">
+  <div class="section-header">
+    <h2>PRF trend</h2>
+    <p>7-day trajectory</p>
+  </div>
+  @if (points?.length) {
+    <ul>
+      @for (point of points; track point.label) {
+        <li>
+          <span>{{ point.label }}</span>
+          <div class="bar">
+            <div class="fill" [style.width]="calcWidth(point.value)"></div>
+          </div>
+          <span class="value">${{ point.value | number: '1.0-0' }}</span>
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="empty-state">No data yet.</p>
+  }
+</section>

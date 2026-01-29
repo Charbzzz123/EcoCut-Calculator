@@ -1,0 +1,28 @@
+<section class="weekly-payroll">
+  <div class="section-header">
+    <h2>This week payroll</h2>
+    <p>{{ totals.hours }} hrs &middot; {{ formatCurrency(totals.wages) }}</p>
+  </div>
+  @if (entries?.length) {
+    <table>
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Hours</th>
+          <th>Wages</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (entry of entries; track entry.employee) {
+          <tr>
+            <td>{{ entry.employee }}</td>
+            <td>{{ entry.hours | number: '1.0-1' }}</td>
+            <td>{{ formatCurrency(entry.wages) }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  } @else {
+    <p class="empty-state">Log jobs to populate payroll insights.</p>
+  }
+</section>

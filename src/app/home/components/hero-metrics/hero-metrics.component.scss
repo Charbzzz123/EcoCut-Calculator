@@ -1,0 +1,12 @@
+.hero-metrics__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.hero-metrics__empty {
+  margin: 0;
+  color: var(--text-muted, #94a3b8);
+  text-align: center;
+  padding: 1rem 0;
+}

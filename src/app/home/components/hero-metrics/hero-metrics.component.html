@@ -1,0 +1,11 @@
+<section class="hero-metrics" data-testid="hero-metrics">
+  @if (metrics?.length) {
+    <div class="hero-metrics__grid">
+      @for (metric of metrics; track metric.id) {
+        <app-metric-card [metric]="metric" />
+      }
+    </div>
+  } @else {
+    <p class="hero-metrics__empty">No metrics to display yet.</p>
+  }
+</section>

@@ -1,0 +1,28 @@
+<main class="home-shell">
+  <section class="home-hero">
+    <div class="hero-header">
+      <div>
+        <p class="eyebrow">Dashboard</p>
+        <h1>EcoCut Pulse</h1>
+      </div>
+      <button class="primary" type="button" (click)="facade.startNewJob()">New Job</button>
+    </div>
+    <app-hero-metrics [metrics]="heroMetrics()" />
+  </section>
+
+  <section class="home-actions">
+    <app-quick-actions [actions]="quickActions()" (actionSelected)="onQuickAction($event)" />
+  </section>
+
+  <section class="home-grid">
+    <app-activity-feed class="grid-lg" [jobs]="recentJobs()" />
+    <app-alerts-panel class="grid-sm" [alerts]="alerts()" />
+  </section>
+
+  <section class="home-grid">
+    <app-weekly-payroll class="grid-lg" [entries]="weeklyPayroll()" />
+    <app-prf-trend class="grid-sm" [points]="prfTrend()" />
+  </section>
+</main>
+
+<button class="floating-cta" type="button" (click)="facade.startNewJob()">New Job</button>

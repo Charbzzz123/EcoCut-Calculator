@@ -1,0 +1,24 @@
+<section class="activity-feed">
+  <div class="section-header">
+    <h2>Recent jobs</h2>
+    <p>Latest logged entries</p>
+  </div>
+  @if (jobs?.length) {
+    <ul>
+      @for (job of jobs; track job.id) {
+        <li>
+          <div>
+            <p class="partners">{{ job.partnerNames.join(', ') }}</p>
+            <small>{{ formatTimestamp(job.timestamp) }}</small>
+          </div>
+          <div class="job-meta">
+            <span class="status" [attr.data-status]="job.status">{{ job.status }}</span>
+            <strong>{{ formatCurrency(job.grossPreTax) }}</strong>
+          </div>
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="empty-state">No jobs logged yet.</p>
+  }
+</section>

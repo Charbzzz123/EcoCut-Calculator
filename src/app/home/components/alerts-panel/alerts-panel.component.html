@@ -1,0 +1,20 @@
+<section class="alerts-panel">
+  <div class="section-header">
+    <h2>Alerts</h2>
+    <p>Everything that needs attention</p>
+  </div>
+  @if (alerts?.length) {
+    <ul>
+      @for (alert of alerts; track alert.id) {
+        <li [attr.data-severity]="alert.severity">
+          <div>
+            <p>{{ alert.message }}</p>
+            <small>{{ alert.timestamp | date: 'MMM d, HH:mm' }}</small>
+          </div>
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="empty-state">No alerts – you\'re all caught up.</p>
+  }
+</section>

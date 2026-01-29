@@ -1,0 +1,17 @@
+<section class="quick-actions" aria-label="Quick actions">
+  @if (actions?.length) {
+    <div class="quick-actions__grid">
+      @for (action of actions; track action.id) {
+        <button type="button" class="quick-action" (click)="trigger(action)">
+          <span class="icon">{{ action.icon }}</span>
+          <span class="text">
+            <strong>{{ action.label }}</strong>
+            <small>{{ action.description }}</small>
+          </span>
+        </button>
+      }
+    </div>
+  } @else {
+    <p class="quick-actions__empty">Add actions to get started.</p>
+  }
+</section>
