@@ -34,6 +34,7 @@ Build and maintain the EcoCut Calculator, an Angular 21 single-page app (SPA) th
 3. Keep `main`/`master` pristine for tagged releases only (alpha/beta/GA). Merge feature PRs into `dev`; promote to `main` only when the version is publish-ready.
 4. Build iteratively: design -> implement -> lint/test (all passing) -> review.
 5. Keep commits focused, logically sized, and descriptive; commit after each meaningful step so reviewers can follow the story (no giant “everything” commits).
+6. Never merge unless statements/branches/functions/lines are all at 100% and verified locally (run `npm run test` or the coverage script every time); fix or add specs immediately when you touch a file.
 6. Document UI/UX changes in the functionality doc and changelog (to add later).
 
 ## Communication
