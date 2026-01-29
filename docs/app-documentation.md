@@ -1,4 +1,4 @@
-# EcoCut Calculator � Technical Documentation
+﻿# EcoCut Calculator – Technical Documentation
 
 ## Overview
 EcoCut Calculator is a full-stack workspace composed of:
@@ -25,9 +25,55 @@ root/
 - **Styling:** Global styles in `src/styles.scss`, component-level SCSS via `styleUrl` references.
 - **Build:** `@angular/build:application` (esbuild + Vite dev server) configured in `angular.json`.
 - **State:** Currently a single `title` signal; expand using dedicated state services/signals modules as features grow.
+- **Shared Libraries:** As the app grows, extract cross-cutting components, pipes, validators, DTOs, and theme tokens into `/libs` (or `/shared`) packages so the Angular frontend and Nest backend can reuse definitions (e.g., job DTO, calculation constants). Keep SCSS design tokens (colors, typography, spacing) in a shared stylesheet imported everywhere to enforce a consistent look.
+
+### Home Screen Feature Plan
+**Goal:** Deliver the landing experience described in `docs/app-functionality.md` with a scalable facade-driven structure.
+
+> Status: initial skeleton implemented (January 29, 2026) with placeholder data + hero metrics, quick actions, activity, alerts, payroll, and PRF trend widgets wired through `HomeFacade`.
+
+1. **Routing & Shell**
+   - Add `/home` route and redirect `/` there.
+   - Create `HomeShellComponent` that owns layout/grid and injects `HomeFacade` for data streams + CTAs.
+
+2. **Component Tree**
+   ```
+   home/
+   ├─ home-shell.component.ts (layout section)
+   ├─ hero-metrics/
+   │   ├─ hero-metrics.component.ts (grid)
+   │   └─ metric-card.component.ts (single stat)
+   ├─ quick-actions/quick-actions.component.ts
+   ├─ activity-feed/activity-feed.component.ts
+   ├─ alerts-panel/alerts-panel.component.ts
+   ├─ weekly-payroll/weekly-payroll.component.ts
+   └─ prf-trend/prf-trend.component.ts
+   ```
+   - Child components receive signals/inputs from the facade; none fetch data directly.
+
+3. **State & Facade**
+   - `HomeFacade` exposes readonly signals: `heroMetrics`, `recentJobs`, `alerts`, `weeklyPayroll`, `prfTrend`.
+   - Backed by a `HomeDataService` (placeholder mock now, API later).
+   - Provide command methods (`startNewJob()`, `undoLastEntry()`, `openManageEmployees()`, `openAdvancedOptions()`).
+
+4. **Styling/Layout**
+   - CSS grid for desktop (hero row + two-column body); stack to single column < 768px.
+   - Floating action button for “New Job” on mobile handled by wrapper or dedicated component.
+   - Shared spacing/typography tokens live in `styles.scss`.
+
+5. **Loading & Errors**
+   - Skeleton placeholder components per section while signals pending.
+   - Empty states with CTA for feeds/alerts when data absent.
+
+6. **Testing**
+   - Component tests verifying layout renders sections and reacts to facade signal changes.
+   - Facade tests asserting derived metrics computed from mock data service.
+
+7. **Documentation**
+   - Update functionality + architecture docs when widgets/data contracts evolve.
 
 ## Backend Placeholder
-The `/server` directory hosts a NestJS 11 project (ESM) with its own tooling (ESLint, Prettier). It is not wired to the Angular app yet�treat it as a future service. Run backend scripts from `server/` (e.g., `npm run start:dev`). Document new endpoints inside `server/README.md` and mirror cross-cutting info back here.
+The `/server` directory hosts a NestJS 11 project (ESM) with its own tooling (ESLint, Prettier). It is not wired to the Angular app yet-treat it as a future service. Run backend scripts from `server/` (e.g., `npm run start:dev`). Document new endpoints inside `server/README.md` and mirror cross-cutting info back here.
 
 ## Tooling & Commands
 | Purpose        | Frontend Command            | Notes |
@@ -53,3 +99,4 @@ The `/server` directory hosts a NestJS 11 project (ESM) with its own tooling (ES
 - Replace placeholder Angular template with real calculator components.
 - Flesh out server requirements and link to front end via API clients.
 - Automate documentation publishing (Docs site or wiki) once scope grows.
+

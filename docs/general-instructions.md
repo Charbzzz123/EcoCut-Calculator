@@ -15,9 +15,11 @@ Build and maintain the EcoCut Calculator, an Angular 21 single-page app (SPA) th
 4. Write pure, testable functions; keep components dumb and move business logic into services/helpers as they emerge.
 5. Stick to SCSS; avoid inline styles except for quick prototypes.
 6. Favor RxJS streams or Angular Signals for state over ad-hoc globals.
-7. Keep templates accessible (semantic tags, ARIA labels, keyboard flows) and UX copy purposeful—speed should never sacrifice usability.
-8. Never code without a plan: document the intended approach (sketch, checklist, or ADR) before opening a PR.
-9. Never assume requirements—ask, discuss, and capture the agreement before implementing.
+7. Share what's shareable: prefer libs/modules for cross-feature components/services so frontend & backend (Nest) can reuse DTOs, validation schemas, and utilities via a `/libs` or `/shared` workspace.
+8. Keep templates accessible (semantic tags, ARIA labels, keyboard flows) and UX copy purposeful—speed should never sacrifice usability.
+9. Stick to a unified design system: SCSS variables/mixins, spacing scales, and typography go into shared theme files so every page feels part of the same product.
+10. Never code without a plan: document the intended approach (sketch, checklist, or ADR) before opening a PR.
+11. Never assume requirements—ask, discuss, and capture the agreement before implementing.
 
 ## Tooling Rules
 - Run `npm run lint` and `npm run test` before pushing.
@@ -31,7 +33,7 @@ Build and maintain the EcoCut Calculator, an Angular 21 single-page app (SPA) th
 2. Branch from the active integration branch (`dev`) using `feature/<ticket-id>-short-desc`.
 3. Keep `main`/`master` pristine for tagged releases only (alpha/beta/GA). Merge feature PRs into `dev`; promote to `main` only when the version is publish-ready.
 4. Build iteratively: design -> implement -> lint/test (all passing) -> review.
-5. Keep commits focused, logically sized, and descriptive; commit often enough to capture milestones without noise.
+5. Keep commits focused, logically sized, and descriptive; commit after each meaningful step so reviewers can follow the story (no giant “everything” commits).
 6. Document UI/UX changes in the functionality doc and changelog (to add later).
 
 ## Communication
