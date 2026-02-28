@@ -1,5 +1,19 @@
 <section class="home-shell">
   <article class="home-hero" aria-labelledby="home-hero-heading">
+    <div class="hero-brand-row">
+      <a routerLink="/" class="brand-link brand-link--logo" aria-label="Back to EcoCut home via logo">
+        <img src="assets/brand/eco-logo.png" alt="EcoCut logo" />
+      </a>
+      <a routerLink="/" class="brand-link brand-link--mascot" aria-label="Back to EcoCut home via mascot">
+        <img
+          src="assets/brand/eco-mascot.png"
+          alt="EcoCut mascot"
+          loading="lazy"
+          onerror="this.src='assets/brand/mascot-placeholder.svg'; this.onerror=null;"
+        />
+      </a>
+    </div>
+
     <div class="hero-header">
       <div class="hero-copy">
         <p class="eyebrow">Operations snapshot</p>
@@ -10,19 +24,6 @@
           <span class="hero-cta__hint">Speed-first workflow • Dark Evergreen theme</span>
         </div>
       </div>
-
-      <figure class="hero-brand" aria-label="EcoCut brand">
-        <img
-          src="assets/brand/eco-logo.png"
-          alt="EcoCut logo"
-          class="hero-logo"
-          loading="lazy"
-        />
-        <picture class="hero-mascot">
-          <source srcset="assets/brand/eco-mascot.png" />
-          <img src="assets/brand/mascot-placeholder.svg" alt="EcoCut mascot" loading="lazy" />
-        </picture>
-      </figure>
     </div>
 
     <app-hero-metrics [metrics]="heroMetrics()" />
