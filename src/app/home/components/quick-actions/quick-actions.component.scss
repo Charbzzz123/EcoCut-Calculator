@@ -1,0 +1,45 @@
+.quick-actions__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.quick-action {
+  border: 1px solid var(--border-soft);
+  border-radius: 1rem;
+  padding: 0.85rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: rgba(15, 34, 24, 0.85);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.quick-action:hover {
+  border-color: var(--accent-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+}
+
+.icon {
+  font-size: 1.35rem;
+}
+
+.text strong {
+  display: block;
+  color: var(--text-primary);
+}
+
+.text small {
+  color: var(--text-muted);
+}
+
+.quick-actions__empty {
+  margin: 0;
+  color: var(--text-muted);
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px dashed var(--border-soft);
+}

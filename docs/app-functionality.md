@@ -16,6 +16,8 @@
 
 ## Home Screen UX
 - **Primary CTA**: prominent “New Job” button available above the fold and as a floating action button on mobile.
+- **Layout**: hero header with an “Operations snapshot” eyebrow, welcome copy, and hero metrics grid; quick action tiles live immediately below so users can jump to Undo, Manage Employees, or Advanced Options without scrolling.
+- **Theme**: dark evergreen palette with EcoCut logo + mascot imagery in the hero to reinforce branding while keeping contrast WCAG-compliant.
 - **Hero Metrics** (card grid): Jobs logged today, Today’s gross pre-tax total, Current PRF balance, Outstanding Charbel owed.
 - **Action Shortcuts**: quick links for `New Job`, `Undo Last Entry`, `Manage Employees`, `Advanced Options`.
 - **Activity Feed**: recent jobs list showing partner names, gross amount, status, and timestamp with a link to view details.

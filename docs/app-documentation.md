@@ -53,3 +53,9 @@ The `/server` directory hosts a NestJS 11 project (ESM) with its own tooling (ES
 - Replace placeholder Angular template with real calculator components.
 - Flesh out server requirements and link to front end via API clients.
 - Automate documentation publishing (Docs site or wiki) once scope grows.
+
+## Branding & Theming
+- **Design tokens** live in src/styles/theme.scss; src/styles.scss simply consumes those variables so tokens stay centralized.
+- **Dark evergreen palette** keeps the UI in sync with the EcoCut brand (deep greens, neon growth accents).
+- **Brand assets** belong in public/assets/brand/. Expected files: eco-logo.png (wordmark) and eco-mascot.png (character). A placeholder SVG loads if the mascot file is absent.
+

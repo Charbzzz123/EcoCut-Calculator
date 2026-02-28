@@ -1,0 +1,10 @@
+<div class="metric-card" [attr.data-trend]="metric.trend">
+  <p class="metric-label">{{ metric.label }}</p>
+  <p class="metric-value">{{ metric.value }}</p>
+  @if (metric.deltaLabel) {
+    <p class="metric-delta">
+      <span>{{ trendIcon }}</span>
+      {{ metric.deltaLabel }}
+    </p>
+  }
+</div>

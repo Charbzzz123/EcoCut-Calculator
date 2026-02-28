@@ -1,0 +1,26 @@
+:root {
+  --surface: #050f0b;
+  --surface-card: #101e16;
+  --surface-hero: radial-gradient(circle at 20% 20%, rgba(32, 80, 55, 0.55), rgba(5, 15, 11, 0.95));
+  --surface-panel: rgba(19, 37, 28, 0.85);
+  --surface-glow: rgba(106, 255, 183, 0.15);
+  --border-soft: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(134, 239, 172, 0.35);
+  --text-primary: #f3fff5;
+  --text-muted: #96b5a3;
+  --text-inverse: #061209;
+  --accent-primary: #4ade80;
+  --accent-secondary: #22c55e;
+  --accent-amber: #fcd34d;
+  --gradient-accent: linear-gradient(120deg, #4ade80, #22d3ee);
+  --shadow-elevated: 0 25px 55px rgba(3, 10, 7, 0.65);
+  --card-radius: 1.25rem;
+  --blur-lg: 30px;
+  --font-family-base: 'Inter', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --text-primary: #e4f5e8;
+  }
+}

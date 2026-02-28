@@ -1,0 +1,41 @@
+<section class="home-shell">
+  <article class="home-hero" aria-labelledby="home-hero-heading">
+    <div class="hero-header">
+      <div class="hero-copy">
+        <p class="eyebrow">Operations snapshot</p>
+        <h1 id="home-hero-heading">EcoCut Dashboard</h1>
+        <p>Review performance, jump into the next quote, or adjust your team in seconds.</p>
+        <div class="hero-cta">
+          <button type="button" class="primary" (click)="facade.startNewJob()">New Job</button>
+          <span class="hero-cta__hint">Speed-first workflow • Dark Evergreen theme</span>
+        </div>
+      </div>
+
+      <figure class="hero-brand" aria-label="EcoCut brand">
+        <img
+          src="assets/brand/eco-logo.png"
+          alt="EcoCut logo"
+          class="hero-logo"
+          loading="lazy"
+        />
+        <picture class="hero-mascot">
+          <source srcset="assets/brand/eco-mascot.png" />
+          <img src="assets/brand/mascot-placeholder.svg" alt="EcoCut mascot" loading="lazy" />
+        </picture>
+      </figure>
+    </div>
+
+    <app-hero-metrics [metrics]="heroMetrics()" />
+  </article>
+
+  <article class="home-actions" aria-label="Quick actions">
+    <app-quick-actions
+      [actions]="quickActions()"
+      (actionSelected)="onQuickAction($event)"
+    />
+  </article>
+
+  <button type="button" class="floating-cta" (click)="facade.startNewJob()">
+    + New Job
+  </button>
+</section>

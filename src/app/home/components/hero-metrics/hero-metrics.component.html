@@ -1,0 +1,11 @@
+<section class="hero-metrics" aria-label="Hero metrics">
+  @if (metrics?.length) {
+    <div class="hero-metrics__grid">
+      @for (metric of metrics; track metric.id) {
+        <app-metric-card [metric]="metric" />
+      }
+    </div>
+  } @else {
+    <p class="hero-metrics__empty">Add metrics to see your dashboard summary.</p>
+  }
+</section>

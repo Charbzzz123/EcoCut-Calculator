@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { HomeShellComponent } from './home/home-shell.component';
+import { HomeShellComponent } from './home/home-shell.component.js';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'home' },

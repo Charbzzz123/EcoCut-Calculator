@@ -21,7 +21,7 @@ Build and maintain the EcoCut Calculator, an Angular 21 single-page app (SPA) th
 
 ## Tooling Rules
 - Run `npm run lint` and `npm run test` before pushing.
-- Aim for full file coverage; add or update specs alongside every feature/fix.
+- Enforce **100% coverage per file** (statements/branches/functions/lines). Yellow reports mean failure—write or extend specs until every metric is green before committing.
 - Use Prettier for formatting; never hand-format conflicting styles.
 - Husky hooks run automatically after `npm install`; do not bypass unless broken.
 - Prefer `npm.cmd` when PowerShell policies block scripts.
@@ -38,3 +38,4 @@ Build and maintain the EcoCut Calculator, an Angular 21 single-page app (SPA) th
 - Document major decisions in pull requests and in `docs/app-documentation.md`.
 - Surface blockers early; never let an unresolved issue sit silently.
 - Keep README updated for onboarding; mirror high-level info in project wiki when available.
+
