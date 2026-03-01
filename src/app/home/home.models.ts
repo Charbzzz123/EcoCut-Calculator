@@ -34,6 +34,8 @@ export interface WeeklyHourSummary {
   id: string;
   employee: string;
   hours: string;
+  amount: string;
   role?: string;
 }
+
 

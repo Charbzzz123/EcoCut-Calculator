@@ -13,20 +13,8 @@ export class HomeDataService {
         deltaLabel: '+$320',
         trend: 'up',
       },
-      {
-        id: 'prf-balance',
-        label: 'PRF balance',
-        value: '$32,410',
-        deltaLabel: 'steady',
-        trend: 'flat',
-      },
-      {
-        id: 'charbel-owed',
-        label: 'Charbel owed',
-        value: '$8,150',
-        deltaLabel: '-$450',
-        trend: 'down',
-      },
+      { id: 'prf-balance', label: 'PRF balance', value: '$32,410', deltaLabel: 'steady', trend: 'flat' },
+      { id: 'charbel-owed', label: 'Charbel owed', value: '$8,150', deltaLabel: '-$450', trend: 'down' },
     ];
   }
 
@@ -118,16 +106,14 @@ export class HomeDataService {
       },
     ];
   }
+
   getWeeklyHourSummaries(): WeeklyHourSummary[] {
     return [
-      { id: 'emp-karam', employee: 'Karam', hours: '32h', role: 'Lead tech' },
-      { id: 'emp-nassif', employee: 'Nassif', hours: '28h', role: 'Crew' },
-      { id: 'emp-sam', employee: 'Sam', hours: '24h', role: 'Crew' },
-      { id: 'emp-ally', employee: 'Ally', hours: '18h', role: 'Support' },
+      { id: 'emp-karam', employee: 'Karam', hours: '32h', role: 'Lead tech', amount: '$1,240' },
+      { id: 'emp-nassif', employee: 'Nassif', hours: '28h', role: 'Crew', amount: '$1,010' },
+      { id: 'emp-adlane', employee: 'Adlane', hours: '24h', role: 'Crew', amount: '$870' },
+      { id: 'emp-marco', employee: 'Marco', hours: '18h', role: 'Support', amount: '$620' },
     ];
   }
 }
-
-
-
 
