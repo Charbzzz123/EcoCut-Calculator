@@ -26,6 +26,29 @@
       </div>
     </div>
 
+    <section class="weekly-hours" aria-label="This week's hours">
+      <div class="weekly-hours__header">
+        <div>
+          <p class="weekly-hours__title">This week's hours</p>
+          <small class="weekly-hours__hint">Live data coming soon</small>
+        </div>
+      </div>
+      <ul class="weekly-hours__list">
+        @if (weeklyHours().length) {
+          @for (summary of weeklyHours(); track summary.id) {
+            <li class="weekly-hours__item">
+              <span class="weekly-hours__name">{{ summary.employee }}</span>
+              <span class="weekly-hours__role">{{ summary.role }}</span>
+              <span class="weekly-hours__hours">{{ summary.hours }}</span>
+            </li>
+          }
+        } @else {
+          <li class="weekly-hours__item weekly-hours__item--empty">
+            <span>Hours summary loading...</span>
+          </li>
+        }
+      </ul>
+    </section>
     <app-hero-metrics [metrics]="heroMetrics()" />
   </article>
 
@@ -40,3 +63,5 @@
     + New Job
   </button>
 </section>
+
+

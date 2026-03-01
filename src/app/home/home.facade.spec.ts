@@ -35,14 +35,24 @@ describe('HomeFacade', () => {
   });
 
   it('handles navigation quick actions', () => {
-    facade.handleQuickAction('new-job');
-    expect(router.lastUrl).toBe('/jobs/new');
+    const expectations: Array<{ command: Parameters<HomeFacade['handleQuickAction']>[0]; url: string }> = [
+      { command: 'new-job', url: '/jobs/new' },
+      { command: 'start-next-job', url: '/jobs/next' },
+      { command: 'manage-employees', url: '/admin/employees' },
+      { command: 'view-employee-directory', url: '/admin/employees/directory' },
+      { command: 'view-clients', url: '/clients' },
+      { command: 'view-schedule', url: '/schedule' },
+      { command: 'view-finances', url: '/finances' },
+      { command: 'view-upcoming-pay', url: '/payroll/upcoming' },
+      { command: 'view-performance', url: '/analytics/performance' },
+      { command: 'broadcast-clients', url: '/communications/broadcast' },
+      { command: 'advanced-options', url: '/admin/advanced' },
+    ];
 
-    facade.handleQuickAction('manage-employees');
-    expect(router.lastUrl).toBe('/admin/employees');
-
-    facade.handleQuickAction('advanced-options');
-    expect(router.lastUrl).toBe('/admin/advanced');
+    expectations.forEach(({ command, url }) => {
+      facade.handleQuickAction(command);
+      expect(router.lastUrl).toBe(url);
+    });
   });
 
   it('logs when undo action is triggered', () => {
@@ -70,3 +80,4 @@ describe('HomeFacade', () => {
     infoSpy.mockRestore();
   });
 });
+

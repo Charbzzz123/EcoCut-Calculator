@@ -16,6 +16,7 @@ export class HomeShellComponent {
   protected readonly facade = inject(HomeFacade);
   protected readonly heroMetrics = this.facade.heroMetrics;
   protected readonly quickActions = this.facade.quickActions;
+  protected readonly weeklyHours = this.facade.weeklyHours;
 
   protected onQuickAction(command: Parameters<HomeFacade['handleQuickAction']>[0]): void {
     this.facade.handleQuickAction(command);

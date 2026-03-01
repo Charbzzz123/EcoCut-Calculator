@@ -15,11 +15,12 @@ export class MetricCardComponent {
   protected get trendIcon(): string {
     switch (this.metric.trend) {
       case 'up':
-        return '▲';
+        return '\u25B2';
       case 'down':
-        return '▼';
+        return '\u25BC';
       default:
-        return '→';
+        return '\u2192';
     }
   }
 }
+

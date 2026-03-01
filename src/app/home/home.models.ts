@@ -8,7 +8,19 @@ export interface HeroMetric {
   trend?: TrendDirection;
 }
 
-export type QuickActionCommand = 'new-job' | 'undo-job' | 'manage-employees' | 'advanced-options';
+export type QuickActionCommand =
+  | 'new-job'
+  | 'undo-job'
+  | 'manage-employees'
+  | 'advanced-options'
+  | 'view-clients'
+  | 'view-schedule'
+  | 'view-employee-directory'
+  | 'view-finances'
+  | 'view-upcoming-pay'
+  | 'start-next-job'
+  | 'view-performance'
+  | 'broadcast-clients';
 
 export interface QuickAction {
   id: string;
@@ -17,3 +29,11 @@ export interface QuickAction {
   icon: string;
   command: QuickActionCommand;
 }
+
+export interface WeeklyHourSummary {
+  id: string;
+  employee: string;
+  hours: string;
+  role?: string;
+}
+
