@@ -24,6 +24,14 @@ export class HomeFacade {
     this.navigateWhenReady('/jobs/next');
   }
 
+  startWarmLead(): void {
+    this.navigateWhenReady('/leads/new');
+  }
+
+  startCustomerClosed(): void {
+    this.navigateWhenReady('/customers/new');
+  }
+
   undoLastEntry(): void {
     console.info('Undo last entry triggered');
   }

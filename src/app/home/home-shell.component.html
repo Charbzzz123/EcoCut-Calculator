@@ -20,7 +20,6 @@
         <h1 id="home-hero-heading">EcoCut Dashboard</h1>
         <p>Review performance, jump into the next quote, or adjust your team in seconds.</p>
         <div class="hero-cta">
-          <button type="button" class="primary" (click)="facade.startNewJob()">New Job</button>
           <span class="hero-cta__hint">Speed-first workflow • Dark Evergreen theme</span>
         </div>
       </div>
@@ -60,9 +59,34 @@
     />
   </article>
 
-  <button type="button" class="floating-cta" (click)="facade.startNewJob()">
-    + New Job
-  </button>
+  <div
+    #addEntryDropdown
+    class="cta-dropdown cta-dropdown--floating"
+    [class.cta-dropdown--open]="addEntryMenuOpen()"
+    (focusout)="handleDropdownFocusOut($event)"
+  >
+    <button
+      type="button"
+      class="floating-cta"
+      aria-haspopup="true"
+      [attr.aria-expanded]="addEntryMenuOpen()"
+      (click)="toggleAddEntryMenu()"
+    >
+      Add Entry
+    </button>
+    <ul class="cta-dropdown__menu" aria-label="Add entry options">
+      <li>
+        <button type="button" class="dropdown-btn dropdown-btn--warm" (click)="startWarmLead()">
+          + Warm Lead
+        </button>
+      </li>
+      <li>
+        <button type="button" class="dropdown-btn dropdown-btn--customer" (click)="startCustomerClosed()">
+          + Customer / Closed
+        </button>
+      </li>
+    </ul>
+  </div>
 </section>
 
 
