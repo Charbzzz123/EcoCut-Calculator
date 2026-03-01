@@ -35,7 +35,7 @@ describe('HomeFacade', () => {
   });
 
   it('handles navigation quick actions', () => {
-    const expectations: Array<{ command: Parameters<HomeFacade['handleQuickAction']>[0]; url: string }> = [
+    const expectations: { command: Parameters<HomeFacade['handleQuickAction']>[0]; url: string }[] = [
       { command: 'new-job', url: '/jobs/new' },
       { command: 'start-next-job', url: '/jobs/next' },
       { command: 'manage-employees', url: '/admin/employees' },
@@ -64,7 +64,7 @@ describe('HomeFacade', () => {
 
   it('warns on unknown quick actions', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    facade.handleQuickAction('unknown' as any);
+    facade.handleQuickAction('unknown' as unknown as Parameters<HomeFacade['handleQuickAction']>[0]);
     expect(warnSpy).toHaveBeenCalledWith('Unhandled quick action', 'unknown');
     warnSpy.mockRestore();
   });
