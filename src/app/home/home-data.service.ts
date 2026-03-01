@@ -106,7 +106,7 @@ export class HomeDataService {
         id: 'broadcast',
         label: 'Client Broadcast',
         description: 'Send announcement to all clients',
-        icon: '\u{1F4E7}',
+        icon: '\u{1F4AC}',
         command: 'broadcast-clients',
       },
       {
