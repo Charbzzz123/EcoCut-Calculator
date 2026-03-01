@@ -13,8 +13,20 @@ export class HomeDataService {
         deltaLabel: '+$320',
         trend: 'up',
       },
-      { id: 'prf-balance', label: 'PRF balance', value: '$32,410', deltaLabel: 'steady', trend: 'flat' },
-      { id: 'charbel-owed', label: 'Charbel owed', value: '$8,150', deltaLabel: '-$450', trend: 'down' },
+      {
+        id: 'prf-balance',
+        label: 'PRF balance',
+        value: '$32,410',
+        deltaLabel: 'steady',
+        trend: 'flat',
+      },
+      {
+        id: 'charbel-owed',
+        label: 'Charbel owed',
+        value: '$8,150',
+        deltaLabel: '-$450',
+        trend: 'down',
+      },
     ];
   }
 
@@ -80,7 +92,7 @@ export class HomeDataService {
         id: 'upcoming-pay',
         label: 'Upcoming Pay',
         description: 'Preview payroll obligations',
-        icon: '\u{1F932}',
+        icon: '\u{1F4B8}',
         command: 'view-upcoming-pay',
       },
       {
@@ -116,4 +128,3 @@ export class HomeDataService {
     ];
   }
 }
-
