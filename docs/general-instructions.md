@@ -25,6 +25,10 @@ Build and maintain the EcoCut Calculator, an Angular 21 single-page app (SPA) th
 - Use Prettier for formatting; never hand-format conflicting styles.
 - Husky hooks run automatically after `npm install`; do not bypass unless broken.
 - Prefer `npm.cmd` when PowerShell policies block scripts.
+- **Secrets & Keys**
+  - Never commit API keys, service-account files, or `.env` values. Store them outside the repo (e.g., `C:\secrets\...`) and load via environment variables.
+  - Confirm `.gitignore` entries exist before generating secrets (Google Calendar JSON, etc.).
+  - If a secret ever leaks into git history, remove it with a rebase and rotate credentials immediately.
 
 ## Workflow
 1. Create a task ticket; write down acceptance criteria and planned approach.

@@ -1,4 +1,4 @@
-# EcoCut Calculator – Functionality Catalog
+ï»¿# EcoCut Calculator â€“ Functionality Catalog
 
 ## Scope Overview
 - Rebuild the legacy "Job Calculator" workflow with a modern Angular/Nest stack.
@@ -15,11 +15,11 @@
 5. User can click **Undo Last Entry** to rollback the most recent Job atomically (logs, balances, invoice tracker, summaries).
 
 ## Home Screen UX
-- **Primary CTA**: prominent “New Job” button available above the fold and as a floating action button on mobile.
-- **Layout**: hero header with an “Operations snapshot” eyebrow, welcome copy, and hero metrics grid; quick action tiles live immediately below so users can jump to Undo, Manage Employees, or Advanced Options without scrolling.
+- **Primary CTA**: â€œAdd Entryâ€ pill button above the fold plus a floating CTA pinned to the bottom-right. Hover/click reveals quick sub-actions (`+ Warm Lead`, `+ Customer / Closed`) that trigger their respective flows; options auto-hide when focus leaves the button group.
+- **Layout**: hero header with an â€œOperations snapshotâ€ eyebrow, welcome copy, and hero metrics grid; quick action tiles live immediately below so users can jump to Undo, Manage Employees, or Advanced Options without scrolling.
 - **Theme**: dark evergreen palette with EcoCut logo + mascot imagery in the hero to reinforce branding while keeping contrast WCAG-compliant.
-- **Hero Metrics** (card grid): Jobs logged today, Today’s gross pre-tax total, Current PRF balance, Outstanding Charbel owed.
-- **Action Shortcuts**: quick links for `Add Job`, `Start Next Job`, `Undo Last Entry`, `Manage Employees`, `Employee List`, `Clients`, `Schedule`, `Finances`, `Upcoming Pay`, `Performance Stats`, `Client Broadcast`, and `Advanced Options`.
+- **Hero Metrics** (card grid): Jobs logged today, Todayâ€™s gross pre-tax total, Current PRF balance, Outstanding Charbel owed.
+- **Action Shortcuts**: quick links for `Add Job`, `Start Next Job`, `Undo Last Entry`, `Manage Employees`, `Employee List`, `Clients`, `Schedule`, `Finances`, `Upcoming Pay`, `Performance Stats`, `Client Broadcast`, and `Advanced Options`. Icons follow the latest emoji/icon guidance (dollar for Finances, calendar for Schedule, flex arm for Performance, group for Employee List, etc.).
 - **Activity Feed**: recent jobs list showing partner names, gross amount, status, and timestamp with a link to view details.
 - **Alerts Panel**: notifications for configuration changes, commission updates, or payroll anomalies requiring attention.
 - **Insights Widgets**: weekly payroll snapshot (hours + wages per employee) and PRF trend mini-chart.
@@ -32,7 +32,7 @@
 - **Funds Snapshot**: `PRF`, `CharbelOwed`, and future funds; required for display + mutation.
 - **Invoice Tracker**: map of `{year -> lastSequence}` to generate IDs like `2026-004`.
 
-### Dynamic Data Management Requirements
+### Dynamic Data & Integrations
 - Manage every catalog (Partners, Employees, Representatives) directly in the app via admin screens:
   - Add/remove/update entries without redeploying; persist changes immediately.
   - Employee records capture name, hourly rate, optional default hours.
@@ -41,6 +41,7 @@
 - Advanced Options panel exposes calculation constants (tax rate, reserve %, labour %, surplus split, commission fallback %) so admins can adjust values with audit trails.
 - Changes propagate instantly to the calculator UI (forms rehydrate from live datasets).
 - Capture who/when updates are made for traceability (user + timestamp fields or an audit log).
+- **Calendar Sync (backend)**: When an entry is logged (job, warm lead, or closed customer), the server can optionally push it to EcoCutâ€™s Google Calendar by calling `/calendar/events`. Event metadata includes summary, description, time window, and attendee list; undo/removals issue the corresponding `DELETE` call, keeping the calendar in sync.
 
 #### Admin UX Requirements
 - **Audit & Traceability**
@@ -49,9 +50,9 @@
   - Retain audit logs indefinitely unless retention policy is defined later.
 - **Access Control**
   - Roles:
-    - **Owner** – full control (catalog CRUD, advanced options, funds overrides, undo, future clock-in approvals).
-    - **Manager** – can add employees and adjust their hours/default schedules; can initiate employee clock-ins once that feature ships; read-only for other catalogs/settings.
-    - **Employee** – view-only access to their assignments/summaries.
+    - **Owner** â€“ full control (catalog CRUD, advanced options, funds overrides, undo, future clock-in approvals).
+    - **Manager** â€“ can add employees and adjust their hours/default schedules; can initiate employee clock-ins once that feature ships; read-only for other catalogs/settings.
+    - **Employee** â€“ view-only access to their assignments/summaries.
   - Admin screens gated behind authentication; role-based guards enforce capabilities above.
   - Advanced Options (tax/split tuning) accessible only to Owners with an extra confirmation step.
 - **Partners Manager**
@@ -63,7 +64,7 @@
   - Grid listing Name, Hourly Rate, Default Hours, Active flag.
   - Validation: rate > 0 with two-decimal precision; hours >= 0 (can be fractional); names unique.
   - Supports batch rate updates (e.g., apply % increase) with preview modal.
-  - Prevent deletion if employee appears in current week jobs—require archive (inactive) instead.
+  - Prevent deletion if employee appears in current week jobsâ€”require archive (inactive) instead.
 - **Representatives Manager**
   - List with Name, Commission %, Active flag.
   - Validation: commission between 0 and 100%; decimal precision to 2 places.
@@ -72,11 +73,11 @@
 - **Advanced Options Panel**
   - Form groups by category (Taxation, Splits, Invoice Rules, Safety Nets).
   - Each field shows default + current values and tooltips explaining downstream impact.
-  - Require confirmation modal summarizing changes before saving; include “effective from” timestamp.
+  - Require confirmation modal summarizing changes before saving; include â€œeffective fromâ€ timestamp.
   - Persist changes versioned; show history list with revert option.
 - **General UX**
   - Optimistic updates with toasts on success; rollback on failure.
-  - Autosave disabled—explicit Save button to avoid accidental edits.
+  - Autosave disabledâ€”explicit Save button to avoid accidental edits.
   - All forms must surface validation errors inline plus summary banner.
   - Provide search/filter on each catalog screen for speed with large datasets.
 
@@ -125,14 +126,14 @@ Steps (should live in a pure domain service):
 | PRF draw behavior           | Cover wage shortfall | Toggle thresholds       | Determines whether PRF auto-covers deficits or raises warning. |
 
 ## Persistence Model
-- **Job (History) Record** – single source of truth with fields: date, grossPreTax, withTax flag, partner CSV, employee summary, wageBill, commission, rep, charReimb, partnerPay, employeePot, surplus, owner40, reinv60, prfContribution, invoiceNumber, jobId.
-- **PartnersLog** – one row per partner per job `(date, partner, share, jobId)`.
-- **PartnersTotals** – lifetime totals per partner (increment/decrement on log/undo).
-- **Owners40Totals** – aggregate owner40 running sum.
-- **PayrollLog** – one row per employee per job `(date, employee, hours, rate, wage, jobId)`.
-- **RepLog** – only when commission is used `(date, rep, commission, jobId)`.
-- **Funds Store** – key/value totals for `PRF`, `CharbelOwed`, future reserves.
-- **InvoiceTracker** – {year -> lastSequence}; invoice assigned only when tax flag is true.
+- **Job (History) Record** â€“ single source of truth with fields: date, grossPreTax, withTax flag, partner CSV, employee summary, wageBill, commission, rep, charReimb, partnerPay, employeePot, surplus, owner40, reinv60, prfContribution, invoiceNumber, jobId.
+- **PartnersLog** â€“ one row per partner per job `(date, partner, share, jobId)`.
+- **PartnersTotals** â€“ lifetime totals per partner (increment/decrement on log/undo).
+- **Owners40Totals** â€“ aggregate owner40 running sum.
+- **PayrollLog** â€“ one row per employee per job `(date, employee, hours, rate, wage, jobId)`.
+- **RepLog** â€“ only when commission is used `(date, rep, commission, jobId)`.
+- **Funds Store** â€“ key/value totals for `PRF`, `CharbelOwed`, future reserves.
+- **InvoiceTracker** â€“ {year -> lastSequence}; invoice assigned only when tax flag is true.
 
 ## Undo Semantics
 - Undo targets **only the last inserted Job**.
@@ -146,17 +147,18 @@ Steps (should live in a pure domain service):
   6. Remove the Job record and rebuild/recalculate summaries.
 
 ## Reporting & Summaries
-- **Weekly Summary** – bucket PayrollLog rows by week ending Saturday; aggregate hours and wages per employee.
-- **Daily Summary (Current Week)** – aggregate current week entries per day/employee.
-- **This-week Pay Widget** – quick glance of hours + wages per employee for the week starting Saturday.
+- **Weekly Summary** â€“ bucket PayrollLog rows by week ending Saturday; aggregate hours and wages per employee.
+- **Daily Summary (Current Week)** â€“ aggregate current week entries per day/employee.
+- **This-week Pay Widget** â€“ quick glance of hours + wages per employee for the week starting Saturday.
 - Summaries recalc after every Calculate/Undo to stay in sync.
 
 ## Decisions & Open Questions
-1. **Commission impact on pools** – legacy behavior *tracked* commission but did not subtract it from any pool (other than skipping PRF fallback). Decide whether the new system should explicitly deduct commission from available gross distributions.
-2. **Data storage** – confirm final storage tech (Sheets-compatible? SQL? Firestore?) because undo/transactions depend on locking semantics.
-3. **Partner/Employee catalogs** – define ownership (manual admin UI vs. synced data source) and how changes affect historical entries.
-4. **New UX flow** – determine how we expose speed-first interactions (e.g., auto-calculating on change vs. explicit "Calculate" button) without violating logging guarantees.
+1. **Commission impact on pools** â€“ legacy behavior *tracked* commission but did not subtract it from any pool (other than skipping PRF fallback). Decide whether the new system should explicitly deduct commission from available gross distributions.
+2. **Data storage** â€“ confirm final storage tech (Sheets-compatible? SQL? Firestore?) because undo/transactions depend on locking semantics.
+3. **Partner/Employee catalogs** â€“ define ownership (manual admin UI vs. synced data source) and how changes affect historical entries.
+4. **New UX flow** â€“ determine how we expose speed-first interactions (e.g., auto-calculating on change vs. explicit "Calculate" button) without violating logging guarantees.
 
 Update this document whenever we clarify rules or add new functionality so implementation always mirrors the agreed specification.
+
 
 

@@ -1,4 +1,4 @@
-# EcoCut Calculator � Technical Documentation
+﻿# EcoCut Calculator – Technical Documentation
 
 ## Overview
 EcoCut Calculator is a full-stack workspace composed of:
@@ -26,8 +26,18 @@ root/
 - **Build:** `@angular/build:application` (esbuild + Vite dev server) configured in `angular.json`.
 - **State:** Currently a single `title` signal; expand using dedicated state services/signals modules as features grow.
 
-## Backend Placeholder
-The `/server` directory hosts a NestJS 11 project (ESM) with its own tooling (ESLint, Prettier). It is not wired to the Angular app yet�treat it as a future service. Run backend scripts from `server/` (e.g., `npm run start:dev`). Document new endpoints inside `server/README.md` and mirror cross-cutting info back here.
+## Backend Services
+- `/server` hosts the NestJS 11 API (ESM). It now contains a **Google Calendar integration** for pushing EcoCut jobs/events.
+- REST endpoints (documented in `server/README.md`):
+  - `POST /calendar/events` – create an event with summary/description/start/end/timezone/attendees.
+  - `DELETE /calendar/events/:eventId` – remove a previously created event.
+- **Environment variables**
+  | Name | Required | Purpose |
+  | ---- | -------- | ------- |
+  | `GOOGLE_CALENDAR_CREDENTIALS_PATH` *or* `GOOGLE_CALENDAR_CREDENTIALS` | Yes | Points to / contains the service-account JSON for `ecocut-calendar-bot@ecocut-calendar-link.iam.gserviceaccount.com`. JSON files live outside the repo. |
+  | `GOOGLE_CALENDAR_ID` | Optional | Overrides the default target calendar (`ecojcut@gmail.com`). |
+- Failure to provide credentials disables the calendar module gracefully but the endpoints will throw a clear error—set env vars before local dev or deployments.
+- Always run backend scripts from `server/` (`npm run start:dev`, `npm run test`, etc.) so node_modules stay isolated.
 
 ## Tooling & Commands
 | Purpose        | Frontend Command            | Notes |
@@ -58,4 +68,5 @@ The `/server` directory hosts a NestJS 11 project (ESM) with its own tooling (ES
 - **Design tokens** live in src/styles/theme.scss; src/styles.scss simply consumes those variables so tokens stay centralized.
 - **Dark evergreen palette** keeps the UI in sync with the EcoCut brand (deep greens, neon growth accents).
 - **Brand assets** belong in public/assets/brand/. Expected files: eco-logo.png (wordmark) and eco-mascot.png (character). A placeholder SVG loads if the mascot file is absent.
+
 
