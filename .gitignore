@@ -37,6 +37,9 @@ yarn-error.log
 testem.log
 /typings
 __screenshots__/
+# Secrets
+ecocut-calendar-link-*.json
+secrets/
 
 # System files
 .DS_Store
