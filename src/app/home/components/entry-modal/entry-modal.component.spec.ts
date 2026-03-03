@@ -1,13 +1,68 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ElementRef, WritableSignal } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { vi } from 'vitest';
 import { EntryModalComponent, northAmericanPhoneValidator } from './entry-modal.component.js';
+import {
+  EntryModalPayload,
+  HedgeConfig,
+  HedgeState,
+  TrimPreset,
+} from '../../models/entry-modal.models.js';
 
-type Rect = { left: number; top: number; right: number; width: number; height: number };
+interface Rect {
+  left: number;
+  top: number;
+  right: number;
+  width: number;
+  height: number;
+}
+
+interface EntryModalTestHandles {
+  canvasHost?: ElementRef<HTMLElement>;
+  currentPanelSize: { width: number; height: number };
+  hostRectSnapshot: DOMRect | null;
+  floatingPanelEnabled: WritableSignal<boolean>;
+  panelPosition: WritableSignal<{ left: number; top: number }>;
+  panelState: WritableSignal<unknown>;
+  panelError: WritableSignal<string | null>;
+  hedgeStates: WritableSignal<Record<string, HedgeState>>;
+  savedConfigs: WritableSignal<Record<string, HedgeConfig>>;
+  beginPanelDrag(event: PointerEvent): void;
+  onPanelDragMove(event: PointerEvent): void;
+  onPanelDragEnd(): void;
+  closePanel(resetSelection?: boolean): void;
+  cancelPanel(): void;
+  savePanel(): void;
+  panelFloats(): boolean;
+  trimHasCustomSelections(): boolean;
+  trimPresetSelected(): TrimPreset | null;
+  readonly eyebrowText: string;
+  readonly headlineText: string;
+  readonly subcopyText: string;
+  readonly primaryLabelText: string;
+}
+
+const asInternals = (instance: EntryModalComponent): EntryModalTestHandles =>
+  instance as unknown as EntryModalTestHandles;
+
+const createElementRef = (rect: Rect): ElementRef<HTMLElement> =>
+  ({
+    nativeElement: {
+      getBoundingClientRect: () => ({
+        ...rect,
+        bottom: rect.top + rect.height,
+        x: rect.left,
+        y: rect.top,
+        toJSON: () => ({}),
+      }),
+    } as HTMLElement,
+  }) as unknown as ElementRef<HTMLElement>;
 
 describe('EntryModalComponent', () => {
   let fixture: ComponentFixture<EntryModalComponent>;
   let component: EntryModalComponent;
+  let internals: EntryModalTestHandles;
 
   const hostRect: Rect = { left: 0, top: 0, right: 820, width: 820, height: 520 };
   const createEvent = (): MouseEvent =>
@@ -35,18 +90,9 @@ describe('EntryModalComponent', () => {
 
     fixture = TestBed.createComponent(EntryModalComponent);
     component = fixture.componentInstance;
+    internals = asInternals(component);
     component.open = true;
-    component['canvasHost'] = {
-      nativeElement: {
-        getBoundingClientRect: () => ({
-          ...hostRect,
-          bottom: hostRect.top + hostRect.height,
-          x: hostRect.left,
-          y: hostRect.top,
-          toJSON: () => ({}),
-        }),
-      } as HTMLElement,
-    } as any;
+    internals.canvasHost = createElementRef(hostRect);
     fixture.detectChanges();
   });
 
@@ -54,7 +100,7 @@ describe('EntryModalComponent', () => {
     const savedSpy = vi.fn();
     component.saved.subscribe(savedSpy);
 
-    component.form.setValue({
+    component.form.patchValue({
       firstName: 'Alex',
       lastName: 'Stone',
       address: '123 Pine Ave',
@@ -66,21 +112,7 @@ describe('EntryModalComponent', () => {
       additionalDetails: '',
     });
 
-    (component as any).canvasHost = {
-      nativeElement: {
-        getBoundingClientRect: () => ({
-          left: 0,
-          top: 0,
-          right: 500,
-          width: 500,
-          height: 400,
-          bottom: 400,
-          x: 0,
-          y: 0,
-          toJSON: () => ({}),
-        }),
-      },
-    };
+    internals.canvasHost = createElementRef({ left: 0, top: 0, right: 500, width: 500, height: 400 });
 
     component['cycleHedge'](createEvent(), 'hedge-1');
     expect(component['panelPosition']().left).toBeGreaterThan(0);
@@ -308,49 +340,21 @@ describe('EntryModalComponent', () => {
       }),
     } as SVGGraphicsElement;
 
-    (component as any).canvasHost = {
-      nativeElement: {
-        getBoundingClientRect: () => ({
-          left: 0,
-          top: 0,
-          right: 780,
-          width: 780,
-          height: 480,
-          bottom: 480,
-          x: 0,
-          y: 0,
-          toJSON: () => ({}),
-        }),
-      },
-    };
+    internals.canvasHost = createElementRef({ left: 0, top: 0, right: 780, width: 780, height: 480 });
 
     component['updatePanelPosition'](element);
 
     expect(component['panelPosition']().left).toBeGreaterThan(0);
     expect(component['panelPosition']().top).toBeGreaterThanOrEqual(0);
 
-    (component as any).canvasHost = undefined;
+    internals.canvasHost = undefined;
     component['panelPosition'].set({ left: 0, top: 0 });
     component['updatePanelPosition'](element);
     expect(component['panelPosition']()).toEqual({ left: 0, top: 0 });
   });
 
   it('keeps hedge panels fully visible within canvas bounds', () => {
-    (component as any).canvasHost = {
-      nativeElement: {
-        getBoundingClientRect: () => ({
-          left: 0,
-          top: 0,
-          right: 760,
-          width: 760,
-          height: 320,
-          bottom: 320,
-          x: 0,
-          y: 0,
-          toJSON: () => ({}),
-        }),
-      },
-    };
+    internals.canvasHost = createElementRef({ left: 0, top: 0, right: 760, width: 760, height: 320 });
 
     const nearTop = {
       getBoundingClientRect: () => ({
@@ -367,8 +371,8 @@ describe('EntryModalComponent', () => {
     } as SVGGraphicsElement;
 
     component['updatePanelPosition'](nearTop);
-    const firstHostRect = (component as any).canvasHost.nativeElement.getBoundingClientRect();
-    const firstPanelSize = (component as any).currentPanelSize;
+    const firstHostRect = internals.canvasHost!.nativeElement.getBoundingClientRect();
+    const firstPanelSize = internals.currentPanelSize;
     const firstTop = component['panelPosition']().top;
     expect(firstTop).toBeGreaterThanOrEqual(0);
     expect(firstTop + firstPanelSize.height).toBeLessThanOrEqual(firstHostRect.height);
@@ -388,8 +392,8 @@ describe('EntryModalComponent', () => {
     } as SVGGraphicsElement;
 
     component['updatePanelPosition'](nearBottom);
-    const hostHeight = (component as any).canvasHost.nativeElement.getBoundingClientRect().height;
-    const secondPanelSize = (component as any).currentPanelSize;
+    const hostHeight = internals.canvasHost!.nativeElement.getBoundingClientRect().height;
+    const secondPanelSize = internals.currentPanelSize;
     const secondTop = component['panelPosition']().top;
     expect(secondTop).toBeGreaterThanOrEqual(0);
     expect(secondTop + secondPanelSize.height).toBeLessThanOrEqual(hostHeight);
@@ -428,22 +432,8 @@ describe('EntryModalComponent', () => {
       state: 'trim',
       trim: { mode: 'custom', inside: false, top: false, outside: false },
     });
-    (component as any).currentPanelSize = { width: 200, height: 150 };
-    (component as any).canvasHost = {
-      nativeElement: {
-        getBoundingClientRect: () => ({
-          left: 0,
-          top: 0,
-          right: 700,
-          width: 700,
-          height: 320,
-          bottom: 320,
-          x: 0,
-          y: 0,
-          toJSON: () => ({}),
-        }),
-      },
-    };
+    internals.currentPanelSize = { width: 200, height: 150 };
+    internals.canvasHost = createElementRef({ left: 0, top: 0, right: 700, width: 700, height: 320 });
     const panelEl = document.createElement('div');
     panelEl.classList.add('hedge-panel');
     panelEl.getBoundingClientRect = () => ({
@@ -479,8 +469,8 @@ describe('EntryModalComponent', () => {
     expect(clampedToTop.top).toBeGreaterThanOrEqual(18);
 
     component['onPanelDragMove']({ clientX: 2000, clientY: 2000 } as PointerEvent);
-    const hostDims = (component as any).canvasHost.nativeElement.getBoundingClientRect();
-    const size = (component as any).currentPanelSize;
+    const hostDims = internals.canvasHost!.nativeElement.getBoundingClientRect();
+    const size = internals.currentPanelSize;
     const clampedToBottom = component['panelPosition']();
     expect(clampedToBottom.left).toBeLessThanOrEqual(hostDims.width - size.width - 18);
     expect(clampedToBottom.top).toBeLessThanOrEqual(hostDims.height - size.height - 18);
@@ -491,21 +481,7 @@ describe('EntryModalComponent', () => {
   });
 
   it('centers the panel when no horizontal room exists but vertical space is available', () => {
-    (component as any).canvasHost = {
-      nativeElement: {
-        getBoundingClientRect: () => ({
-          left: 0,
-          top: 0,
-          right: 720,
-          width: 720,
-          height: 620,
-          bottom: 620,
-          x: 0,
-          y: 0,
-          toJSON: () => ({}),
-        }),
-      },
-    };
+    internals.canvasHost = createElementRef({ left: 0, top: 0, right: 720, width: 720, height: 620 });
 
     const spanning = {
       getBoundingClientRect: () => ({
@@ -523,8 +499,8 @@ describe('EntryModalComponent', () => {
 
     component['updatePanelPosition'](spanning);
     expect(component['panelFloats']()).toBe(true);
-    const hostDims = (component as any).canvasHost.nativeElement.getBoundingClientRect();
-    const size = (component as any).currentPanelSize;
+    const hostDims = internals.canvasHost!.nativeElement.getBoundingClientRect();
+    const size = internals.currentPanelSize;
     const expectedLeft = (hostDims.width - size.width) / 2;
     expect(component['panelPosition']().left).toBeCloseTo(expectedLeft, 3);
   });
@@ -532,22 +508,8 @@ describe('EntryModalComponent', () => {
   it('guards drag helpers when the panel cannot float', () => {
     const header = document.createElement('header');
     component['panelPosition'].set({ left: 10, top: 10 });
-    component['floatingPanelEnabled'].set(false);
-    component['canvasHost'] = {
-      nativeElement: {
-        getBoundingClientRect: () => ({
-          left: 0,
-          top: 0,
-          right: 400,
-          width: 400,
-          height: 200,
-          bottom: 200,
-          x: 0,
-          y: 0,
-          toJSON: () => ({}),
-        }),
-      },
-    } as any;
+    internals.floatingPanelEnabled.set(false);
+    internals.canvasHost = createElementRef({ left: 0, top: 0, right: 400, width: 400, height: 200 });
 
     component['beginPanelDrag']({
       currentTarget: header,
@@ -556,28 +518,14 @@ describe('EntryModalComponent', () => {
       preventDefault: () => undefined,
     } as unknown as PointerEvent);
 
-    expect(component['hostRectSnapshot']).toBeNull();
+    expect(internals.hostRectSnapshot).toBeNull();
 
     component['onPanelDragMove']({ clientX: 5, clientY: 5 } as PointerEvent);
     expect(component['panelPosition']()).toEqual({ left: 10, top: 10 });
   });
 
   it('uses the desktop panel sizing branch for wide canvases', () => {
-    (component as any).canvasHost = {
-      nativeElement: {
-        getBoundingClientRect: () => ({
-          left: 0,
-          top: 0,
-          right: 980,
-          width: 980,
-          height: 620,
-          bottom: 620,
-          x: 0,
-          y: 0,
-          toJSON: () => ({}),
-        }),
-      },
-    };
+    internals.canvasHost = createElementRef({ left: 0, top: 0, right: 980, width: 980, height: 620 });
 
     const element = {
       getBoundingClientRect: () => ({
@@ -594,27 +542,13 @@ describe('EntryModalComponent', () => {
     } as SVGGraphicsElement;
 
     component['updatePanelPosition'](element);
-    const size = (component as any).currentPanelSize;
+    const size = internals.currentPanelSize;
     expect(size.width).toBe(280);
     expect(component['panelFloats']()).toBe(true);
   });
 
   it('switches to compact mode on narrow canvases', () => {
-    (component as any).canvasHost = {
-      nativeElement: {
-        getBoundingClientRect: () => ({
-          left: 0,
-          top: 0,
-          right: 400,
-          width: 400,
-          height: 200,
-          bottom: 200,
-          x: 0,
-          y: 0,
-          toJSON: () => ({}),
-        }),
-      },
-    };
+    internals.canvasHost = createElementRef({ left: 0, top: 0, right: 400, width: 400, height: 200 });
     component['cycleHedge'](createEvent(), 'hedge-1');
     expect(component['panelFloats']()).toBe(false);
   });
@@ -646,7 +580,7 @@ describe('EntryModalComponent', () => {
     expect(panelEl).not.toBeNull();
     component['panelError'].set('Select at least one trim option.');
     fixture.detectChanges();
-    let trimError = panelEl?.querySelector('.error') as HTMLElement | null;
+    const trimError = panelEl?.querySelector('.error') as HTMLElement | null;
     expect(trimError?.textContent).toContain('Select at least one trim option.');
     const pointerEvent =
       typeof PointerEvent !== 'undefined'
@@ -710,26 +644,97 @@ describe('EntryModalComponent', () => {
     expect(savedSpy).not.toHaveBeenCalled();
   });
 
+  it('requires calendar details for customer entries', () => {
+    const savedSpy = vi.fn();
+    component.saved.subscribe(savedSpy);
+    component.variant = 'customer';
+    component.form.patchValue({
+      firstName: 'Maya',
+      lastName: 'K',
+      address: '42 Spruce',
+      phone: '438-555-9900',
+      jobType: 'Hedge Trimming',
+      jobValue: '900',
+    });
+
+    component['submitEntry']();
+
+    expect(savedSpy).not.toHaveBeenCalled();
+    expect(component.form.get('calendar.date')?.touched).toBe(true);
+  });
+
+  it('emits calendar payload when customer scheduling is provided', () => {
+    const savedSpy = vi.fn();
+    component.saved.subscribe(savedSpy);
+    component.variant = 'customer';
+    component.form.patchValue({
+      firstName: 'Noah',
+      lastName: 'B',
+      address: '9 Cedar',
+      phone: '438-000-0000',
+      jobType: 'Both',
+      jobValue: '1500',
+    });
+    component.form.get('calendar.date')?.setValue('2026-03-05');
+    component.form.get('calendar.startTime')?.setValue('09:00');
+    component.form.get('calendar.endTime')?.setValue('11:00');
+    component.form.get('calendar.notes')?.setValue('Bring ladder');
+
+    component['submitEntry']();
+
+    expect(savedSpy).toHaveBeenCalledTimes(1);
+    const payload = savedSpy.mock.calls[0][0] as EntryModalPayload;
+    expect(payload.calendar).toBeDefined();
+    expect(payload.calendar?.start).toContain('2026-03-05');
+    expect(payload.calendar?.end).toContain('2026-03-05');
+    expect(payload.calendar?.notes).toBe('Bring ladder');
+  });
+
+  it('flags when end time precedes start time and clears the error after fixing it', () => {
+    const savedSpy = vi.fn();
+    component.saved.subscribe(savedSpy);
+    component.variant = 'customer';
+    component.form.patchValue({
+      firstName: 'Liam',
+      lastName: 'N',
+      address: '512 Maple',
+      phone: '438-111-2222',
+      jobType: 'Hedge Trimming',
+      jobValue: '650',
+    });
+    component.form.get('calendar.date')?.setValue('2026-03-06');
+    component.form.get('calendar.startTime')?.setValue('11:00');
+    component.form.get('calendar.endTime')?.setValue('10:00');
+
+    component['submitEntry']();
+    expect(savedSpy).not.toHaveBeenCalled();
+    expect(component.form.get('calendar.endTime')?.errors?.['timeOrder']).toBe(true);
+
+    component.form.get('calendar.endTime')?.setValue('12:30');
+    component['submitEntry']();
+    expect(component.form.get('calendar.endTime')?.errors?.['timeOrder']).toBeUndefined();
+  });
+
   it('computes default and custom UI copy for the modal shell', () => {
-    expect((component as any).eyebrowText).toBe('Warm / Lead');
-    expect((component as any).headlineText).toBe('Add Entry');
-    expect((component as any).subcopyText).toContain('Speed-first workflow');
-    expect((component as any).primaryLabelText).toBe('Save Warm Lead');
+    expect(internals.eyebrowText).toBe('Warm / Lead');
+    expect(internals.headlineText).toBe('Add Entry');
+    expect(internals.subcopyText).toContain('Speed-first workflow');
+    expect(internals.primaryLabelText).toBe('Save Warm Lead');
 
     component.variant = 'customer';
-    expect((component as any).eyebrowText).toBe('Customer');
-    expect((component as any).headlineText).toBe('Add Customer');
-    expect((component as any).primaryLabelText).toBe('Save Customer');
+    expect(internals.eyebrowText).toBe('Customer');
+    expect(internals.headlineText).toBe('Add Customer');
+    expect(internals.primaryLabelText).toBe('Save Customer');
 
     component.eyebrow = 'Custom Eyebrow';
     component.headline = 'Custom Headline';
     component.subcopy = 'Custom Subcopy';
     component.primaryActionLabel = 'Log Customer';
 
-    expect((component as any).eyebrowText).toBe('Custom Eyebrow');
-    expect((component as any).headlineText).toBe('Custom Headline');
-    expect((component as any).subcopyText).toBe('Custom Subcopy');
-    expect((component as any).primaryLabelText).toBe('Log Customer');
+    expect(internals.eyebrowText).toBe('Custom Eyebrow');
+    expect(internals.headlineText).toBe('Custom Headline');
+    expect(internals.subcopyText).toBe('Custom Subcopy');
+    expect(internals.primaryLabelText).toBe('Log Customer');
   });
 
   it('executes template event bindings when interacting via the DOM', () => {
@@ -749,7 +754,7 @@ describe('EntryModalComponent', () => {
     });
     fixture.detectChanges();
 
-    const phoneField = fixture.nativeElement.querySelector('input[formcontrolname=\"phone\"]') as HTMLInputElement;
+    const phoneField = fixture.nativeElement.querySelector('input[formcontrolname="phone"]') as HTMLInputElement;
     phoneField.value = '4385551234';
     phoneField.dispatchEvent(new Event('input'));
     fixture.detectChanges();
@@ -802,6 +807,27 @@ describe('EntryModalComponent', () => {
     fixture.detectChanges();
   });
 
+  it('renders the calendar scheduling section for customer variant', () => {
+    const customerFixture = TestBed.createComponent(EntryModalComponent);
+    const customerComponent = customerFixture.componentInstance;
+    customerComponent.open = true;
+    customerComponent.variant = 'customer';
+    customerFixture.detectChanges();
+
+    const calendarBlock = customerFixture.nativeElement.querySelector('.calendar-block') as HTMLElement | null;
+    expect(calendarBlock).not.toBeNull();
+
+    customerComponent.form.get('calendar.date')?.markAsTouched();
+    customerComponent.form.get('calendar.startTime')?.markAsTouched();
+    customerComponent.form.get('calendar.endTime')?.markAsTouched();
+    customerFixture.detectChanges();
+
+    const errorTexts = Array.from(calendarBlock?.querySelectorAll('.error') ?? []).map((node) =>
+      node.textContent?.trim(),
+    );
+    expect(errorTexts.some((text) => text === 'Required')).toBe(true);
+  });
+
   it('wires close buttons through template events', () => {
     const closedSpy = vi.fn();
     component.closed.subscribe(closedSpy);
@@ -824,8 +850,8 @@ describe('EntryModalComponent', () => {
       trim: { mode: 'custom', inside: false, top: false, outside: false },
     });
     component['panelPosition'].set({ left: 18, top: 18 });
-    const cancelPanelSpy = vi.spyOn(component as any, 'cancelPanel');
-    const savePanelSpy = vi.spyOn(component as any, 'savePanel');
+    const cancelPanelSpy = vi.spyOn(internals, 'cancelPanel');
+    const savePanelSpy = vi.spyOn(internals, 'savePanel');
     fixture.detectChanges();
 
     const panelButtons = fixture.nativeElement.querySelectorAll('.hedge-panel footer button') as NodeListOf<HTMLButtonElement>;
@@ -839,7 +865,7 @@ describe('EntryModalComponent', () => {
   it('submits the form via the ngSubmit binding', () => {
     const savedSpy = vi.fn();
     component.saved.subscribe(savedSpy);
-    component.form.setValue({
+    component.form.patchValue({
       firstName: 'Jess',
       lastName: 'H',
       address: '1 Cedar',

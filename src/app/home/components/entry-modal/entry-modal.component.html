@@ -224,6 +224,52 @@
         </label>
       </section>
 
+      @if (requiresCalendar()) {
+        <section class="calendar-block" formGroupName="calendar">
+          <header>
+            <p class="section-title">Schedule on EcoCut Calendar</p>
+            <span class="helper">Customer jobs must be scheduled so the crew sees them in Google Calendar.</span>
+          </header>
+
+          <div class="schedule-grid">
+            <label>
+              <span>Date</span>
+              <input type="date" formControlName="date" />
+              @if (form.get('calendar.date')?.touched && form.get('calendar.date')?.invalid) {
+                <small class="error">Required</small>
+              }
+            </label>
+            <label>
+              <span>Start time</span>
+              <input type="time" formControlName="startTime" />
+              @if (form.get('calendar.startTime')?.touched && form.get('calendar.startTime')?.invalid) {
+                <small class="error">Required</small>
+              }
+            </label>
+            <label>
+              <span>End time</span>
+              <input type="time" formControlName="endTime" />
+              @if (form.get('calendar.endTime')?.errors?.['timeOrder']) {
+                <small class="error">End time must be after the start time</small>
+              } @else if (form.get('calendar.endTime')?.touched && form.get('calendar.endTime')?.invalid) {
+                <small class="error">Required</small>
+              }
+            </label>
+            <label class="wide">
+              <span>Calendar notes (optional)</span>
+              <textarea rows="2" formControlName="notes" placeholder="Crew-specific instructions for the event..."></textarea>
+            </label>
+          </div>
+
+          <div class="calendar-preview">
+            <p class="preview-title">Upcoming events</p>
+            <p class="helper">
+              Live Google Calendar availability will appear here in the next step so you can pick open slots.
+            </p>
+          </div>
+        </section>
+      }
+
         <footer class="form-footer">
           <button type="button" class="ghost" (click)="closeModal()">Cancel</button>
           <button type="submit" class="primary">{{ primaryLabelText }}</button>

@@ -15,6 +15,12 @@ export type TrimPreset = 'normal' | 'total';
 export type RabattageOption = 'partial' | 'total' | 'total_no_roots';
 export type EntryVariant = 'warm-lead' | 'customer';
 
+export interface EntryCalendarPayload {
+  start: string;
+  end: string;
+  notes?: string;
+}
+
 export interface TrimConfig {
   mode: 'custom' | 'preset';
   inside?: boolean;
@@ -48,6 +54,7 @@ export interface EntryModalPayload {
     additionalDetails?: string;
   };
   hedges: Record<HedgeId, HedgeConfig>;
+  calendar?: EntryCalendarPayload;
 }
 
 export const createEmptyHedgeState = (): Record<HedgeId, HedgeState> =>

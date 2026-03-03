@@ -6,15 +6,14 @@ import {
   Input,
   OnDestroy,
   Output,
-  Signal,
   ViewChild,
   inject,
   signal,
   WritableSignal,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
 import {
+  EntryCalendarPayload,
   EntryModalPayload,
   EntryVariant,
   HEDGE_IDS,
@@ -30,24 +29,36 @@ import {
 const hedgesList = HEDGE_IDS;
 
 type PanelState =
-  | { hedgeId: HedgeId; state: 'trim'; trim: TrimConfig }
-  | { hedgeId: HedgeId; state: 'rabattage'; rabattage: RabattageConfig };
+  | TrimPanelState
+  | RabattagePanelState;
 
-type RelativeRect = {
+interface TrimPanelState {
+  hedgeId: HedgeId;
+  state: 'trim';
+  trim: TrimConfig;
+}
+
+interface RabattagePanelState {
+  hedgeId: HedgeId;
+  state: 'rabattage';
+  rabattage: RabattageConfig;
+}
+
+interface RelativeRect {
   left: number;
   right: number;
   top: number;
   bottom: number;
   width: number;
   height: number;
-};
+}
 
-type SurroundingSpace = {
+interface SurroundingSpace {
   left: number;
   right: number;
   top: number;
   bottom: number;
-};
+}
 
 const PANEL_WIDTH = 280;
 const PANEL_HEIGHT = 250;
@@ -128,7 +139,15 @@ export const northAmericanPhoneValidator: ValidatorFn = (control) => {
 })
 export class EntryModalComponent implements OnDestroy {
   @Input({ required: true }) open = false;
-  @Input() variant: EntryVariant = 'warm-lead';
+  private _variant: EntryVariant = 'warm-lead';
+  @Input()
+  get variant(): EntryVariant {
+    return this._variant;
+  }
+  set variant(value: EntryVariant) {
+    this._variant = value;
+    this.syncCalendarValidators();
+  }
   @Input() headline?: string;
   @Input() eyebrow?: string;
   @Input() subcopy?: string;
@@ -150,7 +169,14 @@ export class EntryModalComponent implements OnDestroy {
     jobValue: ['', Validators.required],
     desiredBudget: [''],
     additionalDetails: [''],
+    calendar: this.fb.group({
+      date: [''],
+      startTime: [''],
+      endTime: [''],
+      notes: [''],
+    }),
   });
+  protected readonly calendarGroup = this.form.controls.calendar;
 
   readonly hedgeStates: WritableSignal<Record<HedgeId, HedgeState>>;
   readonly savedConfigs: WritableSignal<Record<HedgeId, HedgeConfig>>;
@@ -209,12 +235,17 @@ export class EntryModalComponent implements OnDestroy {
     return this.jobTypeControl.value !== '';
   }
 
+  protected requiresCalendar(): boolean {
+    return this.variant === 'customer';
+  }
+
   constructor() {
     this.hedgeStates = createHedgeStateSignal();
     this.savedConfigs = createSavedConfigsSignal();
     this.panelState = createPanelStateSignal();
     this.panelPosition = createPanelPositionSignal();
     this.panelError = createPanelErrorSignal();
+    this.syncCalendarValidators();
   }
 
   protected cycleHedge(event: MouseEvent, hedgeId: HedgeId): void {
@@ -372,8 +403,12 @@ export class EntryModalComponent implements OnDestroy {
   }
 
   protected submitEntry(): void {
+    this.syncCalendarValidators();
     if (this.form.invalid) {
       this.form.markAllAsTouched();
+      return;
+    }
+    if (!this.validateCalendarRange()) {
       return;
     }
 
@@ -395,6 +430,11 @@ export class EntryModalComponent implements OnDestroy {
       hedges: hedgesPayload,
     };
 
+    const calendarPayload = this.buildCalendarPayload();
+    if (calendarPayload) {
+      payload.calendar = calendarPayload;
+    }
+
     this.saved.emit(payload);
     this.resetModalState();
   }
@@ -405,6 +445,67 @@ export class EntryModalComponent implements OnDestroy {
 
   protected hasSavedConfig(hedgeId: HedgeId): boolean {
     return !!this.savedConfigs()[hedgeId] && this.savedConfigs()[hedgeId].state !== 'none';
+  }
+
+  private syncCalendarValidators(): void {
+    const calendar = this.calendarGroup;
+    const controls = [calendar.controls.date, calendar.controls.startTime, calendar.controls.endTime];
+    if (this.requiresCalendar()) {
+      controls.forEach((control) => {
+        control.addValidators(Validators.required);
+        control.updateValueAndValidity({ emitEvent: false });
+      });
+      return;
+    }
+    controls.forEach((control) => {
+      control.clearValidators();
+      control.setErrors(null);
+      control.updateValueAndValidity({ emitEvent: false });
+    });
+  }
+
+  private validateCalendarRange(): boolean {
+    if (!this.requiresCalendar()) {
+      return true;
+    }
+    const { date, startTime, endTime } = this.calendarGroup.getRawValue();
+    if (!date || !startTime || !endTime) {
+      this.calendarGroup.markAllAsTouched();
+      return false;
+    }
+    const startIso = this.combineDateTime(date, startTime);
+    const endIso = this.combineDateTime(date, endTime);
+    const endControl = this.calendarGroup.controls.endTime;
+    if (new Date(startIso).getTime() >= new Date(endIso).getTime()) {
+      endControl.setErrors({ ...(endControl.errors ?? {}), timeOrder: true });
+      endControl.markAsTouched();
+      return false;
+    }
+    if (endControl.errors?.['timeOrder']) {
+      const rest = { ...endControl.errors };
+      delete rest['timeOrder'];
+      endControl.setErrors(Object.keys(rest).length ? rest : null);
+    }
+    return true;
+  }
+
+  private combineDateTime(date: string, time: string): string {
+    return new Date(`${date}T${time}`).toISOString();
+  }
+
+  private buildCalendarPayload(): EntryCalendarPayload | undefined {
+    if (!this.requiresCalendar()) {
+      return undefined;
+    }
+    const { date, startTime, endTime, notes } = this.calendarGroup.getRawValue();
+    if (!date || !startTime || !endTime) {
+      return undefined;
+    }
+    return {
+      start: this.combineDateTime(date, startTime),
+      end: this.combineDateTime(date, endTime),
+      notes: notes?.trim() ? notes.trim() : undefined,
+    };
   }
 
   private buildHedgePayload(): Record<HedgeId, HedgeConfig> {
@@ -475,14 +576,12 @@ export class EntryModalComponent implements OnDestroy {
     hostRect: DOMRect,
     panelSize: { width: number; height: number },
   ): { left: number; top: number } {
-    let left: number;
-    if (spaces.right >= panelSize.width) {
-      left = rect.right + PANEL_GUTTER;
-    } else if (spaces.left >= panelSize.width) {
-      left = rect.left - panelSize.width - PANEL_GUTTER;
-    } else {
-      left = (hostRect.width - panelSize.width) / 2;
-    }
+    const left =
+      spaces.right >= panelSize.width
+        ? rect.right + PANEL_GUTTER
+        : spaces.left >= panelSize.width
+          ? rect.left - panelSize.width - PANEL_GUTTER
+          : (hostRect.width - panelSize.width) / 2;
 
     let top = rect.top + (rect.height - panelSize.height) / 2;
     if (top < PANEL_GUTTER && spaces.bottom >= panelSize.height) {
@@ -502,6 +601,7 @@ export class EntryModalComponent implements OnDestroy {
     this.panelError.set(null);
     this.panelPosition.set({ left: 0, top: 0 });
     this.stopDragging();
+    this.syncCalendarValidators();
   }
 
   protected get eyebrowText(): string {
@@ -556,8 +656,8 @@ export class EntryModalComponent implements OnDestroy {
     }
     const hostRect = this.hostRectSnapshot;
     const panelSize = this.currentPanelSize;
-    let left = event.clientX - hostRect.left - this.dragOffset.x;
-    let top = event.clientY - hostRect.top - this.dragOffset.y;
+    const left = event.clientX - hostRect.left - this.dragOffset.x;
+    const top = event.clientY - hostRect.top - this.dragOffset.y;
     this.panelPosition.set(this.normalizePanelPosition(left, top, hostRect, panelSize));
   }
 
@@ -588,7 +688,6 @@ export class EntryModalComponent implements OnDestroy {
     hostRect: DOMRect,
     panelSize: { width: number; height: number },
   ): { left: number; top: number } {
-    const maxLeft = hostRect.width - panelSize.width - PANEL_GUTTER;
     const maxTop = hostRect.height - panelSize.height - PANEL_GUTTER;
 
     if (left + panelSize.width > hostRect.width - PANEL_GUTTER) {
