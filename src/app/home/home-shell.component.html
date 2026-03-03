@@ -89,3 +89,12 @@
 </section>
 
 
+
+@if (entryModalOpen()) {
+  <app-entry-modal
+    [open]="entryModalOpen()"
+    [variant]="entryModalVariant()"
+    (closed)="closeEntryModal()"
+    (saved)="handleEntrySaved($event)"
+  />
+}

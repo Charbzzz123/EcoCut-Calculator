@@ -3,6 +3,8 @@ import { Router } from '@angular/router';
 import { vi } from 'vitest';
 import { HomeFacade } from './home.facade.js';
 import { HomeDataService } from './home-data.service.js';
+import type { EntryModalPayload, HedgeConfig, HedgeId } from './models/entry-modal.models.js';
+import { HEDGE_IDS } from './models/entry-modal.models.js';
 
 class RouterStub {
   lastUrl: string | null = null;
@@ -21,6 +23,7 @@ const flushPromises = () => new Promise((resolve) => setTimeout(resolve, 0));
 describe('HomeFacade', () => {
   let facade: HomeFacade;
   let router: RouterStub;
+  let data: HomeDataService;
 
   beforeEach(() => {
     router = new RouterStub();
@@ -28,6 +31,7 @@ describe('HomeFacade', () => {
       providers: [HomeFacade, HomeDataService, { provide: Router, useValue: router }],
     });
     facade = TestBed.inject(HomeFacade);
+    data = TestBed.inject(HomeDataService);
   });
 
   it('provides hero metrics data', () => {
@@ -38,10 +42,10 @@ describe('HomeFacade', () => {
     const expectations: { command: Parameters<HomeFacade['handleQuickAction']>[0]; url: string }[] = [
       { command: 'new-job', url: '/jobs/new' },
       { command: 'start-next-job', url: '/jobs/next' },
-      { command: 'manage-employees', url: '/admin/employees' },
-      { command: 'view-employee-directory', url: '/admin/employees/directory' },
       { command: 'view-clients', url: '/clients' },
       { command: 'view-schedule', url: '/schedule' },
+      { command: 'manage-employees', url: '/admin/employees' },
+      { command: 'view-employee-directory', url: '/admin/employees/directory' },
       { command: 'view-finances', url: '/finances' },
       { command: 'view-upcoming-pay', url: '/payroll/upcoming' },
       { command: 'view-performance', url: '/analytics/performance' },
@@ -78,6 +82,60 @@ describe('HomeFacade', () => {
 
     expect(infoSpy).toHaveBeenCalledWith('Navigation target "/jobs/new" is not ready yet.');
     infoSpy.mockRestore();
+  });
+
+  it('provides entry points for warm leads and closed customers', () => {
+    facade.startWarmLead();
+    expect(router.lastUrl).toBe('/leads/new');
+
+    facade.startCustomerClosed();
+    expect(router.lastUrl).toBe('/customers/new');
+  });
+
+  it('delegates entry capture to the data service', async () => {
+    const emptyHedges = HEDGE_IDS.reduce(
+      (acc, id) => ({ ...acc, [id]: { state: 'none' } }),
+      {} as Record<HedgeId, HedgeConfig>,
+    );
+
+    const payload: EntryModalPayload = {
+      variant: 'warm-lead',
+      form: {
+        firstName: 'Amy',
+        lastName: 'D',
+        address: '1 Main',
+        phone: '123',
+        jobType: 'Hedge Trimming',
+        jobValue: '1000',
+      },
+      hedges: emptyHedges,
+    };
+
+    const saveSpy = vi.spyOn(data, 'saveEntry').mockResolvedValue();
+
+    await facade.captureEntry(payload);
+
+    expect(saveSpy).toHaveBeenCalledWith(payload);
+  });
+
+  it('surfaces data service errors when entry capture fails', async () => {
+    const emptyHedges = HEDGE_IDS.reduce(
+      (acc, id) => ({ ...acc, [id]: { state: 'none' } }),
+      {} as Record<HedgeId, HedgeConfig>,
+    );
+    const payload = {
+      variant: 'customer',
+      form: { firstName: 'B', lastName: 'C', address: 'X', phone: 'Y', jobType: 'Both', jobValue: '200' },
+      hedges: emptyHedges,
+    } satisfies EntryModalPayload;
+
+    const error = new Error('save failed');
+    vi.spyOn(data, 'saveEntry').mockRejectedValue(error);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    await expect(facade.captureEntry(payload)).rejects.toThrow(error);
+    expect(warnSpy).toHaveBeenCalledWith('Failed to persist entry payload', error);
+    warnSpy.mockRestore();
   });
 });
 

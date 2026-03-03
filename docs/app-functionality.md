@@ -25,6 +25,19 @@
 - **Insights Widgets**: weekly payroll snapshot (hours + wages per employee) and PRF trend mini-chart.
 - **Performance Considerations**: load hero metrics within 1s, use skeleton loaders for lists, ensure layout adapts to single-column on mobile while keeping the New Job CTA thumb-reachable.
 
+### Warm Lead / Customer Entry Modal
+- Launched from the “Add Entry” dropdown (floating CTA). Two variants reuse the same component: **Warm Lead** (default) and **Customer / Closed** (used for future scheduling + client conversion work).
+- **Required form fields**: first name, last name, home address, phone number, job type (Hedge Trimming, Rabattage, Both), job value. Optional: desired budget, additional details textarea.
+- **Dynamic job-type guard**: the hedge canvas only appears after a job type is picked so we don’t waste rendering cycles for visitors who are just scanning the form.
+- **Interactive hedge canvas**:
+  - Uses `public/assets/warm-lead/a_bird_s_eye_view_digital_illustration_showcases_a.png` as the background plus eight SVG polygons (`hedge-1`..`hedge-8`).
+  - Clicking a polygon cycles `None → Trim → Rabattage → None`, highlights the hedge, and opens an anchored panel near the clicked region (position is clamped within the SVG bounds).
+  - Trim state offers combinable toggles (Inside / Top / Outside) plus mutually exclusive presets (Normal, Total). Rabattage state offers mutually exclusive radio options (Partial, Total, Total w/out roots); choosing Partial forces the “How much to trim off” textarea.
+  - Each hedge stores its own config; saving validates partial text, unsaved states remain highlighted, and clearing a hedge resets its saved payload.
+- **Panel UX safeguards**: only one panel open at a time, Cancel resets transient edits, OK persists the config. Inline errors are shown for missing partial text.
+- **Submission flow**: emitting the modal payload returns `variant`, `form` data, and the per-hedge config record for domain services/undo. Successful save resets the modal and closes it; Close/Cancel also reset state without emitting.
+- **Roadmap hooks**: Customer variant will later add calendar scheduling + warm-lead → customer conversion. Keep the shared component evolutive (theme tokens, signal-driven state, full test coverage).
+
 ## Inputs & Data Sources
 - **Employee Catalog**: `[name, rate]` tuples powering the employee picker + validation.
 - **Representative Catalog**: `[name, baseCommissionRate]` list for commission selection (default 10% but editable per rep).

@@ -26,6 +26,16 @@ root/
 - **Build:** `@angular/build:application` (esbuild + Vite dev server) configured in `angular.json`.
 - **State:** Currently a single `title` signal; expand using dedicated state services/signals modules as features grow.
 
+### Entry Modal Implementation
+- **Component**: `src/app/home/components/entry-modal/entry-modal.component.ts` renders the warm lead / customer modal. It uses `NonNullableFormBuilder`, Angular signals for per-hedge state, and an anchored detail panel that moves based on the clicked polygon’s bounding box.
+- **SVG / Assets**: The hedge planner background lives in `public/assets/warm-lead/a_bird_s_eye_view_digital_illustration_showcases_a.png`. Each hedge polygon is defined in the component template (`hedge-1`…`hedge-8`). A README in that folder explains how to swap in the branded art.
+- **State machine**:
+  - Signals (`hedgeStates`, `savedConfigs`, `panelState`, etc.) keep the component reactive without services.
+  - `cycleHedge` toggles `None → Trim → Rabattage → None`, rehydrates saved configs, and clamps the contextual panel position inside the SVG container.
+  - Trim configs capture either combinable sections (inside/top/outside) or presets, while Rabattage configs capture option + optional partial text.
+- **Testing/coverage**: `src/app/home/components/entry-modal/entry-modal.component.spec.ts` holds 22 focused specs that exercise DOM interactions, state hydration, validations, and template bindings. Run `npx ng test --watch=false --coverage` to enforce the repo’s “100% every file” rule (Husky hooks also run this before commits).
+- **Integration**: `HomeShellComponent` imports the modal and toggles it from the floating “Add Entry” CTA. The component emits `EntryModalPayload` with the selected variant, normalized form payload, and hedge configs, which will later feed the façade/server.
+
 ## Backend Services
 - `/server` hosts the NestJS 11 API (ESM). It now contains a **Google Calendar integration** for pushing EcoCut jobs/events.
 - REST endpoints (documented in `server/README.md`):

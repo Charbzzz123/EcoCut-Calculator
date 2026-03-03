@@ -2,12 +2,14 @@ import { CommonModule } from '@angular/common';
 import { Component, ElementRef, HostListener, inject, signal, ViewChild } from '@angular/core';
 import { HeroMetricsComponent } from './components/hero-metrics/hero-metrics.component.js';
 import { QuickActionsComponent } from './components/quick-actions/quick-actions.component.js';
+import { EntryModalComponent } from './components/entry-modal/entry-modal.component.js';
+import type { EntryModalPayload } from './models/entry-modal.models.js';
 import { HomeFacade } from './home.facade.js';
 
 @Component({
   selector: 'app-home-shell',
   standalone: true,
-  imports: [CommonModule, HeroMetricsComponent, QuickActionsComponent],
+  imports: [CommonModule, HeroMetricsComponent, QuickActionsComponent, EntryModalComponent],
   templateUrl: './home-shell.component.html',
   styleUrl: './home-shell.component.scss',
   providers: [HomeFacade],
@@ -20,15 +22,19 @@ export class HomeShellComponent {
   protected readonly quickActions = this.facade.quickActions;
   protected readonly weeklyHours = this.facade.weeklyHours;
   protected readonly addEntryMenuOpen = signal(false);
+  protected readonly entryModalOpen = signal(false);
+  protected readonly entryModalVariant = signal<'warm-lead' | 'customer'>('warm-lead');
 
   protected startWarmLead(): void {
     this.closeAddEntryMenu();
-    this.facade.startWarmLead();
+    this.entryModalVariant.set('warm-lead');
+    this.entryModalOpen.set(true);
   }
 
   protected startCustomerClosed(): void {
     this.closeAddEntryMenu();
-    this.facade.startCustomerClosed();
+    this.entryModalVariant.set('customer');
+    this.entryModalOpen.set(true);
   }
 
   protected onQuickAction(command: Parameters<HomeFacade['handleQuickAction']>[0]): void {
@@ -59,6 +65,19 @@ export class HomeShellComponent {
     if (!container.contains(nextTarget)) {
       this.closeAddEntryMenu();
     }
+  }
+
+  protected closeEntryModal(): void {
+    this.entryModalOpen.set(false);
+  }
+
+  protected handleEntrySaved(payload: EntryModalPayload): void {
+    void this.facade
+      .captureEntry(payload)
+      .catch(() => {
+        console.warn('Entry capture failed, please retry.');
+      })
+      .finally(() => this.closeEntryModal());
   }
 
   @HostListener('document:click', ['$event'])

@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import type { EntryModalPayload } from './models/entry-modal.models.js';
 import type { HeroMetric, QuickAction, WeeklyHourSummary } from './home.models.js';
 
 @Injectable({ providedIn: 'root' })
@@ -126,5 +127,9 @@ export class HomeDataService {
       { id: 'emp-adlane', employee: 'Adlane', hours: '24h', role: 'Crew', amount: '$870' },
       { id: 'emp-marco', employee: 'Marco', hours: '18h', role: 'Support', amount: '$620' },
     ];
+  }
+
+  async saveEntry(payload: EntryModalPayload): Promise<void> {
+    console.info('Simulating entry persistence', payload);
   }
 }

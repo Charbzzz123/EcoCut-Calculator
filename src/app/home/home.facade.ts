@@ -1,6 +1,7 @@
 import { Injectable, WritableSignal, inject, signal, type Signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { HomeDataService } from './home-data.service.js';
+import type { EntryModalPayload } from './models/entry-modal.models.js';
 import type { HeroMetric, QuickAction, QuickActionCommand, WeeklyHourSummary } from './home.models.js';
 
 @Injectable()
@@ -70,6 +71,15 @@ export class HomeFacade {
 
   openAdvancedOptions(): void {
     this.navigateWhenReady('/admin/advanced');
+  }
+
+  async captureEntry(payload: EntryModalPayload): Promise<void> {
+    try {
+      await this.data.saveEntry(payload);
+    } catch (error) {
+      console.warn('Failed to persist entry payload', error);
+      throw error;
+    }
   }
 
   handleQuickAction(command: QuickActionCommand): void {
