@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { calendar_v3, google } from 'googleapis';
 import { loadCalendarConfig } from './calendar.config.js';
 import { CreateCalendarEventDto } from './dto/create-calendar-event.dto.js';
+import { CalendarEventDto } from './dto/calendar-event.dto.js';
 
 const CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar'];
 
@@ -71,6 +72,28 @@ export class CalendarService {
     this.logger.log(`Deleted calendar event ${eventId}`);
 
     return { eventId, deleted: true };
+  }
+
+  async listEvents(params: { timeMin: string; timeMax: string }): Promise<CalendarEventDto[]> {
+    this.ensureConfigured();
+    const { data } = await this.calendar!.events.list({
+      calendarId: this.calendarId!,
+      timeMin: params.timeMin,
+      timeMax: params.timeMax,
+      singleEvents: true,
+      orderBy: 'startTime',
+    });
+
+    return (data.items ?? [])
+      .filter((event) => !!event.start?.dateTime || !!event.start?.date)
+      .map((event) => ({
+        id: event.id ?? `${event.start?.dateTime ?? event.start?.date ?? Date.now()}`,
+        summary: event.summary ?? 'Scheduled job',
+        start: event.start?.dateTime ?? event.start?.date ?? '',
+        end: event.end?.dateTime ?? event.end?.date ?? '',
+        location: event.location ?? undefined,
+        description: event.description ?? undefined,
+      }));
   }
 
   private ensureConfigured(): asserts this is {

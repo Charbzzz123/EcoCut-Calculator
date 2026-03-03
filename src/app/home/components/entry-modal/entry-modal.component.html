@@ -234,7 +234,7 @@
           <div class="schedule-grid">
             <label>
               <span>Date</span>
-              <input type="date" formControlName="date" />
+              <input type="date" formControlName="date" (change)="handleCalendarDateChange()" />
               @if (form.get('calendar.date')?.touched && form.get('calendar.date')?.invalid) {
                 <small class="error">Required</small>
               }
@@ -262,10 +262,38 @@
           </div>
 
           <div class="calendar-preview">
-            <p class="preview-title">Upcoming events</p>
-            <p class="helper">
-              Live Google Calendar availability will appear here in the next step so you can pick open slots.
-            </p>
+            <div class="preview-header">
+              <p class="preview-title">Upcoming events</p>
+              <span class="helper">Times shown in {{ calendarTimeZone }}.</span>
+            </div>
+
+            @if (calendarEventsLoading()) {
+              <div class="preview-state">
+                <span class="helper">Loading availability…</span>
+              </div>
+            } @else if (calendarEventsError()) {
+              <div class="preview-state error">
+                <span>{{ calendarEventsError() }}</span>
+              </div>
+            } @else if (!calendarEvents().length) {
+              <div class="preview-state">
+                <span class="helper">No existing events for this day.</span>
+              </div>
+            } @else {
+              <ul class="event-list">
+                @for (event of calendarEvents(); track event.id) {
+                  <li>
+                    <div class="event-time">{{ formatEventTimeRange(event) }}</div>
+                    <div class="event-body">
+                      <p class="event-summary">{{ event.summary }}</p>
+                      @if (event.location) {
+                        <p class="event-location">{{ event.location }}</p>
+                      }
+                    </div>
+                  </li>
+                }
+              </ul>
+            }
           </div>
         </section>
       }

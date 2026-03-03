@@ -3,12 +3,18 @@ import { ElementRef, WritableSignal } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { vi } from 'vitest';
 import { EntryModalComponent, northAmericanPhoneValidator } from './entry-modal.component.js';
+import { EntryModalPanelStore } from './entry-modal-panel.store.js';
 import {
   EntryModalPayload,
   HedgeConfig,
   HedgeState,
   TrimPreset,
 } from '../../models/entry-modal.models.js';
+class CalendarEventsServiceStub {
+  listEventsForDate = vi.fn().mockResolvedValue([]);
+  createEvent = vi.fn();
+}
+import { CalendarEventsService } from '../../services/calendar-events.service.js';
 
 interface Rect {
   left: number;
@@ -20,17 +26,13 @@ interface Rect {
 
 interface EntryModalTestHandles {
   canvasHost?: ElementRef<HTMLElement>;
-  currentPanelSize: { width: number; height: number };
-  hostRectSnapshot: DOMRect | null;
-  floatingPanelEnabled: WritableSignal<boolean>;
+  panelStore: EntryModalPanelStore;
   panelPosition: WritableSignal<{ left: number; top: number }>;
   panelState: WritableSignal<unknown>;
   panelError: WritableSignal<string | null>;
   hedgeStates: WritableSignal<Record<string, HedgeState>>;
   savedConfigs: WritableSignal<Record<string, HedgeConfig>>;
   beginPanelDrag(event: PointerEvent): void;
-  onPanelDragMove(event: PointerEvent): void;
-  onPanelDragEnd(): void;
   closePanel(resetSelection?: boolean): void;
   cancelPanel(): void;
   savePanel(): void;
@@ -63,6 +65,13 @@ describe('EntryModalComponent', () => {
   let fixture: ComponentFixture<EntryModalComponent>;
   let component: EntryModalComponent;
   let internals: EntryModalTestHandles;
+  let calendarService: CalendarEventsServiceStub;
+  const assignCanvasHost = (rect?: Rect): ElementRef<HTMLElement> | undefined => {
+    const ref = rect ? createElementRef(rect) : undefined;
+    internals.canvasHost = ref;
+    internals.panelStore.setCanvasHost(ref);
+    return ref;
+  };
 
   const hostRect: Rect = { left: 0, top: 0, right: 820, width: 820, height: 520 };
   const createEvent = (): MouseEvent =>
@@ -86,14 +95,16 @@ describe('EntryModalComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [EntryModalComponent],
+      providers: [{ provide: CalendarEventsService, useClass: CalendarEventsServiceStub }],
     }).compileComponents();
 
     fixture = TestBed.createComponent(EntryModalComponent);
     component = fixture.componentInstance;
     internals = asInternals(component);
     component.open = true;
-    internals.canvasHost = createElementRef(hostRect);
+    assignCanvasHost(hostRect);
     fixture.detectChanges();
+    calendarService = TestBed.inject(CalendarEventsService) as unknown as CalendarEventsServiceStub;
   });
 
   it('cycles hedges and saves trim configuration in payload', () => {
@@ -112,7 +123,7 @@ describe('EntryModalComponent', () => {
       additionalDetails: '',
     });
 
-    internals.canvasHost = createElementRef({ left: 0, top: 0, right: 500, width: 500, height: 400 });
+    assignCanvasHost({ left: 0, top: 0, right: 500, width: 500, height: 400 });
 
     component['cycleHedge'](createEvent(), 'hedge-1');
     expect(component['panelPosition']().left).toBeGreaterThan(0);
@@ -121,7 +132,7 @@ describe('EntryModalComponent', () => {
     component['savePanel']();
     expect(component['hasSavedConfig']('hedge-1')).toBe(true);
     expect(component['getHedgeState']('hedge-1')).toBe('trim');
-    const previewPayload = component['buildHedgePayload']();
+    const previewPayload = internals.panelStore.buildHedgePayload();
     expect(previewPayload['hedge-1'].trim?.inside).toBe(true);
 
     component['submitEntry']();
@@ -340,21 +351,21 @@ describe('EntryModalComponent', () => {
       }),
     } as SVGGraphicsElement;
 
-    internals.canvasHost = createElementRef({ left: 0, top: 0, right: 780, width: 780, height: 480 });
+    assignCanvasHost({ left: 0, top: 0, right: 780, width: 780, height: 480 });
 
-    component['updatePanelPosition'](element);
+    internals.panelStore.forcePanelPositionForTest(element);
 
     expect(component['panelPosition']().left).toBeGreaterThan(0);
     expect(component['panelPosition']().top).toBeGreaterThanOrEqual(0);
 
-    internals.canvasHost = undefined;
+    assignCanvasHost(undefined);
     component['panelPosition'].set({ left: 0, top: 0 });
-    component['updatePanelPosition'](element);
+    internals.panelStore.forcePanelPositionForTest(element);
     expect(component['panelPosition']()).toEqual({ left: 0, top: 0 });
   });
 
   it('keeps hedge panels fully visible within canvas bounds', () => {
-    internals.canvasHost = createElementRef({ left: 0, top: 0, right: 760, width: 760, height: 320 });
+    assignCanvasHost({ left: 0, top: 0, right: 760, width: 760, height: 320 });
 
     const nearTop = {
       getBoundingClientRect: () => ({
@@ -370,9 +381,9 @@ describe('EntryModalComponent', () => {
       }),
     } as SVGGraphicsElement;
 
-    component['updatePanelPosition'](nearTop);
+    internals.panelStore.forcePanelPositionForTest(nearTop);
     const firstHostRect = internals.canvasHost!.nativeElement.getBoundingClientRect();
-    const firstPanelSize = internals.currentPanelSize;
+    const firstPanelSize = internals.panelStore.currentPanelSize;
     const firstTop = component['panelPosition']().top;
     expect(firstTop).toBeGreaterThanOrEqual(0);
     expect(firstTop + firstPanelSize.height).toBeLessThanOrEqual(firstHostRect.height);
@@ -391,9 +402,9 @@ describe('EntryModalComponent', () => {
       }),
     } as SVGGraphicsElement;
 
-    component['updatePanelPosition'](nearBottom);
+    internals.panelStore.forcePanelPositionForTest(nearBottom);
     const hostHeight = internals.canvasHost!.nativeElement.getBoundingClientRect().height;
-    const secondPanelSize = internals.currentPanelSize;
+    const secondPanelSize = internals.panelStore.currentPanelSize;
     const secondTop = component['panelPosition']().top;
     expect(secondTop).toBeGreaterThanOrEqual(0);
     expect(secondTop + secondPanelSize.height).toBeLessThanOrEqual(hostHeight);
@@ -432,8 +443,8 @@ describe('EntryModalComponent', () => {
       state: 'trim',
       trim: { mode: 'custom', inside: false, top: false, outside: false },
     });
-    internals.currentPanelSize = { width: 200, height: 150 };
-    internals.canvasHost = createElementRef({ left: 0, top: 0, right: 700, width: 700, height: 320 });
+    internals.panelStore.currentPanelSize = { width: 200, height: 150 };
+    assignCanvasHost({ left: 0, top: 0, right: 700, width: 700, height: 320 });
     const panelEl = document.createElement('div');
     panelEl.classList.add('hedge-panel');
     panelEl.getBoundingClientRect = () => ({
@@ -458,30 +469,30 @@ describe('EntryModalComponent', () => {
       preventDefault: () => undefined,
     } as unknown as PointerEvent);
 
-    component['onPanelDragMove']({ clientX: 280, clientY: 50 } as PointerEvent);
+    internals.panelStore.handlePanelDragMove({ clientX: 280, clientY: 50 } as PointerEvent);
     const pos = component['panelPosition']();
     expect(pos.left).toBeGreaterThan(0);
     expect(pos.top).toBeGreaterThanOrEqual(0);
 
-    component['onPanelDragMove']({ clientX: -50, clientY: -50 } as PointerEvent);
+    internals.panelStore.handlePanelDragMove({ clientX: -50, clientY: -50 } as PointerEvent);
     const clampedToTop = component['panelPosition']();
     expect(clampedToTop.left).toBeGreaterThanOrEqual(18);
     expect(clampedToTop.top).toBeGreaterThanOrEqual(18);
 
-    component['onPanelDragMove']({ clientX: 2000, clientY: 2000 } as PointerEvent);
+    internals.panelStore.handlePanelDragMove({ clientX: 2000, clientY: 2000 } as PointerEvent);
     const hostDims = internals.canvasHost!.nativeElement.getBoundingClientRect();
-    const size = internals.currentPanelSize;
+    const size = internals.panelStore.currentPanelSize;
     const clampedToBottom = component['panelPosition']();
     expect(clampedToBottom.left).toBeLessThanOrEqual(hostDims.width - size.width - 18);
     expect(clampedToBottom.top).toBeLessThanOrEqual(hostDims.height - size.height - 18);
 
-    component['onPanelDragEnd']();
+    internals.panelStore.stopDragging();
     component['closePanel']();
     document.body.removeChild(panelEl);
   });
 
   it('centers the panel when no horizontal room exists but vertical space is available', () => {
-    internals.canvasHost = createElementRef({ left: 0, top: 0, right: 720, width: 720, height: 620 });
+    assignCanvasHost({ left: 0, top: 0, right: 720, width: 720, height: 620 });
 
     const spanning = {
       getBoundingClientRect: () => ({
@@ -497,10 +508,10 @@ describe('EntryModalComponent', () => {
       }),
     } as SVGGraphicsElement;
 
-    component['updatePanelPosition'](spanning);
+    internals.panelStore.forcePanelPositionForTest(spanning);
     expect(component['panelFloats']()).toBe(true);
     const hostDims = internals.canvasHost!.nativeElement.getBoundingClientRect();
-    const size = internals.currentPanelSize;
+    const size = internals.panelStore.currentPanelSize;
     const expectedLeft = (hostDims.width - size.width) / 2;
     expect(component['panelPosition']().left).toBeCloseTo(expectedLeft, 3);
   });
@@ -508,8 +519,8 @@ describe('EntryModalComponent', () => {
   it('guards drag helpers when the panel cannot float', () => {
     const header = document.createElement('header');
     component['panelPosition'].set({ left: 10, top: 10 });
-    internals.floatingPanelEnabled.set(false);
-    internals.canvasHost = createElementRef({ left: 0, top: 0, right: 400, width: 400, height: 200 });
+    internals.panelStore.floatingPanelEnabled.set(false);
+    assignCanvasHost({ left: 0, top: 0, right: 400, width: 400, height: 200 });
 
     component['beginPanelDrag']({
       currentTarget: header,
@@ -518,14 +529,14 @@ describe('EntryModalComponent', () => {
       preventDefault: () => undefined,
     } as unknown as PointerEvent);
 
-    expect(internals.hostRectSnapshot).toBeNull();
+    expect(internals.panelStore.hostRectSnapshot).toBeNull();
 
-    component['onPanelDragMove']({ clientX: 5, clientY: 5 } as PointerEvent);
+    internals.panelStore.handlePanelDragMove({ clientX: 5, clientY: 5 } as PointerEvent);
     expect(component['panelPosition']()).toEqual({ left: 10, top: 10 });
   });
 
   it('uses the desktop panel sizing branch for wide canvases', () => {
-    internals.canvasHost = createElementRef({ left: 0, top: 0, right: 980, width: 980, height: 620 });
+    assignCanvasHost({ left: 0, top: 0, right: 980, width: 980, height: 620 });
 
     const element = {
       getBoundingClientRect: () => ({
@@ -541,14 +552,14 @@ describe('EntryModalComponent', () => {
       }),
     } as SVGGraphicsElement;
 
-    component['updatePanelPosition'](element);
-    const size = internals.currentPanelSize;
+    internals.panelStore.forcePanelPositionForTest(element);
+    const size = internals.panelStore.currentPanelSize;
     expect(size.width).toBe(280);
     expect(component['panelFloats']()).toBe(true);
   });
 
   it('switches to compact mode on narrow canvases', () => {
-    internals.canvasHost = createElementRef({ left: 0, top: 0, right: 400, width: 400, height: 200 });
+    assignCanvasHost({ left: 0, top: 0, right: 400, width: 400, height: 200 });
     component['cycleHedge'](createEvent(), 'hedge-1');
     expect(component['panelFloats']()).toBe(false);
   });
@@ -615,23 +626,6 @@ describe('EntryModalComponent', () => {
     component['savePanel']();
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.hedge-panel')).toBeNull();
-  });
-
-  it('cycles nextState helper deterministically', () => {
-    expect(component['nextState']('none')).toBe('trim');
-    expect(component['nextState']('trim')).toBe('rabattage');
-    expect(component['nextState']('rabattage')).toBe('none');
-  });
-
-  it('clearSavedConfig resets stored entries', () => {
-    component['savedConfigs'].set({
-      ...component['savedConfigs'](),
-      'hedge-8': { state: 'trim' },
-    });
-
-    component['clearSavedConfig']('hedge-8');
-
-    expect(component['savedConfigs']()['hedge-8'].state).toBe('none');
   });
 
   it('prevents submission when the form is invalid', () => {
@@ -826,6 +820,189 @@ describe('EntryModalComponent', () => {
       node.textContent?.trim(),
     );
     expect(errorTexts.some((text) => text === 'Required')).toBe(true);
+  });
+
+  it('loads calendar events when the date changes', async () => {
+    const spy = vi.spyOn(calendarService, 'listEventsForDate').mockResolvedValue([
+      { id: 'evt-1', summary: 'Existing job', start: '2026-03-05T13:00:00Z', end: '2026-03-05T14:00:00Z' },
+    ]);
+    component.variant = 'customer';
+    component.form.get('calendar.date')?.setValue('2026-03-05');
+
+    await component['refreshCalendarEventsForDate']('2026-03-05');
+
+    expect(spy).toHaveBeenCalledWith('2026-03-05');
+    expect(component['calendarEvents']()).toHaveLength(1);
+  });
+
+  it('clears calendar preview when switching away from customer variant', () => {
+    const isolated = TestBed.createComponent(EntryModalComponent).componentInstance;
+    isolated.variant = 'customer';
+    isolated['calendarEvents'].set([{ id: 'evt', summary: 'job', start: '', end: '' }]);
+    isolated['calendarEventsError'].set('Boom');
+
+    isolated.variant = 'warm-lead';
+
+    expect(isolated['calendarEvents']()).toHaveLength(0);
+    expect(isolated['calendarEventsError']()).toBeNull();
+  });
+
+  it('shows an error message when calendar events cannot load', async () => {
+    vi.spyOn(calendarService, 'listEventsForDate').mockRejectedValue(new Error('boom'));
+    component.variant = 'customer';
+    component.form.get('calendar.date')?.setValue('2026-03-08');
+
+    await component['refreshCalendarEventsForDate']('2026-03-08');
+
+    expect(component['calendarEventsError']()).toContain('Unable to load Google Calendar');
+  });
+
+  it('handles calendar date changes when scheduling is optional or date missing', () => {
+    component.variant = 'warm-lead';
+    component['calendarEvents'].set([{ id: 'evt', summary: 'Job', start: '', end: '' }]);
+
+    component['handleCalendarDateChange']();
+    expect(component['calendarEvents']()).toHaveLength(1); // early return, nothing cleared
+
+    component.variant = 'customer';
+    component.form.get('calendar.date')?.setValue('');
+    component['handleCalendarDateChange']();
+    expect(component['calendarEvents']()).toHaveLength(0);
+  });
+
+  it('renders the loading/empty/error states in the calendar preview', () => {
+    const previewFixture = TestBed.createComponent(EntryModalComponent);
+    const previewComponent = previewFixture.componentInstance;
+    previewComponent.open = true;
+    previewComponent.variant = 'customer';
+    previewFixture.detectChanges();
+
+    previewComponent['calendarEventsLoading'].set(true);
+    previewFixture.detectChanges();
+    expect(
+      (previewFixture.nativeElement.querySelector('.preview-state span') as HTMLElement).textContent,
+    ).toContain('Loading availability');
+
+    previewComponent['calendarEventsLoading'].set(false);
+    previewComponent['calendarEventsError'].set('Boom');
+    previewFixture.detectChanges();
+    expect(
+      (previewFixture.nativeElement.querySelector('.preview-state.error span') as HTMLElement).textContent,
+    ).toContain('Boom');
+
+    previewComponent['calendarEventsError'].set(null);
+    previewComponent['calendarEvents'].set([]);
+    previewFixture.detectChanges();
+    const emptyState = previewFixture.nativeElement.querySelector('.preview-state .helper') as HTMLElement;
+    expect(emptyState.textContent).toContain('No existing events');
+
+    previewComponent['calendarEvents'].set([
+      {
+        id: 'evt',
+        summary: 'Job',
+        start: '2026-03-05T13:00:00Z',
+        end: '2026-03-05T14:00:00Z',
+        location: '123 Pine',
+      },
+    ]);
+    previewFixture.detectChanges();
+    const summary = previewFixture.nativeElement.querySelector('.event-summary') as HTMLElement;
+    expect(summary.textContent).toContain('Job');
+    const location = previewFixture.nativeElement.querySelector('.event-location') as HTMLElement;
+    expect(location.textContent).toContain('123 Pine');
+  });
+
+  it('shows a validation error when the calendar date is missing', () => {
+    const customerFixture = TestBed.createComponent(EntryModalComponent);
+    const customerComponent = customerFixture.componentInstance;
+    customerComponent.open = true;
+    customerComponent.variant = 'customer';
+    customerFixture.detectChanges();
+
+    const dateControl = customerComponent.form.get('calendar.date');
+    dateControl?.markAsTouched();
+    dateControl?.setValue('');
+    customerFixture.detectChanges();
+
+    const dateLabel = customerFixture.nativeElement.querySelector('input[formcontrolname="date"]')
+      ?.closest('label') as HTMLElement | null;
+    const dateError = dateLabel?.querySelector('.error') as HTMLElement | null;
+    expect(dateError?.textContent).toContain('Required');
+  });
+
+  it('surfaces the time-order calendar error in the template', () => {
+    const customerFixture = TestBed.createComponent(EntryModalComponent);
+    const customerComponent = customerFixture.componentInstance;
+    customerComponent.open = true;
+    customerComponent.variant = 'customer';
+    customerFixture.detectChanges();
+
+    customerComponent.form.patchValue({
+      firstName: 'Adlane',
+      lastName: 'Marco',
+      address: '93 Cedar Lane',
+      phone: '(514) 555-8890',
+      jobType: 'Hedge Trimming',
+      jobValue: '950',
+    });
+    customerComponent.form.get('calendar.date')?.setValue('2026-03-05');
+    customerComponent.form.get('calendar.startTime')?.setValue('10:00');
+    customerComponent.form.get('calendar.endTime')?.setValue('09:00');
+
+    customerComponent['validateCalendarRange']();
+    customerFixture.detectChanges();
+
+    const calendarBlock = customerFixture.nativeElement.querySelector('.calendar-block') as HTMLElement | null;
+    expect(calendarBlock).not.toBeNull();
+    const errorTexts = Array.from(calendarBlock?.querySelectorAll('.error') ?? []).map((node) =>
+      node.textContent?.trim(),
+    );
+    expect(errorTexts).toContain('End time must be after the start time');
+  });
+
+  it('retains other end-time errors when clearing the time-order violation', () => {
+    component.variant = 'customer';
+    component.form.get('calendar.date')?.setValue('2026-03-07');
+    component.form.get('calendar.startTime')?.setValue('08:00');
+    component.form.get('calendar.endTime')?.setValue('09:30');
+    const endControl = component.form.get('calendar.endTime') as FormControl;
+    endControl.setErrors({ timeOrder: true, required: true });
+
+    const valid = component['validateCalendarRange']();
+    expect(valid).toBe(true);
+    expect(endControl.errors).toEqual({ required: true });
+  });
+
+  it('returns undefined calendar payload when scheduling info is incomplete', () => {
+    component.variant = 'customer';
+    component.form.get('calendar.date')?.setValue('2026-03-10');
+    component.form.get('calendar.startTime')?.setValue('');
+    component.form.get('calendar.endTime')?.setValue('');
+
+    expect(component['buildCalendarPayload']()).toBeUndefined();
+  });
+
+  it('marks calendar controls as touched when fields are missing', () => {
+    component.variant = 'customer';
+    const result = component['validateCalendarRange']();
+    expect(result).toBe(false);
+    const calendarControls = component['calendarGroup'].controls;
+    expect(calendarControls.date.touched).toBe(true);
+    expect(calendarControls.startTime.touched).toBe(true);
+    expect(calendarControls.endTime.touched).toBe(true);
+  });
+
+  it('clears time-order errors when no other end-time issues remain', () => {
+    component.variant = 'customer';
+    component.form.get('calendar.date')?.setValue('2026-03-11');
+    component.form.get('calendar.startTime')?.setValue('09:00');
+    component.form.get('calendar.endTime')?.setValue('10:00');
+    const endControl = component.form.get('calendar.endTime') as FormControl;
+    endControl.setErrors({ timeOrder: true });
+
+    const valid = component['validateCalendarRange']();
+    expect(valid).toBe(true);
+    expect(endControl.errors).toBeNull();
   });
 
   it('wires close buttons through template events', () => {

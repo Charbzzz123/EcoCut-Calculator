@@ -23,6 +23,7 @@ root/
 - **Entry Point:** `src/main.ts` bootstraps the standalone `App` component defined in `src/app/app.ts`.
 - **Component Style:** Standalone components + Angular Signals. Routing is configured via `src/app/app.routes.ts` (empty for now).
 - **Styling:** Global styles in `src/styles.scss`, component-level SCSS via `styleUrl` references.
+- **HTTP/Proxy:** `app.config.ts` registers `provideHttpClient(withFetch())`. During local dev `npm start` passes `--proxy-config proxy.conf.json`, so any `/api/...` call from Angular is forwarded to the Nest server (`http://localhost:3000`). Keep backend running via `npm run server`.
 - **Build:** `@angular/build:application` (esbuild + Vite dev server) configured in `angular.json`.
 - **State:** Currently a single `title` signal; expand using dedicated state services/signals modules as features grow.
 
@@ -34,12 +35,17 @@ root/
   - `cycleHedge` toggles `None → Trim → Rabattage → None`, rehydrates saved configs, and clamps the contextual panel position inside the SVG container.
   - Trim configs capture either combinable sections (inside/top/outside) or presets, while Rabattage configs capture option + optional partial text.
 - **Testing/coverage**: `src/app/home/components/entry-modal/entry-modal.component.spec.ts` holds 22 focused specs that exercise DOM interactions, state hydration, validations, and template bindings. Run `npx ng test --watch=false --coverage` to enforce the repo’s “100% every file” rule (Husky hooks also run this before commits).
-- **Integration**: `HomeShellComponent` imports the modal and toggles it from the floating “Add Entry” CTA. The component emits `EntryModalPayload` with the selected variant, normalized form payload, and hedge configs, which will later feed the façade/server.
+- **Calendar integration**:
+  - `CalendarEventsService` (`src/app/home/services/calendar-events.service.ts`) wraps the `/api/calendar/events` endpoints. The entry modal consumes it to show live availability; `HomeDataService.saveEntry` uses the same service when creating customer events.
+  - `calendar-event.builder.ts` converts the payload into a Google Calendar-friendly summary/description (hedge plan, customer info, budgets, notes).
+  - The template now shows a “Schedule on EcoCut Calendar” block for customer entries with loading/error/empty states driven by the service.
+- **Integration**: `HomeShellComponent` imports the modal and toggles it from the floating “Add Entry” CTA. The component emits `EntryModalPayload` with the selected variant, normalized form payload, and hedge configs, which feed the façade/server. Customer submissions automatically create a Google Calendar event via `HomeDataService`.
 
 ## Backend Services
 - `/server` hosts the NestJS 11 API (ESM). It now contains a **Google Calendar integration** for pushing EcoCut jobs/events.
 - REST endpoints (documented in `server/README.md`):
   - `POST /calendar/events` – create an event with summary/description/start/end/timezone/attendees.
+  - `GET /calendar/events?timeMin&timeMax` – fetch sanitized Google events for the requested window (used by the entry modal to show availability).
   - `DELETE /calendar/events/:eventId` – remove a previously created event.
 - **Environment variables**
   | Name | Required | Purpose |

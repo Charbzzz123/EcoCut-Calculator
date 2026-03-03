@@ -1,9 +1,13 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import type { EntryModalPayload } from './models/entry-modal.models.js';
 import type { HeroMetric, QuickAction, WeeklyHourSummary } from './home.models.js';
+import { CalendarEventsService } from './services/calendar-events.service.js';
+import { buildCalendarEventRequest } from './models/calendar-event.builder.js';
 
 @Injectable({ providedIn: 'root' })
 export class HomeDataService {
+  private readonly calendar = inject(CalendarEventsService);
+
   getHeroMetrics(): HeroMetric[] {
     return [
       { id: 'jobs-today', label: 'Jobs today', value: '4', deltaLabel: '+1 vs avg', trend: 'up' },
@@ -130,6 +134,10 @@ export class HomeDataService {
   }
 
   async saveEntry(payload: EntryModalPayload): Promise<void> {
+    const calendarRequest = buildCalendarEventRequest(payload);
+    if (calendarRequest) {
+      await this.calendar.createEvent(calendarRequest);
+    }
     console.info('Simulating entry persistence', payload);
   }
 }

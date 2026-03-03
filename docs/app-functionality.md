@@ -37,6 +37,13 @@
 - **Panel UX safeguards**: only one panel open at a time, Cancel resets transient edits, OK persists the config. Inline errors are shown for missing partial text.
 - **Submission flow**: emitting the modal payload returns `variant`, `form` data, and the per-hedge config record for domain services/undo. Successful save resets the modal and closes it; Close/Cancel also reset state without emitting.
 - **Roadmap hooks**: Customer variant will later add calendar scheduling + warm-lead → customer conversion. Keep the shared component evolutive (theme tokens, signal-driven state, full test coverage).
+- **Customer scheduling requirements**:
+  - Customer variant now surfaces a **Schedule on EcoCut Calendar** block. Date, start time, and end time are mandatory; the Save button remains disabled until they’re valid.
+  - The calendar block displays a live availability feed pulled from EcoCut’s Google Calendar (via the Nest proxy). Users can see existing jobs for the selected date (times shown in the browser’s timezone) and pick an open slot without leaving the modal. Loading and error states are clearly messaged.
+  - Calendar notes provide extra crew instructions and are appended to the Google event description.
+- **Calendar event auto-generation**:
+  - When a customer entry is saved the frontend builds a structured event description (contact info, job value, hedge plan breakdown, additional details, calendar notes) and sends it to the Nest backend (`POST /calendar/events`). Location defaults to the customer address.
+  - Undo/edit stories will later use the stored `eventId` to delete or update the slot; for now we focus on creation paths.
 
 ## Inputs & Data Sources
 - **Employee Catalog**: `[name, rate]` tuples powering the employee picker + validation.

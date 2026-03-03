@@ -357,15 +357,79 @@ button:hover {
   border-radius: 0.9rem;
   padding: 1rem;
   background: rgba(255, 255, 255, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .calendar-preview .preview-title {
-  margin: 0 0 0.25rem;
+  margin: 0;
   font-weight: 600;
 }
 
 .calendar-preview .helper {
   margin: 0;
+}
+
+.preview-state {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 0.9rem;
+}
+
+.preview-state.error {
+  border-color: rgba(255, 140, 0, 0.5);
+  color: rgba(255, 183, 120, 0.95);
+}
+
+.event-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.event-list li {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.75rem;
+  background: rgba(3, 6, 5, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.event-time {
+  font-weight: 600;
+  min-width: 120px;
+  color: var(--accent, #6cf0bf);
+}
+
+.event-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.event-summary {
+  margin: 0;
+  font-weight: 600;
+}
+
+.event-location {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted, #a6b3aa);
 }
 
 .form-footer {
