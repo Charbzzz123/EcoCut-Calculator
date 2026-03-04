@@ -861,9 +861,13 @@ export class EntryModalComponent implements OnDestroy {
     if (minutes == null) {
       return null;
     }
+    const adjustedMinutes = Math.min(
+      Math.max(minutes + 15, TIMELINE_START_HOUR * 60),
+      TIMELINE_END_HOUR * 60,
+    );
     const total = this.timelineTotalMinutes();
     return {
-      topPercent: ((minutes - TIMELINE_START_HOUR * 60) / total) * 100,
+      topPercent: ((adjustedMinutes - TIMELINE_START_HOUR * 60) / total) * 100,
     };
   }
 
