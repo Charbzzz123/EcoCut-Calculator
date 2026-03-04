@@ -26,7 +26,6 @@ describe('buildCalendarEventRequest', () => {
       start: '2026-03-10T14:00:00Z',
       end: '2026-03-10T15:00:00Z',
       timeZone: 'America/Toronto',
-      notes: 'Bring extra bags',
     },
   };
 
@@ -43,7 +42,7 @@ describe('buildCalendarEventRequest', () => {
     expect(request?.description).toContain('Front walkway (left) Trim (Inside + Top)');
     expect(request?.description).toContain('Left perimeter Rabattage');
     expect(request?.description).toContain('Job value:');
-    expect(request?.description).toContain('Calendar notes: Bring extra bags');
+    expect(request?.description).not.toContain('Calendar notes:');
   });
 
   it('summarizes presets and total-without-roots rabattage selections', () => {
@@ -131,24 +130,6 @@ describe('buildCalendarEventRequest', () => {
     expect(request?.description).toContain('(Total)');
   });
 
-  it('omits calendar notes when none are provided', () => {
-    const payload: EntryModalPayload = {
-      ...basePayload,
-      calendar: { ...basePayload.calendar!, notes: undefined },
-    };
-    const request = buildCalendarEventRequest(payload);
-    expect(request?.description).not.toContain('Calendar notes');
-  });
-
-  it('includes trimmed calendar notes when whitespace surrounds the copy', () => {
-    const payload: EntryModalPayload = {
-      ...basePayload,
-      calendar: { ...basePayload.calendar!, notes: '   Crew break at noon   ' },
-    };
-    const request = buildCalendarEventRequest(payload);
-    expect(request?.description).toContain('Calendar notes: Crew break at noon');
-  });
-
   it('omits the hedge plan header when no hedges are selected', () => {
     const payload: EntryModalPayload = {
       ...basePayload,
@@ -229,10 +210,8 @@ describe('buildCalendarEventRequest', () => {
     const payload: EntryModalPayload = {
       ...basePayload,
       form: { ...basePayload.form, jobValue: 'not-a-number' },
-      calendar: { ...basePayload.calendar!, notes: '' },
     };
     const request = buildCalendarEventRequest(payload);
     expect(request?.description).toContain('Job value: $0.00');
-    expect(request?.description).not.toContain('Calendar notes:');
   });
 });

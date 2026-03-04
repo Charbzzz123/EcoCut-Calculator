@@ -672,7 +672,6 @@ describe('EntryModalComponent', () => {
     component.form.get('calendar.date')?.setValue('2026-03-05');
     component.form.get('calendar.startTime')?.setValue('09:00');
     component.form.get('calendar.endTime')?.setValue('11:00');
-    component.form.get('calendar.notes')?.setValue('Bring ladder');
 
     component['submitEntry']();
 
@@ -681,7 +680,6 @@ describe('EntryModalComponent', () => {
     expect(payload.calendar).toBeDefined();
     expect(payload.calendar?.start).toContain('2026-03-05');
     expect(payload.calendar?.end).toContain('2026-03-05');
-    expect(payload.calendar?.notes).toBe('Bring ladder');
   });
 
   it('flags when end time precedes start time and clears the error after fixing it', () => {

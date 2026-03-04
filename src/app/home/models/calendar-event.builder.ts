@@ -45,10 +45,6 @@ export const buildCalendarEventRequest = (
   if (form.additionalDetails?.trim()) {
     descriptionLines.push(`Additional details: ${form.additionalDetails.trim()}`);
   }
-  if (calendar.notes?.trim()) {
-    descriptionLines.push(`Calendar notes: ${calendar.notes.trim()}`);
-  }
-
   return {
     summary,
     description: descriptionLines.join('\n'),

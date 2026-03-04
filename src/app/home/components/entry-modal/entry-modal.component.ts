@@ -124,7 +124,6 @@ export class EntryModalComponent implements OnDestroy {
       date: [''],
       startTime: [''],
       endTime: [''],
-      notes: [''],
     }),
   });
   protected readonly calendarGroup = this.form.controls.calendar;
@@ -466,14 +465,13 @@ export class EntryModalComponent implements OnDestroy {
     if (!this.requiresCalendar()) {
       return undefined;
     }
-    const { date, startTime, endTime, notes } = this.calendarGroup.getRawValue();
+    const { date, startTime, endTime } = this.calendarGroup.getRawValue();
     if (!date || !startTime || !endTime) {
       return undefined;
     }
     return {
       start: this.combineDateTime(date, startTime),
       end: this.combineDateTime(date, endTime),
-      notes: notes?.trim() ? notes.trim() : undefined,
       timeZone: this.calendarTimeZone,
     };
   }

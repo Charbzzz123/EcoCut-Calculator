@@ -84,7 +84,6 @@ describe('HomeDataService', () => {
         start: '2026-03-12T14:00:00Z',
         end: '2026-03-12T15:00:00Z',
         timeZone: 'America/Toronto',
-        notes: 'Bring ladder',
       },
     };
 
