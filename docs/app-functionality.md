@@ -194,8 +194,12 @@ Steps (should live in a pure domain service):
 
 Update this document whenever we clarify rules or add new functionality so implementation always mirrors the agreed specification.
 
-
-
-
-## Upcoming Enhancements
-- **Entry correction flow**: when full persistence lands we’ll keep a deduped client roster (normalized email/phone) plus an append-only job history. Client data changes will go through that flow so CRM records stay auditable, while the calendar edit banner remains a lightweight way to tweak schedule/title/notes for standalone calendar events.
+## Client Roster & Job History
+- Every entry emitted by the modal is now persisted through the Nest API (`POST /entries`). The saved payload includes the original form data, hedge configs, calendar info (start/end/time zone), and the Google Calendar `eventId` returned by the sync step so future edits can target the same calendar record.
+- The backend keeps an append-only array of saved entries (currently in-memory while we stand up a real datastore). Each record receives a generated `id` and `createdAt` timestamp for auditing.
+- A derived client roster is kept in sync automatically. Deduplication uses email (preferred), otherwise normalized phone number, otherwise `first+last+address`. Each client summary tracks full name, address, phone/email, total jobs logged, last job timestamp, and the most recent calendar event id.
+- New API surface:
+  - `GET /entries` – returns the raw entry history (future undo pipeline will read from here).
+  - `GET /entries/clients` – returns the deduped client roster described above.
+- The frontend’s `HomeDataService.saveEntry` now calls the repository service instead of logging to the console, ensuring every job immediately appears in the roster/history datasets.
+- Future correction flows will mutate job data via this API so calendar edits + CRM updates stay auditable end-to-end.

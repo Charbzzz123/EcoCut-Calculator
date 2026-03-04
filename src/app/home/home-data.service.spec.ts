@@ -4,6 +4,7 @@ import { HomeDataService } from './home-data.service.js';
 import type { EntryModalPayload } from './models/entry-modal.models.js';
 import { HEDGE_IDS, createEmptyHedgeConfigs } from './models/entry-modal.models.js';
 import { CalendarEventsService } from './services/calendar-events.service.js';
+import { EntryRepositoryService } from './services/entry-repository.service.js';
 
 class CalendarEventsServiceStub {
   createEvent = vi.fn().mockResolvedValue({
@@ -21,19 +22,29 @@ class CalendarEventsServiceStub {
   listEventsForDate = vi.fn();
 }
 
+class EntryRepositoryServiceStub {
+  create = vi.fn().mockResolvedValue({
+    id: 'entry-1',
+    createdAt: '2026-03-04T12:00:00Z',
+  });
+}
+
 describe('HomeDataService', () => {
   let service: HomeDataService;
   let calendar: CalendarEventsServiceStub;
+  let repository: EntryRepositoryServiceStub;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
         HomeDataService,
         { provide: CalendarEventsService, useClass: CalendarEventsServiceStub },
+        { provide: EntryRepositoryService, useClass: EntryRepositoryServiceStub },
       ],
     });
     service = TestBed.inject(HomeDataService);
     calendar = TestBed.inject(CalendarEventsService) as unknown as CalendarEventsServiceStub;
+    repository = TestBed.inject(EntryRepositoryService) as unknown as EntryRepositoryServiceStub;
   });
 
   it('exposes hero metric snapshots', () => {
@@ -55,7 +66,7 @@ describe('HomeDataService', () => {
     expect(summaries[0]).toMatchObject({ employee: 'Karam', hours: '32h' });
   });
 
-  it('saves entries by delegating to the console (stub for now)', async () => {
+  it('persists entries through the repository', async () => {
     const payload: EntryModalPayload = {
       variant: 'warm-lead',
       form: {
@@ -69,13 +80,9 @@ describe('HomeDataService', () => {
       hedges: createEmptyHedgeConfigs(),
     };
 
-    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => undefined);
-
     await service.saveEntry(payload);
 
-    expect(infoSpy).toHaveBeenCalledWith('Simulating entry persistence', payload);
-
-    infoSpy.mockRestore();
+    expect(repository.create).toHaveBeenCalledWith(payload);
   });
 
   it('creates Google Calendar events when customer entries include scheduling data and stores ids for persistence', async () => {
@@ -98,19 +105,16 @@ describe('HomeDataService', () => {
       },
     };
 
-    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => undefined);
     await service.saveEntry(payload);
 
-    expect(infoSpy).toHaveBeenCalledTimes(1);
-    const persistedPayload = infoSpy.mock.calls[0][1] as EntryModalPayload;
     expect(calendar.createEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         summary: expect.stringContaining('Alex Stone'),
         start: '2026-03-12T14:00:00Z',
       }),
     );
+    const persistedPayload = repository.create.mock.calls[0][0] as EntryModalPayload;
     expect(persistedPayload.calendar?.eventId).toBe('evt-created');
-    infoSpy.mockRestore();
   });
 
   it('persists payload untouched when the Calendar API omits an event id', async () => {
@@ -138,12 +142,10 @@ describe('HomeDataService', () => {
       },
     };
 
-    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => undefined);
     await service.saveEntry(payload);
 
-    const persistedPayload = infoSpy.mock.calls[0][1] as EntryModalPayload;
+    const persistedPayload = repository.create.mock.calls[0][0] as EntryModalPayload;
     expect(persistedPayload.calendar?.eventId).toBeUndefined();
-    infoSpy.mockRestore();
   });
 
   it('updates Google Calendar events when an eventId is provided', async () => {
@@ -165,7 +167,6 @@ describe('HomeDataService', () => {
       },
     };
 
-    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => undefined);
     await service.saveEntry(payload);
 
     expect(calendar.updateEvent).toHaveBeenCalledWith(
@@ -176,9 +177,8 @@ describe('HomeDataService', () => {
       }),
     );
     expect(calendar.createEvent).not.toHaveBeenCalled();
-    const persistedPayload = infoSpy.mock.calls[0][1] as EntryModalPayload;
+    const persistedPayload = repository.create.mock.calls[0][0] as EntryModalPayload;
     expect(persistedPayload.calendar?.eventId).toBe('evt-123');
-    infoSpy.mockRestore();
   });
 
   it('provides a helper to create empty hedge configs for callers', () => {

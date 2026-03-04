@@ -2,11 +2,13 @@ import { Injectable, inject } from '@angular/core';
 import type { EntryModalPayload } from './models/entry-modal.models.js';
 import type { HeroMetric, QuickAction, WeeklyHourSummary } from './home.models.js';
 import { CalendarEventsService } from './services/calendar-events.service.js';
+import { EntryRepositoryService } from './services/entry-repository.service.js';
 import { buildCalendarEventRequest } from './models/calendar-event.builder.js';
 
 @Injectable({ providedIn: 'root' })
 export class HomeDataService {
   private readonly calendar = inject(CalendarEventsService);
+  private readonly entries = inject(EntryRepositoryService);
 
   getHeroMetrics(): HeroMetric[] {
     return [
@@ -153,6 +155,6 @@ export class HomeDataService {
       }
     }
 
-    console.info('Simulating entry persistence', payloadToPersist);
+    await this.entries.create(payloadToPersist);
   }
 }

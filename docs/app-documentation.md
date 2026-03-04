@@ -44,6 +44,7 @@ root/
   - Manual edits to the start/end inputs clear the selection, so the UI never shows a stale chip highlight.
   - Specs cover slot rebuilding, drag guards, and the DOM states for available/booked chips.
 - **Integration**: `HomeShellComponent` imports the modal and toggles it from the floating “Add Entry” CTA. The component emits `EntryModalPayload` with the selected variant, normalized form payload, and hedge configs, which feed the façade/server. Customer submissions automatically create a Google Calendar event via `HomeDataService`, which in turn stores the returned `eventId` back onto the payload so later edits/deletes can call the appropriate proxy endpoint.
+- **Entry persistence client**: `EntryRepositoryService` (`src/app/home/services/entry-repository.service.ts`) wraps `/api/entries` and `/api/entries/clients`. `HomeDataService.saveEntry` now awaits this service so every submission is recorded immediately (no more console stub). `listClients()` will power the future CRM dashboard without duplicating HTTP plumbing.
 
 ## Backend Services
 - `/server` hosts the NestJS 11 API (ESM). It now contains a **Google Calendar integration** for pushing EcoCut jobs/events.
@@ -52,6 +53,11 @@ root/
   - `GET /calendar/events?timeMin&timeMax` – fetch sanitized Google events for the requested window (used by the entry modal to show availability).
   - `PATCH /calendar/events/:eventId` – edit an existing Google Calendar entry when schedulers tweak a slot inside the modal.
   - `DELETE /calendar/events/:eventId` – remove a previously created event.
+- **Entries module**:
+  - `POST /entries` – append the emitted `EntryModalPayload` (plus generated `id` + `createdAt`). The in-memory store keeps the latest calendar `eventId` so future corrections know which Google record to touch.
+  - `GET /entries` – retrieve the append-only job history (temporary until we wire a database + undo service).
+  - `GET /entries/clients` – returns the deduplicated client roster (keyed by email → phone → name+address) with `jobsCount`, `lastJobDate`, and `lastCalendarEventId`.
+  - Implementation lives in `server/src/entries/` (service, controller, module). Data sits in memory for now but the code path mirrors how we’ll eventually back it with a database.
 - **Frontend proxying & dev setup**
   - `npm start` automatically passes `--proxy-config proxy.conf.json`, so `/api/*` traffic goes to `http://localhost:3000/*`. Always run `npm run server` in a second terminal before testing calendar flows locally.
   - When the Nest server or credentials are unavailable the frontend logs the failure (via `console.warn`) and surfaces the inline banner but the form remains usable.
@@ -85,7 +91,7 @@ root/
 
 ## Next Steps
 - Replace placeholder Angular template with real calculator components.
-- Flesh out server requirements and link to front end via API clients.
+- Move the in-memory entries store to a durable database (SQLite/Postgres) so undo + reporting have a dependable source.
 - Automate documentation publishing (Docs site or wiki) once scope grows.
 
 ## Branding & Theming
