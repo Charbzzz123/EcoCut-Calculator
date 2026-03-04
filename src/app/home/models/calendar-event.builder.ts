@@ -64,19 +64,18 @@ const describeHedgePlan = (hedges: Record<HedgeId, HedgeConfig>): string[] =>
     .filter(([, config]) => config.state !== 'none')
     .map(([hedgeId, config]) => {
       const label = HEDGE_LABELS[hedgeId as HedgeId] ?? hedgeId;
-      if (config.state === 'trim' && config.trim) {
+      if (config.state === 'trim') {
         return `${label} Trim ${describeTrimConfig(config.trim)}`;
       }
-      if (config.state === 'rabattage' && config.rabattage) {
+      if (config.state === 'rabattage') {
         return `${label} Rabattage ${describeRabattageConfig(config.rabattage)}`;
       }
       return `${label} (${config.state})`;
     });
 
 const describeTrimConfig = (config: HedgeConfig['trim']): string => {
-  /* c8 ignore next */
   if (!config) {
-    return '';
+    return '(custom)';
   }
 
   if (config.mode === 'preset' && config.preset) {
@@ -87,9 +86,8 @@ const describeTrimConfig = (config: HedgeConfig['trim']): string => {
 };
 
 const describeRabattageConfig = (config: HedgeConfig['rabattage']): string => {
-  /* c8 ignore next */
   if (!config) {
-    return '';
+    return '(Total)';
   }
   if (config.option === 'partial') {
     return `(Partial${config.partialAmountText ? `: ${config.partialAmountText}` : ''})`;

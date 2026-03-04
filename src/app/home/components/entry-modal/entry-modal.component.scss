@@ -362,6 +362,59 @@ button:hover {
   gap: 0.75rem;
 }
 
+.slot-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.slot-picker__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.slot-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.6rem;
+}
+
+.slot-chip {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 0.85rem;
+  padding: 0.75rem;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+  color: inherit;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.slot-chip small {
+  font-size: 0.75rem;
+  color: var(--text-muted, #a6b3aa);
+}
+
+.slot-chip--booked {
+  background: rgba(255, 140, 0, 0.08);
+  border-color: rgba(255, 140, 0, 0.4);
+  color: #ffbb7a;
+  cursor: not-allowed;
+}
+
+.slot-chip--selected {
+  border-color: var(--accent, #6cf0bf);
+  background: rgba(108, 240, 191, 0.12);
+}
+
+.slot-chip:disabled {
+  opacity: 0.7;
+}
+
 .preview-header {
   display: flex;
   justify-content: space-between;

@@ -870,11 +870,67 @@ describe('EntryModalComponent', () => {
     expect(component['calendarEvents']()).toHaveLength(0);
   });
 
+  it('defaults the calendar date when scheduling is required', () => {
+    component.variant = 'customer';
+    component.form.get('calendar.date')?.setValue('');
+    const dateSpy = vi.spyOn(component as unknown as { todayIsoDate: () => string }, 'todayIsoDate').mockReturnValue('2026-03-09');
+    const handleSpy = vi.spyOn(component as unknown as { handleCalendarDateChange: () => void }, 'handleCalendarDateChange');
+
+    component['ensureCalendarDefaults']();
+
+    expect(component.form.get('calendar.date')?.value).toBe('2026-03-09');
+    expect(handleSpy).toHaveBeenCalled();
+    dateSpy.mockRestore();
+    handleSpy.mockRestore();
+  });
+
+  it('rebuilds slot availability and marks conflicts', () => {
+    component.variant = 'customer';
+    const startIso = component['combineDateTime']('2026-03-05', '13:00');
+    const endIso = component['combineDateTime']('2026-03-05', '14:30');
+    component['rebuildCalendarSlots']('2026-03-05', [{ id: 'evt-1', summary: 'Booked', start: startIso, end: endIso }]);
+    const slots = component['calendarSlots']();
+    const slot13 = slots.find((slot) => slot.id === 'slot-13');
+    expect(slot13?.status).toBe('booked');
+    expect(slot13?.conflictSummary).toBe('Booked');
+  });
+
+  it('selects available slots and clears selection on manual edits', () => {
+    component.variant = 'customer';
+    component['calendarSlots'].set([
+      { id: 'slot-08', startTime: '08:00', endTime: '09:00', label: '8-9', status: 'available' },
+    ]);
+    component['selectCalendarSlot']('slot-08');
+    expect(component['selectedSlotId']()).toBe('slot-08');
+    expect(component.form.get('calendar.startTime')?.value).toBe('08:00');
+    component['handleManualTimeChange']();
+    expect(component['selectedSlotId']()).toBeNull();
+  });
+
+  it('ignores slot selection when the slot is booked', () => {
+    component.variant = 'customer';
+    component['calendarSlots'].set([
+      { id: 'slot-09', startTime: '09:00', endTime: '10:00', label: '9-10', status: 'booked' },
+    ]);
+    component['selectCalendarSlot']('slot-09');
+    expect(component.form.get('calendar.startTime')?.value).toBe('');
+    expect(component['selectedSlotId']()).toBeNull();
+  });
+
+  it('retains slot selection when refreshed with matching values', () => {
+    component.variant = 'customer';
+    component.form.get('calendar.startTime')?.setValue('08:00');
+    component.form.get('calendar.endTime')?.setValue('09:00');
+    component['rebuildCalendarSlots']('2026-03-05', []);
+    expect(component['selectedSlotId']()).toBe('slot-08');
+  });
+
   it('renders the loading/empty/error states in the calendar preview', () => {
     const previewFixture = TestBed.createComponent(EntryModalComponent);
     const previewComponent = previewFixture.componentInstance;
     previewComponent.open = true;
     previewComponent.variant = 'customer';
+    previewComponent['calendarSlots'].set([{ id: 'slot-08', startTime: '08:00', endTime: '09:00', label: '8-9', status: 'available' }]);
     previewFixture.detectChanges();
 
     previewComponent['calendarEventsLoading'].set(true);
@@ -910,6 +966,116 @@ describe('EntryModalComponent', () => {
     expect(summary.textContent).toContain('Job');
     const location = previewFixture.nativeElement.querySelector('.event-location') as HTMLElement;
     expect(location.textContent).toContain('123 Pine');
+    previewComponent['calendarEvents'].set([]);
+    previewFixture.detectChanges();
+    const emptyMessage = previewFixture.nativeElement.querySelector('.calendar-preview .preview-state .helper')
+      ?.textContent;
+    expect(emptyMessage).toContain('No existing events');
+  });
+
+  it('renders calendar field errors when date and times are missing', () => {
+    const calendarFixture = TestBed.createComponent(EntryModalComponent);
+    const calendarComponent = calendarFixture.componentInstance;
+    calendarComponent.open = true;
+    calendarComponent.variant = 'customer';
+    calendarComponent.form.get('calendar.date')?.setValue('');
+    calendarComponent.form.get('calendar.startTime')?.setValue('');
+    calendarComponent.form.get('calendar.endTime')?.setValue('');
+    calendarComponent.form.get('calendar.date')?.markAsTouched();
+    calendarComponent.form.get('calendar.startTime')?.markAsTouched();
+    calendarComponent.form.get('calendar.endTime')?.markAsTouched();
+    calendarFixture.detectChanges();
+
+    expect((calendarComponent as unknown as { calendarDateError: string | null }).calendarDateError).toBe('Required');
+    expect((calendarComponent as unknown as { calendarStartTimeError: string | null }).calendarStartTimeError).toBe(
+      'Required',
+    );
+    expect((calendarComponent as unknown as { calendarEndTimeError: string | null }).calendarEndTimeError).toBe(
+      'Required',
+    );
+
+    const dateLabel = calendarFixture.nativeElement
+      .querySelector('input[formcontrolname="date"]')
+      ?.closest('label') as HTMLElement | null;
+    expect(dateLabel?.querySelector('.error')?.textContent).toContain('Required');
+
+    const startLabel = calendarFixture.nativeElement
+      .querySelector('input[formcontrolname="startTime"]')
+      ?.closest('label') as HTMLElement | null;
+    expect(startLabel?.querySelector('.error')?.textContent).toContain('Required');
+
+    const endLabel = calendarFixture.nativeElement
+      .querySelector('input[formcontrolname="endTime"]')
+      ?.closest('label') as HTMLElement | null;
+    expect(endLabel?.querySelector('.error')?.textContent).toContain('Required');
+  });
+
+  it('renders slot chips with booked and selected states', () => {
+    const slotFixture = TestBed.createComponent(EntryModalComponent);
+    const slotComponent = slotFixture.componentInstance;
+    slotComponent.open = true;
+    slotComponent.variant = 'customer';
+    slotComponent['calendarSlots'].set([
+      { id: 'slot-08', startTime: '08:00', endTime: '09:00', label: '8-9', status: 'available' },
+      { id: 'slot-09', startTime: '09:00', endTime: '10:00', label: '9-10', status: 'booked', conflictSummary: 'Existing job' },
+    ]);
+    slotComponent['selectedSlotId'].set('slot-08');
+    slotFixture.detectChanges();
+    const chips = slotFixture.nativeElement.querySelectorAll('.slot-chip') as NodeListOf<HTMLButtonElement>;
+    expect(chips.length).toBe(2);
+    expect(chips[0].classList).toContain('slot-chip--selected');
+    expect(chips[1].disabled).toBe(true);
+    expect(chips[1].textContent).toContain('Existing job');
+    chips[0].click();
+    slotFixture.detectChanges();
+    expect(slotComponent['selectedSlotId']()).toBe('slot-08');
+    const conflictHint = chips[1].querySelector('small');
+    expect(conflictHint?.textContent).toContain('Existing job');
+  });
+
+  it('shows slot picker fallback when no slots exist', () => {
+    const fallbackFixture = TestBed.createComponent(EntryModalComponent);
+    const fallbackComponent = fallbackFixture.componentInstance;
+    fallbackComponent.open = true;
+    fallbackComponent.variant = 'customer';
+    fallbackFixture.detectChanges();
+    const fallbackText = fallbackFixture.nativeElement.querySelector('.slot-picker .preview-state .helper')
+      ?.textContent;
+    expect(fallbackText).toContain('Pick a date to view suggested slots');
+  });
+
+  it('renders booked slot badges with conflict summaries', () => {
+    const bookedFixture = TestBed.createComponent(EntryModalComponent);
+    const bookedComponent = bookedFixture.componentInstance;
+    bookedComponent.open = true;
+    bookedComponent.variant = 'customer';
+    bookedComponent['calendarSlots'].set([
+      { id: 'slot-09', startTime: '09:00', endTime: '10:00', label: '9-10', status: 'booked', conflictSummary: 'Crew busy' },
+    ]);
+    bookedFixture.detectChanges();
+
+    const chip = bookedFixture.nativeElement.querySelector('.slot-chip') as HTMLButtonElement;
+    expect(chip).not.toBeNull();
+    expect(chip.disabled).toBe(true);
+    const hint = chip.querySelector('small') as HTMLElement | null;
+    expect(hint?.textContent).toContain('Booked');
+    expect(hint?.textContent).toContain('Crew busy');
+  });
+
+  it('renders event locations when calendar events provide them', () => {
+    const eventsFixture = TestBed.createComponent(EntryModalComponent);
+    const eventsComponent = eventsFixture.componentInstance;
+    eventsComponent.open = true;
+    vi.spyOn(eventsComponent as unknown as { refreshCalendarEventsForDate: (date: string) => Promise<void> }, 'refreshCalendarEventsForDate').mockResolvedValue();
+    eventsComponent.variant = 'customer';
+    eventsComponent['calendarEvents'].set([
+      { id: 'evt', summary: 'Job', start: '2026-03-05T13:00:00Z', end: '2026-03-05T14:00:00Z', location: '555 Pine' },
+    ]);
+    eventsFixture.detectChanges();
+
+    const location = eventsFixture.nativeElement.querySelector('.event-location') as HTMLElement | null;
+    expect(location).not.toBeNull();
+    expect(location?.textContent).toContain('555 Pine');
   });
 
   it('shows a validation error when the calendar date is missing', () => {

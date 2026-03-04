@@ -241,14 +241,14 @@
             </label>
             <label>
               <span>Start time</span>
-              <input type="time" formControlName="startTime" />
+              <input type="time" formControlName="startTime" (input)="handleManualTimeChange()" />
               @if (form.get('calendar.startTime')?.touched && form.get('calendar.startTime')?.invalid) {
                 <small class="error">Required</small>
               }
             </label>
             <label>
               <span>End time</span>
-              <input type="time" formControlName="endTime" />
+              <input type="time" formControlName="endTime" (input)="handleManualTimeChange()" />
               @if (form.get('calendar.endTime')?.errors?.['timeOrder']) {
                 <small class="error">End time must be after the start time</small>
               } @else if (form.get('calendar.endTime')?.touched && form.get('calendar.endTime')?.invalid) {
@@ -265,6 +265,36 @@
             <div class="preview-header">
               <p class="preview-title">Upcoming events</p>
               <span class="helper">Times shown in {{ calendarTimeZone }}.</span>
+            </div>
+
+            <div class="slot-picker">
+              <div class="slot-picker__header">
+                <p class="preview-title">Suggested time slots</p>
+                <span class="helper">Tap an available slot to autofill start & end.</span>
+              </div>
+              @if (calendarSlots().length) {
+                <div class="slot-picker__grid">
+                  @for (slot of calendarSlots(); track slot.id) {
+                    <button
+                      type="button"
+                      class="slot-chip"
+                      [class.slot-chip--booked]="slot.status === 'booked'"
+                      [class.slot-chip--selected]="selectedSlotId() === slot.id"
+                      [disabled]="slot.status === 'booked'"
+                      (click)="selectCalendarSlot(slot.id)"
+                    >
+                      <span>{{ slot.label }}</span>
+                      <small [hidden]="slot.status !== 'booked'">
+                        Booked â€¢ {{ slot.conflictSummary ?? 'Conflict' }}
+                      </small>
+                    </button>
+                  }
+                </div>
+              } @else {
+                <div class="preview-state">
+                  <span class="helper">Pick a date to view suggested slots.</span>
+                </div>
+              }
             </div>
 
             @if (calendarEventsLoading()) {

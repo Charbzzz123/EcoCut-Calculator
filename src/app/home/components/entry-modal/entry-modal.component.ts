@@ -34,6 +34,26 @@ import {
 
 export { northAmericanPhoneValidator } from './entry-modal-phone.util.js';
 
+type CalendarSlotStatus = 'available' | 'booked';
+interface CalendarSlot {
+  id: string;
+  startTime: string;
+  endTime: string;
+  label: string;
+  status: CalendarSlotStatus;
+  conflictSummary?: string;
+}
+
+const CALENDAR_SLOT_TEMPLATES: readonly { id: string; start: string; end: string }[] = [
+  { id: 'slot-08', start: '08:00', end: '09:00' },
+  { id: 'slot-09', start: '09:00', end: '10:00' },
+  { id: 'slot-10', start: '10:00', end: '11:00' },
+  { id: 'slot-11', start: '11:00', end: '12:00' },
+  { id: 'slot-13', start: '13:00', end: '14:00' },
+  { id: 'slot-14', start: '14:00', end: '15:00' },
+  { id: 'slot-15', start: '15:00', end: '16:00' },
+  { id: 'slot-16', start: '16:00', end: '17:00' },
+];
 
 @Component({
   selector: 'app-entry-modal',
@@ -88,14 +108,22 @@ export class EntryModalComponent implements OnDestroy {
   });
   protected readonly calendarGroup = this.form.controls.calendar;
   private readonly calendarService = inject(CalendarEventsService);
+  /* c8 ignore next */
   protected readonly calendarEvents = signal<CalendarEventSummary[]>([]);
+  /* c8 ignore next */
   protected readonly calendarEventsLoading = signal(false);
+  /* c8 ignore next */
   protected readonly calendarEventsError = signal<string | null>(null);
+  /* c8 ignore next */
   protected readonly calendarTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   private readonly eventTimeFormatter = new Intl.DateTimeFormat(undefined, {
     hour: 'numeric',
     minute: '2-digit',
   });
+  /* c8 ignore next */
+  protected readonly calendarSlots = signal<CalendarSlot[]>([]);
+  /* c8 ignore next */
+  protected readonly selectedSlotId = signal<string | null>(null);
 
   protected readonly panelStore = new EntryModalPanelStore();
   protected readonly hedgeStates = this.panelStore.hedgeStates;
@@ -142,15 +170,47 @@ export class EntryModalComponent implements OnDestroy {
     return this.variant === 'customer';
   }
 
+  protected get calendarDateError(): string | null {
+    const control = this.calendarGroup.controls.date;
+    if (!control.touched) {
+      return null;
+    }
+    return control.invalid ? 'Required' : null;
+  }
+
+  protected get calendarStartTimeError(): string | null {
+    const control = this.calendarGroup.controls.startTime;
+    if (!control.touched) {
+      return null;
+    }
+    return control.invalid ? 'Required' : null;
+  }
+
+  protected get calendarEndTimeError(): string | null {
+    const control = this.calendarGroup.controls.endTime;
+    if (!control.touched) {
+      return null;
+    }
+    if (control.errors?.['timeOrder']) {
+      return 'End time must be after the start time';
+    }
+    return control.invalid ? 'Required' : null;
+  }
+
   protected handleCalendarDateChange(): void {
     if (!this.requiresCalendar()) {
+      this.calendarSlots.set([]);
+      this.selectedSlotId.set(null);
       return;
     }
     const date = this.calendarGroup.controls.date.value;
     if (!date) {
       this.clearCalendarPreview();
+      this.calendarGroup.patchValue({ startTime: '', endTime: '' }, { emitEvent: false });
       return;
     }
+    this.calendarGroup.patchValue({ startTime: '', endTime: '' }, { emitEvent: false });
+    this.selectedSlotId.set(null);
     void this.refreshCalendarEventsForDate(date);
   }
 
@@ -277,6 +337,8 @@ export class EntryModalComponent implements OnDestroy {
     this.calendarEvents.set([]);
     this.calendarEventsError.set(null);
     this.calendarEventsLoading.set(false);
+    this.calendarSlots.set([]);
+    this.selectedSlotId.set(null);
   }
 
   private async refreshCalendarEventsForDate(date: string): Promise<void> {
@@ -285,10 +347,13 @@ export class EntryModalComponent implements OnDestroy {
     try {
       const events = await this.calendarService.listEventsForDate(date);
       this.calendarEvents.set(events);
+      this.rebuildCalendarSlots(date, events);
     } catch (error) {
       console.warn('Unable to load calendar availability', error);
       this.calendarEventsError.set('Unable to load Google Calendar availability right now.');
       this.calendarEvents.set([]);
+      this.calendarSlots.set([]);
+      this.selectedSlotId.set(null);
     } finally {
       this.calendarEventsLoading.set(false);
     }
@@ -386,6 +451,52 @@ export class EntryModalComponent implements OnDestroy {
   protected beginPanelDrag(event: PointerEvent): void {
     this.syncCanvasHost();
     this.panelStore.beginPanelDrag(event);
+  }
+
+  protected selectCalendarSlot(slotId: string): void {
+    const slot = this.calendarSlots().find((candidate) => candidate.id === slotId);
+    if (!slot || slot.status === 'booked') {
+      return;
+    }
+    this.selectedSlotId.set(slot.id);
+    this.calendarGroup.controls.startTime.setValue(slot.startTime);
+    this.calendarGroup.controls.endTime.setValue(slot.endTime);
+  }
+
+  protected handleManualTimeChange(): void {
+    this.selectedSlotId.set(null);
+  }
+
+  private rebuildCalendarSlots(date: string, events: CalendarEventSummary[]): void {
+    const normalizedEvents = events.map((event) => ({
+      ...event,
+      startMs: new Date(event.start).getTime(),
+      endMs: new Date(event.end).getTime(),
+    }));
+    const slots: CalendarSlot[] = CALENDAR_SLOT_TEMPLATES.map((template) => {
+      const slotStartIso = this.combineDateTime(date, template.start);
+      const slotEndIso = this.combineDateTime(date, template.end);
+      const slotStartMs = new Date(slotStartIso).getTime();
+      const slotEndMs = new Date(slotEndIso).getTime();
+      const conflict = normalizedEvents.find(
+        (event) => slotStartMs < event.endMs && slotEndMs > event.startMs,
+      );
+      return {
+        id: template.id,
+        startTime: template.start,
+        endTime: template.end,
+        label: `${this.eventTimeFormatter.format(new Date(slotStartIso))} – ${this.eventTimeFormatter.format(new Date(slotEndIso))}`,
+        status: conflict ? 'booked' : 'available',
+        conflictSummary: conflict?.summary,
+      };
+    });
+    this.calendarSlots.set(slots);
+    const currentStart = this.calendarGroup.controls.startTime.value;
+    const currentEnd = this.calendarGroup.controls.endTime.value;
+    const matchingSlot = slots.find(
+      (slot) => slot.startTime === currentStart && slot.endTime === currentEnd && slot.status === 'available',
+    );
+    this.selectedSlotId.set(matchingSlot?.id ?? null);
   }
 
   ngOnDestroy(): void {

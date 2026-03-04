@@ -1,4 +1,4 @@
-import type { EntryModalPayload } from './entry-modal.models.js';
+import type { EntryModalPayload, HedgeState } from './entry-modal.models.js';
 import { buildCalendarEventRequest } from './calendar-event.builder.js';
 
 describe('buildCalendarEventRequest', () => {
@@ -74,8 +74,8 @@ describe('buildCalendarEventRequest', () => {
         additionalDetails: 'Edge driveway and bag debris',
       },
       hedges: {
-        'hedge-1': { state: 'trim' },
-        'hedge-2': { state: 'rabattage' },
+        'hedge-1': { state: 'trim', trim: undefined },
+        'hedge-2': { state: 'rabattage', rabattage: undefined },
         'hedge-3': { state: 'rabattage', rabattage: { option: 'total' } },
         'hedge-4': { state: 'none' },
         'hedge-5': { state: 'none' },
@@ -88,8 +88,78 @@ describe('buildCalendarEventRequest', () => {
     const request = buildCalendarEventRequest(payload);
     expect(request?.description).toContain('Desired budget:');
     expect(request?.description).toContain('Additional details: Edge driveway and bag debris');
-    expect(request?.description).toContain('Front walkway (left) (trim)');
-    expect(request?.description).toContain('Left perimeter (rabattage)');
+    expect(request?.description).toContain('Front walkway (left) Trim (custom)');
+    expect(request?.description).toContain('Left perimeter Rabattage (Total)');
     expect(request?.description).toContain('(Total)');
+  });
+
+  it('falls back to custom/preset descriptions when details missing', () => {
+    const payload: EntryModalPayload = {
+      ...basePayload,
+      hedges: {
+        'hedge-1': { state: 'trim', trim: { mode: 'custom', inside: false, top: false, outside: false } },
+        'hedge-2': { state: 'rabattage', rabattage: { option: 'total' } },
+        'hedge-3': { state: 'none' },
+        'hedge-4': { state: 'none' },
+        'hedge-5': { state: 'none' },
+        'hedge-6': { state: 'none' },
+        'hedge-7': { state: 'none' },
+        'hedge-8': { state: 'none' },
+      },
+    };
+    const request = buildCalendarEventRequest(payload);
+    expect(request?.description).toContain('(custom)');
+    expect(request?.description).toContain('(Total)');
+  });
+
+  it('handles missing hedge configs gracefully', () => {
+    const payload: EntryModalPayload = {
+      ...basePayload,
+      hedges: {
+        'hedge-1': { state: 'trim' },
+        'hedge-2': { state: 'rabattage' },
+        'hedge-3': { state: 'none' },
+        'hedge-4': { state: 'none' },
+        'hedge-5': { state: 'none' },
+        'hedge-6': { state: 'none' },
+        'hedge-7': { state: 'none' },
+        'hedge-8': { state: 'none' },
+      },
+    };
+    const request = buildCalendarEventRequest(payload);
+    expect(request?.description).toContain('(custom)');
+    expect(request?.description).toContain('(Total)');
+  });
+
+  it('omits calendar notes when none are provided', () => {
+    const payload: EntryModalPayload = {
+      ...basePayload,
+      calendar: { ...basePayload.calendar!, notes: undefined },
+    };
+    const request = buildCalendarEventRequest(payload);
+    expect(request?.description).not.toContain('Calendar notes');
+  });
+
+  it('describes unknown hedge states for forward compatibility', () => {
+    const payload: EntryModalPayload = {
+      ...basePayload,
+      hedges: {
+        ...basePayload.hedges,
+        'hedge-4': { state: 'future' as HedgeState },
+      },
+    };
+    const request = buildCalendarEventRequest(payload);
+    expect(request?.description).toContain('Right perimeter (future)');
+  });
+
+  it('formats invalid job values to zero dollars', () => {
+    const payload: EntryModalPayload = {
+      ...basePayload,
+      form: { ...basePayload.form, jobValue: 'not-a-number' },
+      calendar: { ...basePayload.calendar!, notes: '' },
+    };
+    const request = buildCalendarEventRequest(payload);
+    expect(request?.description).toContain('Job value: $0.00');
+    expect(request?.description).not.toContain('Calendar notes:');
   });
 });

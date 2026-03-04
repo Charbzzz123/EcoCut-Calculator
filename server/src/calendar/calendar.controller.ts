@@ -1,6 +1,15 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { CalendarService } from './calendar.service.js';
-import { CreateCalendarEventDto } from './dto/create-calendar-event.dto.js';
+import type { CreateCalendarEventDto } from './dto/create-calendar-event.dto.js';
 
 @Controller('calendar')
 export class CalendarController {
@@ -12,9 +21,14 @@ export class CalendarController {
   }
 
   @Get('events')
-  listEvents(@Query('timeMin') timeMin?: string, @Query('timeMax') timeMax?: string) {
+  listEvents(
+    @Query('timeMin') timeMin?: string,
+    @Query('timeMax') timeMax?: string,
+  ) {
     if (!timeMin || !timeMax) {
-      throw new BadRequestException('timeMin and timeMax query parameters are required.');
+      throw new BadRequestException(
+        'timeMin and timeMax query parameters are required.',
+      );
     }
     return this.calendarService.listEvents({ timeMin, timeMax });
   }

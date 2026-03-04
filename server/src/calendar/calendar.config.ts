@@ -41,7 +41,9 @@ export function loadCalendarConfig(): CalendarConfig {
   }
 
   if (!parsed?.client_email || !parsed?.private_key) {
-    throw new Error('Google Calendar credentials must include client_email and private_key.');
+    throw new Error(
+      'Google Calendar credentials must include client_email and private_key.',
+    );
   }
 
   return {
