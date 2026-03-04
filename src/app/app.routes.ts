@@ -8,5 +8,10 @@ export const routes: Routes = [
     component: HomeShellComponent,
     title: 'EcoCut | Home',
   },
+  {
+    path: 'clients',
+    loadComponent: () => import('./clients/clients-shell.component.js').then((m) => m.ClientsShellComponent),
+    title: 'EcoCut | Clients',
+  },
   { path: '**', redirectTo: 'home' },
 ];

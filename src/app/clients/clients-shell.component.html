@@ -1,0 +1,88 @@
+<section class="clients-shell" aria-labelledby="{{ headingId }}">
+  <header class="clients-shell__header">
+    <div>
+      <p class="eyebrow">Client Relationship Manager</p>
+      <h1 id="{{ headingId }}">Client book</h1>
+      <p class="subtitle">Review historical customers, jobs logged, and the last time they were serviced.</p>
+    </div>
+    <a routerLink="/home" class="back-link" aria-label="Return to EcoCut home">Back to dashboard</a>
+  </header>
+
+  <section class="clients-summary" aria-label="Client metrics">
+    <article class="summary-card">
+      <p class="summary-card__label">Total clients</p>
+      <p class="summary-card__value">{{ statsSnapshot().totalClients }}</p>
+    </article>
+    <article class="summary-card">
+      <p class="summary-card__label">Jobs logged</p>
+      <p class="summary-card__value">{{ statsSnapshot().totalJobs }}</p>
+    </article>
+    <article class="summary-card">
+      <p class="summary-card__label">Last serviced</p>
+      <p class="summary-card__value">
+        @if (statsSnapshot().mostRecentDate) {
+          {{ statsSnapshot().mostRecentDate | date: 'MMM d, y, h:mm a' }}
+        } @else {
+          —
+        }
+      </p>
+    </article>
+  </section>
+
+  <section class="clients-toolbar" aria-label="Client filters and actions">
+    <label class="clients-toolbar__search">
+      <span class="sr-only">Search clients</span>
+      <input
+        type="search"
+        [formControl]="query"
+        placeholder="Search by name, address, phone, email"
+      />
+    </label>
+    <button type="button" class="refresh-btn" (click)="loadClients()">Refresh</button>
+  </section>
+
+  <section class="clients-roster" aria-live="polite">
+    @switch (loadState()) {
+      @case ('loading') {
+        <div class="clients-roster__state">Loading client roster…</div>
+      }
+      @case ('error') {
+        <div class="clients-roster__state clients-roster__state--error">
+          <p>We couldn’t load clients right now.</p>
+          <button type="button" (click)="loadClients()">Try again</button>
+        </div>
+      }
+      @case ('ready') {
+        @if (filteredClientsSnapshot().length) {
+          <ul class="client-list">
+            @for (client of filteredClientsSnapshot(); track trackByClientId($index, client)) {
+              <li class="client-card">
+                <div class="client-card__header">
+                  <p class="client-card__name">{{ client.fullName }}</p>
+                  <p class="client-card__jobs">{{ client.jobsCount }} job(s)</p>
+                </div>
+                <p class="client-card__contact">
+                  <span>{{ client.phone }}</span>
+                  @if (client.email) {
+                    <span>&middot; {{ client.email }}</span>
+                  }
+                </p>
+                <p class="client-card__address">{{ client.address }}</p>
+                <p class="client-card__meta">
+                  Last job:
+                  <strong>
+                    {{ client.lastJobDate ? (client.lastJobDate | date: 'MMM d, y h:mm a') : '—' }}
+                  </strong>
+                </p>
+              </li>
+            }
+          </ul>
+        } @else {
+          <div class="clients-roster__state clients-roster__state--empty">
+            No clients match that search yet.
+          </div>
+        }
+      }
+    }
+  </section>
+</section>

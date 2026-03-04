@@ -203,3 +203,10 @@ Update this document whenever we clarify rules or add new functionality so imple
   - `GET /entries/clients` – returns the deduped client roster described above.
 - The frontend’s `HomeDataService.saveEntry` now calls the repository service instead of logging to the console, ensuring every job immediately appears in the roster/history datasets.
 - Future correction flows will mutate job data via this API so calendar edits + CRM updates stay auditable end-to-end.
+
+### Client book UI (current release)
+- **Access**: Quick action “Clients” on the home dashboard navigates to `/clients`, a dedicated view styled like the existing dark hero but optimized for CRM data. A back link returns to the dashboard without refreshing.
+- **Insights strip**: three cards show total clients, cumulative jobs logged, and the most recent job timestamp (auto-formatted). These values update instantly when the roster refreshes.
+- **Search & refresh**: sticky toolbar with a pill-shaped search field (name, address, phone, email) plus a refresh button that re-queries `/entries/clients`. Typing debounces at 150 ms so the list feels instant.
+- **Roster list**: stacked cards displaying name, job count, contact info, address, and “Last job” timestamp. List is keyboard accessible, announces changes via `aria-live`, and shows informative states (loading, empty, error with retry).
+- **Performance expectations**: roster fetch must resolve in <600 ms for average data sets; filtering stays client-side until we add pagination. Coverage includes loading/error paths so the feature remains evolutive.
