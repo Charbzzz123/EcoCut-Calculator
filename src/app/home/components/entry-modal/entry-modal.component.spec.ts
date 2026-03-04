@@ -907,6 +907,249 @@ describe('EntryModalComponent', () => {
     expect(component['selectedSlotId']()).toBeNull();
   });
 
+  it('applies timeline selections, detects conflicts, and requires confirmation', () => {
+    component.variant = 'customer';
+    component.form.get('calendar.date')?.setValue('2026-03-05');
+    const startIso = component['combineDateTime']('2026-03-05', '14:00');
+    const endIso = component['combineDateTime']('2026-03-05', '15:00');
+    component['rebuildTimelineEvents']('2026-03-05', [
+      { id: 'evt-2', summary: 'Existing crew', start: startIso, end: endIso, location: '123 Pine' },
+    ]);
+
+    component['applyTimelineSelectionMinutes'](14 * 60, 15 * 60);
+
+    const selection = component['timelineSelection']();
+    expect(selection?.startMinutes).toBe(14 * 60);
+    expect(component.form.get('calendar.startTime')?.value).toBe('13:45');
+    expect(component['selectionConflict']()).toBe(true);
+    expect(component['conflictWarningText']()).toContain('Existing crew');
+    expect(component['isPrimaryDisabled']()).toBe(true);
+
+    component['confirmTimelineConflict']();
+    expect(component['conflictConfirmedFlag']()).toBe(true);
+    expect(component['isPrimaryDisabled']()).toBe(false);
+  });
+
+  it('produces timeline selection and now-line styles', () => {
+    component.variant = 'customer';
+    component.form.get('calendar.date')?.setValue(component['todayIsoDate']());
+    component['applyTimelineSelectionMinutes'](8 * 60, 9 * 60);
+
+    const selectionStyle = component['timelineSelectionStyle']();
+    expect(selectionStyle).not.toBeNull();
+    expect(selectionStyle?.topPercent).toBeGreaterThanOrEqual(0);
+    component['currentTimeMinutes'].set(12 * 60);
+    const nowStyle = component['timelineNowLineStyle']();
+    expect(nowStyle).not.toBeNull();
+    expect(nowStyle?.topPercent).toBeGreaterThan(0);
+
+    component['timelineSelection'].set({ startMinutes: 8 * 60, endMinutes: 8 * 60 });
+    expect(component['timelineSelectionStyle']()).toBeNull();
+  });
+
+  it('applies selection offset while clamping to timeline bounds', () => {
+    const offsetNearStart = component['applySelectionOffset'](7 * 60 + 10, 7 * 60 + 20);
+    expect(offsetNearStart).toEqual({ start: 7 * 60, end: 7 * 60 + 30 });
+    const offsetNearEnd = component['applySelectionOffset'](20 * 60 - 5, 20 * 60);
+    expect(offsetNearEnd.end).toBe(20 * 60);
+    expect(offsetNearEnd.start).toBe(20 * 60 - 30);
+  });
+
+  it('handles timeline pointer gestures and cleans up listeners', () => {
+    component.variant = 'customer';
+    component.form.get('calendar.date')?.setValue('2026-03-05');
+    const gridRect: Rect = { left: 0, top: 0, right: 300, width: 300, height: 600 };
+    component['timelineGrid'] = createElementRef(gridRect);
+    const addSpy = vi.spyOn(window, 'addEventListener');
+    const removeSpy = vi.spyOn(window, 'removeEventListener');
+
+    component['onTimelinePointerDown']({ preventDefault: vi.fn(), clientY: 300 } as unknown as PointerEvent);
+    expect(addSpy).toHaveBeenCalledWith('pointermove', expect.any(Function));
+    expect(component.form.get('calendar.startTime')?.value).not.toBe('');
+    component['handleTimelinePointerMove']({ preventDefault: vi.fn(), clientY: 450 } as unknown as PointerEvent);
+    const selection = component['timelineSelection']();
+    expect(selection).not.toBeNull();
+    component['handleTimelinePointerUp']();
+    expect(removeSpy).toHaveBeenCalledWith('pointermove', expect.any(Function));
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+  });
+
+  it('skips pointer interactions when scheduling not required and marks date when missing', () => {
+    component.variant = 'warm-lead';
+    component['onTimelinePointerDown']({ preventDefault: vi.fn(), clientY: 100 } as unknown as PointerEvent);
+    expect(component['timelineSelection']()).toBeNull();
+
+    component.variant = 'customer';
+    const dateControl = component.form.get('calendar.date') as FormControl<string | null>;
+    const touchSpy = vi.spyOn(dateControl, 'markAsTouched');
+    component['timelineGrid'] = undefined;
+    component['onTimelinePointerDown']({ preventDefault: vi.fn(), clientY: 200 } as unknown as PointerEvent);
+    expect(touchSpy).toHaveBeenCalled();
+  });
+
+  it('updates current time minutes only when viewing today', () => {
+    vi.useFakeTimers();
+    const today = '2026-03-05';
+    vi.setSystemTime(new Date(`${today}T15:00:00-05:00`));
+    const intervalSpy = vi
+      .spyOn(window, 'setInterval')
+      .mockImplementation((cb: TimerHandler) => {
+        if (typeof cb === 'function') {
+          cb();
+        }
+        return 123 as unknown as number;
+      });
+    component.variant = 'customer';
+    component.form.get('calendar.date')?.setValue(today);
+    component['syncCurrentTimeTicker']();
+    expect(component['currentTimeMinutes']()).not.toBeNull();
+
+    component.form.get('calendar.date')?.setValue('2026-03-06');
+    component['updateCurrentTimeMinutes']();
+    expect(component['currentTimeMinutes']()).toBeNull();
+
+    component['currentTimeTicker'] = 456 as unknown as ReturnType<typeof setInterval>;
+    component['clearCurrentTimeTicker']();
+    expect(component['currentTimeTicker']).toBeNull();
+    intervalSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  it('falls back to default minutes when timeline grid is missing', () => {
+    const minutes = component['minutesFromPointer']({ clientY: 0 } as unknown as PointerEvent);
+    expect(minutes).toBe(7 * 60);
+  });
+
+  it('renders timeline grid, events, and conflict banner in the template', () => {
+    const timelineFixture = TestBed.createComponent(EntryModalComponent);
+    const timelineComponent = timelineFixture.componentInstance;
+    timelineComponent.open = true;
+    timelineComponent.variant = 'customer';
+    timelineComponent.form.get('calendar.date')?.setValue('2026-03-05');
+    timelineComponent['timelineEvents'].set([
+      {
+        id: 'evt-tpl',
+        summary: 'Booked job',
+        location: '456 Cedar',
+        startMinutes: 8 * 60,
+        endMinutes: 9 * 60,
+        topPercent: 10,
+        heightPercent: 12,
+        column: 0,
+        columns: 1,
+        leftPercent: 0,
+        widthPercent: 100,
+      } as never,
+      {
+        id: 'evt-nolocation',
+        summary: 'Prep',
+        startMinutes: 10 * 60,
+        endMinutes: 10 * 60 + 30,
+        topPercent: 30,
+        heightPercent: 8,
+        column: 0,
+        columns: 1,
+        leftPercent: 0,
+        widthPercent: 100,
+      } as never,
+    ]);
+    timelineComponent['timelineSelection'].set({ startMinutes: 9 * 60, endMinutes: 10 * 60 });
+    timelineComponent['selectionConflict'].set(true);
+    timelineComponent['conflictSummary'].set('Booked job');
+    timelineComponent['currentTimeMinutes'].set(9 * 60 + 30);
+    timelineFixture.detectChanges();
+
+    const block = timelineFixture.nativeElement.querySelector('.timeline-event-block') as HTMLElement;
+    expect(block?.textContent).toContain('Booked job');
+    const selection = timelineFixture.nativeElement.querySelector('.timeline-selection') as HTMLElement;
+    expect(selection).not.toBeNull();
+    const banner = timelineFixture.nativeElement.querySelector('.conflict-banner') as HTMLElement;
+    expect(banner?.textContent).toContain('Conflicting job');
+    const overrideButton = banner?.querySelector('button') as HTMLButtonElement;
+    overrideButton?.click();
+    timelineFixture.detectChanges();
+    expect(banner?.textContent).toContain('Override confirmed');
+    timelineComponent['conflictSummary'].set(null);
+    timelineComponent['selectionConflict'].set(true);
+    timelineFixture.detectChanges();
+    expect(banner?.textContent).toContain('This slot overlaps an existing booking.');
+
+    const grid = timelineFixture.nativeElement.querySelector('.timeline-grid') as HTMLElement;
+    grid.getBoundingClientRect = () =>
+      ({
+        top: 0,
+        bottom: 600,
+        left: 0,
+        right: 300,
+        width: 300,
+        height: 600,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }) as DOMRect;
+    const pointerEvent =
+      typeof PointerEvent === 'function'
+        ? new PointerEvent('pointerdown', { clientY: 250 })
+        : (new MouseEvent('pointerdown', { clientY: 250 }) as unknown as PointerEvent);
+    grid.dispatchEvent(pointerEvent);
+  });
+
+  it('normalizes timeline events with overlapping columns', () => {
+    component.variant = 'customer';
+    component['rebuildTimelineEvents']('2026-03-05', [
+      { id: 'evt-10', summary: 'A', start: component['combineDateTime']('2026-03-05', '09:00'), end: component['combineDateTime']('2026-03-05', '10:00') },
+      { id: 'evt-11', summary: 'B', start: component['combineDateTime']('2026-03-05', '09:30'), end: component['combineDateTime']('2026-03-05', '10:30') },
+      { id: 'evt-12', summary: 'C', start: component['combineDateTime']('2026-03-05', '11:30'), end: component['combineDateTime']('2026-03-05', '12:00') },
+    ]);
+    const events = component['timelineEvents']();
+    expect(events).toHaveLength(3);
+    expect(events.some((evt) => evt.column > 0)).toBe(true);
+  });
+
+  it('blocks submission until calendar conflicts are confirmed', () => {
+    component.variant = 'customer';
+    component.form.patchValue({
+      firstName: 'Jon',
+      lastName: 'Snow',
+      address: '123 Wall',
+      phone: '(438) 555-1010',
+      jobType: 'Hedge Trimming',
+      jobValue: '900',
+    });
+    component.form.get('calendar.date')?.setValue('2026-03-05');
+    component.form.get('calendar.startTime')?.setValue('09:00');
+    component.form.get('calendar.endTime')?.setValue('10:00');
+    component['selectionConflict'].set(true);
+    component['conflictConfirmed'].set(false);
+    const savedSpy = vi.fn();
+    component.saved.subscribe(savedSpy);
+
+    component['submitEntry']();
+    expect(savedSpy).not.toHaveBeenCalled();
+
+    component['selectionConflict'].set(false);
+    component['submitEntry']();
+    expect(savedSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores pointer move/up events when no drag selection exists', () => {
+    component['timelineDragStartMinutes'] = null;
+    component['handleTimelinePointerMove']({ preventDefault: vi.fn(), clientY: 50 } as unknown as PointerEvent);
+    component['timelineSelection'].set(null);
+    component['handleTimelinePointerUp']();
+    expect(component['timelineSelection']()).toBeNull();
+  });
+
+  it('exposes timeline pointer handler references', () => {
+    expect(typeof component['onTimelinePointerMove']).toBe('function');
+    expect(typeof component['onTimelinePointerUp']).toBe('function');
+    component['onTimelinePointerMove']({ preventDefault: vi.fn(), clientY: 60 } as unknown as PointerEvent);
+    component['timelineSelection'].set({ startMinutes: 8 * 60, endMinutes: 8 * 60 + 30 });
+    component['onTimelinePointerUp']();
+  });
+
   it('ignores slot selection when the slot is booked', () => {
     component.variant = 'customer';
     component['calendarSlots'].set([

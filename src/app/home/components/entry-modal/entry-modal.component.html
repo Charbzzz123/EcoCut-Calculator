@@ -270,8 +270,12 @@
             <div class="timeline-wrapper">
               <div class="timeline-grid" #timelineGrid (pointerdown)="onTimelinePointerDown($event)">
                 <div class="timeline-hours">
-                  @for (hour of timelineHours; track hour) {
-                    <div class="timeline-hour">
+                  @for (hour of timelineHours; track hour; let i = $index) {
+                    <div
+                      class="timeline-hour"
+                      [style.top.%]="timelineHourPosition(i)"
+                      [class.timeline-hour--last]="i === timelineHours.length - 1"
+                    >
                       <span>{{ formatTimelineHour(hour) }}</span>
                     </div>
                   }

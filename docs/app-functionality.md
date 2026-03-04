@@ -41,6 +41,10 @@
   - Customer variant now surfaces a **Schedule on EcoCut Calendar** block. Date, start time, and end time are mandatory; the Save button remains disabled until they’re valid.
   - The calendar block displays a live availability feed pulled from EcoCut’s Google Calendar (via the Nest proxy). Users can see existing jobs for the selected date (times shown in the browser’s timezone) and pick an open slot without leaving the modal. Loading and error states are clearly messaged.
   - Calendar notes provide extra crew instructions and are appended to the Google event description.
+- **Interactive day timeline**:
+  - Replaces the static slot-only picker with a Google Calendar-style vertical day view (7 AM – 8 PM) inside the modal. Users click and drag directly on the column to select any custom window; the controls auto-fill start/end times from the selection.
+  - Existing Google events render as stacked blocks with overlap detection. When the chosen window collides with an existing job, a conflict banner appears and Save stays disabled until the user explicitly overrides (so double-bookings are intentional).
+  - A live “current time” line appears when viewing today, giving schedulers real-time context. The view gracefully handles parallel teams by laying blocks side-by-side and labeling them with summary + location.
 - **Calendar event auto-generation**:
   - When a customer entry is saved the frontend builds a structured event description (contact info, job value, hedge plan breakdown, additional details, calendar notes) and sends it to the Nest backend (`POST /calendar/events`). Location defaults to the customer address.
   - Undo/edit stories will later use the stored `eventId` to delete or update the slot; for now we focus on creation paths.

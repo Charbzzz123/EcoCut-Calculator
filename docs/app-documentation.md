@@ -38,7 +38,7 @@ root/
 - **Calendar integration**:
   - `CalendarEventsService` (`src/app/home/services/calendar-events.service.ts`) wraps the `/api/calendar/events` endpoints. The entry modal consumes it to show live availability; `HomeDataService.saveEntry` uses the same service when creating customer events.
   - `calendar-event.builder.ts` converts the payload into a Google Calendar-friendly summary/description (hedge plan, customer info, budgets, notes).
-  - The template now shows a “Schedule on EcoCut Calendar” block for customer entries with loading/error/empty states driven by the service.
+  - The customer template includes a Google Calendar-style **timeline grid** (7 AM–8 PM) rendered via `timelineHours`, `timelineEvents`, and `timelineSelection` signals. Dragging on the grid fills the start/end controls; overlapping events raise a conflict banner hooked into `selectionConflict` + `conflictConfirmed`.
 - **Suggested slot picker**:
   - EntryModalComponent derives a standard grid of crew slots (08:00–17:00) and compares each to the fetched Google events. Conflicts mark the chip `slot-chip--booked`, while open slots remain actionable.
   - Manual edits to the start/end inputs clear the selection, so the UI never shows a stale chip highlight.

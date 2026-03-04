@@ -58,6 +58,8 @@ const CALENDAR_SLOT_TEMPLATES: readonly { id: string; start: string; end: string
 const TIMELINE_START_HOUR = 7;
 const TIMELINE_END_HOUR = 20;
 const MIN_SELECTION_MINUTES = 30;
+const TIMELINE_INCREMENT = 15;
+const TIMELINE_SELECTION_OFFSET = 15;
 
 interface TimelineEventBlock {
   id: string;
@@ -500,7 +502,7 @@ export class EntryModalComponent implements OnDestroy {
     const relative = (event.clientY - rect.top) / rect.height;
     const minutes =
       TIMELINE_START_HOUR * 60 + Math.round(relative * this.timelineTotalMinutes());
-    return this.clampTimelineMinutes(minutes);
+    return this.clampTimelineMinutes(this.snapToIncrement(minutes));
   }
 
   private handleTimelinePointerMove(event: PointerEvent): void {
@@ -511,10 +513,15 @@ export class EntryModalComponent implements OnDestroy {
     const current = this.minutesFromPointer(event);
     const start = Math.min(this.timelineDragStartMinutes, current);
     const end = Math.max(this.timelineDragStartMinutes, current);
+    const visualEnd = Math.max(start + MIN_SELECTION_MINUTES, end);
     this.timelineSelection.set({
       startMinutes: start,
-      endMinutes: Math.max(start + MIN_SELECTION_MINUTES, end),
+      endMinutes: visualEnd,
     });
+    const adjusted = this.applySelectionOffset(start, visualEnd);
+    this.calendarGroup.controls.startTime.setValue(this.minutesToTimeString(adjusted.start));
+    this.calendarGroup.controls.endTime.setValue(this.minutesToTimeString(adjusted.end));
+    this.evaluateTimelineConflict(start, visualEnd);
   }
 
   private handleTimelinePointerUp(): void {
@@ -534,17 +541,16 @@ export class EntryModalComponent implements OnDestroy {
 
   protected applyTimelineSelectionMinutes(startMinutes: number, endMinutes: number): void {
     this.timelineSelection.set({ startMinutes, endMinutes });
-    const startTime = this.minutesToTimeString(startMinutes);
-    const endTime = this.minutesToTimeString(endMinutes);
-    this.calendarGroup.controls.startTime.setValue(startTime);
-    this.calendarGroup.controls.endTime.setValue(endTime);
+    const adjusted = this.applySelectionOffset(startMinutes, endMinutes);
+    this.calendarGroup.controls.startTime.setValue(this.minutesToTimeString(adjusted.start));
+    this.calendarGroup.controls.endTime.setValue(this.minutesToTimeString(adjusted.end));
     this.selectedSlotId.set(null);
     this.evaluateTimelineConflict(startMinutes, endMinutes);
   }
 
   private setTimelineSelectionFromTimes(startTime: string, endTime: string): void {
-    const start = this.timeStringToMinutes(startTime);
-    const end = this.timeStringToMinutes(endTime);
+    const start = this.snapToIncrement(this.timeStringToMinutes(startTime));
+    const end = this.snapToIncrement(this.timeStringToMinutes(endTime));
     this.timelineSelection.set({ startMinutes: start, endMinutes: end });
     this.evaluateTimelineConflict(start, end);
   }
@@ -582,14 +588,35 @@ export class EntryModalComponent implements OnDestroy {
   }
 
   private minutesToTimeString(totalMinutes: number): string {
-    const hrs = Math.floor(totalMinutes / 60);
-    const mins = totalMinutes % 60;
+    const snapped = this.snapToIncrement(totalMinutes);
+    const hrs = Math.floor(snapped / 60);
+    const mins = snapped % 60;
     return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
   }
 
   private timeStringToMinutes(time: string): number {
     const [hours, minutes] = time.split(':').map((value) => Number(value));
     return hours * 60 + minutes;
+  }
+
+  private snapToIncrement(minutes: number): number {
+    const snapped = Math.round(minutes / TIMELINE_INCREMENT) * TIMELINE_INCREMENT;
+    return snapped;
+  }
+
+  private applySelectionOffset(startMinutes: number, endMinutes: number): { start: number; end: number } {
+    const minStart = TIMELINE_START_HOUR * 60;
+    const maxEnd = TIMELINE_END_HOUR * 60;
+    let adjustedStart = Math.max(minStart, startMinutes - TIMELINE_SELECTION_OFFSET);
+    let adjustedEnd = Math.max(minStart, endMinutes - TIMELINE_SELECTION_OFFSET);
+    if (adjustedEnd < adjustedStart + MIN_SELECTION_MINUTES) {
+      adjustedEnd = adjustedStart + MIN_SELECTION_MINUTES;
+    }
+    if (adjustedEnd > maxEnd) {
+      adjustedEnd = maxEnd;
+      adjustedStart = Math.max(minStart, adjustedEnd - MIN_SELECTION_MINUTES);
+    }
+    return { start: adjustedStart, end: adjustedEnd };
   }
 
   private rebuildTimelineEvents(date: string, events: CalendarEventSummary[]): void {
@@ -734,6 +761,11 @@ export class EntryModalComponent implements OnDestroy {
     return `${normalized} ${suffix}`;
   }
 
+  protected timelineHourPosition(index: number): number {
+    const totalMarks = Math.max(1, this.timelineHours.length - 1);
+    return (index / totalMarks) * 100;
+  }
+
   protected timelineSelectionStyle():
     | { topPercent: number; heightPercent: number; conflict: boolean }
     | null {
@@ -777,10 +809,16 @@ export class EntryModalComponent implements OnDestroy {
     event.preventDefault();
     const minutes = this.minutesFromPointer(event);
     this.timelineDragStartMinutes = minutes;
+    const endMinutes = minutes + MIN_SELECTION_MINUTES;
     this.timelineSelection.set({
       startMinutes: minutes,
-      endMinutes: minutes + MIN_SELECTION_MINUTES,
+      endMinutes,
     });
+    const adjusted = this.applySelectionOffset(minutes, endMinutes);
+    this.calendarGroup.controls.startTime.setValue(this.minutesToTimeString(adjusted.start));
+    this.calendarGroup.controls.endTime.setValue(this.minutesToTimeString(adjusted.end));
+    this.selectedSlotId.set(null);
+    this.evaluateTimelineConflict(minutes, endMinutes);
     window.addEventListener('pointermove', this.onTimelinePointerMove);
     window.addEventListener('pointerup', this.onTimelinePointerUp, { once: true });
   }
