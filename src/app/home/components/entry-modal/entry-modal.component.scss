@@ -674,6 +674,7 @@ button:hover {
 .event-list li {
   display: flex;
   gap: 0.75rem;
+  flex-wrap: wrap;
   padding: 0.5rem 0.75rem;
   border-radius: 0.75rem;
   background: rgba(3, 6, 5, 0.4);
@@ -712,6 +713,7 @@ button:hover {
 .event-actions {
   margin-left: auto;
   display: flex;
+  flex-wrap: wrap;
   gap: 0.35rem;
 }
 
@@ -725,6 +727,18 @@ button:hover {
 .event-actions .ghost.danger {
   color: #ff9b9b;
   border-color: rgba(255, 155, 155, 0.4);
+}
+
+@media (max-width: 900px) {
+  .event-list li {
+    align-items: flex-start;
+  }
+
+  .event-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+  }
 }
 
 .form-footer {
