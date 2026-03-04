@@ -13,6 +13,7 @@ import {
 class CalendarEventsServiceStub {
   listEventsForDate = vi.fn().mockResolvedValue([]);
   createEvent = vi.fn();
+  deleteEvent = vi.fn().mockResolvedValue(undefined);
 }
 import { CalendarEventsService } from '../../services/calendar-events.service.js';
 
@@ -150,7 +151,7 @@ describe('EntryModalComponent', () => {
   it('blocks customer submissions without any hedge selections', () => {
     const savedSpy = vi.fn();
     component.saved.subscribe(savedSpy);
-    component.variant = 'customer';
+    (component as unknown as { _variant: 'warm-lead' | 'customer' })._variant = 'customer';
     component.form.patchValue({
       firstName: 'Client',
       lastName: 'Test',
@@ -1560,6 +1561,109 @@ describe('EntryModalComponent', () => {
     expect(component['buildCalendarPayload']()).toBeUndefined();
   });
 
+  it('includes the existing event id when editing a calendar event', () => {
+    component.variant = 'customer';
+    component.form.get('calendar.date')?.setValue('2026-03-12');
+    component.form.get('calendar.startTime')?.setValue('09:00');
+    component.form.get('calendar.endTime')?.setValue('11:00');
+    component['editingCalendarEvent'].set({
+      id: 'evt-55',
+      summary: 'Existing',
+      start: '2026-03-12T09:00:00Z',
+      end: '2026-03-12T11:00:00Z',
+    });
+
+    const payload = component['buildCalendarPayload']();
+    expect(payload?.eventId).toBe('evt-55');
+  });
+
+  it('enters edit mode when selecting an existing calendar event', () => {
+    component.variant = 'customer';
+    component.form.get('calendar.date')?.setValue('2026-03-05');
+    const event = {
+      id: 'evt-edit',
+      summary: 'Existing booking',
+      start: component['combineDateTime']('2026-03-05', '10:00'),
+      end: component['combineDateTime']('2026-03-05', '12:00'),
+    };
+
+    component['editCalendarEvent'](event);
+
+    expect(component['editingCalendarEvent']()).toEqual(event);
+    expect(component.form.get('calendar.startTime')?.value).toBe('10:00');
+    expect(component.form.get('calendar.endTime')?.value).toBe('12:00');
+  });
+
+  it('cancels calendar editing when requested', () => {
+    component['editingCalendarEvent'].set({
+      id: 'evt-cancel',
+      summary: 'Existing booking',
+      start: '',
+      end: '',
+    });
+    component['cancelCalendarEdit']();
+    expect(component['editingCalendarEvent']()).toBeNull();
+  });
+
+  it('deletes existing calendar events and refreshes availability', async () => {
+    component.variant = 'customer';
+    component.form.get('calendar.date')?.setValue('2026-03-05');
+    const refreshSpy = vi
+      .spyOn(component as unknown as { refreshCalendarEventsForDate: (date: string) => Promise<void> }, 'refreshCalendarEventsForDate')
+      .mockResolvedValue();
+    component['editingCalendarEvent'].set({
+      id: 'evt-del',
+      summary: 'Delete me',
+      start: '',
+      end: '',
+    });
+
+    await component['deleteCalendarEvent']({
+      id: 'evt-del',
+      summary: 'Delete me',
+      start: component['combineDateTime']('2026-03-05', '08:00'),
+      end: component['combineDateTime']('2026-03-05', '09:00'),
+    });
+
+    expect(calendarService.deleteEvent).toHaveBeenCalledWith('evt-del');
+    expect(refreshSpy).toHaveBeenCalledWith('2026-03-05');
+    expect(component['editingCalendarEvent']()).toBeNull();
+  });
+
+  it('removes deleted events locally when no calendar date is selected', async () => {
+    component.variant = 'customer';
+    component.form.get('calendar.date')?.setValue('');
+    component['calendarEvents'].set([
+      { id: 'evt-local', summary: 'Keep', start: '', end: '' },
+      { id: 'evt-delete', summary: 'Delete me', start: '', end: '' },
+    ]);
+
+    await component['deleteCalendarEvent']({
+      id: 'evt-delete',
+      summary: 'Delete me',
+      start: '',
+      end: '',
+    });
+
+    const events = component['calendarEvents']();
+    expect(events.find((evt) => evt.id === 'evt-delete')).toBeUndefined();
+  });
+
+  it('surfaces an error message when calendar deletion fails', async () => {
+    component.variant = 'customer';
+    component.form.get('calendar.date')?.setValue('2026-03-05');
+    calendarService.deleteEvent.mockRejectedValueOnce(new Error('boom'));
+
+    await component['deleteCalendarEvent']({
+      id: 'evt-error',
+      summary: 'Oops',
+      start: component['combineDateTime']('2026-03-05', '07:00'),
+      end: component['combineDateTime']('2026-03-05', '08:00'),
+    });
+
+    expect(component['calendarEventsError']()).toContain('Unable to delete calendar event');
+  });
+
   it('marks calendar controls as touched when fields are missing', () => {
     component.variant = 'customer';
     const result = component['validateCalendarRange']();
@@ -1615,6 +1719,60 @@ describe('EntryModalComponent', () => {
 
     expect(cancelPanelSpy).toHaveBeenCalled();
     expect(savePanelSpy).toHaveBeenCalled();
+  });
+
+  it('renders edit and delete controls for calendar events', async () => {
+    (component as unknown as { _variant: 'warm-lead' | 'customer' })._variant = 'customer';
+    component.form.get('jobType')?.setValue('Hedge Trimming');
+    component.form.get('calendar.date')?.setValue('2026-03-05');
+    component['calendarEvents'].set([
+      {
+        id: 'evt-ui',
+        summary: 'UI job',
+        start: component['combineDateTime']('2026-03-05', '09:00'),
+        end: component['combineDateTime']('2026-03-05', '10:00'),
+      },
+    ]);
+    component.open = true;
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component['calendarEvents']()).toHaveLength(1);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const actionButtons = fixture.nativeElement.querySelectorAll('.event-actions button') as NodeListOf<HTMLButtonElement>;
+    expect(actionButtons.length).toBe(2);
+
+    actionButtons[0].click();
+    expect(component['editingCalendarEvent']()?.id).toBe('evt-ui');
+  });
+
+  it('displays the editing banner when an event is being edited', () => {
+    component.variant = 'customer';
+    component.open = true;
+    component.form.get('jobType')?.setValue('Hedge Trimming');
+    component['editingCalendarEvent'].set({
+      id: 'evt-banner',
+      summary: 'Banner event',
+      start: component['combineDateTime']('2026-03-05', '13:00'),
+      end: component['combineDateTime']('2026-03-05', '14:00'),
+    });
+    fixture.detectChanges();
+
+    const banner = fixture.nativeElement.querySelector('.editing-banner') as HTMLElement;
+    expect(banner?.textContent).toContain('Editing existing event');
+    expect(banner?.textContent).toContain('Banner event');
+  });
+
+  it('renders the hedge selection error when present', () => {
+    component.open = true;
+    component.form.get('jobType')?.setValue('Hedge Trimming');
+    component['hedgeSelectionError'].set('Select at least one hedge before saving this customer entry.');
+    fixture.detectChanges();
+
+    const errorEl = fixture.nativeElement.querySelector('.hedge-error') as HTMLElement;
+    expect(errorEl?.textContent).toContain('Select at least one hedge');
   });
 
   it('submits the form via the ngSubmit binding', () => {

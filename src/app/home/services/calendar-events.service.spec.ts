@@ -44,4 +44,29 @@ describe('CalendarEventsService', () => {
     const event = await resultPromise;
     expect(event.id).toBe('evt-2');
   });
+
+  it('updates an existing calendar event', async () => {
+    const requestBody = {
+      summary: 'Updated Job',
+      start: '2026-03-07T09:00:00Z',
+      end: '2026-03-07T11:00:00Z',
+    };
+    const resultPromise = service.updateEvent('evt-9', requestBody);
+    const req = httpMock.expectOne('/api/calendar/events/evt-9');
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body.summary).toBe('Updated Job');
+    req.flush({ ...requestBody, id: 'evt-9' });
+
+    const event = await resultPromise;
+    expect(event.id).toBe('evt-9');
+  });
+
+  it('deletes a calendar event', async () => {
+    const deletePromise = service.deleteEvent('evt-10');
+    const req = httpMock.expectOne('/api/calendar/events/evt-10');
+    expect(req.request.method).toBe('DELETE');
+    req.flush({});
+
+    await deletePromise;
+  });
 });

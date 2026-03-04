@@ -517,6 +517,28 @@ button:hover {
   white-space: nowrap;
 }
 
+.editing-banner {
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  background: rgba(108, 240, 191, 0.08);
+  border: 1px solid rgba(108, 240, 191, 0.35);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.editing-banner__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.editing-banner__actions .ghost {
+  border-color: rgba(108, 240, 191, 0.4);
+  color: var(--accent, #6cf0bf);
+}
+
 .slot-picker {
   display: flex;
   flex-direction: column;
@@ -615,6 +637,12 @@ button:hover {
   border-radius: 0.75rem;
   background: rgba(3, 6, 5, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.05);
+  align-items: center;
+}
+
+.event-item--editing {
+  border-color: rgba(108, 240, 191, 0.5);
+  background: rgba(108, 240, 191, 0.08);
 }
 
 .event-time {
@@ -638,6 +666,24 @@ button:hover {
   margin: 0;
   font-size: 0.85rem;
   color: var(--text-muted, #a6b3aa);
+}
+
+.event-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 0.35rem;
+}
+
+.event-actions .ghost {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-muted, #a6b3aa);
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+.event-actions .ghost.danger {
+  color: #ff9b9b;
+  border-color: rgba(255, 155, 155, 0.4);
 }
 
 .form-footer {

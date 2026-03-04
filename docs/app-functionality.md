@@ -40,14 +40,14 @@
 - **Customer scheduling requirements**:
   - Customer variant now surfaces a **Schedule on EcoCut Calendar** block. Date, start time, and end time are mandatory; the Save button remains disabled until they’re valid.
   - The calendar block displays a live availability feed pulled from EcoCut’s Google Calendar (via the Nest proxy). Users can see existing jobs for the selected date (times shown in the browser’s timezone) and pick an open slot without leaving the modal. Loading and error states are clearly messaged.
-  - Calendar notes provide extra crew instructions and are appended to the Google event description.
+  - Existing events show up with `Edit` and `Delete` controls. Editing pre-fills the timeline/grid so schedulers can tweak the slot in place; deleting issues a `DELETE /calendar/events/:eventId` call via the proxy and refreshes availability immediately.
 - **Interactive day timeline**:
   - Replaces the static slot-only picker with a Google Calendar-style vertical day view (7 AM – 8 PM) inside the modal. Users click and drag directly on the column to select any custom window; the controls auto-fill start/end times from the selection.
   - Existing Google events render as stacked blocks with overlap detection. When the chosen window collides with an existing job, a conflict banner appears and Save stays disabled until the user explicitly overrides (so double-bookings are intentional).
   - A live “current time” line appears when viewing today, giving schedulers real-time context. The view gracefully handles parallel teams by laying blocks side-by-side and labeling them with summary + location.
 - **Calendar event auto-generation**:
-  - When a customer entry is saved the frontend builds a structured event description (contact info, job value, hedge plan breakdown, additional details, calendar notes) and sends it to the Nest backend (`POST /calendar/events`). Location defaults to the customer address.
-  - Undo/edit stories will later use the stored `eventId` to delete or update the slot; for now we focus on creation paths.
+  - When a customer entry is saved the frontend builds a structured event description (contact info, job value, hedge plan breakdown, additional details) and sends it to the Nest backend (`POST /calendar/events`). Location defaults to the customer address.
+  - The response `eventId` is stored alongside the entry payload so future edits can call `PATCH /calendar/events/:eventId` and removals can call `DELETE /calendar/events/:eventId` through the same proxy.
 - **Suggested slot picker**:
   - Customer entries show an “Suggested time slots” grid once a date is chosen. Slots mirror the standard crew day (08:00–17:00).
   - Slots automatically disable when the backend reports a conflicting Google Calendar event. Available slots autofill the start/end controls and highlight the selection; manual edits clear the chip state.
@@ -75,7 +75,7 @@
 - Advanced Options panel exposes calculation constants (tax rate, reserve %, labour %, surplus split, commission fallback %) so admins can adjust values with audit trails.
 - Changes propagate instantly to the calculator UI (forms rehydrate from live datasets).
 - Capture who/when updates are made for traceability (user + timestamp fields or an audit log).
-- **Calendar Sync (backend)**: When an entry is logged (job, warm lead, or closed customer), the server can optionally push it to EcoCut’s Google Calendar by calling `/calendar/events`. Event metadata includes summary, description, time window, and attendee list; undo/removals issue the corresponding `DELETE` call, keeping the calendar in sync.
+- **Calendar Sync (backend)**: When an entry is logged (job, warm lead, or closed customer), the server can optionally push it to EcoCut’s Google Calendar by calling `/calendar/events`. Event metadata includes summary, description, time window, and attendee list. Updates route through `PATCH /calendar/events/:eventId`, and undo/removals issue the corresponding `DELETE` call so Google Calendar always mirrors the job ledger.
 
 #### Admin UX Requirements
 - **Audit & Traceability**

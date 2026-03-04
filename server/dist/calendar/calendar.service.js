@@ -69,6 +69,34 @@ let CalendarService = CalendarService_1 = class CalendarService {
         this.logger.log(`Deleted calendar event ${eventId}`);
         return { eventId, deleted: true };
     }
+    async updateEvent(eventId, payload) {
+        const { calendar, calendarId } = this.requireCalendar();
+        const requestBody = {
+            summary: payload.summary,
+            description: payload.description,
+            location: payload.location,
+            start: payload.start
+                ? {
+                    dateTime: payload.start,
+                    timeZone: payload.timeZone ?? 'America/Toronto',
+                }
+                : undefined,
+            end: payload.end
+                ? {
+                    dateTime: payload.end,
+                    timeZone: payload.timeZone ?? 'America/Toronto',
+                }
+                : undefined,
+            attendees: payload.attendees?.map((email) => ({ email })),
+        };
+        this.logger.log(`Updating calendar event ${eventId}`);
+        const { data } = await calendar.events.patch({
+            calendarId,
+            eventId,
+            requestBody,
+        });
+        return data;
+    }
     async listEvents(params) {
         const { calendar, calendarId } = this.requireCalendar();
         const { data } = await calendar.events.list({

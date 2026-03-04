@@ -1,5 +1,6 @@
 import { CalendarService } from './calendar.service.js';
 import type { CreateCalendarEventDto } from './dto/create-calendar-event.dto.js';
+import type { UpdateCalendarEventDto } from './dto/update-calendar-event.dto.js';
 export declare class CalendarController {
     private readonly calendarService;
     constructor(calendarService: CalendarService);
@@ -9,4 +10,5 @@ export declare class CalendarController {
         eventId: string;
         deleted: boolean;
     }>;
+    updateEvent(eventId: string, body: UpdateCalendarEventDto): Promise<import("googleapis").calendar_v3.Schema$Event>;
 }

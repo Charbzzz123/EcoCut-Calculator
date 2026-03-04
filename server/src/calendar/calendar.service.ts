@@ -3,6 +3,7 @@ import { calendar_v3, google } from 'googleapis';
 import { loadCalendarConfig } from './calendar.config.js';
 import type { CreateCalendarEventDto } from './dto/create-calendar-event.dto.js';
 import type { CalendarEventDto } from './dto/calendar-event.dto.js';
+import type { UpdateCalendarEventDto } from './dto/update-calendar-event.dto.js';
 
 const CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar'];
 
@@ -73,6 +74,41 @@ export class CalendarService {
     this.logger.log(`Deleted calendar event ${eventId}`);
 
     return { eventId, deleted: true };
+  }
+
+  async updateEvent(
+    eventId: string,
+    payload: UpdateCalendarEventDto,
+  ): Promise<calendar_v3.Schema$Event> {
+    const { calendar, calendarId } = this.requireCalendar();
+    const requestBody: calendar_v3.Schema$Event = {
+      summary: payload.summary,
+      description: payload.description,
+      location: payload.location,
+      start: payload.start
+        ? {
+            dateTime: payload.start,
+            timeZone: payload.timeZone ?? 'America/Toronto',
+          }
+        : undefined,
+      end: payload.end
+        ? {
+            dateTime: payload.end,
+            timeZone: payload.timeZone ?? 'America/Toronto',
+          }
+        : undefined,
+      attendees: payload.attendees?.map((email) => ({ email })),
+    };
+
+    this.logger.log(`Updating calendar event ${eventId}`);
+
+    const { data } = await calendar.events.patch({
+      calendarId,
+      eventId,
+      requestBody,
+    });
+
+    return data;
   }
 
   async listEvents(params: {

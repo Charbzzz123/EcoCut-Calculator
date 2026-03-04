@@ -6,7 +6,18 @@ import { HEDGE_IDS, createEmptyHedgeConfigs } from './models/entry-modal.models.
 import { CalendarEventsService } from './services/calendar-events.service.js';
 
 class CalendarEventsServiceStub {
-  createEvent = vi.fn().mockResolvedValue(undefined);
+  createEvent = vi.fn().mockResolvedValue({
+    id: 'evt-created',
+    summary: 'Created Job',
+    start: '2026-03-12T14:00:00Z',
+    end: '2026-03-12T15:00:00Z',
+  });
+  updateEvent = vi.fn().mockResolvedValue({
+    id: 'evt-123',
+    summary: 'Updated Job',
+    start: '2026-03-12T14:00:00Z',
+    end: '2026-03-12T15:30:00Z',
+  });
   listEventsForDate = vi.fn();
 }
 
@@ -67,7 +78,7 @@ describe('HomeDataService', () => {
     infoSpy.mockRestore();
   });
 
-  it('creates Google Calendar events when customer entries include scheduling data', async () => {
+  it('creates Google Calendar events when customer entries include scheduling data and stores ids for persistence', async () => {
     const payload: EntryModalPayload = {
       variant: 'customer',
       form: {
@@ -87,14 +98,87 @@ describe('HomeDataService', () => {
       },
     };
 
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => undefined);
     await service.saveEntry(payload);
 
+    expect(infoSpy).toHaveBeenCalledTimes(1);
+    const persistedPayload = infoSpy.mock.calls[0][1] as EntryModalPayload;
     expect(calendar.createEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         summary: expect.stringContaining('Alex Stone'),
         start: '2026-03-12T14:00:00Z',
       }),
     );
+    expect(persistedPayload.calendar?.eventId).toBe('evt-created');
+    infoSpy.mockRestore();
+  });
+
+  it('persists payload untouched when the Calendar API omits an event id', async () => {
+    calendar.createEvent.mockResolvedValueOnce({
+      id: undefined,
+      summary: 'Job without id',
+      start: '2026-03-15T09:00:00Z',
+      end: '2026-03-15T10:00:00Z',
+    });
+    const payload: EntryModalPayload = {
+      variant: 'customer',
+      form: {
+        firstName: 'NoId',
+        lastName: 'Client',
+        address: '1 Unknown St',
+        phone: '(438) 555-2222',
+        jobType: 'Hedge Trimming',
+        jobValue: '950',
+      },
+      hedges: createEmptyHedgeConfigs(),
+      calendar: {
+        start: '2026-03-15T09:00:00Z',
+        end: '2026-03-15T10:00:00Z',
+        timeZone: 'America/Toronto',
+      },
+    };
+
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    await service.saveEntry(payload);
+
+    const persistedPayload = infoSpy.mock.calls[0][1] as EntryModalPayload;
+    expect(persistedPayload.calendar?.eventId).toBeUndefined();
+    infoSpy.mockRestore();
+  });
+
+  it('updates Google Calendar events when an eventId is provided', async () => {
+    const payload: EntryModalPayload = {
+      variant: 'customer',
+      form: {
+        firstName: 'Alex',
+        lastName: 'Stone',
+        address: '123 Pine',
+        phone: '(438) 555-1111',
+        jobType: 'Hedge Trimming',
+        jobValue: '1200',
+      },
+      hedges: createEmptyHedgeConfigs(),
+      calendar: {
+        start: '2026-03-12T14:00:00Z',
+        end: '2026-03-12T15:30:00Z',
+        eventId: 'evt-123',
+      },
+    };
+
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    await service.saveEntry(payload);
+
+    expect(calendar.updateEvent).toHaveBeenCalledWith(
+      'evt-123',
+      expect.objectContaining({
+        start: '2026-03-12T14:00:00Z',
+        end: '2026-03-12T15:30:00Z',
+      }),
+    );
+    expect(calendar.createEvent).not.toHaveBeenCalled();
+    const persistedPayload = infoSpy.mock.calls[0][1] as EntryModalPayload;
+    expect(persistedPayload.calendar?.eventId).toBe('evt-123');
+    infoSpy.mockRestore();
   });
 
   it('provides a helper to create empty hedge configs for callers', () => {

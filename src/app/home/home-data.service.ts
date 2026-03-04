@@ -135,9 +135,24 @@ export class HomeDataService {
 
   async saveEntry(payload: EntryModalPayload): Promise<void> {
     const calendarRequest = buildCalendarEventRequest(payload);
-    if (calendarRequest) {
-      await this.calendar.createEvent(calendarRequest);
+    let payloadToPersist = payload;
+    if (calendarRequest && payload.calendar) {
+      if (payload.calendar.eventId) {
+        await this.calendar.updateEvent(payload.calendar.eventId, calendarRequest);
+      } else {
+        const created = await this.calendar.createEvent(calendarRequest);
+        if (created?.id) {
+          payloadToPersist = {
+            ...payload,
+            calendar: {
+              ...payload.calendar,
+              eventId: created.id,
+            },
+          };
+        }
+      }
     }
-    console.info('Simulating entry persistence', payload);
+
+    console.info('Simulating entry persistence', payloadToPersist);
   }
 }

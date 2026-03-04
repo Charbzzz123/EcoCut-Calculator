@@ -32,6 +32,9 @@ let CalendarController = class CalendarController {
     deleteEvent(eventId) {
         return this.calendarService.deleteEvent(eventId);
     }
+    updateEvent(eventId, body) {
+        return this.calendarService.updateEvent(eventId, body);
+    }
 };
 exports.CalendarController = CalendarController;
 __decorate([
@@ -56,6 +59,14 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], CalendarController.prototype, "deleteEvent", null);
+__decorate([
+    (0, common_1.Patch)('events/:eventId'),
+    __param(0, (0, common_1.Param)('eventId')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], CalendarController.prototype, "updateEvent", null);
 exports.CalendarController = CalendarController = __decorate([
     (0, common_1.Controller)('calendar'),
     __metadata("design:paramtypes", [calendar_service_js_1.CalendarService])

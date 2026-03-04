@@ -43,13 +43,14 @@ root/
   - EntryModalComponent derives a standard grid of crew slots (08:00–17:00) and compares each to the fetched Google events. Conflicts mark the chip `slot-chip--booked`, while open slots remain actionable.
   - Manual edits to the start/end inputs clear the selection, so the UI never shows a stale chip highlight.
   - Specs cover slot rebuilding, drag guards, and the DOM states for available/booked chips.
-- **Integration**: `HomeShellComponent` imports the modal and toggles it from the floating “Add Entry” CTA. The component emits `EntryModalPayload` with the selected variant, normalized form payload, and hedge configs, which feed the façade/server. Customer submissions automatically create a Google Calendar event via `HomeDataService`.
+- **Integration**: `HomeShellComponent` imports the modal and toggles it from the floating “Add Entry” CTA. The component emits `EntryModalPayload` with the selected variant, normalized form payload, and hedge configs, which feed the façade/server. Customer submissions automatically create a Google Calendar event via `HomeDataService`, which in turn stores the returned `eventId` back onto the payload so later edits/deletes can call the appropriate proxy endpoint.
 
 ## Backend Services
 - `/server` hosts the NestJS 11 API (ESM). It now contains a **Google Calendar integration** for pushing EcoCut jobs/events.
 - REST endpoints (documented in `server/README.md`):
   - `POST /calendar/events` – create an event with summary/description/start/end/timezone/attendees.
   - `GET /calendar/events?timeMin&timeMax` – fetch sanitized Google events for the requested window (used by the entry modal to show availability).
+  - `PATCH /calendar/events/:eventId` – edit an existing Google Calendar entry when schedulers tweak a slot inside the modal.
   - `DELETE /calendar/events/:eventId` – remove a previously created event.
 - **Frontend proxying & dev setup**
   - `npm start` automatically passes `--proxy-config proxy.conf.json`, so `/api/*` traffic goes to `http://localhost:3000/*`. Always run `npm run server` in a second terminal before testing calendar flows locally.

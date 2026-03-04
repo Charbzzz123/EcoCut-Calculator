@@ -21,6 +21,8 @@ export interface CreateCalendarEventRequest {
   attendees?: string[];
 }
 
+export type UpdateCalendarEventRequest = Partial<CreateCalendarEventRequest>;
+
 @Injectable({ providedIn: 'root' })
 export class CalendarEventsService {
   private readonly http = inject(HttpClient);
@@ -35,5 +37,13 @@ export class CalendarEventsService {
 
   async createEvent(request: CreateCalendarEventRequest): Promise<CalendarEventSummary> {
     return firstValueFrom(this.http.post<CalendarEventSummary>(this.baseUrl, request));
+  }
+
+  async updateEvent(eventId: string, request: UpdateCalendarEventRequest): Promise<CalendarEventSummary> {
+    return firstValueFrom(this.http.patch<CalendarEventSummary>(`${this.baseUrl}/${eventId}`, request));
+  }
+
+  async deleteEvent(eventId: string): Promise<void> {
+    await firstValueFrom(this.http.delete(`${this.baseUrl}/${eventId}`));
   }
 }

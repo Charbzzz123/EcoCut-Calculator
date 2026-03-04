@@ -326,6 +326,18 @@
               </div>
             }
 
+            @if (editingExistingEvent(); as editingEvent) {
+              <div class="editing-banner">
+                <div>
+                  <strong>Editing existing event</strong>
+                  <span>{{ editingEvent.summary }} â€¢ {{ formatEventTimeRange(editingEvent) }}</span>
+                </div>
+                <div class="editing-banner__actions">
+                  <button type="button" class="ghost" (click)="cancelCalendarEdit()">Cancel</button>
+                </div>
+              </div>
+            }
+
             <div class="slot-picker">
               <div class="slot-picker__header">
                 <p class="preview-title">Suggested time slots</p>
@@ -371,13 +383,31 @@
             } @else {
               <ul class="event-list">
                 @for (event of calendarEvents(); track event.id) {
-                  <li>
+                  <li [class.event-item--editing]="editingExistingEvent()?.id === event.id">
                     <div class="event-time">{{ formatEventTimeRange(event) }}</div>
                     <div class="event-body">
                       <p class="event-summary">{{ event.summary }}</p>
                       @if (event.location) {
                         <p class="event-location">{{ event.location }}</p>
                       }
+                    </div>
+                    <div class="event-actions">
+                      <button
+                        type="button"
+                        class="ghost"
+                        aria-label="Edit calendar event"
+                        (click)="editCalendarEvent(event)"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        class="ghost danger"
+                        aria-label="Delete calendar event"
+                        (click)="deleteCalendarEvent(event)"
+                      >
+                        Delete
+                      </button>
                     </div>
                   </li>
                 }

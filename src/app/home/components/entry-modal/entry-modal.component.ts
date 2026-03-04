@@ -96,6 +96,7 @@ export class EntryModalComponent implements OnDestroy {
     } else {
       this.clearCalendarPreview();
       this.hedgeSelectionError.set(null);
+      this.editingCalendarEvent.set(null);
     }
   }
   @Input() headline?: string;
@@ -156,6 +157,8 @@ export class EntryModalComponent implements OnDestroy {
   protected readonly conflictConfirmed = signal(false);
   /* c8 ignore next */
   protected readonly currentTimeMinutes = signal<number | null>(null);
+  /* c8 ignore next */
+  protected readonly editingCalendarEvent = signal<CalendarEventSummary | null>(null);
   protected readonly timelineHours = Array.from(
     { length: TIMELINE_END_HOUR - TIMELINE_START_HOUR + 1 },
     (_, index) => TIMELINE_START_HOUR + index,
@@ -242,18 +245,20 @@ export class EntryModalComponent implements OnDestroy {
     if (!this.requiresCalendar()) {
       this.calendarSlots.set([]);
       this.selectedSlotId.set(null);
-       this.timelineEvents.set([]);
-       this.timelineSelection.set(null);
-       this.selectionConflict.set(false);
-       this.conflictSummary.set(null);
-       this.conflictConfirmed.set(false);
-       this.clearCurrentTimeTicker();
+      this.timelineEvents.set([]);
+      this.timelineSelection.set(null);
+      this.selectionConflict.set(false);
+      this.conflictSummary.set(null);
+      this.conflictConfirmed.set(false);
+      this.clearCurrentTimeTicker();
+      this.editingCalendarEvent.set(null);
       return;
     }
     const date = this.calendarGroup.controls.date.value;
     if (!date) {
       this.clearCalendarPreview();
       this.calendarGroup.patchValue({ startTime: '', endTime: '' }, { emitEvent: false });
+      this.editingCalendarEvent.set(null);
       return;
     }
     this.calendarGroup.patchValue({ startTime: '', endTime: '' }, { emitEvent: false });
@@ -418,6 +423,7 @@ export class EntryModalComponent implements OnDestroy {
     this.conflictConfirmed.set(false);
     this.currentTimeMinutes.set(null);
     this.clearCurrentTimeTicker();
+    this.editingCalendarEvent.set(null);
   }
 
   private async refreshCalendarEventsForDate(date: string): Promise<void> {
@@ -426,6 +432,11 @@ export class EntryModalComponent implements OnDestroy {
     try {
       const events = await this.calendarService.listEventsForDate(date);
       this.calendarEvents.set(events);
+      const currentEdit = this.editingCalendarEvent();
+      if (currentEdit) {
+        const updatedReference = events.find((evt) => evt.id === currentEdit.id) ?? null;
+        this.editingCalendarEvent.set(updatedReference);
+      }
       this.rebuildTimelineEvents(date, events);
       this.syncCurrentTimeTicker();
       this.evaluateConflictForCurrentTimeRange();
@@ -479,6 +490,19 @@ export class EntryModalComponent implements OnDestroy {
     return new Date(`${date}T${time}`).toISOString();
   }
 
+  private isoToDateString(value: string): string {
+    const date = new Date(value);
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private isoToTimeString(value: string): string {
+    const date = new Date(value);
+    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+  }
+
   private buildCalendarPayload(): EntryCalendarPayload | undefined {
     if (!this.requiresCalendar()) {
       return undefined;
@@ -487,10 +511,12 @@ export class EntryModalComponent implements OnDestroy {
     if (!date || !startTime || !endTime) {
       return undefined;
     }
+    const editingEvent = this.editingCalendarEvent();
     return {
       start: this.combineDateTime(date, startTime),
       end: this.combineDateTime(date, endTime),
       timeZone: this.calendarTimeZone,
+      eventId: editingEvent?.id,
     };
   }
 
@@ -883,6 +909,60 @@ export class EntryModalComponent implements OnDestroy {
     this.conflictSummary.set(null);
     this.conflictConfirmed.set(false);
     this.evaluateConflictForCurrentTimeRange();
+  }
+
+  protected editingExistingEvent(): CalendarEventSummary | null {
+    return this.editingCalendarEvent();
+  }
+
+  protected cancelCalendarEdit(): void {
+    this.editingCalendarEvent.set(null);
+  }
+
+  protected editCalendarEvent(event: CalendarEventSummary): void {
+    this.editingCalendarEvent.set(event);
+    const startTime = this.isoToTimeString(event.start);
+    const endTime = this.isoToTimeString(event.end);
+    const date = this.isoToDateString(event.start);
+    this.calendarGroup.patchValue(
+      {
+        date,
+        startTime,
+        endTime,
+      },
+      { emitEvent: false },
+    );
+    this.selectedSlotId.set(null);
+    this.timelineSelection.set(null);
+    this.setTimelineSelectionFromTimes(startTime, endTime);
+    this.selectionConflict.set(false);
+    this.conflictSummary.set(null);
+    this.conflictConfirmed.set(false);
+  }
+
+  protected async deleteCalendarEvent(event: CalendarEventSummary): Promise<void> {
+    if (!event.id) {
+      return;
+    }
+    this.calendarEventsError.set(null);
+    try {
+      this.calendarEventsLoading.set(true);
+      await this.calendarService.deleteEvent(event.id);
+      if (this.editingCalendarEvent()?.id === event.id) {
+        this.editingCalendarEvent.set(null);
+      }
+      const date = this.calendarGroup.controls.date.value;
+      if (date) {
+        await this.refreshCalendarEventsForDate(date);
+      } else {
+        this.calendarEvents.set(this.calendarEvents().filter((candidate) => candidate.id !== event.id));
+      }
+    } catch (error) {
+      console.error('Failed to delete calendar event', error);
+      this.calendarEventsError.set('Unable to delete calendar event. Please retry.');
+    } finally {
+      this.calendarEventsLoading.set(false);
+    }
   }
 
   private rebuildCalendarSlots(date: string, events: CalendarEventSummary[]): void {

@@ -19,6 +19,7 @@ export interface EntryCalendarPayload {
   start: string;
   end: string;
   timeZone?: string;
+  eventId?: string;
 }
 
 export interface TrimConfig {
