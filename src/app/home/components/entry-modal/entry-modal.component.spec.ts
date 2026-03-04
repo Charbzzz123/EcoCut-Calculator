@@ -935,19 +935,19 @@ describe('EntryModalComponent', () => {
 
   it('rebuilds slot availability and marks conflicts', () => {
     component.variant = 'customer';
-    const startIso = component['combineDateTime']('2026-03-05', '13:00');
-    const endIso = component['combineDateTime']('2026-03-05', '14:30');
+    const startIso = component['combineDateTime']('2026-03-05', '14:00');
+    const endIso = component['combineDateTime']('2026-03-05', '15:30');
     component['rebuildCalendarSlots']('2026-03-05', [{ id: 'evt-1', summary: 'Booked', start: startIso, end: endIso }]);
     const slots = component['calendarSlots']();
-    const slot13 = slots.find((slot) => slot.id === 'slot-13');
-    expect(slot13?.status).toBe('booked');
-    expect(slot13?.conflictSummary).toBe('Booked');
+    const slot14 = slots.find((slot) => slot.id === 'slot-14');
+    expect(slot14?.status).toBe('booked');
+    expect(slot14?.conflictSummary).toBe('Booked');
   });
 
   it('selects available slots and clears selection on manual edits', () => {
     component.variant = 'customer';
     component['calendarSlots'].set([
-      { id: 'slot-08', startTime: '08:00', endTime: '09:00', label: '8-9', status: 'available' },
+      { id: 'slot-08', startTime: '08:00', endTime: '10:00', label: '8-10', status: 'available' },
     ]);
     component['selectCalendarSlot']('slot-08');
     expect(component['selectedSlotId']()).toBe('slot-08');
@@ -1206,9 +1206,9 @@ describe('EntryModalComponent', () => {
   it('ignores slot selection when the slot is booked', () => {
     component.variant = 'customer';
     component['calendarSlots'].set([
-      { id: 'slot-09', startTime: '09:00', endTime: '10:00', label: '9-10', status: 'booked' },
+      { id: 'slot-10', startTime: '10:00', endTime: '12:00', label: '10-12', status: 'booked' },
     ]);
-    component['selectCalendarSlot']('slot-09');
+    component['selectCalendarSlot']('slot-10');
     expect(component.form.get('calendar.startTime')?.value).toBe('');
     expect(component['selectedSlotId']()).toBeNull();
   });
@@ -1216,7 +1216,7 @@ describe('EntryModalComponent', () => {
   it('retains slot selection when refreshed with matching values', () => {
     component.variant = 'customer';
     component.form.get('calendar.startTime')?.setValue('08:00');
-    component.form.get('calendar.endTime')?.setValue('09:00');
+    component.form.get('calendar.endTime')?.setValue('10:00');
     component['rebuildCalendarSlots']('2026-03-05', []);
     expect(component['selectedSlotId']()).toBe('slot-08');
   });
@@ -1226,7 +1226,7 @@ describe('EntryModalComponent', () => {
     const previewComponent = previewFixture.componentInstance;
     previewComponent.open = true;
     previewComponent.variant = 'customer';
-    previewComponent['calendarSlots'].set([{ id: 'slot-08', startTime: '08:00', endTime: '09:00', label: '8-9', status: 'available' }]);
+    previewComponent['calendarSlots'].set([{ id: 'slot-08', startTime: '08:00', endTime: '10:00', label: '8-10', status: 'available' }]);
     previewFixture.detectChanges();
 
     previewComponent['calendarEventsLoading'].set(true);
@@ -1427,8 +1427,8 @@ describe('EntryModalComponent', () => {
     slotComponent.open = true;
     slotComponent.variant = 'customer';
     slotComponent['calendarSlots'].set([
-      { id: 'slot-08', startTime: '08:00', endTime: '09:00', label: '8-9', status: 'available' },
-      { id: 'slot-09', startTime: '09:00', endTime: '10:00', label: '9-10', status: 'booked', conflictSummary: 'Existing job' },
+      { id: 'slot-08', startTime: '08:00', endTime: '10:00', label: '8-10', status: 'available' },
+      { id: 'slot-10', startTime: '10:00', endTime: '12:00', label: '10-12', status: 'booked', conflictSummary: 'Existing job' },
     ]);
     slotComponent['selectedSlotId'].set('slot-08');
     slotFixture.detectChanges();
@@ -1461,7 +1461,7 @@ describe('EntryModalComponent', () => {
     bookedComponent.open = true;
     bookedComponent.variant = 'customer';
     bookedComponent['calendarSlots'].set([
-      { id: 'slot-09', startTime: '09:00', endTime: '10:00', label: '9-10', status: 'booked', conflictSummary: 'Crew busy' },
+      { id: 'slot-10', startTime: '10:00', endTime: '12:00', label: '10-12', status: 'booked', conflictSummary: 'Crew busy' },
     ]);
     bookedFixture.detectChanges();
 

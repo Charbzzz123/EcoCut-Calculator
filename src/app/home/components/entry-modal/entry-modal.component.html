@@ -319,7 +319,7 @@
                   <span>{{ conflictWarningText() ?? 'This slot overlaps an existing booking.' }}</span>
                 </div>
                 @if (!conflictConfirmedFlag()) {
-                  <button type="button" class="ghost" (click)="confirmTimelineConflict()">Override</button>
+                  <button type="button" class="ghost" (click)="confirmTimelineConflict()">Overlap</button>
                 } @else {
                   <span class="helper confirmed">Override confirmed</span>
                 }

@@ -46,14 +46,12 @@ interface CalendarSlot {
 }
 
 const CALENDAR_SLOT_TEMPLATES: readonly { id: string; start: string; end: string }[] = [
-  { id: 'slot-08', start: '08:00', end: '09:00' },
-  { id: 'slot-09', start: '09:00', end: '10:00' },
-  { id: 'slot-10', start: '10:00', end: '11:00' },
-  { id: 'slot-11', start: '11:00', end: '12:00' },
-  { id: 'slot-13', start: '13:00', end: '14:00' },
-  { id: 'slot-14', start: '14:00', end: '15:00' },
-  { id: 'slot-15', start: '15:00', end: '16:00' },
-  { id: 'slot-16', start: '16:00', end: '17:00' },
+  { id: 'slot-08', start: '08:00', end: '10:00' },
+  { id: 'slot-10', start: '10:00', end: '12:00' },
+  { id: 'slot-12', start: '12:00', end: '14:00' },
+  { id: 'slot-14', start: '14:00', end: '16:00' },
+  { id: 'slot-16', start: '16:00', end: '18:00' },
+  { id: 'slot-18', start: '18:00', end: '20:00' },
 ];
 
 const TIMELINE_START_HOUR = 7;
