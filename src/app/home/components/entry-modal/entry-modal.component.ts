@@ -31,6 +31,7 @@ import {
 import {
   CalendarEventSummary,
   CalendarEventsService,
+  type UpdateCalendarEventRequest,
 } from '../../services/calendar-events.service.js';
 
 export { northAmericanPhoneValidator } from './entry-modal-phone.util.js';
@@ -911,10 +912,6 @@ export class EntryModalComponent implements OnDestroy {
     this.evaluateConflictForCurrentTimeRange();
   }
 
-  protected editingExistingEvent(): CalendarEventSummary | null {
-    return this.editingCalendarEvent();
-  }
-
   protected cancelCalendarEdit(): void {
     this.editingCalendarEvent.set(null);
   }
@@ -995,6 +992,66 @@ export class EntryModalComponent implements OnDestroy {
       (slot) => slot.startTime === currentStart && slot.endTime === currentEnd && slot.status === 'available',
     );
     this.selectedSlotId.set(matchingSlot?.id ?? null);
+  }
+
+  protected editingUpdateDisabled(): boolean {
+    if (!this.editingCalendarEvent()) {
+      return true;
+    }
+    if (this.calendarEventsLoading()) {
+      return true;
+    }
+    const { date, startTime, endTime } = this.calendarGroup.getRawValue();
+    if (!date || !startTime || !endTime) {
+      return true;
+    }
+    if (this.selectionConflict() && !this.conflictConfirmed()) {
+      return true;
+    }
+    return false;
+  }
+
+  protected async updateCalendarEvent(): Promise<void> {
+    const editing = this.editingCalendarEvent();
+    if (!editing) {
+      return;
+    }
+    if (!this.validateCalendarRange()) {
+      return;
+    }
+    if (this.selectionConflict() && !this.conflictConfirmed()) {
+      return;
+    }
+    const { date, startTime, endTime } = this.calendarGroup.getRawValue();
+    const startIso = this.combineDateTime(date, startTime);
+    const endIso = this.combineDateTime(date, endTime);
+    const request: UpdateCalendarEventRequest = {
+      summary: editing.summary,
+      description: editing.description,
+      location: editing.location,
+      start: startIso,
+      end: endIso,
+      timeZone: this.calendarTimeZone,
+    };
+
+    this.calendarEventsLoading.set(true);
+    this.calendarEventsError.set(null);
+
+    try {
+      const updated = await this.calendarService.updateEvent(editing.id, request);
+      this.editingCalendarEvent.set(updated);
+      await this.refreshCalendarEventsForDate(date);
+      this.setTimelineSelectionFromTimes(this.isoToTimeString(startIso), this.isoToTimeString(endIso));
+      this.selectionConflict.set(false);
+      this.conflictSummary.set(null);
+      this.conflictConfirmed.set(false);
+      this.selectedSlotId.set(null);
+    } catch (error) {
+      console.error('Failed to update calendar event', error);
+      this.calendarEventsError.set('Unable to update calendar event. Please retry.');
+    } finally {
+      this.calendarEventsLoading.set(false);
+    }
   }
 
   ngOnDestroy(): void {

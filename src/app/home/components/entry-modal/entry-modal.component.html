@@ -321,18 +321,26 @@
                 @if (!conflictConfirmedFlag()) {
                   <button type="button" class="ghost" (click)="confirmTimelineConflict()">Overlap</button>
                 } @else {
-                  <span class="helper confirmed">Override confirmed</span>
+                  <span class="helper confirmed">Overlap confirmed</span>
                 }
               </div>
             }
 
-            @if (editingExistingEvent(); as editingEvent) {
+            @if (editingCalendarEvent(); as editingEvent) {
               <div class="editing-banner">
                 <div>
                   <strong>Editing existing event</strong>
                   <span>{{ editingEvent.summary }} â€¢ {{ formatEventTimeRange(editingEvent) }}</span>
                 </div>
                 <div class="editing-banner__actions">
+                  <button
+                    type="button"
+                    class="ghost"
+                    (click)="updateCalendarEvent()"
+                    [disabled]="editingUpdateDisabled()"
+                  >
+                    Update
+                  </button>
                   <button type="button" class="ghost" (click)="cancelCalendarEdit()">Cancel</button>
                 </div>
               </div>
@@ -383,7 +391,7 @@
             } @else {
               <ul class="event-list">
                 @for (event of calendarEvents(); track event.id) {
-                  <li [class.event-item--editing]="editingExistingEvent()?.id === event.id">
+                  <li [class.event-item--editing]="editingCalendarEvent()?.id === event.id">
                     <div class="event-time">{{ formatEventTimeRange(event) }}</div>
                     <div class="event-body">
                       <p class="event-summary">{{ event.summary }}</p>
