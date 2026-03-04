@@ -628,8 +628,8 @@ export class EntryModalComponent implements OnDestroy {
         id: event.id,
         summary: event.summary,
         location: event.location,
-        startMinutes: this.isoToLocalMinutes(event.start),
-        endMinutes: this.isoToLocalMinutes(event.end),
+        startMinutes: this.isoToLocalMinutes(event.start) + TIMELINE_SELECTION_OFFSET,
+        endMinutes: this.isoToLocalMinutes(event.end) + TIMELINE_SELECTION_OFFSET,
       }))
       .filter((event) => event.endMinutes > startBoundary && event.startMinutes < endBoundary)
       .sort((a, b) => a.startMinutes - b.startMinutes);
