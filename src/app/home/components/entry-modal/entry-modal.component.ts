@@ -55,6 +55,24 @@ const CALENDAR_SLOT_TEMPLATES: readonly { id: string; start: string; end: string
   { id: 'slot-16', start: '16:00', end: '17:00' },
 ];
 
+const TIMELINE_START_HOUR = 7;
+const TIMELINE_END_HOUR = 20;
+const MIN_SELECTION_MINUTES = 30;
+
+interface TimelineEventBlock {
+  id: string;
+  summary: string;
+  startMinutes: number;
+  endMinutes: number;
+  topPercent: number;
+  heightPercent: number;
+  column: number;
+  columns: number;
+  location?: string;
+  leftPercent: number;
+  widthPercent: number;
+}
+
 @Component({
   selector: 'app-entry-modal',
   standalone: true,
@@ -86,6 +104,7 @@ export class EntryModalComponent implements OnDestroy {
   @Output() saved = new EventEmitter<EntryModalPayload>();
 
   @ViewChild('canvasHost', { static: false }) private canvasHost?: ElementRef<HTMLElement>;
+  @ViewChild('timelineGrid', { static: false }) private timelineGrid?: ElementRef<HTMLElement>;
 
   private readonly fb = inject(NonNullableFormBuilder);
 
@@ -124,6 +143,22 @@ export class EntryModalComponent implements OnDestroy {
   protected readonly calendarSlots = signal<CalendarSlot[]>([]);
   /* c8 ignore next */
   protected readonly selectedSlotId = signal<string | null>(null);
+  /* c8 ignore next */
+  protected readonly timelineEvents = signal<TimelineEventBlock[]>([]);
+  /* c8 ignore next */
+  protected readonly timelineSelection = signal<{ startMinutes: number; endMinutes: number } | null>(null);
+  /* c8 ignore next */
+  protected readonly selectionConflict = signal(false);
+  /* c8 ignore next */
+  protected readonly conflictSummary = signal<string | null>(null);
+  /* c8 ignore next */
+  protected readonly conflictConfirmed = signal(false);
+  /* c8 ignore next */
+  protected readonly currentTimeMinutes = signal<number | null>(null);
+  protected readonly timelineHours = Array.from(
+    { length: TIMELINE_END_HOUR - TIMELINE_START_HOUR + 1 },
+    (_, index) => TIMELINE_START_HOUR + index,
+  );
 
   protected readonly panelStore = new EntryModalPanelStore();
   protected readonly hedgeStates = this.panelStore.hedgeStates;
@@ -138,6 +173,10 @@ export class EntryModalComponent implements OnDestroy {
   protected panelFloats(): boolean {
     return this.panelStore.panelFloats();
   }
+  private timelineDragStartMinutes: number | null = null;
+  private readonly onTimelinePointerMove = (event: PointerEvent) => this.handleTimelinePointerMove(event);
+  private readonly onTimelinePointerUp = () => this.handleTimelinePointerUp();
+  private currentTimeTicker: ReturnType<typeof setInterval> | null = null;
 
   private readonly jobTypeControl = this.form.controls.jobType;
   protected readonly jobTypeOptions = ['Hedge Trimming', 'Rabattage', 'Both'] as const;
@@ -201,6 +240,12 @@ export class EntryModalComponent implements OnDestroy {
     if (!this.requiresCalendar()) {
       this.calendarSlots.set([]);
       this.selectedSlotId.set(null);
+       this.timelineEvents.set([]);
+       this.timelineSelection.set(null);
+       this.selectionConflict.set(false);
+       this.conflictSummary.set(null);
+       this.conflictConfirmed.set(false);
+       this.clearCurrentTimeTicker();
       return;
     }
     const date = this.calendarGroup.controls.date.value;
@@ -211,6 +256,11 @@ export class EntryModalComponent implements OnDestroy {
     }
     this.calendarGroup.patchValue({ startTime: '', endTime: '' }, { emitEvent: false });
     this.selectedSlotId.set(null);
+    this.timelineSelection.set(null);
+    this.selectionConflict.set(false);
+    this.conflictSummary.set(null);
+    this.conflictConfirmed.set(false);
+    this.syncCurrentTimeTicker();
     void this.refreshCalendarEventsForDate(date);
   }
 
@@ -270,6 +320,9 @@ export class EntryModalComponent implements OnDestroy {
       return;
     }
     if (!this.validateCalendarRange()) {
+      return;
+    }
+    if (this.selectionConflict() && !this.conflictConfirmed()) {
       return;
     }
 
@@ -339,6 +392,13 @@ export class EntryModalComponent implements OnDestroy {
     this.calendarEventsLoading.set(false);
     this.calendarSlots.set([]);
     this.selectedSlotId.set(null);
+    this.timelineEvents.set([]);
+    this.timelineSelection.set(null);
+    this.selectionConflict.set(false);
+    this.conflictSummary.set(null);
+    this.conflictConfirmed.set(false);
+    this.currentTimeMinutes.set(null);
+    this.clearCurrentTimeTicker();
   }
 
   private async refreshCalendarEventsForDate(date: string): Promise<void> {
@@ -347,6 +407,9 @@ export class EntryModalComponent implements OnDestroy {
     try {
       const events = await this.calendarService.listEventsForDate(date);
       this.calendarEvents.set(events);
+      this.rebuildTimelineEvents(date, events);
+      this.syncCurrentTimeTicker();
+      this.evaluateConflictForCurrentTimeRange();
       this.rebuildCalendarSlots(date, events);
     } catch (error) {
       console.warn('Unable to load calendar availability', error);
@@ -354,6 +417,10 @@ export class EntryModalComponent implements OnDestroy {
       this.calendarEvents.set([]);
       this.calendarSlots.set([]);
       this.selectedSlotId.set(null);
+      this.timelineEvents.set([]);
+      this.timelineSelection.set(null);
+      this.selectionConflict.set(false);
+      this.conflictSummary.set(null);
     } finally {
       this.calendarEventsLoading.set(false);
     }
@@ -414,10 +481,223 @@ export class EntryModalComponent implements OnDestroy {
     this.panelStore.reset();
     this.clearCalendarPreview();
     this.syncCalendarValidators();
+    this.timelineSelection.set(null);
+    this.selectionConflict.set(false);
+    this.conflictSummary.set(null);
+    this.conflictConfirmed.set(false);
   }
 
   private syncCanvasHost(): void {
     this.panelStore.setCanvasHost(this.canvasHost);
+  }
+
+  private minutesFromPointer(event: PointerEvent): number {
+    const grid = this.timelineGrid?.nativeElement;
+    if (!grid) {
+      return TIMELINE_START_HOUR * 60;
+    }
+    const rect = grid.getBoundingClientRect();
+    const relative = (event.clientY - rect.top) / rect.height;
+    const minutes =
+      TIMELINE_START_HOUR * 60 + Math.round(relative * this.timelineTotalMinutes());
+    return this.clampTimelineMinutes(minutes);
+  }
+
+  private handleTimelinePointerMove(event: PointerEvent): void {
+    if (this.timelineDragStartMinutes == null) {
+      return;
+    }
+    event.preventDefault();
+    const current = this.minutesFromPointer(event);
+    const start = Math.min(this.timelineDragStartMinutes, current);
+    const end = Math.max(this.timelineDragStartMinutes, current);
+    this.timelineSelection.set({
+      startMinutes: start,
+      endMinutes: Math.max(start + MIN_SELECTION_MINUTES, end),
+    });
+  }
+
+  private handleTimelinePointerUp(): void {
+    const selection = this.timelineSelection();
+    this.stopTimelineDragListeners();
+    if (!selection) {
+      return;
+    }
+    this.applyTimelineSelectionMinutes(selection.startMinutes, selection.endMinutes);
+  }
+
+  private stopTimelineDragListeners(): void {
+    this.timelineDragStartMinutes = null;
+    window.removeEventListener('pointermove', this.onTimelinePointerMove);
+    window.removeEventListener('pointerup', this.onTimelinePointerUp);
+  }
+
+  protected applyTimelineSelectionMinutes(startMinutes: number, endMinutes: number): void {
+    this.timelineSelection.set({ startMinutes, endMinutes });
+    const startTime = this.minutesToTimeString(startMinutes);
+    const endTime = this.minutesToTimeString(endMinutes);
+    this.calendarGroup.controls.startTime.setValue(startTime);
+    this.calendarGroup.controls.endTime.setValue(endTime);
+    this.selectedSlotId.set(null);
+    this.evaluateTimelineConflict(startMinutes, endMinutes);
+  }
+
+  private setTimelineSelectionFromTimes(startTime: string, endTime: string): void {
+    const start = this.timeStringToMinutes(startTime);
+    const end = this.timeStringToMinutes(endTime);
+    this.timelineSelection.set({ startMinutes: start, endMinutes: end });
+    this.evaluateTimelineConflict(start, end);
+  }
+
+  private evaluateTimelineConflict(startMinutes: number, endMinutes: number): void {
+    const conflict = this.timelineEvents().find(
+      (event) => startMinutes < event.endMinutes && endMinutes > event.startMinutes,
+    );
+    this.selectionConflict.set(!!conflict);
+    this.conflictSummary.set(conflict?.summary ?? null);
+    this.conflictConfirmed.set(false);
+  }
+
+  private evaluateConflictForCurrentTimeRange(): void {
+    const { startTime, endTime } = this.calendarGroup.getRawValue();
+    if (!startTime || !endTime) {
+      this.selectionConflict.set(false);
+      this.conflictSummary.set(null);
+      this.conflictConfirmed.set(false);
+      return;
+    }
+    const start = this.timeStringToMinutes(startTime);
+    const end = this.timeStringToMinutes(endTime);
+    this.evaluateTimelineConflict(start, end);
+  }
+
+  private timelineTotalMinutes(): number {
+    return (TIMELINE_END_HOUR - TIMELINE_START_HOUR) * 60;
+  }
+
+  private clampTimelineMinutes(minutes: number): number {
+    const start = TIMELINE_START_HOUR * 60;
+    const end = TIMELINE_END_HOUR * 60;
+    return Math.min(end, Math.max(start, minutes));
+  }
+
+  private minutesToTimeString(totalMinutes: number): string {
+    const hrs = Math.floor(totalMinutes / 60);
+    const mins = totalMinutes % 60;
+    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+  }
+
+  private timeStringToMinutes(time: string): number {
+    const [hours, minutes] = time.split(':').map((value) => Number(value));
+    return hours * 60 + minutes;
+  }
+
+  private rebuildTimelineEvents(date: string, events: CalendarEventSummary[]): void {
+    const startBoundary = TIMELINE_START_HOUR * 60;
+    const endBoundary = TIMELINE_END_HOUR * 60;
+    const totalMinutes = this.timelineTotalMinutes();
+    const normalized = events
+      .map((event) => ({
+        id: event.id,
+        summary: event.summary,
+        location: event.location,
+        startMinutes: this.isoToLocalMinutes(event.start),
+        endMinutes: this.isoToLocalMinutes(event.end),
+      }))
+      .filter((event) => event.endMinutes > startBoundary && event.startMinutes < endBoundary)
+      .sort((a, b) => a.startMinutes - b.startMinutes);
+
+    const active: TimelineEventBlock[] = [];
+    const blocks: TimelineEventBlock[] = [];
+
+    for (const event of normalized) {
+      for (let i = active.length - 1; i >= 0; i -= 1) {
+        if (active[i].endMinutes <= event.startMinutes) {
+          active.splice(i, 1);
+        }
+      }
+      const usedColumns = active.map((block) => block.column);
+      let column = 0;
+      while (usedColumns.includes(column)) {
+        column += 1;
+      }
+      const visibleStart = Math.max(event.startMinutes, startBoundary);
+      const visibleEnd = Math.min(event.endMinutes, endBoundary);
+      const block: TimelineEventBlock = {
+        id: event.id,
+        summary: event.summary,
+        location: event.location,
+        startMinutes: event.startMinutes,
+        endMinutes: event.endMinutes,
+        column,
+        columns: active.length + 1,
+        topPercent: ((visibleStart - startBoundary) / totalMinutes) * 100,
+        heightPercent: ((visibleEnd - visibleStart) / totalMinutes) * 100,
+        leftPercent: 0,
+        widthPercent: 100,
+      };
+      active.push(block);
+      const columnCount = active.length;
+      active.forEach((activeBlock) => {
+        activeBlock.columns = Math.max(activeBlock.columns, columnCount);
+      });
+      blocks.push(block);
+    }
+
+    blocks.forEach((block) => {
+      const visibleStart = Math.max(block.startMinutes, startBoundary);
+      const visibleEnd = Math.min(block.endMinutes, endBoundary);
+      block.topPercent = ((visibleStart - startBoundary) / totalMinutes) * 100;
+      block.heightPercent = Math.max(
+        ((visibleEnd - visibleStart) / totalMinutes) * 100,
+        (MIN_SELECTION_MINUTES / totalMinutes) * 100,
+      );
+      block.widthPercent = 100 / block.columns;
+      block.leftPercent = block.column * block.widthPercent;
+    });
+
+    this.timelineEvents.set(blocks);
+  }
+
+  private isoToLocalMinutes(value: string): number {
+    const date = new Date(value);
+    return date.getHours() * 60 + date.getMinutes();
+  }
+
+  private syncCurrentTimeTicker(): void {
+    const date = this.calendarGroup.controls.date.value;
+    if (!date || date !== this.todayIsoDate()) {
+      this.currentTimeMinutes.set(null);
+      this.clearCurrentTimeTicker();
+      return;
+    }
+    this.updateCurrentTimeMinutes();
+    if (this.currentTimeTicker == null) {
+      this.currentTimeTicker = window.setInterval(() => this.updateCurrentTimeMinutes(), 60000);
+    }
+  }
+
+  private updateCurrentTimeMinutes(): void {
+    const date = this.calendarGroup.controls.date.value;
+    if (date !== this.todayIsoDate()) {
+      this.currentTimeMinutes.set(null);
+      this.clearCurrentTimeTicker();
+      return;
+    }
+    const now = new Date();
+    const minutes = now.getHours() * 60 + now.getMinutes();
+    if (minutes < TIMELINE_START_HOUR * 60 || minutes > TIMELINE_END_HOUR * 60) {
+      this.currentTimeMinutes.set(null);
+      return;
+    }
+    this.currentTimeMinutes.set(minutes);
+  }
+
+  private clearCurrentTimeTicker(): void {
+    if (this.currentTimeTicker != null) {
+      clearInterval(this.currentTimeTicker);
+      this.currentTimeTicker = null;
+    }
   }
 
   protected get eyebrowText(): string {
@@ -448,6 +728,79 @@ export class EntryModalComponent implements OnDestroy {
     return this.variant === 'customer' ? 'Save Customer' : 'Save Warm Lead';
   }
 
+  protected formatTimelineHour(hour: number): string {
+    const normalized = ((hour + 11) % 12) + 1;
+    const suffix = hour < 12 ? 'AM' : 'PM';
+    return `${normalized} ${suffix}`;
+  }
+
+  protected timelineSelectionStyle():
+    | { topPercent: number; heightPercent: number; conflict: boolean }
+    | null {
+    const selection = this.timelineSelection();
+    if (!selection) {
+      return null;
+    }
+    const clampedStart = Math.max(selection.startMinutes, TIMELINE_START_HOUR * 60);
+    const clampedEnd = Math.min(selection.endMinutes, TIMELINE_END_HOUR * 60);
+    if (clampedEnd <= clampedStart) {
+      return null;
+    }
+    const total = this.timelineTotalMinutes();
+    return {
+      topPercent: ((clampedStart - TIMELINE_START_HOUR * 60) / total) * 100,
+      heightPercent: ((clampedEnd - clampedStart) / total) * 100,
+      conflict: this.selectionConflict(),
+    };
+  }
+
+  protected timelineNowLineStyle(): { topPercent: number } | null {
+    const minutes = this.currentTimeMinutes();
+    if (minutes == null) {
+      return null;
+    }
+    const total = this.timelineTotalMinutes();
+    return {
+      topPercent: ((minutes - TIMELINE_START_HOUR * 60) / total) * 100,
+    };
+  }
+
+  protected onTimelinePointerDown(event: PointerEvent): void {
+    if (!this.requiresCalendar()) {
+      return;
+    }
+    const date = this.calendarGroup.controls.date.value;
+    if (!date || !this.timelineGrid) {
+      this.calendarGroup.controls.date.markAsTouched();
+      return;
+    }
+    event.preventDefault();
+    const minutes = this.minutesFromPointer(event);
+    this.timelineDragStartMinutes = minutes;
+    this.timelineSelection.set({
+      startMinutes: minutes,
+      endMinutes: minutes + MIN_SELECTION_MINUTES,
+    });
+    window.addEventListener('pointermove', this.onTimelinePointerMove);
+    window.addEventListener('pointerup', this.onTimelinePointerUp, { once: true });
+  }
+
+  protected confirmTimelineConflict(): void {
+    this.conflictConfirmed.set(true);
+  }
+
+  protected conflictWarningText(): string | null {
+    return this.conflictSummary();
+  }
+
+  protected conflictConfirmedFlag(): boolean {
+    return this.conflictConfirmed();
+  }
+
+  protected isPrimaryDisabled(): boolean {
+    return this.requiresCalendar() && this.selectionConflict() && !this.conflictConfirmed();
+  }
+
   protected beginPanelDrag(event: PointerEvent): void {
     this.syncCanvasHost();
     this.panelStore.beginPanelDrag(event);
@@ -461,10 +814,16 @@ export class EntryModalComponent implements OnDestroy {
     this.selectedSlotId.set(slot.id);
     this.calendarGroup.controls.startTime.setValue(slot.startTime);
     this.calendarGroup.controls.endTime.setValue(slot.endTime);
+    this.setTimelineSelectionFromTimes(slot.startTime, slot.endTime);
   }
 
   protected handleManualTimeChange(): void {
     this.selectedSlotId.set(null);
+    this.timelineSelection.set(null);
+    this.selectionConflict.set(false);
+    this.conflictSummary.set(null);
+    this.conflictConfirmed.set(false);
+    this.evaluateConflictForCurrentTimeRange();
   }
 
   private rebuildCalendarSlots(date: string, events: CalendarEventSummary[]): void {
@@ -501,5 +860,7 @@ export class EntryModalComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.panelStore.destroy();
+    this.stopTimelineDragListeners();
+    this.clearCurrentTimeTicker();
   }
 }

@@ -267,6 +267,62 @@
               <span class="helper">Times shown in {{ calendarTimeZone }}.</span>
             </div>
 
+            <div class="timeline-wrapper">
+              <div class="timeline-grid" #timelineGrid (pointerdown)="onTimelinePointerDown($event)">
+                <div class="timeline-hours">
+                  @for (hour of timelineHours; track hour) {
+                    <div class="timeline-hour">
+                      <span>{{ formatTimelineHour(hour) }}</span>
+                    </div>
+                  }
+                </div>
+                <div class="timeline-layer">
+                  @if (timelineNowLineStyle(); as nowLine) {
+                    <div class="timeline-now-line" [style.top.%]="nowLine.topPercent"></div>
+                  }
+                  @for (eventBlock of timelineEvents(); track eventBlock.id) {
+                    <div
+                      class="timeline-event-block"
+                      [style.top.%]="eventBlock.topPercent"
+                      [style.height.%]="eventBlock.heightPercent"
+                      [style.left.%]="eventBlock.leftPercent"
+                      [style.width.%]="eventBlock.widthPercent"
+                    >
+                      <p class="event-summary">{{ eventBlock.summary }}</p>
+                      @if (eventBlock.location) {
+                        <small>{{ eventBlock.location }}</small>
+                      }
+                    </div>
+                  }
+                  @if (timelineSelectionStyle(); as selectionStyle) {
+                    <div
+                      class="timeline-selection"
+                      [class.timeline-selection--conflict]="selectionStyle.conflict"
+                      [style.top.%]="selectionStyle.topPercent"
+                      [style.height.%]="selectionStyle.heightPercent"
+                    ></div>
+                  }
+                </div>
+              </div>
+              <div class="timeline-helper">
+                <span class="helper">Click and drag to choose a slot. Conflicts require confirmation.</span>
+              </div>
+            </div>
+
+            @if (selectionConflict()) {
+              <div class="conflict-banner" role="alert">
+                <div>
+                  <strong>Conflicting job</strong>
+                  <span>{{ conflictWarningText() ?? 'This slot overlaps an existing booking.' }}</span>
+                </div>
+                @if (!conflictConfirmedFlag()) {
+                  <button type="button" class="ghost" (click)="confirmTimelineConflict()">Override</button>
+                } @else {
+                  <span class="helper confirmed">Override confirmed</span>
+                }
+              </div>
+            }
+
             <div class="slot-picker">
               <div class="slot-picker__header">
                 <p class="preview-title">Suggested time slots</p>
@@ -330,7 +386,7 @@
 
         <footer class="form-footer">
           <button type="button" class="ghost" (click)="closeModal()">Cancel</button>
-          <button type="submit" class="primary">{{ primaryLabelText }}</button>
+          <button type="submit" class="primary" [disabled]="isPrimaryDisabled()">{{ primaryLabelText }}</button>
         </footer>
       </form>
     </div>
