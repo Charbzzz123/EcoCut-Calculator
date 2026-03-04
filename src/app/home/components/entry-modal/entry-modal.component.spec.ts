@@ -973,6 +973,55 @@ describe('EntryModalComponent', () => {
     expect(emptyMessage).toContain('No existing events');
   });
 
+  it('returns null for calendar errors until the controls are touched', () => {
+    const errorFixture = TestBed.createComponent(EntryModalComponent);
+    const errorComponent = errorFixture.componentInstance;
+    errorComponent.open = true;
+    errorComponent.variant = 'customer';
+    errorComponent.form.get('calendar.date')?.setValue('');
+    errorComponent.form.get('calendar.startTime')?.setValue('');
+    errorComponent.form.get('calendar.endTime')?.setValue('');
+
+    const exposed = errorComponent as unknown as {
+      calendarDateError: string | null;
+      calendarStartTimeError: string | null;
+      calendarEndTimeError: string | null;
+    };
+
+    expect(exposed.calendarDateError).toBeNull();
+    expect(exposed.calendarStartTimeError).toBeNull();
+    expect(exposed.calendarEndTimeError).toBeNull();
+
+    errorComponent.form.get('calendar.date')?.markAsTouched();
+    errorComponent.form.get('calendar.startTime')?.markAsTouched();
+    errorComponent.form.get('calendar.endTime')?.markAsTouched();
+
+    expect(exposed.calendarDateError).toBe('Required');
+    expect(exposed.calendarStartTimeError).toBe('Required');
+    expect(exposed.calendarEndTimeError).toBe('Required');
+  });
+
+  it('clears calendar errors once valid values are provided', () => {
+    const validFixture = TestBed.createComponent(EntryModalComponent);
+    const validComponent = validFixture.componentInstance;
+    validComponent.open = true;
+    validComponent.variant = 'customer';
+    validComponent.form.get('calendar.date')?.setValue('2026-03-10');
+    validComponent.form.get('calendar.startTime')?.setValue('09:00');
+    validComponent.form.get('calendar.endTime')?.setValue('10:00');
+    validComponent.form.get('calendar.date')?.markAsTouched();
+    validComponent.form.get('calendar.startTime')?.markAsTouched();
+    validComponent.form.get('calendar.endTime')?.markAsTouched();
+    const exposed = validComponent as unknown as {
+      calendarDateError: string | null;
+      calendarStartTimeError: string | null;
+      calendarEndTimeError: string | null;
+    };
+    expect(exposed.calendarDateError).toBeNull();
+    expect(exposed.calendarStartTimeError).toBeNull();
+    expect(exposed.calendarEndTimeError).toBeNull();
+  });
+
   it('renders calendar field errors when date and times are missing', () => {
     const calendarFixture = TestBed.createComponent(EntryModalComponent);
     const calendarComponent = calendarFixture.componentInstance;
@@ -1008,6 +1057,72 @@ describe('EntryModalComponent', () => {
       .querySelector('input[formcontrolname="endTime"]')
       ?.closest('label') as HTMLElement | null;
     expect(endLabel?.querySelector('.error')?.textContent).toContain('Required');
+  });
+
+  it('shows ordering errors when end time is before start time', () => {
+    const orderingFixture = TestBed.createComponent(EntryModalComponent);
+    const orderingComponent = orderingFixture.componentInstance;
+    const exposed = orderingComponent as unknown as {
+      validateCalendarRange: () => boolean;
+      calendarEndTimeError: string | null;
+    };
+    orderingComponent.open = true;
+    orderingComponent.variant = 'customer';
+    orderingComponent.form.get('calendar.date')?.setValue('2026-03-09');
+    orderingComponent.form.get('calendar.startTime')?.setValue('15:00');
+    orderingComponent.form.get('calendar.endTime')?.setValue('14:00');
+    orderingFixture.detectChanges();
+
+    exposed.validateCalendarRange();
+    orderingFixture.detectChanges();
+
+    expect(exposed.calendarEndTimeError).toBe('End time must be after the start time');
+
+    const endLabel = orderingFixture.nativeElement
+      .querySelector('input[formcontrolname="endTime"]')
+      ?.closest('label') as HTMLElement | null;
+    expect(endLabel?.querySelector('.error')?.textContent).toContain('End time must be after the start time');
+  });
+
+  it('does not override an already selected calendar date when ensuring defaults', () => {
+    const ensureFixture = TestBed.createComponent(EntryModalComponent);
+    const ensureComponent = ensureFixture.componentInstance;
+    const exposed = ensureComponent as unknown as {
+      ensureCalendarDefaults: () => void;
+    };
+    ensureComponent.open = true;
+    ensureComponent.variant = 'customer';
+    ensureComponent.form.get('calendar.date')?.setValue('2026-04-01');
+    const spy = vi.spyOn(ensureComponent as unknown as { handleCalendarDateChange: () => void }, 'handleCalendarDateChange');
+    exposed.ensureCalendarDefaults();
+    expect(ensureComponent.form.get('calendar.date')?.value).toBe('2026-04-01');
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('invokes date/time handlers when interacting via the template', () => {
+    const inputsFixture = TestBed.createComponent(EntryModalComponent);
+    const inputsComponent = inputsFixture.componentInstance;
+    inputsComponent.open = true;
+    inputsComponent.variant = 'customer';
+    inputsFixture.detectChanges();
+
+    const dateInput = inputsFixture.nativeElement.querySelector('input[formcontrolname="date"]') as HTMLInputElement;
+    const startInput = inputsFixture.nativeElement.querySelector(
+      'input[formcontrolname="startTime"]',
+    ) as HTMLInputElement;
+    const endInput = inputsFixture.nativeElement.querySelector(
+      'input[formcontrolname="endTime"]',
+    ) as HTMLInputElement;
+
+    const dateSpy = vi.spyOn(inputsComponent as unknown as { handleCalendarDateChange: () => void }, 'handleCalendarDateChange');
+    const manualSpy = vi.spyOn(inputsComponent as unknown as { handleManualTimeChange: () => void }, 'handleManualTimeChange');
+
+    dateInput.dispatchEvent(new Event('change'));
+    startInput.dispatchEvent(new Event('input'));
+    endInput.dispatchEvent(new Event('input'));
+
+    expect(dateSpy).toHaveBeenCalledTimes(1);
+    expect(manualSpy).toHaveBeenCalledTimes(2);
   });
 
   it('renders slot chips with booked and selected states', () => {
@@ -1062,20 +1177,21 @@ describe('EntryModalComponent', () => {
     expect(hint?.textContent).toContain('Crew busy');
   });
 
-  it('renders event locations when calendar events provide them', () => {
+  it('renders event locations only when events provide them', () => {
     const eventsFixture = TestBed.createComponent(EntryModalComponent);
     const eventsComponent = eventsFixture.componentInstance;
     eventsComponent.open = true;
     vi.spyOn(eventsComponent as unknown as { refreshCalendarEventsForDate: (date: string) => Promise<void> }, 'refreshCalendarEventsForDate').mockResolvedValue();
     eventsComponent.variant = 'customer';
     eventsComponent['calendarEvents'].set([
-      { id: 'evt', summary: 'Job', start: '2026-03-05T13:00:00Z', end: '2026-03-05T14:00:00Z', location: '555 Pine' },
+      { id: 'evt-1', summary: 'Job', start: '2026-03-05T13:00:00Z', end: '2026-03-05T14:00:00Z', location: '555 Pine' },
+      { id: 'evt-2', summary: 'Job', start: '2026-03-05T15:00:00Z', end: '2026-03-05T16:00:00Z' },
     ]);
     eventsFixture.detectChanges();
 
-    const location = eventsFixture.nativeElement.querySelector('.event-location') as HTMLElement | null;
-    expect(location).not.toBeNull();
-    expect(location?.textContent).toContain('555 Pine');
+    const locations = eventsFixture.nativeElement.querySelectorAll('.event-location') as NodeListOf<HTMLElement>;
+    expect(locations.length).toBe(1);
+    expect(locations[0].textContent).toContain('555 Pine');
   });
 
   it('shows a validation error when the calendar date is missing', () => {

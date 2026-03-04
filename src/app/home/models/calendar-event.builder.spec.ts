@@ -140,6 +140,33 @@ describe('buildCalendarEventRequest', () => {
     expect(request?.description).not.toContain('Calendar notes');
   });
 
+  it('includes trimmed calendar notes when whitespace surrounds the copy', () => {
+    const payload: EntryModalPayload = {
+      ...basePayload,
+      calendar: { ...basePayload.calendar!, notes: '   Crew break at noon   ' },
+    };
+    const request = buildCalendarEventRequest(payload);
+    expect(request?.description).toContain('Calendar notes: Crew break at noon');
+  });
+
+  it('omits the hedge plan header when no hedges are selected', () => {
+    const payload: EntryModalPayload = {
+      ...basePayload,
+      hedges: {
+        'hedge-1': { state: 'none' },
+        'hedge-2': { state: 'none' },
+        'hedge-3': { state: 'none' },
+        'hedge-4': { state: 'none' },
+        'hedge-5': { state: 'none' },
+        'hedge-6': { state: 'none' },
+        'hedge-7': { state: 'none' },
+        'hedge-8': { state: 'none' },
+      },
+    };
+    const request = buildCalendarEventRequest(payload);
+    expect(request?.description).not.toContain('Hedge plan:');
+  });
+
   it('describes unknown hedge states for forward compatibility', () => {
     const payload: EntryModalPayload = {
       ...basePayload,
@@ -150,6 +177,52 @@ describe('buildCalendarEventRequest', () => {
     };
     const request = buildCalendarEventRequest(payload);
     expect(request?.description).toContain('Right perimeter (future)');
+  });
+
+  it('summarizes partial rabattage even when no amount text is provided', () => {
+    const payload: EntryModalPayload = {
+      ...basePayload,
+      hedges: {
+        ...basePayload.hedges,
+        'hedge-2': { state: 'rabattage', rabattage: { option: 'partial', partialAmountText: '' } },
+      },
+    };
+    const request = buildCalendarEventRequest(payload);
+    expect(request?.description).toContain('(Partial)');
+  });
+
+  it('falls back to the hedge id when the label mapping is missing', () => {
+    type HedgeConfigMap = EntryModalPayload['hedges'];
+    const payload: EntryModalPayload = {
+      ...basePayload,
+      hedges: {
+        ...basePayload.hedges,
+        ...( { 'hedge-extra': { state: 'trim', trim: { mode: 'custom', inside: true } } } as Record<
+          string,
+          HedgeConfigMap[keyof HedgeConfigMap]
+        >),
+      } as HedgeConfigMap,
+    };
+    const request = buildCalendarEventRequest(payload);
+    expect(request?.description).toContain('hedge-extra');
+  });
+
+  it('formats numeric job values without coercion to string', () => {
+    const payload: EntryModalPayload = {
+      ...basePayload,
+      form: { ...basePayload.form, jobValue: 1950 as unknown as string },
+    };
+    const request = buildCalendarEventRequest(payload);
+    expect(request?.description).toContain('Job value: $1,950.00');
+  });
+
+  it('treats blank job values as zero dollars', () => {
+    const payload: EntryModalPayload = {
+      ...basePayload,
+      form: { ...basePayload.form, jobValue: '' },
+    };
+    const request = buildCalendarEventRequest(payload);
+    expect(request?.description).toContain('Job value: $0.00');
   });
 
   it('formats invalid job values to zero dollars', () => {

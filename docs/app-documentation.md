@@ -39,6 +39,10 @@ root/
   - `CalendarEventsService` (`src/app/home/services/calendar-events.service.ts`) wraps the `/api/calendar/events` endpoints. The entry modal consumes it to show live availability; `HomeDataService.saveEntry` uses the same service when creating customer events.
   - `calendar-event.builder.ts` converts the payload into a Google Calendar-friendly summary/description (hedge plan, customer info, budgets, notes).
   - The template now shows a “Schedule on EcoCut Calendar” block for customer entries with loading/error/empty states driven by the service.
+- **Suggested slot picker**:
+  - EntryModalComponent derives a standard grid of crew slots (08:00–17:00) and compares each to the fetched Google events. Conflicts mark the chip `slot-chip--booked`, while open slots remain actionable.
+  - Manual edits to the start/end inputs clear the selection, so the UI never shows a stale chip highlight.
+  - Specs cover slot rebuilding, drag guards, and the DOM states for available/booked chips.
 - **Integration**: `HomeShellComponent` imports the modal and toggles it from the floating “Add Entry” CTA. The component emits `EntryModalPayload` with the selected variant, normalized form payload, and hedge configs, which feed the façade/server. Customer submissions automatically create a Google Calendar event via `HomeDataService`.
 
 ## Backend Services
@@ -47,6 +51,9 @@ root/
   - `POST /calendar/events` – create an event with summary/description/start/end/timezone/attendees.
   - `GET /calendar/events?timeMin&timeMax` – fetch sanitized Google events for the requested window (used by the entry modal to show availability).
   - `DELETE /calendar/events/:eventId` – remove a previously created event.
+- **Frontend proxying & dev setup**
+  - `npm start` automatically passes `--proxy-config proxy.conf.json`, so `/api/*` traffic goes to `http://localhost:3000/*`. Always run `npm run server` in a second terminal before testing calendar flows locally.
+  - When the Nest server or credentials are unavailable the frontend logs the failure (via `console.warn`) and surfaces the inline banner but the form remains usable.
 - **Environment variables**
   | Name | Required | Purpose |
   | ---- | -------- | ------- |

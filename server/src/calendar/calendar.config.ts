@@ -33,14 +33,14 @@ export function loadCalendarConfig(): CalendarConfig {
     );
   }
 
-  let parsed: Partial<ServiceAccountCredentials>;
+  let parsed: unknown;
   try {
     parsed = JSON.parse(rawCredentials);
-  } catch (error) {
+  } catch {
     throw new Error('Unable to parse Google Calendar credentials JSON.');
   }
 
-  if (!parsed?.client_email || !parsed?.private_key) {
+  if (!isServiceAccountCredentials(parsed)) {
     throw new Error(
       'Google Calendar credentials must include client_email and private_key.',
     );
@@ -53,4 +53,17 @@ export function loadCalendarConfig(): CalendarConfig {
     },
     calendarId: process.env.GOOGLE_CALENDAR_ID ?? 'ecojcut@gmail.com',
   };
+}
+
+function isServiceAccountCredentials(
+  value: unknown,
+): value is ServiceAccountCredentials {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.client_email === 'string' &&
+    typeof candidate.private_key === 'string'
+  );
 }

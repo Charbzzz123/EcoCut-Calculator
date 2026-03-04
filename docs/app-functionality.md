@@ -44,6 +44,16 @@
 - **Calendar event auto-generation**:
   - When a customer entry is saved the frontend builds a structured event description (contact info, job value, hedge plan breakdown, additional details, calendar notes) and sends it to the Nest backend (`POST /calendar/events`). Location defaults to the customer address.
   - Undo/edit stories will later use the stored `eventId` to delete or update the slot; for now we focus on creation paths.
+- **Suggested slot picker**:
+  - Customer entries show an “Suggested time slots” grid once a date is chosen. Slots mirror the standard crew day (08:00–17:00).
+  - Slots automatically disable when the backend reports a conflicting Google Calendar event. Available slots autofill the start/end controls and highlight the selection; manual edits clear the chip state.
+  - Hover/click feedback is instant so schedulers can pick a slot in under a second.
+- **Live availability feed**:
+  - The “Upcoming events” panel now refreshes via the Nest proxy so the list matches Google Calendar in real time. Loading, empty, and error states are rendered inline with helper copy.
+  - When the backend fails (e.g., missing credentials) we keep the modal usable but display a warning banner (“Unable to load Google Calendar availability right now.”).
+- **Validation rules**:
+  - Customer variant cannot be saved until date, start, and end times are provided and the range is valid (end after start). Inline helpers (“Required” or “End time must be after the start time”) surface under each field.
+  - Calendar notes are optional but trimmed; blank values are omitted from the payload.
 
 ## Inputs & Data Sources
 - **Employee Catalog**: `[name, rate]` tuples powering the employee picker + validation.

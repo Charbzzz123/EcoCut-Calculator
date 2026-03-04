@@ -22,10 +22,10 @@ function loadCalendarConfig() {
     try {
         parsed = JSON.parse(rawCredentials);
     }
-    catch (error) {
+    catch {
         throw new Error('Unable to parse Google Calendar credentials JSON.');
     }
-    if (!parsed?.client_email || !parsed?.private_key) {
+    if (!isServiceAccountCredentials(parsed)) {
         throw new Error('Google Calendar credentials must include client_email and private_key.');
     }
     return {
@@ -35,5 +35,13 @@ function loadCalendarConfig() {
         },
         calendarId: process.env.GOOGLE_CALENDAR_ID ?? 'ecojcut@gmail.com',
     };
+}
+function isServiceAccountCredentials(value) {
+    if (!value || typeof value !== 'object') {
+        return false;
+    }
+    const candidate = value;
+    return (typeof candidate.client_email === 'string' &&
+        typeof candidate.private_key === 'string');
 }
 //# sourceMappingURL=calendar.config.js.map
