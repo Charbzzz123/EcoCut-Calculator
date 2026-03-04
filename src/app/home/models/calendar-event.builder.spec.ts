@@ -37,12 +37,13 @@ describe('buildCalendarEventRequest', () => {
   it('builds a descriptive calendar request from entry payload', () => {
     const request = buildCalendarEventRequest(basePayload);
     expect(request).not.toBeNull();
-    expect(request?.summary).toContain('Adlane Marco');
+    expect(request?.summary).toBe('Adlane Marco – Both');
     expect(request?.location).toBe('123 Cedar Lane');
-    expect(request?.description).toContain('Front walkway (left) Trim (Inside + Top)');
-    expect(request?.description).toContain('Left perimeter Rabattage');
-    expect(request?.description).toContain('Job value:');
-    expect(request?.description).not.toContain('Calendar notes:');
+    expect(request?.description).toContain('Address : 123 Cedar Lane');
+    expect(request?.description).toContain('Phone : (438) 123-4567');
+    expect(request?.description).toContain('Front Left Trim (i,t)');
+    expect(request?.description).toContain('Left Rabattage P: 4 ft off top');
+    expect(request?.description).toContain('Job value: $950.00');
   });
 
   it('summarizes presets and total-without-roots rabattage selections', () => {
@@ -60,8 +61,30 @@ describe('buildCalendarEventRequest', () => {
       },
     };
     const request = buildCalendarEventRequest(payload);
-    expect(request?.description).toContain('Total preset');
-    expect(request?.description).toContain('Total without roots');
+    expect(request?.description).toContain('Front Left Trim T');
+    expect(request?.description).toContain('Left Rabattage TnoRoots');
+  });
+
+  it('uses the N code when the normal preset is selected', () => {
+    const payload: EntryModalPayload = {
+      ...basePayload,
+      hedges: {
+        'hedge-2': { state: 'trim', trim: { mode: 'preset', preset: 'normal' } },
+      } as EntryModalPayload['hedges'],
+    };
+    const request = buildCalendarEventRequest(payload);
+    expect(request?.description).toContain('Left Trim N');
+  });
+
+  it('falls back to custom text when preset mode lacks a preset value', () => {
+    const payload: EntryModalPayload = {
+      ...basePayload,
+      hedges: {
+        'hedge-2': { state: 'trim', trim: { mode: 'preset' } },
+      } as EntryModalPayload['hedges'],
+    };
+    const request = buildCalendarEventRequest(payload);
+    expect(request?.description).toContain('Left Trim (custom)');
   });
 
   it('includes optional fields and fallback hedge descriptions', () => {
@@ -87,9 +110,9 @@ describe('buildCalendarEventRequest', () => {
     const request = buildCalendarEventRequest(payload);
     expect(request?.description).toContain('Desired budget:');
     expect(request?.description).toContain('Additional details: Edge driveway and bag debris');
-    expect(request?.description).toContain('Front walkway (left) Trim (custom)');
-    expect(request?.description).toContain('Left perimeter Rabattage (Total)');
-    expect(request?.description).toContain('(Total)');
+    expect(request?.description).toContain('Front Left Trim (custom)');
+    expect(request?.description).toContain('Left Rabattage T');
+    expect(request?.description).toContain('Back Rabattage T');
   });
 
   it('falls back to custom/preset descriptions when details missing', () => {
@@ -107,8 +130,8 @@ describe('buildCalendarEventRequest', () => {
       },
     };
     const request = buildCalendarEventRequest(payload);
-    expect(request?.description).toContain('(custom)');
-    expect(request?.description).toContain('(Total)');
+    expect(request?.description).toContain('Front Left Trim (custom)');
+    expect(request?.description).toContain('Left Rabattage T');
   });
 
   it('handles missing hedge configs gracefully', () => {
@@ -126,8 +149,8 @@ describe('buildCalendarEventRequest', () => {
       },
     };
     const request = buildCalendarEventRequest(payload);
-    expect(request?.description).toContain('(custom)');
-    expect(request?.description).toContain('(Total)');
+    expect(request?.description).toContain('Front Left Trim (custom)');
+    expect(request?.description).toContain('Left Rabattage T');
   });
 
   it('omits the hedge plan header when no hedges are selected', () => {
@@ -157,7 +180,7 @@ describe('buildCalendarEventRequest', () => {
       },
     };
     const request = buildCalendarEventRequest(payload);
-    expect(request?.description).toContain('Right perimeter (future)');
+    expect(request?.description).toContain('Right (future)');
   });
 
   it('summarizes partial rabattage even when no amount text is provided', () => {
@@ -169,7 +192,7 @@ describe('buildCalendarEventRequest', () => {
       },
     };
     const request = buildCalendarEventRequest(payload);
-    expect(request?.description).toContain('(Partial)');
+    expect(request?.description).toContain('Left Rabattage P');
   });
 
   it('falls back to the hedge id when the label mapping is missing', () => {
@@ -186,6 +209,94 @@ describe('buildCalendarEventRequest', () => {
     };
     const request = buildCalendarEventRequest(payload);
     expect(request?.description).toContain('hedge-extra');
+  });
+
+  it('merges front hedges when both sides share the same trim selection', () => {
+    const payload: EntryModalPayload = {
+      ...basePayload,
+      hedges: {
+        'hedge-1': { state: 'trim', trim: { mode: 'custom', inside: true } },
+        'hedge-7': { state: 'trim', trim: { mode: 'custom', outside: true } },
+      } as EntryModalPayload['hedges'],
+    };
+    const request = buildCalendarEventRequest(payload);
+    expect(request?.description).toContain('Front Trim (i,o)');
+    expect(request?.description).not.toContain('Front Left Trim');
+    expect(request?.description).not.toContain('Front Right Trim');
+  });
+
+  it('merges front hedges for rabattage selections too', () => {
+    const payload: EntryModalPayload = {
+      ...basePayload,
+      hedges: {
+        'hedge-1': { state: 'rabattage', rabattage: { option: 'partial', partialAmountText: '2 ft' } },
+        'hedge-7': { state: 'rabattage', rabattage: { option: 'partial' } },
+      } as EntryModalPayload['hedges'],
+    };
+    const request = buildCalendarEventRequest(payload);
+    expect(request?.description).toContain('Front Rabattage P: 2 ft');
+    expect(request?.description).not.toContain('Front Left Rabattage');
+    expect(request?.description).not.toContain('Front Right Rabattage');
+  });
+
+  it('returns the same descriptor when front trim selections match exactly', () => {
+    const payload: EntryModalPayload = {
+      ...basePayload,
+      hedges: {
+        'hedge-1': { state: 'trim', trim: { mode: 'custom', inside: true } },
+        'hedge-7': { state: 'trim', trim: { mode: 'custom', inside: true } },
+      } as EntryModalPayload['hedges'],
+    };
+    const request = buildCalendarEventRequest(payload);
+    expect(request?.description).toContain('Front Trim (i)');
+  });
+
+  it('falls back to the first descriptor when front trim presets differ', () => {
+    const payload: EntryModalPayload = {
+      ...basePayload,
+      hedges: {
+        'hedge-1': { state: 'trim', trim: { mode: 'preset', preset: 'normal' } },
+        'hedge-7': { state: 'trim', trim: { mode: 'preset', preset: 'total' } },
+      } as EntryModalPayload['hedges'],
+    };
+    const request = buildCalendarEventRequest(payload);
+    expect(request?.description).toContain('Front Trim N');
+  });
+
+  it('falls back to the first rabattage descriptor when the pair is missing details', () => {
+    const payload: EntryModalPayload = {
+      ...basePayload,
+      hedges: {
+        'hedge-1': { state: 'rabattage', rabattage: { option: 'partial', partialAmountText: '6 ft' } },
+        'hedge-7': { state: 'rabattage' },
+      } as EntryModalPayload['hedges'],
+    };
+    const request = buildCalendarEventRequest(payload);
+    expect(request?.description).toContain('Front Rabattage P: 6 ft');
+  });
+
+  it('returns the same rabattage descriptor when both sides match', () => {
+    const payload: EntryModalPayload = {
+      ...basePayload,
+      hedges: {
+        'hedge-1': { state: 'rabattage', rabattage: { option: 'partial', partialAmountText: '2 ft' } },
+        'hedge-7': { state: 'rabattage', rabattage: { option: 'partial', partialAmountText: '2 ft' } },
+      } as EntryModalPayload['hedges'],
+    };
+    const request = buildCalendarEventRequest(payload);
+    expect(request?.description).toContain('Front Rabattage P: 2 ft');
+  });
+
+  it('keeps the original descriptor when both custom trim selections have no tags', () => {
+    const payload: EntryModalPayload = {
+      ...basePayload,
+      hedges: {
+        'hedge-1': { state: 'trim', trim: { mode: 'custom' } },
+        'hedge-7': { state: 'trim', trim: { mode: 'custom' } },
+      } as EntryModalPayload['hedges'],
+    };
+    const request = buildCalendarEventRequest(payload);
+    expect(request?.description).toContain('Front Trim (custom)');
   });
 
   it('formats numeric job values without coercion to string', () => {
