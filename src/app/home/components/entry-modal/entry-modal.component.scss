@@ -426,18 +426,19 @@ button:hover {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: var(--timeline-label-width);
-  width: calc(100% - var(--timeline-label-width));
+  left: calc(var(--timeline-label-width) + 8px);
+  width: calc(100% - var(--timeline-label-width) - 14px);
   pointer-events: none;
 }
+
 
 .timeline-event-block {
   position: absolute;
   padding: 0.45rem;
   border-radius: 0.65rem;
-  background: rgba(111, 240, 193, 0.18);
-  border: 1px solid rgba(111, 240, 193, 0.55);
-  color: #dffdf1;
+  background: rgba(160, 120, 255, 0.28);
+  border: 1px solid rgba(180, 140, 255, 0.75);
+  color: #f1e8ff;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -448,7 +449,7 @@ button:hover {
 
 .timeline-event-block small {
   font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(222, 226, 255, 0.65);
 }
 
 .timeline-selection {
