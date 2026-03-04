@@ -527,11 +527,52 @@ button:hover {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.editing-banner__info {
+  flex: 1 1 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.editing-banner__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.6rem;
+}
+
+.editing-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+}
+
+.editing-field input,
+.editing-field textarea {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  color: #f5fff8;
+  font-size: 0.85rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.editing-field input:focus,
+.editing-field textarea:focus {
+  outline: none;
+  border-color: rgba(108, 240, 191, 0.55);
+  box-shadow: 0 0 0 1px rgba(108, 240, 191, 0.35);
 }
 
 .editing-banner__actions {
   display: flex;
   gap: 0.5rem;
+  flex: 0 0 auto;
 }
 
 .editing-banner__actions .ghost {

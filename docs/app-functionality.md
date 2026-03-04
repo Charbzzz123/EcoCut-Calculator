@@ -196,3 +196,6 @@ Update this document whenever we clarify rules or add new functionality so imple
 
 
 
+
+## Upcoming Enhancements
+- **Entry correction flow**: when full persistence lands we’ll keep a deduped client roster (normalized email/phone) plus an append-only job history. Client data changes will go through that flow so CRM records stay auditable, while the calendar edit banner remains a lightweight way to tweak schedule/title/notes for standalone calendar events.

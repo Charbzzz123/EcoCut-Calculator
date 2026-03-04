@@ -97,7 +97,7 @@ export class EntryModalComponent implements OnDestroy {
     } else {
       this.clearCalendarPreview();
       this.hedgeSelectionError.set(null);
-      this.editingCalendarEvent.set(null);
+      this.setEditingCalendarEvent(null);
     }
   }
   @Input() headline?: string;
@@ -129,6 +129,10 @@ export class EntryModalComponent implements OnDestroy {
     }),
   });
   protected readonly calendarGroup = this.form.controls.calendar;
+  protected readonly editingCalendarForm = this.fb.group({
+    summary: [''],
+    notes: [''],
+  });
   private readonly calendarService = inject(CalendarEventsService);
   /* c8 ignore next */
   protected readonly calendarEvents = signal<CalendarEventSummary[]>([]);
@@ -160,6 +164,24 @@ export class EntryModalComponent implements OnDestroy {
   protected readonly currentTimeMinutes = signal<number | null>(null);
   /* c8 ignore next */
   protected readonly editingCalendarEvent = signal<CalendarEventSummary | null>(null);
+  private syncEditingFormFromEvent(event: CalendarEventSummary | null): void {
+    if (!event) {
+      this.editingCalendarForm.reset({ summary: '', notes: '' });
+      return;
+    }
+    this.editingCalendarForm.patchValue(
+      {
+        summary: event.summary ?? '',
+        notes: event.description ?? '',
+      },
+      { emitEvent: false },
+    );
+  }
+
+  private setEditingCalendarEvent(event: CalendarEventSummary | null): void {
+    this.editingCalendarEvent.set(event);
+    this.syncEditingFormFromEvent(event);
+  }
   protected readonly timelineHours = Array.from(
     { length: TIMELINE_END_HOUR - TIMELINE_START_HOUR + 1 },
     (_, index) => TIMELINE_START_HOUR + index,
@@ -252,14 +274,14 @@ export class EntryModalComponent implements OnDestroy {
       this.conflictSummary.set(null);
       this.conflictConfirmed.set(false);
       this.clearCurrentTimeTicker();
-      this.editingCalendarEvent.set(null);
+      this.setEditingCalendarEvent(null);
       return;
     }
     const date = this.calendarGroup.controls.date.value;
     if (!date) {
       this.clearCalendarPreview();
       this.calendarGroup.patchValue({ startTime: '', endTime: '' }, { emitEvent: false });
-      this.editingCalendarEvent.set(null);
+      this.setEditingCalendarEvent(null);
       return;
     }
     this.calendarGroup.patchValue({ startTime: '', endTime: '' }, { emitEvent: false });
@@ -424,7 +446,7 @@ export class EntryModalComponent implements OnDestroy {
     this.conflictConfirmed.set(false);
     this.currentTimeMinutes.set(null);
     this.clearCurrentTimeTicker();
-    this.editingCalendarEvent.set(null);
+    this.setEditingCalendarEvent(null);
   }
 
   private async refreshCalendarEventsForDate(date: string): Promise<void> {
@@ -436,7 +458,7 @@ export class EntryModalComponent implements OnDestroy {
       const currentEdit = this.editingCalendarEvent();
       if (currentEdit) {
         const updatedReference = events.find((evt) => evt.id === currentEdit.id) ?? null;
-        this.editingCalendarEvent.set(updatedReference);
+        this.setEditingCalendarEvent(updatedReference);
       }
       this.rebuildTimelineEvents(date, events);
       this.syncCurrentTimeTicker();
@@ -913,11 +935,11 @@ export class EntryModalComponent implements OnDestroy {
   }
 
   protected cancelCalendarEdit(): void {
-    this.editingCalendarEvent.set(null);
+    this.setEditingCalendarEvent(null);
   }
 
   protected editCalendarEvent(event: CalendarEventSummary): void {
-    this.editingCalendarEvent.set(event);
+    this.setEditingCalendarEvent(event);
     const startTime = this.isoToTimeString(event.start);
     const endTime = this.isoToTimeString(event.end);
     const date = this.isoToDateString(event.start);
@@ -945,14 +967,15 @@ export class EntryModalComponent implements OnDestroy {
     try {
       this.calendarEventsLoading.set(true);
       await this.calendarService.deleteEvent(event.id);
-      if (this.editingCalendarEvent()?.id === event.id) {
-        this.editingCalendarEvent.set(null);
-      }
       const date = this.calendarGroup.controls.date.value;
       if (date) {
         await this.refreshCalendarEventsForDate(date);
       } else {
         this.calendarEvents.set(this.calendarEvents().filter((candidate) => candidate.id !== event.id));
+        const currentEditing = this.editingCalendarEvent();
+        if (currentEditing && currentEditing.id === event.id) {
+          this.setEditingCalendarEvent(null);
+        }
       }
     } catch (error) {
       console.error('Failed to delete calendar event', error);
@@ -1002,13 +1025,8 @@ export class EntryModalComponent implements OnDestroy {
       return true;
     }
     const { date, startTime, endTime } = this.calendarGroup.getRawValue();
-    if (!date || !startTime || !endTime) {
-      return true;
-    }
-    if (this.selectionConflict() && !this.conflictConfirmed()) {
-      return true;
-    }
-    return false;
+    const missingFields = !(date && startTime && endTime);
+    return missingFields || (this.selectionConflict() && !this.conflictConfirmed());
   }
 
   protected async updateCalendarEvent(): Promise<void> {
@@ -1025,9 +1043,12 @@ export class EntryModalComponent implements OnDestroy {
     const { date, startTime, endTime } = this.calendarGroup.getRawValue();
     const startIso = this.combineDateTime(date, startTime);
     const endIso = this.combineDateTime(date, endTime);
+    const { summary, notes } = this.editingCalendarForm.getRawValue();
+    const summaryOverride = summary?.trim() ?? '';
+    const notesOverride = notes?.trim() ?? '';
     const request: UpdateCalendarEventRequest = {
-      summary: editing.summary,
-      description: editing.description,
+      summary: summaryOverride ? summaryOverride : editing.summary,
+      description: notesOverride ? notesOverride : editing.description,
       location: editing.location,
       start: startIso,
       end: endIso,
@@ -1039,7 +1060,7 @@ export class EntryModalComponent implements OnDestroy {
 
     try {
       const updated = await this.calendarService.updateEvent(editing.id, request);
-      this.editingCalendarEvent.set(updated);
+      this.setEditingCalendarEvent(updated);
       await this.refreshCalendarEventsForDate(date);
       this.setTimelineSelectionFromTimes(this.isoToTimeString(startIso), this.isoToTimeString(endIso));
       this.selectionConflict.set(false);

@@ -1778,6 +1778,30 @@ describe('EntryModalComponent', () => {
     expect(component['editingCalendarEvent']()).toBeNull();
   });
 
+  it('clears editing state for local deletions when no calendar date is selected', async () => {
+    component.variant = 'customer';
+    component.form.get('calendar.date')?.setValue('');
+    component['calendarEvents'].set([
+      { id: 'evt-local-edit', summary: 'Editing', start: '', end: '' },
+      { id: 'evt-other', summary: 'Other', start: '', end: '' },
+    ]);
+    component['editingCalendarEvent'].set({
+      id: 'evt-local-edit',
+      summary: 'Editing',
+      start: '',
+      end: '',
+    });
+
+    await component['deleteCalendarEvent']({
+      id: 'evt-local-edit',
+      summary: 'Editing',
+      start: '',
+      end: '',
+    });
+
+    expect(component['editingCalendarEvent']()).toBeNull();
+  });
+
   it('computes whether the editing update action should be disabled', () => {
     component.variant = 'customer';
     component.form.get('calendar.date')?.setValue('2026-03-08');
@@ -1832,6 +1856,57 @@ describe('EntryModalComponent', () => {
     expect(component['editingUpdateDisabled']()).toBe(true);
   });
 
+  it('disables editing updates when the start time is missing', () => {
+    component.variant = 'customer';
+    component['editingCalendarEvent'].set({
+      id: 'evt-missing-start',
+      summary: 'Existing booking',
+      start: '',
+      end: '',
+    });
+    component.form.get('calendar.date')?.setValue('2026-03-15');
+    component.form.get('calendar.startTime')?.setValue('');
+    component.form.get('calendar.endTime')?.setValue('09:30');
+
+    expect(component['editingUpdateDisabled']()).toBe(true);
+  });
+
+  it('disables editing updates when the end time is missing', () => {
+    component.variant = 'customer';
+    component['editingCalendarEvent'].set({
+      id: 'evt-missing-end',
+      summary: 'Existing booking',
+      start: '',
+      end: '',
+    });
+    component.form.get('calendar.date')?.setValue('2026-03-16');
+    component.form.get('calendar.startTime')?.setValue('08:45');
+    component.form.get('calendar.endTime')?.setValue('');
+
+    expect(component['editingUpdateDisabled']()).toBe(true);
+  });
+
+  it('prefills editing summary and notes when entering edit mode', () => {
+    component.variant = 'customer';
+    const event = {
+      id: 'evt-prefill',
+      summary: 'Existing booking',
+      description: 'Bring extra crew',
+      start: component['combineDateTime']('2026-03-10', '11:00'),
+      end: component['combineDateTime']('2026-03-10', '12:00'),
+    };
+
+    component['editCalendarEvent'](event);
+
+    expect(component['editingCalendarForm'].getRawValue()).toEqual({
+      summary: 'Existing booking',
+      notes: 'Bring extra crew',
+    });
+
+    component['cancelCalendarEdit']();
+    expect(component['editingCalendarForm'].getRawValue()).toEqual({ summary: '', notes: '' });
+  });
+
   it('updates existing calendar events through the inline action', async () => {
     component.variant = 'customer';
     component.form.get('calendar.date')?.setValue('2026-03-05');
@@ -1877,6 +1952,34 @@ describe('EntryModalComponent', () => {
     await component['updateCalendarEvent']();
 
     expect(component['calendarEventsError']()).toContain('Unable to update calendar event');
+  });
+
+  it('allows overriding calendar title and notes before updating', async () => {
+    component.variant = 'customer';
+    component.form.get('calendar.date')?.setValue('2026-03-11');
+    component.form.get('calendar.startTime')?.setValue('09:30');
+    component.form.get('calendar.endTime')?.setValue('10:30');
+    const event = {
+      id: 'evt-override',
+      summary: 'Old title',
+      description: 'Old notes',
+      start: component['combineDateTime']('2026-03-11', '08:30'),
+      end: component['combineDateTime']('2026-03-11', '09:30'),
+    };
+
+    component['editCalendarEvent'](event);
+    component['editingCalendarForm'].controls.summary.setValue('New title');
+    component['editingCalendarForm'].controls.notes.setValue('Updated notes');
+
+    await component['updateCalendarEvent']();
+
+    expect(calendarService.updateEvent).toHaveBeenCalledWith(
+      'evt-override',
+      expect.objectContaining({
+        summary: 'New title',
+        description: 'Updated notes',
+      }),
+    );
   });
 
   it('does not update calendar events when validation fails', async () => {

@@ -328,9 +328,29 @@
 
             @if (editingCalendarEvent(); as editingEvent) {
               <div class="editing-banner">
-                <div>
-                  <strong>Editing existing event</strong>
-                  <span>{{ editingEvent.summary }} â€¢ {{ formatEventTimeRange(editingEvent) }}</span>
+                <div class="editing-banner__info">
+                  <div>
+                    <strong>Editing existing event</strong>
+                    <span>{{ editingEvent.summary }} â€¢ {{ formatEventTimeRange(editingEvent) }}</span>
+                  </div>
+                  <div class="editing-banner__fields">
+                    <label class="editing-field">
+                      <span>Title</span>
+                      <input
+                        type="text"
+                        [formControl]="editingCalendarForm.controls.summary"
+                        placeholder="Event title"
+                      />
+                    </label>
+                    <label class="editing-field editing-field--notes">
+                      <span>Details</span>
+                      <textarea
+                        rows="2"
+                        [formControl]="editingCalendarForm.controls.notes"
+                        placeholder="Calendar notes"
+                      ></textarea>
+                    </label>
+                  </div>
                 </div>
                 <div class="editing-banner__actions">
                   <button
@@ -433,3 +453,4 @@
     </div>
   </div>
 }
+
