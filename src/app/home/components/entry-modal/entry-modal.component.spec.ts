@@ -147,6 +147,53 @@ describe('EntryModalComponent', () => {
     expect(component['hasSavedConfig']('hedge-1')).toBe(false);
   });
 
+  it('blocks customer submissions without any hedge selections', () => {
+    const savedSpy = vi.fn();
+    component.saved.subscribe(savedSpy);
+    component.variant = 'customer';
+    component.form.patchValue({
+      firstName: 'Client',
+      lastName: 'Test',
+      address: '500 Elm',
+      phone: '(438) 000-0000',
+      jobType: 'Hedge Trimming',
+      jobValue: '900',
+      calendar: {
+        date: '2026-03-10',
+        startTime: '09:00',
+        endTime: '10:00',
+      },
+    });
+
+    component['submitEntry']();
+
+    expect(savedSpy).not.toHaveBeenCalled();
+    expect(component['hedgeSelectionError']()).toContain('Select at least one hedge');
+  });
+
+  it('includes hedge states in the payload even when configs are not saved explicitly', () => {
+    const savedSpy = vi.fn();
+    component.saved.subscribe(savedSpy);
+    component.form.patchValue({
+      firstName: 'Partial',
+      lastName: 'Config',
+      address: '777 Test',
+      phone: '(438) 111-1111',
+      jobType: 'Both',
+      jobValue: '1200',
+    });
+    component['hedgeStates'].set({
+      ...component['hedgeStates'](),
+      'hedge-4': 'trim',
+    });
+
+    component['submitEntry']();
+
+    expect(savedSpy).toHaveBeenCalledTimes(1);
+    const payload = savedSpy.mock.calls[0][0] as EntryModalPayload;
+    expect(payload.hedges['hedge-4'].state).toBe('trim');
+  });
+
   it('validates partial rabattage input before saving', () => {
     component['panelState'].set({
       hedgeId: 'hedge-2',
@@ -669,6 +716,10 @@ describe('EntryModalComponent', () => {
       jobType: 'Both',
       jobValue: '1500',
     });
+    component['hedgeStates'].set({
+      ...component['hedgeStates'](),
+      'hedge-1': 'trim',
+    });
     component.form.get('calendar.date')?.setValue('2026-03-05');
     component.form.get('calendar.startTime')?.setValue('09:00');
     component.form.get('calendar.endTime')?.setValue('11:00');
@@ -1115,6 +1166,10 @@ describe('EntryModalComponent', () => {
       phone: '(438) 555-1010',
       jobType: 'Hedge Trimming',
       jobValue: '900',
+    });
+    component['hedgeStates'].set({
+      ...component['hedgeStates'](),
+      'hedge-2': 'trim',
     });
     component.form.get('calendar.date')?.setValue('2026-03-05');
     component.form.get('calendar.startTime')?.setValue('09:00');

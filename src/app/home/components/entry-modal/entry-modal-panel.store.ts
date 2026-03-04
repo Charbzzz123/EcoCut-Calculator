@@ -257,7 +257,31 @@ export class EntryModalPanelStore {
   }
 
   buildHedgePayload(): Record<HedgeId, HedgeConfig> {
-    return { ...this.savedConfigs() };
+    const states = this.hedgeStates();
+    const saved = this.savedConfigs();
+    const result = {} as Record<HedgeId, HedgeConfig>;
+    HEDGE_IDS.forEach((hedgeId) => {
+      const state = states[hedgeId];
+      const savedConfig = saved[hedgeId];
+      if (state === 'trim') {
+        if (savedConfig?.state === 'trim') {
+          result[hedgeId] = savedConfig;
+        } else {
+          result[hedgeId] = { state: 'trim', trim: savedConfig?.trim };
+        }
+        return;
+      }
+      if (state === 'rabattage') {
+        if (savedConfig?.state === 'rabattage') {
+          result[hedgeId] = savedConfig;
+        } else {
+          result[hedgeId] = { state: 'rabattage', rabattage: savedConfig?.rabattage };
+        }
+        return;
+      }
+      result[hedgeId] = { state: 'none' };
+    });
+    return result;
   }
 
   reset(): void {

@@ -16,6 +16,7 @@ import {
   EntryCalendarPayload,
   EntryModalPayload,
   EntryVariant,
+  HedgeConfig,
   HedgeId,
   HedgeState,
   RabattageOption,
@@ -96,6 +97,7 @@ export class EntryModalComponent implements OnDestroy {
       this.ensureCalendarDefaults();
     } else {
       this.clearCalendarPreview();
+      this.hedgeSelectionError.set(null);
     }
   }
   @Input() headline?: string;
@@ -167,6 +169,7 @@ export class EntryModalComponent implements OnDestroy {
   protected readonly panelState: WritableSignal<PanelState | null> = this.panelStore.panelState;
   protected readonly panelPosition = this.panelStore.panelPosition;
   protected readonly panelError = this.panelStore.panelError;
+  protected readonly hedgeSelectionError = signal<string | null>(null);
   /* c8 ignore next */
   protected readonly floatingPanelEnabled = this.panelStore.floatingPanelEnabled;
   protected readonly hedges = this.panelStore.hedges;
@@ -279,6 +282,12 @@ export class EntryModalComponent implements OnDestroy {
     event.stopPropagation();
     this.syncCanvasHost();
     this.panelStore.cycleHedge(event, hedgeId);
+    if (this.variant === 'customer' && this.hedgeSelectionError()) {
+      const snapshot = this.panelStore.buildHedgePayload();
+      if (this.hasSelectedHedge(snapshot)) {
+        this.hedgeSelectionError.set(null);
+      }
+    }
   }
 
   protected updateTrimSection(section: 'inside' | 'top' | 'outside', checked: boolean): void {
@@ -299,6 +308,12 @@ export class EntryModalComponent implements OnDestroy {
 
   protected savePanel(): void {
     this.panelStore.savePanel();
+    if (this.variant === 'customer' && this.hedgeSelectionError()) {
+      const snapshot = this.panelStore.buildHedgePayload();
+      if (this.hasSelectedHedge(snapshot)) {
+        this.hedgeSelectionError.set(null);
+      }
+    }
   }
 
   protected cancelPanel(): void {
@@ -328,6 +343,11 @@ export class EntryModalComponent implements OnDestroy {
     }
 
     const hedgesPayload = this.panelStore.buildHedgePayload();
+    if (this.variant === 'customer' && !this.hasSelectedHedge(hedgesPayload)) {
+      this.hedgeSelectionError.set('Select at least one hedge before saving this customer entry.');
+      return;
+    }
+    this.hedgeSelectionError.set(null);
     const formValue = this.form.getRawValue();
     const payload: EntryModalPayload = {
       variant: this.variant,
@@ -481,10 +501,15 @@ export class EntryModalComponent implements OnDestroy {
     this.panelStore.reset();
     this.clearCalendarPreview();
     this.syncCalendarValidators();
+    this.hedgeSelectionError.set(null);
     this.timelineSelection.set(null);
     this.selectionConflict.set(false);
     this.conflictSummary.set(null);
     this.conflictConfirmed.set(false);
+  }
+
+  private hasSelectedHedge(hedges: Record<HedgeId, HedgeConfig>): boolean {
+    return Object.values(hedges).some((config) => config?.state && config.state !== 'none');
   }
 
   private syncCanvasHost(): void {

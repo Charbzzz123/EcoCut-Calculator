@@ -27,4 +27,37 @@ describe('EntryModalPanelStore', () => {
     expect(signals.panelState()).toBeNull();
     expect(signals.floatingPanelEnabled()).toBe(true);
   });
+
+  it('builds hedge payloads using the latest hedge states even without saved configs', () => {
+    const store = new EntryModalPanelStore();
+    store.hedgeStates.set({
+      ...store.hedgeStates(),
+      'hedge-1': 'trim',
+      'hedge-3': 'rabattage',
+    });
+
+    const payload = store.buildHedgePayload();
+
+    expect(payload['hedge-1'].state).toBe('trim');
+    expect(payload['hedge-1'].trim).toBeUndefined();
+    expect(payload['hedge-3'].state).toBe('rabattage');
+    expect(payload['hedge-3'].rabattage).toBeUndefined();
+    expect(payload['hedge-2'].state).toBe('none');
+  });
+
+  it('prefers saved configs when states and configs agree', () => {
+    const store = new EntryModalPanelStore();
+    store.savedConfigs.set({
+      ...store.savedConfigs(),
+      'hedge-2': { state: 'trim', trim: { mode: 'preset', preset: 'normal' } },
+    });
+    store.hedgeStates.set({
+      ...store.hedgeStates(),
+      'hedge-2': 'trim',
+    });
+
+    const payload = store.buildHedgePayload();
+
+    expect(payload['hedge-2'].trim?.preset).toBe('normal');
+  });
 });
