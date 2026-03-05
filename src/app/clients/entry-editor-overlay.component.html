@@ -1,0 +1,13 @@
+<div class="entry-editor-overlay">
+  <div class="entry-editor-backdrop" (click)="closed.emit()" aria-hidden="true"></div>
+  <app-entry-modal
+    [open]="open"
+    [variant]="variant"
+    [headline]="headline"
+    [eyebrow]="eyebrow"
+    primaryActionLabel="Update job"
+    [initialEntry]="payload!"
+    (closed)="closed.emit()"
+    (saved)="saved.emit($event)"
+  />
+</div>

@@ -1,0 +1,19 @@
+<div class="client-detail-overlay" aria-live="polite">
+  <button
+    type="button"
+    aria-label="Close client drawer"
+    class="client-detail-overlay__backdrop"
+    (click)="closed.emit()"
+  ></button>
+  <app-client-detail-drawer
+    [client]="client"
+    [detail]="detail"
+    [state]="state"
+    (closed)="closed.emit()"
+    (retry)="retry.emit()"
+    (updateClient)="updateClient.emit($event)"
+    (deleteClient)="deleteClient.emit()"
+    (editEntry)="editEntry.emit($event)"
+    (deleteEntry)="deleteEntry.emit($event)"
+  ></app-client-detail-drawer>
+</div>

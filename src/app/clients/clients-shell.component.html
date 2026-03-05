@@ -57,114 +57,39 @@
     </article>
   </section>
 
-  <section class="clients-toolbar" aria-label="Client filters and actions">
-    <label class="clients-toolbar__search">
-      <span class="sr-only">Search clients</span>
-      <input
-        type="search"
-        [formControl]="query"
-        placeholder="Search by name, address, phone, email"
-      />
-    </label>
-    <button type="button" class="refresh-btn" (click)="loadClients()">Refresh</button>
-  </section>
+  <app-clients-toolbar [queryControl]="queryControl" (refresh)="loadClients()"></app-clients-toolbar>
 
-  <section class="clients-roster" aria-live="polite">
-    @switch (loadState()) {
-      @case ('loading') {
-        <div class="clients-roster__state">Loading client roster&hellip;</div>
-      }
-      @case ('error') {
-        <div class="clients-roster__state clients-roster__state--error">
-          <p>We couldn't load clients right now.</p>
-          <button type="button" (click)="loadClients()">Try again</button>
-        </div>
-      }
-      @case ('ready') {
-        @if (filteredClientsSnapshot().length) {
-          <ul class="client-list">
-            @for (client of filteredClientsSnapshot(); track trackByClientId($index, client)) {
-              <li>
-                <button type="button" class="client-card" (click)="openClientDrawer(client)">
-                  <div class="client-card__header">
-                    <p class="client-card__name">{{ client.fullName }}</p>
-                    <p class="client-card__jobs">{{ client.jobsCount }} job(s)</p>
-                  </div>
-                  <p class="client-card__contact">
-                    <span>{{ client.phone }}</span>
-                    @if (client.email) {
-                      <span>&middot; {{ client.email }}</span>
-                    }
-                  </p>
-                  <p class="client-card__address">{{ client.address }}</p>
-                  <p class="client-card__meta">
-                    Last job:
-                    <strong>
-                      @if (client.lastJobDate) {
-                        {{ client.lastJobDate | date: 'MMM d, y h:mm a' }}
-                      } @else {
-                        &mdash;
-                      }
-                    </strong>
-                  </p>
-                  <p class="client-card__meta client-card__meta--upcoming">
-                    Next job:
-                    <strong>
-                      @if (client.nextJobDate) {
-                        {{ client.nextJobDate | date: 'MMM d, y h:mm a' }}
-                      } @else {
-                        &mdash;
-                      }
-                    </strong>
-                  </p>
-                </button>
-              </li>
-            }
-          </ul>
-        } @else {
-          <div class="clients-roster__state clients-roster__state--empty">
-            No clients match that search yet.
-          </div>
-        }
-      }
-    }
-  </section>
+  <app-clients-roster
+    [loadState]="loadState()"
+    [clients]="filteredClientsSnapshot()"
+    [trackByClient]="trackByClientId"
+    (selectClient)="facade.openClientDrawer($event)"
+    (reload)="loadClients()"
+  ></app-clients-roster>
 
   @if (drawerVisible()) {
-    <div class="client-detail-overlay" aria-live="polite">
-      <button
-        type="button"
-        aria-label="Close client drawer"
-        class="client-detail-overlay__backdrop"
-        (click)="closeDrawer()"
-      ></button>
-      <app-client-detail-drawer
-        [client]="activeClient()!"
-        [detail]="clientDetail()"
-        [state]="detailState()"
-        (closed)="closeDrawer()"
-        (retry)="reloadClientDetail()"
-        (updateClient)="handleClientUpdate($event)"
-        (deleteClient)="handleClientDelete()"
-        (editEntry)="openEntryEditor($event)"
-        (deleteEntry)="deleteHistoryEntry($event)"
-      ></app-client-detail-drawer>
-    </div>
+    <app-client-detail-overlay
+      [client]="activeClient()!"
+      [detail]="clientDetail()"
+      [state]="detailState()"
+      (closed)="facade.closeDrawer()"
+      (retry)="facade.reloadClientDetail()"
+      (updateClient)="facade.handleClientUpdate($event)"
+      (deleteClient)="facade.handleClientDelete()"
+      (editEntry)="facade.openEntryEditor($event)"
+      (deleteEntry)="facade.deleteHistoryEntry($event)"
+    ></app-client-detail-overlay>
   }
 
   @if (entryEditorOpen()) {
-    <div class="entry-editor-overlay">
-      <div class="entry-editor-backdrop" (click)="closeEntryEditor()" aria-hidden="true"></div>
-      <app-entry-modal
-        [open]="entryEditorOpen()"
-        [variant]="entryEditorVariant()"
-        [headline]="entryEditorHeadline()"
-        [eyebrow]="entryEditorEyebrow()"
-        primaryActionLabel="Update job"
-        [initialEntry]="entryEditorPayload()!"
-        (closed)="closeEntryEditor()"
-        (saved)="handleEntryEditorSaved($event)"
-      />
-    </div>
+    <app-entry-editor-overlay
+      [open]="entryEditorOpen()"
+      [variant]="entryEditorVariant()"
+      [headline]="entryEditorHeadline()"
+      [eyebrow]="entryEditorEyebrow()"
+      [payload]="entryEditorPayload()!"
+      (closed)="facade.closeEntryEditor()"
+      (saved)="facade.handleEntryEditorSaved($event)"
+    ></app-entry-editor-overlay>
   }
 </section>

@@ -1,0 +1,19 @@
+.entry-editor-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 70;
+}
+
+.entry-editor-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.entry-editor-overlay app-entry-modal {
+  position: relative;
+  z-index: 2;
+}

@@ -14,8 +14,7 @@ import type {
   ClientSummary,
   UpdateClientPayload,
 } from '../home/services/entry-repository.service.js';
-
-export type ClientDetailState = 'loading' | 'ready' | 'error';
+import type { ClientDetailState } from './clients.types.js';
 
 @Component({
   standalone: true,

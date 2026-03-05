@@ -1,0 +1,94 @@
+.clients-roster {
+  background: var(--surface-panel);
+  border-radius: 1.5rem;
+  padding: clamp(1rem, 3vw, 2rem);
+  border: 1px solid var(--border-soft);
+  min-height: 240px;
+  box-shadow: var(--shadow-elevated);
+}
+
+.client-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.client-card {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 40, 30, 0.8);
+  border-radius: 1rem;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+  color: inherit;
+  font: inherit;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.client-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.client-card:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.client-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.client-card__name {
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.client-card__jobs {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.client-card__contact,
+.client-card__address,
+.client-card__meta {
+  margin: 0.35rem 0;
+  color: var(--text-muted);
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.client-card__meta strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.client-card__meta--upcoming strong {
+  color: var(--accent-amber);
+}
+
+.clients-roster__state {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--text-muted);
+}
+
+.clients-roster__state--error button {
+  margin-top: 0.75rem;
+  padding: 0.5rem 1.25rem;
+  border-radius: 999px;
+  border: none;
+  background: var(--accent-amber);
+  color: #02140f;
+  font-weight: 600;
+  cursor: pointer;
+}

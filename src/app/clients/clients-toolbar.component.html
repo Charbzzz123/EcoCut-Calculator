@@ -1,0 +1,7 @@
+<section class="clients-toolbar" aria-label="Client filters and actions">
+  <label class="clients-toolbar__search">
+    <span class="sr-only">Search clients</span>
+    <input type="search" [formControl]="queryControl" placeholder="Search by name, address, phone, email" />
+  </label>
+  <button type="button" class="refresh-btn" (click)="refresh.emit()">Refresh</button>
+</section>
