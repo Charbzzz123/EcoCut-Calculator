@@ -5,7 +5,7 @@ Living checklist for in-flight feature work so we never lose track of what’s d
 ## ✅ Completed
 
 | Task | Done | Notes |
-| --- | --- | --- |
+| *(none yet — add next task here)* | --- | --- |
 | Restyle Clients page to match dark evergreen theme | 2026-03-04 | Banner + controls reuse home branding/CTA tokens. |
 | Normalize client search to ignore phone punctuation | 2026-03-04 | Search strips masking characters before matching. |
 | Job entries show scheduled slot, desired budget, hedge plan | 2026-03-05 | Drawer mirrors Google Calendar payload. |
@@ -19,11 +19,12 @@ Living checklist for in-flight feature work so we never lose track of what’s d
 | Break clients-shell component/spec into facade + child components | 2026-03-05 | Introduced `ClientsFacade`, toolbar, roster, detail drawer, and entry-editor overlays with full specs. |
 | Client CRM coverage hardening | 2026-03-05 | Added exhaustive facade/component specs so every template branch is executed and coverage returns to 100%. |
 | Client summary fallback spec stabilized | 2026-03-05 | Recreated the shell fixture with a stubbed `statsSnapshot` so the UI shows â€” when no historic dates exist and the spec stays deterministic. |
+| Split entry-modal feature into standalone subcomponents | 2026-03-05 | Entry details form, schedule section, footer, and validation helpers are now standalone pieces so the shell only orchestrates state/handlers. |
+| Extract entry modal footer + validation helpers | 2026-03-05 | Added EntryModalFooterComponent + EntryModalValidationService so the shell delegates CTA + validation logic. |
+| Persist entry data outside process memory | 2026-03-05 | EntriesRepository writes JSON snapshots under data/entries-store.json, so client/job history survives restarts. |
 
 ## 🔧 In Progress / Backlog
 
 | Task | Owner | Notes |
 | --- | --- | --- |
-| Split entry-modal feature into smaller subcomponents (form + data sections still pending) | --- | **2026-03-05:** Entry details + schedule sections now live in dedicated components. Footer CTA + validation helpers are extracted; future tweaks get new tasks. |
-| Extract entry modal footer + validation helpers | 2026-03-05 | Added `EntryModalFooterComponent` and `EntryModalValidationService`; shell now only orchestrates view models/handlers. |
-| Persist entry data outside process memory | TBD | EntriesService still stores data in-memory; move to SQLite/Postgres so undo/report survive restarts. |
+| *(none yet — add next task here)* | --- | --- |
