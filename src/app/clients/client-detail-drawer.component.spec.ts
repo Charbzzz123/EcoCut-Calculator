@@ -18,6 +18,11 @@ const detail: ClientDetail = {
       variant: 'customer',
       jobType: 'Hedge Trimming',
       jobValue: '$920',
+      location: '123 Pine Ave',
+      contactPhone: '(438) 555-1111',
+      contactEmail: 'alex@example.com',
+      desiredBudget: '$800',
+      additionalDetails: 'Leave debris curbside.',
       calendar: {
         start: '2026-03-05T10:00:00Z',
         end: '2026-03-05T11:30:00Z',
@@ -50,6 +55,8 @@ describe('ClientDetailDrawerComponent', () => {
     fixture.componentInstance.detail = detail;
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Hedge Trimming');
+    expect(fixture.nativeElement.textContent).toContain('Location');
+    expect(fixture.nativeElement.textContent).toContain('(438) 555-1111');
   });
 
   it('emits retry when error state button is clicked', () => {

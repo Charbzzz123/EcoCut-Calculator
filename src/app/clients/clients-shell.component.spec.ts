@@ -43,6 +43,9 @@ const clientDetail: ClientDetail = {
       variant: 'customer',
       jobType: 'Hedge Trimming',
       jobValue: '$850',
+      location: '123 Pine Ave',
+      contactPhone: '(438) 555-1111',
+      contactEmail: 'alex@example.com',
       desiredBudget: '$700',
       additionalDetails: 'Bring debris bags.',
       calendar: {
@@ -64,6 +67,8 @@ const secondClientDetail: ClientDetail = {
       variant: 'customer',
       jobType: 'Rabattage',
       jobValue: '$1,250',
+      location: '55 Cedar St',
+      contactPhone: '(438) 555-2222',
       calendar: {
         start: '2026-03-12T14:00:00Z',
         end: '2026-03-12T16:00:00Z',
@@ -119,6 +124,18 @@ describe('ClientsShellComponent', () => {
     component['querySignal'].set('no match');
     fixture.detectChanges();
     expect(component.filteredClientsSnapshot()).toHaveLength(0);
+  });
+
+  it('matches phone numbers regardless of punctuation', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    component['querySignal'].set('4385551111');
+    fixture.detectChanges();
+    expect(component.filteredClientsSnapshot()).toHaveLength(1);
+
+    component['querySignal'].set('(438)5552222');
+    fixture.detectChanges();
+    expect(component.filteredClientsSnapshot()).toHaveLength(1);
   });
 
   it('surfaces errors when the API call fails', async () => {

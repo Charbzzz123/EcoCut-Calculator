@@ -27,6 +27,9 @@ export interface ClientHistoryEntry {
   variant: EntryVariant;
   jobValue: string;
   jobType: string;
+  location: string;
+  contactPhone: string;
+  contactEmail?: string;
   desiredBudget?: string;
   additionalDetails?: string;
   calendar?: EntryCalendarDto;

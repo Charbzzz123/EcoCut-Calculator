@@ -1,69 +1,95 @@
-.clients-shell {
+ .clients-shell {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  padding: clamp(1rem, 4vw, 2.5rem);
-  max-width: 1200px;
+  gap: clamp(1.25rem, 3vw, 2.25rem);
+  padding: clamp(1.25rem, 4vw, 3rem);
+  padding-bottom: clamp(4.5rem, 7vw, 6rem);
+  max-width: 1280px;
   margin: 0 auto;
-  color: var(--eco-text-high);
+  color: var(--text-primary);
+}
+
+.clients-hero {
+  background: var(--surface-panel);
+  border-radius: var(--card-radius);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-elevated);
+  padding: clamp(1.25rem, 3vw, 2.5rem);
+  position: relative;
+  overflow: hidden;
+}
+
+.clients-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--surface-hero);
+  filter: blur(var(--blur-lg));
+  opacity: 0.55;
+  z-index: 0;
+}
+
+.clients-hero > * {
+  position: relative;
+  z-index: 1;
 }
 
 .clients-shell__header {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
+  align-items: center;
   flex-wrap: wrap;
+  gap: 1.25rem;
+}
 
-  h1 {
-    font-size: clamp(1.75rem, 4vw, 2.5rem);
-    margin: 0.25rem 0;
-  }
+.hero-copy {
+  flex: 1 1 320px;
+  min-width: 240px;
+}
+
+.clients-shell__header h1 {
+  font-size: clamp(1.9rem, 4vw, 2.8rem);
+  margin: 0.25rem 0 0;
 }
 
 .eyebrow {
   text-transform: uppercase;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.16em;
   font-size: 0.75rem;
-  color: var(--eco-text-low);
+  color: var(--text-muted);
   margin: 0;
 }
 
 .subtitle {
-  margin: 0;
-  color: var(--eco-text-medium);
-}
-
-.back-link {
-  align-self: flex-start;
-  color: var(--eco-accent-mint);
-  text-decoration: none;
-  font-weight: 600;
+  margin: 0.15rem 0 0;
+  color: var(--text-muted);
 }
 
 .clients-summary {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1rem;
 }
 
 .summary-card {
-  padding: 1rem 1.25rem;
-  border-radius: 1rem;
-  background: var(--eco-surface-elevated);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  padding: 1rem 1.35rem;
+  border-radius: 1.15rem;
+  background: rgba(9, 23, 17, 0.9);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-medium);
 }
 
 .summary-card__label {
   margin: 0;
-  color: var(--eco-text-low);
-  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-size: 0.92rem;
 }
 
 .summary-card__value {
-  margin: 0.35rem 0 0;
-  font-size: 1.75rem;
+  margin: 0.4rem 0 0;
+  font-size: clamp(1.65rem, 4vw, 2.1rem);
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .clients-toolbar {
@@ -71,6 +97,11 @@
   gap: 1rem;
   flex-wrap: wrap;
   align-items: center;
+  background: rgba(6, 14, 10, 0.85);
+  border-radius: 999px;
+  padding: 0.35rem 0.5rem 0.35rem 0.75rem;
+  border: 1px solid var(--border-soft);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 
 .clients-toolbar__search {
@@ -79,29 +110,39 @@
 
 .clients-toolbar__search input {
   width: 100%;
-  padding: 0.75rem 1rem;
+  padding: 0.75rem 1.25rem;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.3);
+  border: none;
+  background: rgba(0, 0, 0, 0.35);
   color: inherit;
+}
+
+.clients-toolbar__search input::placeholder {
+  color: var(--text-muted);
 }
 
 .refresh-btn {
   padding: 0.75rem 1.5rem;
   border: none;
   border-radius: 999px;
-  background: var(--eco-accent-mint);
-  color: #02140f;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
   font-weight: 600;
   cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.refresh-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .clients-roster {
-  background: var(--eco-surface-panel);
+  background: var(--surface-panel);
   border-radius: 1.5rem;
-  padding: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: clamp(1rem, 3vw, 2rem);
+  border: 1px solid var(--border-soft);
   min-height: 240px;
+  box-shadow: var(--shadow-elevated);
 }
 
 .client-list {
@@ -114,11 +155,27 @@
 }
 
 .client-card {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 40, 30, 0.8);
   border-radius: 1rem;
   padding: 1rem 1.25rem;
-  background: rgba(10, 40, 30, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+  color: inherit;
+  font: inherit;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.client-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.client-card:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
 }
 
 .client-card__header {
@@ -135,23 +192,28 @@
 
 .client-card__jobs {
   margin: 0;
-  color: var(--eco-text-low);
+  color: var(--text-muted);
 }
 
 .client-card__contact,
 .client-card__address,
 .client-card__meta {
   margin: 0.35rem 0;
-  color: var(--eco-text-medium);
+  color: var(--text-muted);
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
 }
 
+.client-card__meta strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
 .clients-roster__state {
   text-align: center;
   padding: 2rem 1rem;
-  color: var(--eco-text-medium);
+  color: var(--text-muted);
 }
 
 .clients-roster__state--error button {
@@ -159,7 +221,7 @@
   padding: 0.5rem 1.25rem;
   border-radius: 999px;
   border: none;
-  background: var(--eco-accent-warning);
+  background: var(--accent-amber);
   color: #02140f;
   font-weight: 600;
   cursor: pointer;
@@ -175,24 +237,6 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
-}
-
-.client-card {
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(10, 40, 30, 0.7);
-  border-radius: 1rem;
-  padding: 1rem 1.25rem;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.35);
-  color: inherit;
-  font: inherit;
-}
-
-.client-card:focus-visible {
-  outline: 2px solid var(--eco-accent-mint);
-  outline-offset: 2px;
 }
 
 .client-detail-overlay {
@@ -214,5 +258,27 @@
 .client-detail-overlay app-client-detail-drawer {
   position: relative;
   z-index: 2;
+}
+
+@media (max-width: 900px) {
+  .clients-shell {
+    padding: 1rem;
+    padding-bottom: 4.5rem;
+  }
+
+  .clients-toolbar {
+    flex-direction: column;
+    border-radius: 1.25rem;
+    padding: 0.75rem;
+  }
+
+  .clients-toolbar__search {
+    width: 100%;
+  }
+
+  .refresh-btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
 

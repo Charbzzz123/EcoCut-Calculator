@@ -71,10 +71,25 @@
                 <p class="history__job">{{ history.jobType }} &middot; {{ history.jobValue }}</p>
                 <p class="history__calendar">
                   @if (history.calendar?.start) {
-                    {{ history.calendar?.start | date: 'MMM d, y, h:mm a' }} &ndash;
-                    {{ history.calendar?.end | date: 'h:mm a' }}
+                    <span class="history__calendar-label">Scheduled</span>
+                    <strong>{{ history.calendar?.start | date: 'MMM d, y, h:mm a' }}</strong>
+                    &mdash;
+                    <strong>{{ history.calendar?.end | date: 'h:mm a' }}</strong>
+                    <span class="history__tz">
+                      {{ history.calendar?.timeZone ?? 'Local time' }}
+                    </span>
                   } @else {
                     Schedule TBD
+                  }
+                </p>
+                <p class="history__location">
+                  <span>Location</span>
+                  <strong>{{ history.location }}</strong>
+                </p>
+                <p class="history__contact">
+                  Contact: <strong>{{ history.contactPhone }}</strong>
+                  @if (history.contactEmail) {
+                    <span>&middot; {{ history.contactEmail }}</span>
                   }
                 </p>
                 @if (history.desiredBudget) {

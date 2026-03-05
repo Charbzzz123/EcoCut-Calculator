@@ -212,8 +212,9 @@ Update this document whenever we clarify rules or add new functionality so imple
 - **Performance expectations**: roster fetch must resolve in <600?ms for average data sets; filtering stays client-side until we add pagination. Coverage includes loading/error paths so the feature remains evolutive.
 #### Client detail drawer
 - Clicking a client card opens a right-side drawer (kept entirely within the Clients view) that shows contact info, aggregate stats, and the entire job history for that customer. Drawer loads data via `GET /entries/clients/:clientId` and stays responsive with loading + error states.
-- Job history entries list the created timestamp, variant (warm lead or customer), job type/value, desired budget, calendar slot (start/end), and any additional notes captured on the entry form.
+- Job history entries list the scheduled timestamp (taken from the Google Calendar slot when available), variant (warm lead or customer), job type/value, desired budget, location, contact info, calendar window (start/end plus timezone), and any additional notes captured on the entry form.
 - If calendar info exists on a history item we display the precise time range so schedulers can trace what was booked in Google Calendar for that job.
+- Roster search ignores phone-number punctuation so typing digits only (e.g., 4385551111) still matches entries formatted as (438) 555-1111, and the "Last job" timestamps mirror the scheduled slot instead of the entry creation time.
 - Drawer can be closed via the header button, backdrop click, or Escape. An inline Retry button re-fetches the detail if the initial call fails.
 - The roster remains keyboard-friendly: cards render as buttons so the drawer can be opened without a mouse, and focus is trapped inside the drawer until it’s closed.
 - All drawer logic is signal-driven and fully covered by unit tests so future CRM actions (quick actions, edit flows) can be added without refactoring the roster list again.

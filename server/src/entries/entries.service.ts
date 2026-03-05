@@ -53,10 +53,13 @@ export class EntriesService implements OnModuleInit {
       .filter((entry) => this.computeClientKey(entry) === clientId)
       .map((entry) => ({
         entryId: entry.id,
-        createdAt: entry.createdAt,
+        createdAt: this.resolveJobTimestamp(entry),
         variant: entry.variant,
         jobValue: entry.form.jobValue,
         jobType: entry.form.jobType,
+        location: entry.form.address,
+        contactPhone: entry.form.phone,
+        contactEmail: entry.form.email,
         desiredBudget: entry.form.desiredBudget,
         additionalDetails: entry.form.additionalDetails,
         calendar: entry.calendar,
@@ -78,11 +81,15 @@ export class EntriesService implements OnModuleInit {
     const key = this.computeClientKey(entry);
     const existing = this.clients.get(key);
     const fullName = `${entry.form.firstName} ${entry.form.lastName}`.trim();
+    const jobTimestamp = this.resolveJobTimestamp(entry);
     if (existing) {
       const updated: ClientSummary = {
         ...existing,
         jobsCount: existing.jobsCount + 1,
-        lastJobDate: entry.createdAt,
+        lastJobDate:
+          existing.lastJobDate && existing.lastJobDate > jobTimestamp
+            ? existing.lastJobDate
+            : jobTimestamp,
         lastCalendarEventId:
           entry.calendar?.eventId ?? existing.lastCalendarEventId,
       };
@@ -96,10 +103,14 @@ export class EntriesService implements OnModuleInit {
       phone: entry.form.phone,
       email: entry.form.email,
       jobsCount: 1,
-      lastJobDate: entry.createdAt,
+      lastJobDate: jobTimestamp,
       lastCalendarEventId: entry.calendar?.eventId,
     };
     this.clients.set(key, summary);
+  }
+
+  private resolveJobTimestamp(entry: StoredEntry): string {
+    return entry.calendar?.start ?? entry.createdAt;
   }
 
   private computeClientKey(entry: StoredEntry): string {

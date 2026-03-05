@@ -25,6 +25,9 @@ export interface ClientHistoryEntry {
   variant: EntryModalPayload['variant'];
   jobValue: string;
   jobType: string;
+  location: string;
+  contactPhone: string;
+  contactEmail?: string;
   desiredBudget?: string;
   additionalDetails?: string;
   calendar?: EntryModalPayload['calendar'];

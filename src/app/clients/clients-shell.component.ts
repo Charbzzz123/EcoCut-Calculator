@@ -27,6 +27,8 @@ const createClientSignals = () => {
   };
 };
 
+const digitsOnly = (value: string): string => value.replace(/\D/g, '');
+
 @Component({
   standalone: true,
   selector: 'app-clients-shell',
@@ -110,17 +112,23 @@ export class ClientsShellComponent implements OnInit, OnDestroy {
   }
 
   filteredClientsSnapshot(): ClientSummary[] {
-    const term = this.querySignal().trim().toLowerCase();
+    const rawTerm = this.querySignal().trim();
+    const term = rawTerm.toLowerCase();
+    const digitsTerm = digitsOnly(rawTerm);
     const clients = this.clientsSignal();
     if (!term) {
       return clients;
     }
     return clients.filter((client) => {
+      const phoneDigits = digitsOnly(client.phone);
+      const emailDigits = client.email ? digitsOnly(client.email) : '';
       return (
         client.fullName.toLowerCase().includes(term) ||
         client.address.toLowerCase().includes(term) ||
         client.phone.toLowerCase().includes(term) ||
-        (client.email?.toLowerCase().includes(term) ?? false)
+        (client.email?.toLowerCase().includes(term) ?? false) ||
+        (digitsTerm.length >= 3 && phoneDigits.includes(digitsTerm)) ||
+        (digitsTerm.length >= 3 && emailDigits.includes(digitsTerm))
       );
     });
   }
