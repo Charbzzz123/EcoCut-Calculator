@@ -1,49 +1,27 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import type { CreateEntryDto } from './dto/create-entry.dto.js';
+import { EntriesRepository } from './entries.repository.js';
 import type {
-  CreateEntryDto,
-  EntryCalendarDto,
-  EntryVariant,
-  HedgeConfigDto,
-} from './dto/create-entry.dto.js';
-
-export interface StoredEntry extends CreateEntryDto {
-  id: string;
-  createdAt: string;
-}
-
-export interface ClientSummary {
-  clientId: string;
-  fullName: string;
-  address: string;
-  phone: string;
-  email?: string;
-  jobsCount: number;
-  lastJobDate: string;
-  lastCalendarEventId?: string;
-}export interface ClientHistoryEntry {
-  entryId: string;
-  createdAt: string;
-  variant: EntryVariant;
-  jobValue: string;
-  jobType: string;
-  desiredBudget?: string;
-  additionalDetails?: string;
-  calendar?: EntryCalendarDto;
-  hedges: Record<string, HedgeConfigDto>;
-}
-
-export interface ClientDetail extends ClientSummary {
-  history: ClientHistoryEntry[];
-}
-
+  ClientDetail,
+  ClientSummary,
+  StoredEntry,
+} from './entries.types.js';
 
 @Injectable()
-export class EntriesService {
-  private readonly entries: StoredEntry[] = [];
-  private readonly clients = new Map<string, ClientSummary>();
+export class EntriesService implements OnModuleInit {
+  private entries: StoredEntry[] = [];
+  private clients = new Map<string, ClientSummary>();
 
-  createEntry(payload: CreateEntryDto): StoredEntry {
+  constructor(private readonly repository: EntriesRepository) {}
+
+  async onModuleInit(): Promise<void> {
+    const stored = await this.repository.loadEntries();
+    this.entries = stored;
+    this.rebuildClientSummaries();
+  }
+
+  async createEntry(payload: CreateEntryDto): Promise<StoredEntry> {
     const created: StoredEntry = {
       ...payload,
       id: randomUUID(),
@@ -51,6 +29,7 @@ export class EntriesService {
     };
     this.entries.push(created);
     this.upsertClientSummary(created);
+    await this.repository.saveEntries(this.entries);
     return created;
   }
 
@@ -63,6 +42,7 @@ export class EntriesService {
       b.lastJobDate.localeCompare(a.lastJobDate),
     );
   }
+
   getClientDetails(clientId: string): ClientDetail {
     const summary = this.clients.get(clientId);
     if (!summary) {
@@ -85,6 +65,13 @@ export class EntriesService {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
     return { ...summary, history };
+  }
+
+  private rebuildClientSummaries(): void {
+    this.clients = new Map<string, ClientSummary>();
+    for (const entry of this.entries) {
+      this.upsertClientSummary(entry);
+    }
   }
 
   private upsertClientSummary(entry: StoredEntry): void {
@@ -126,4 +113,3 @@ export class EntriesService {
     return `${firstName}::${lastName}::${address}`.toLowerCase();
   }
 }
-

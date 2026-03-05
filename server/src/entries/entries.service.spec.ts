@@ -1,66 +1,113 @@
+import type { CreateEntryDto } from './dto/create-entry.dto.js';
 import { EntriesService } from './entries.service.js';
+import type { EntriesRepository } from './entries.repository.js';
+import type { StoredEntry } from './entries.types.js';
+
+class FakeEntriesRepository {
+  snapshot: StoredEntry[] = [];
+
+  loadEntries(): Promise<StoredEntry[]> {
+    return Promise.resolve(this.snapshot);
+  }
+
+  saveEntries(entries: StoredEntry[]): Promise<void> {
+    this.snapshot = [...entries];
+    return Promise.resolve();
+  }
+}
 
 describe('EntriesService', () => {
   let service: EntriesService;
+  let repository: FakeEntriesRepository;
 
-  beforeEach(() => {
-    service = new EntriesService();
+  const createPayload = (
+    overrides: Partial<CreateEntryDto> = {},
+  ): CreateEntryDto => ({
+    variant: 'customer',
+    form: {
+      firstName: 'Alex',
+      lastName: 'Stone',
+      address: '123 Pine',
+      phone: '(438) 555-1111',
+      jobType: 'Trim',
+      jobValue: '1200',
+      ...overrides.form,
+    },
+    hedges: {},
+    calendar: overrides.calendar,
+    ...overrides,
   });
 
-  it('stores entries and exposes them via listEntries', () => {
-    const created = service.createEntry({
-      variant: 'customer',
-      form: {
-        firstName: 'Alex',
-        lastName: 'Stone',
-        address: '123 Pine',
-        phone: '(438) 555-1111',
-        jobType: 'Trim',
-        jobValue: '1200',
-      },
-      hedges: {},
-      calendar: {
-        start: '2026-03-05T10:00:00Z',
-        end: '2026-03-05T11:30:00Z',
-        eventId: 'evt-123',
-      },
-    });
+  beforeEach(async () => {
+    repository = new FakeEntriesRepository();
+    service = new EntriesService(repository as unknown as EntriesRepository);
+    await service.onModuleInit();
+  });
+
+  it('stores entries and exposes them via listEntries', async () => {
+    const created = await service.createEntry(
+      createPayload({
+        calendar: {
+          start: '2026-03-05T10:00:00Z',
+          end: '2026-03-05T11:30:00Z',
+          eventId: 'evt-123',
+        },
+      }),
+    );
 
     const entries = service.listEntries();
     expect(entries).toHaveLength(1);
     expect(entries[0].id).toBe(created.id);
+    expect(repository.snapshot).toHaveLength(1);
   });
 
-  it('deduplicates clients by email/phone when listing summaries', () => {
-    service.createEntry({
-      variant: 'customer',
-      form: {
-        firstName: 'Alex',
-        lastName: 'Stone',
-        address: '123 Pine',
-        phone: '(438) 555-1111',
-        email: 'alex@example.com',
-        jobType: 'Trim',
-        jobValue: '1200',
-      },
-      hedges: {},
-    });
-    service.createEntry({
-      variant: 'customer',
-      form: {
-        firstName: 'Alex',
-        lastName: 'Stone',
-        address: '123 Pine',
-        phone: '(438) 555-1111',
-        email: 'alex@example.com',
-        jobType: 'Rabattage',
-        jobValue: '900',
-      },
-      hedges: {},
-    });
+  it('deduplicates clients by email/phone when listing summaries', async () => {
+    await service.createEntry(
+      createPayload({
+        form: {
+          firstName: 'Alex',
+          lastName: 'Stone',
+          address: '123 Pine',
+          phone: '(438) 555-1111',
+          email: 'alex@example.com',
+          jobType: 'Trim',
+          jobValue: '1200',
+        },
+      }),
+    );
+    await service.createEntry(
+      createPayload({
+        form: {
+          firstName: 'Alex',
+          lastName: 'Stone',
+          address: '123 Pine',
+          phone: '(438) 555-1111',
+          email: 'alex@example.com',
+          jobType: 'Rabattage',
+          jobValue: '900',
+        },
+      }),
+    );
 
     const clients = service.listClients();
     expect(clients).toHaveLength(1);
     expect(clients[0].jobsCount).toBe(2);
+  });
+
+  it('boots from the persisted snapshot on init', async () => {
+    const persisted: StoredEntry = {
+      ...createPayload(),
+      id: 'persisted',
+      createdAt: '2026-03-04T12:00:00Z',
+    };
+    repository.snapshot = [persisted];
+
+    const freshService = new EntriesService(
+      repository as unknown as EntriesRepository,
+    );
+    await freshService.onModuleInit();
+
+    expect(freshService.listEntries()).toHaveLength(1);
+    expect(freshService.listClients()[0].jobsCount).toBe(1);
   });
 });

@@ -44,3 +44,4 @@ secrets/
 # System files
 .DS_Store
 Thumbs.db
+server/data/*.json

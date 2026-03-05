@@ -25,4 +25,3 @@ export class EntriesController {
     return this.entries.getClientDetails(clientId);
   }
 }
-
