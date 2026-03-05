@@ -1,0 +1,185 @@
+.calendar-block {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  background: linear-gradient(160deg, rgba(6, 11, 9, 0.95), rgba(9, 18, 14, 0.88));
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.calendar-block header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.calendar-block .helper {
+  color: var(--text-muted, #a6b3aa);
+  font-size: 0.8rem;
+}
+
+.schedule-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem 1.25rem;
+}
+
+.calendar-preview {
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 0.9rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.slot-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.slot-picker__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.slot-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.6rem;
+}
+
+.slot-chip {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 0.85rem;
+  padding: 0.75rem;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+  color: inherit;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.slot-chip small {
+  font-size: 0.75rem;
+  color: var(--text-muted, #a6b3aa);
+}
+
+.slot-chip--booked {
+  background: rgba(255, 140, 0, 0.08);
+  border-color: rgba(255, 140, 0, 0.4);
+  color: #ffbb7a;
+  cursor: not-allowed;
+}
+
+.slot-chip--selected {
+  border-color: var(--accent, #6cf0bf);
+  background: rgba(108, 240, 191, 0.12);
+}
+
+.slot-chip:disabled {
+  opacity: 0.7;
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.calendar-preview .preview-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.calendar-preview .helper {
+  margin: 0;
+}
+
+.preview-state {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 0.9rem;
+}
+
+.preview-state.error {
+  border-color: rgba(255, 140, 0, 0.5);
+  color: rgba(255, 183, 120, 0.95);
+}
+
+.event-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.event-list li {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.75rem;
+  background: rgba(3, 6, 5, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  align-items: center;
+}
+
+.event-item--editing {
+  border-color: rgba(108, 240, 191, 0.5);
+  background: rgba(108, 240, 191, 0.08);
+}
+
+.event-time {
+  font-weight: 600;
+  min-width: 120px;
+  color: var(--accent, #6cf0bf);
+}
+
+.event-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.event-summary {
+  margin: 0;
+  font-weight: 600;
+}
+
+.event-location {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted, #a6b3aa);
+}
+
+.event-actions {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.event-actions .ghost {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-muted, #a6b3aa);
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+.event-actions .ghost.danger {
+  color: #ff9b9b;
+  border-color: rgba(255, 155, 155, 0.4);
+}

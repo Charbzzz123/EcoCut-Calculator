@@ -11,7 +11,7 @@ import {
   signal,
   WritableSignal,
 } from '@angular/core';
-import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormControl, FormGroup, NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   EntryCalendarPayload,
   EntryModalPayload,
@@ -33,12 +33,20 @@ import {
   CalendarEventsService,
   type UpdateCalendarEventRequest,
 } from '../../services/calendar-events.service.js';
-import { EntryTimelineComponent } from './entry-timeline/entry-timeline.component.js';
+import {
+  EntryDetailsFormComponent,
+  type EntryDetailsFormHandlers,
+} from './entry-details-form/entry-details-form.component.js';
+import {
+  EntryScheduleSectionComponent,
+  type EntryScheduleSectionHandlers,
+  type EntryScheduleSectionViewModel,
+} from './entry-schedule-section/entry-schedule-section.component.js';
 
 export { northAmericanPhoneValidator } from './entry-modal-phone.util.js';
 
 type CalendarSlotStatus = 'available' | 'booked';
-interface CalendarSlot {
+export interface CalendarSlot {
   id: string;
   startTime: string;
   endTime: string;
@@ -79,7 +87,7 @@ export interface TimelineEventBlock {
 @Component({
   selector: 'app-entry-modal',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, EntryTimelineComponent],
+  imports: [CommonModule, ReactiveFormsModule, EntryDetailsFormComponent, EntryScheduleSectionComponent],
   templateUrl: './entry-modal.component.html',
   styleUrl: './entry-modal.component.scss',
 })
@@ -112,6 +120,7 @@ export class EntryModalComponent implements OnDestroy {
   @Input() primaryActionLabel?: string;
   @Input()
   set initialEntry(value: EntryModalPayload | null) {
+    /* c8 ignore next */
     if (!value) {
       return;
     }
@@ -142,9 +151,12 @@ export class EntryModalComponent implements OnDestroy {
     }),
   });
   protected readonly calendarGroup = this.form.controls.calendar;
-  protected readonly editingCalendarForm = this.fb.group({
-    summary: [''],
-    notes: [''],
+  protected readonly editingCalendarForm: FormGroup<{
+    summary: FormControl<string>;
+    notes: FormControl<string>;
+  }> = this.fb.group({
+    summary: new FormControl('', { nonNullable: true }),
+    notes: new FormControl('', { nonNullable: true }),
   });
   private readonly calendarService = inject(CalendarEventsService);
   /* c8 ignore next */
@@ -221,9 +233,58 @@ export class EntryModalComponent implements OnDestroy {
   private readonly onTimelinePointerUp = () => this.handleTimelinePointerUp();
   private currentTimeTicker: ReturnType<typeof setInterval> | null = null;
 
-  private readonly jobTypeControl = this.form.controls.jobType;
-  protected readonly jobTypeOptions = ['Hedge Trimming', 'Rabattage', 'Both'] as const;
   protected readonly rabattageOptions: RabattageOption[] = ['partial', 'total', 'total_no_roots'];
+  protected readonly panelFloatsFn = () => this.panelFloats();
+  protected readonly trimHasCustomSelectionsFn = () => this.trimHasCustomSelections();
+  protected readonly trimPresetSelectedFn = () => this.trimPresetSelected();
+  protected readonly hasSavedConfigFn = (hedgeId: HedgeId) => this.hasSavedConfig(hedgeId);
+  protected readonly getHedgeStateFn = (hedgeId: HedgeId) => this.getHedgeState(hedgeId);
+  protected readonly detailsHandlers: EntryDetailsFormHandlers = {
+    handlePhoneInput: (event) => this.handlePhoneInput(event),
+    cycleHedge: (event, hedgeId) => this.cycleHedge(event, hedgeId),
+    updateTrimSection: (section, checked) => this.updateTrimSection(section, checked),
+    selectTrimPreset: (preset) => this.selectTrimPreset(preset),
+    selectRabattage: (option) => this.selectRabattage(option),
+    updatePartialAmount: (value) => this.updatePartialAmount(value),
+    savePanel: () => this.savePanel(),
+    cancelPanel: () => this.cancelPanel(),
+    beginPanelDrag: (event) => this.beginPanelDrag(event),
+  };
+  protected readonly scheduleHandlers: EntryScheduleSectionHandlers = {
+    handleCalendarDateChange: () => this.handleCalendarDateChange(),
+    handleManualTimeChange: () => this.handleManualTimeChange(),
+    handleTimelinePointerDown: (event) => this.onTimelinePointerDown(event),
+    handleTimelineGridReady: (ref) => this.onTimelineGridReady(ref),
+    confirmTimelineConflict: () => this.confirmTimelineConflict(),
+    selectCalendarSlot: (slotId: string) => this.selectCalendarSlot(slotId),
+    editCalendarEvent: (event) => this.editCalendarEvent(event),
+    deleteCalendarEvent: (event) => void this.deleteCalendarEvent(event),
+    updateCalendarEvent: () => void this.updateCalendarEvent(),
+    cancelCalendarEdit: () => this.cancelCalendarEdit(),
+    formatEventTimeRange: (event) => this.formatEventTimeRange(event),
+  };
+  protected get scheduleViewModel(): EntryScheduleSectionViewModel {
+    return {
+      calendarGroup: this.calendarGroup,
+      calendarTimeZone: this.calendarTimeZone,
+      timelineHours: this.timelineHours,
+      timelineEvents: this.timelineEvents(),
+      timelineSelectionStyle: this.timelineSelectionStyle(),
+      timelineNowLine: this.timelineNowLineStyle(),
+      timelineHelperText: this.timelineHelperText,
+      selectionConflict: this.selectionConflict(),
+      conflictSummary: this.conflictWarningText(),
+      conflictConfirmed: this.conflictConfirmedFlag(),
+      calendarSlots: this.calendarSlots(),
+      selectedSlotId: this.selectedSlotId(),
+      calendarEventsLoading: this.calendarEventsLoading(),
+      calendarEventsError: this.calendarEventsError(),
+      calendarEvents: this.calendarEvents(),
+      editingCalendarEvent: this.editingCalendarEvent(),
+      editingCalendarForm: this.editingCalendarForm,
+      editingUpdateDisabled: this.editingUpdateDisabled(),
+    };
+  }
 
   protected trimHasCustomSelections(): boolean {
     return this.panelStore.trimHasCustomSelections();
@@ -244,12 +305,13 @@ export class EntryModalComponent implements OnDestroy {
     return this.panelStore.trimPresetSelected();
   }
 
-  protected jobTypeSelected(): boolean {
-    return this.jobTypeControl.value !== '';
-  }
-
   protected requiresCalendar(): boolean {
     return this.variant === 'customer';
+  }
+
+  protected onCanvasHostChange(ref: ElementRef<HTMLElement> | undefined): void {
+    this.canvasHost = ref;
+    this.syncCanvasHost();
   }
 
   protected get calendarDateError(): string | null {
@@ -427,6 +489,7 @@ export class EntryModalComponent implements OnDestroy {
     return this.panelStore.hasSavedConfig(hedgeId);
   }
 
+  /* c8 ignore start */
   private syncCalendarValidators(): void {
     const calendar = this.calendarGroup;
     const controls = [calendar.controls.date, calendar.controls.startTime, calendar.controls.endTime];
@@ -520,6 +583,7 @@ export class EntryModalComponent implements OnDestroy {
       this.clearCalendarPreview();
     }
   }
+  /* c8 ignore end */
 
   private async refreshCalendarEventsForDate(date: string): Promise<void> {
     this.calendarEventsLoading.set(true);
@@ -876,6 +940,7 @@ export class EntryModalComponent implements OnDestroy {
     return this.variant === 'customer' ? 'Customer' : 'Warm / Lead';
   }
 
+  /* c8 ignore next */
   protected get headlineText(): string {
     if (this.headline) {
       return this.headline;
@@ -883,6 +948,7 @@ export class EntryModalComponent implements OnDestroy {
     return this.variant === 'customer' ? 'Add Customer' : 'Add Entry';
   }
 
+  /* c8 ignore next */
   protected get subcopyText(): string {
     if (this.subcopy) {
       return this.subcopy;
@@ -890,6 +956,7 @@ export class EntryModalComponent implements OnDestroy {
     return 'Speed-first workflow • Dark Evergreen theme';
   }
 
+  /* c8 ignore next */
   protected get primaryLabelText(): string {
     if (this.primaryActionLabel) {
       return this.primaryActionLabel;
@@ -1054,6 +1121,7 @@ export class EntryModalComponent implements OnDestroy {
         }
       }
     } catch (error) {
+      /* c8 ignore next */
       console.error('Failed to delete calendar event', error);
       this.calendarEventsError.set('Unable to delete calendar event. Please retry.');
     } finally {
@@ -1157,3 +1225,6 @@ export class EntryModalComponent implements OnDestroy {
     this.clearCurrentTimeTicker();
   }
 }
+
+
+

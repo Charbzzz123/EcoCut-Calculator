@@ -1,0 +1,214 @@
+<section class="form-grid">
+  <label>
+    <span>First name</span>
+    <input type="text" formControlName="firstName" />
+    @if (controlInvalid('firstName')) {
+      <small class="error">Required</small>
+    }
+  </label>
+  <label>
+    <span>Last name</span>
+    <input type="text" formControlName="lastName" />
+    @if (controlInvalid('lastName')) {
+      <small class="error">Required</small>
+    }
+  </label>
+  <label class="wide">
+    <span>Home address</span>
+    <input type="text" formControlName="address" />
+    @if (controlInvalid('address')) {
+      <small class="error">Required</small>
+    }
+  </label>
+  <label>
+    <span>Phone number</span>
+    <input type="tel" formControlName="phone" (input)="handlers.handlePhoneInput($event)" placeholder="(514) 555-1234" />
+    @if (phoneHasError('required')) {
+      <small class="error">Required</small>
+    } @else if (phoneHasError('phoneInvalid')) {
+      <small class="error">Enter a valid 10-digit phone</small>
+    }
+  </label>
+  <label>
+    <span>Email (optional)</span>
+    <input type="email" formControlName="email" placeholder="name@example.com" />
+    @if (form.get('email')?.touched && form.get('email')?.invalid) {
+      <small class="error">Enter a valid email</small>
+    }
+  </label>
+</section>
+
+<section class="job-type">
+  <p>Job type *</p>
+  <div class="chip-row">
+    @for (option of jobTypeOptions; track option) {
+      <label class="chip">
+        <input type="radio" name="jobType" [value]="option" formControlName="jobType" />
+        <span>{{ option }}</span>
+      </label>
+    }
+  </div>
+  @if (controlInvalid('jobType')) {
+    <small class="error">Select one job type</small>
+  }
+</section>
+
+@if (jobTypeSelected()) {
+  <section class="hedge-canvas">
+    <p class="section-title">Map the hedges</p>
+    @if (hedgeSelectionError) {
+      <small class="error hedge-error">{{ hedgeSelectionError }}</small>
+    }
+    <div class="canvas-wrapper" #canvasHost [class.compact]="!panelFloats()">
+      <div class="canvas-surface">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1536 1024">
+          <image href="assets/entry-planner/eco-yard-topdown.png" x="0" y="0" width="1536" height="1024" preserveAspectRatio="xMidYMid meet" />
+          <g id="hedges">
+            @for (hedgeId of hedges; track hedgeId) {
+              <polygon
+                class="hedge"
+                [attr.id]="hedgeId"
+                [attr.points]="hedgePoints[hedgeId]"
+                [ngClass]="{
+                  trim: getHedgeState(hedgeId) === 'trim',
+                  rabattage: getHedgeState(hedgeId) === 'rabattage',
+                  'has-config': hasSavedConfig(hedgeId)
+                }"
+                (click)="handlers.cycleHedge($event, hedgeId)"
+              ></polygon>
+            }
+          </g>
+        </svg>
+      </div>
+      @if (panelState(); as panel) {
+        <div
+          class="hedge-panel"
+          [style.left.px]="panelPosition().left"
+          [style.top.px]="panelPosition().top"
+        >
+          <header class="panel-header" (pointerdown)="handlers.beginPanelDrag($event)">
+            <strong>{{ panel.hedgeId | titlecase }}</strong>
+          </header>
+
+          @if (panel.state === 'trim') {
+            @let trim = panel.trim;
+            <div class="panel-body">
+              <p class="panel-title">Trim options</p>
+              <div class="trim-options">
+                <label>
+                  <input
+                    type="checkbox"
+                    [checked]="trim.inside"
+                    [disabled]="trimPresetSelected() !== null"
+                    (change)="handlers.updateTrimSection('inside', $any($event.target).checked)"
+                  />
+                  <span>Inside</span>
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    [checked]="trim.top"
+                    [disabled]="trimPresetSelected() !== null"
+                    (change)="handlers.updateTrimSection('top', $any($event.target).checked)"
+                  />
+                  <span>Top</span>
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    [checked]="trim.outside"
+                    [disabled]="trimPresetSelected() !== null"
+                    (change)="handlers.updateTrimSection('outside', $any($event.target).checked)"
+                  />
+                  <span>Outside</span>
+                </label>
+              </div>
+              <div class="trim-presets">
+                <label>
+                  <input
+                    type="radio"
+                    name="trimPreset"
+                    value="normal"
+                    [checked]="trimPresetSelected() === 'normal'"
+                    [disabled]="trimHasCustomSelections()"
+                    (change)="handlers.selectTrimPreset('normal')"
+                  />
+                  <span>Normal</span>
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="trimPreset"
+                    value="total"
+                    [checked]="trimPresetSelected() === 'total'"
+                    [disabled]="trimHasCustomSelections()"
+                    (change)="handlers.selectTrimPreset('total')"
+                  />
+                  <span>Total</span>
+                </label>
+              </div>
+              @if (panelError()) {
+                <small class="error">{{ panelError() }}</small>
+              }
+            </div>
+          } @else if (panel.state === 'rabattage') {
+            @let rabattage = panel.rabattage;
+            <div class="panel-body">
+              <p class="panel-title">Rabattage options</p>
+              <div class="rabattage-options">
+                @for (option of rabattageOptions; track option) {
+                  <label>
+                    <input
+                      type="radio"
+                      [value]="option"
+                      name="rabattageOption"
+                      [checked]="rabattage.option === option"
+                      (change)="handlers.selectRabattage(option)"
+                    />
+                    <span>{{ option === 'total_no_roots' ? 'Total without roots' : (option | titlecase) }}</span>
+                  </label>
+                }
+              </div>
+              @if (rabattage.option === 'partial') {
+                <label class="partial-input">
+                  <span>How much to trim off *</span>
+                  <textarea
+                    rows="2"
+                    [value]="rabattage.partialAmountText"
+                    (input)="handlers.updatePartialAmount($any($event.target).value)"
+                  ></textarea>
+                </label>
+              }
+              @if (panelError()) {
+                <small class="error">{{ panelError() }}</small>
+              }
+            </div>
+          }
+
+          <footer>
+            <button type="button" class="ghost" (click)="handlers.cancelPanel()">Cancel</button>
+            <button type="button" (click)="handlers.savePanel()">OK</button>
+          </footer>
+        </div>
+      }
+    </div>
+  </section>
+}
+
+<section class="pricing">
+  <label>
+    <span>Job value</span>
+    <input type="number" min="0" step="50" formControlName="jobValue" />
+    @if (controlInvalid('jobValue')) {
+      <small class="error">Required</small>
+    }
+  </label>
+  <label>
+    <span>Desired budget (optional)</span>
+    <input type="number" min="0" step="50" formControlName="desiredBudget" />
+  </label>
+  <label class="wide">
+    <span>Additional details (optional)</span>
+    <textarea rows="3" formControlName="additionalDetails" placeholder="Extra bushes, notes for crew..."></textarea>
+  </label>
+</section>

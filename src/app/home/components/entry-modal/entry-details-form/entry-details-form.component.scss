@@ -1,66 +1,4 @@
-﻿.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(5, 8, 7, 0.82);
-  backdrop-filter: blur(6px);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 2rem clamp(1rem, 4vw, 3rem);
-  z-index: 40;
-}
-
-.modal-shell {
-  background: var(--surface-panel, #0b1712);
-  border-radius: 1.25rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  width: min(1100px, 100%);
-  max-height: 96vh;
-  overflow: auto;
-  box-shadow: 0 40px 80px rgba(0, 0, 0, 0.45);
-  color: var(--text-primary, #f2f6f3);
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1.5rem 2rem 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.modal-header h2 {
-  margin: 0.2rem 0 0;
-}
-
-.modal-header .eyebrow {
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  font-size: 0.7rem;
-  margin: 0;
-  color: var(--text-muted, #a6b3aa);
-}
-
-.modal-subcopy {
-  display: block;
-  margin-top: 0.35rem;
-  font-size: 0.85rem;
-  color: var(--text-muted, #8ba197);
-}
-
-.icon-btn {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 999px;
-  width: 40px;
-  height: 40px;
-  color: inherit;
-  font-size: 1.4rem;
-  cursor: pointer;
-}
-
-.content {
-  padding: 1.5rem 2rem 2rem;
+:host {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -264,10 +202,6 @@ textarea {
   cursor: grabbing;
 }
 
-.hedge-panel header {
-  margin-bottom: 0.5rem;
-}
-
 .panel-title {
   margin: 0 0 0.5rem;
   font-weight: 600;
@@ -302,6 +236,12 @@ textarea {
   gap: 0.5rem;
 }
 
+.pricing {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem 1.25rem;
+}
+
 button {
   border: none;
   border-radius: 999px;
@@ -310,136 +250,7 @@ button {
   cursor: pointer;
 }
 
-button.primary {
-  background: var(--gradient-accent, linear-gradient(120deg, #47efc3, #1ca386));
-  color: #04130b;
-}
-
 button.ghost {
   background: rgba(255, 255, 255, 0.06);
   color: inherit;
-}
-
-button:hover {
-  opacity: 0.95;
-}
-
-.pricing {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem 1.25rem;
-}
-
-@media (max-width: 900px) {
-  .event-list li {
-    align-items: flex-start;
-  }
-
-  .event-actions {
-    width: 100%;
-    margin-left: 0;
-    justify-content: flex-start;
-  }
-}
-
-.form-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  padding-top: 0.5rem;
-}
-
-
-
-
-
-.conflict-banner {
-  border: 1px solid rgba(255, 149, 64, 0.55);
-  border-radius: 0.85rem;
-  padding: 0.65rem 0.85rem;
-  background: rgba(255, 149, 64, 0.1);
-  display: flex;
-  justify-content: space-between;
-  gap: 0.75rem;
-  align-items: center;
-}
-
-.conflict-banner strong {
-  display: block;
-  font-size: 0.9rem;
-}
-
-.conflict-banner span {
-  font-size: 0.8rem;
-}
-
-.conflict-banner .confirmed {
-  color: var(--accent, #6cf0bf);
-}
-
-.conflict-banner button {
-  white-space: nowrap;
-}
-
-.editing-banner {
-  margin-top: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-radius: 0.75rem;
-  background: rgba(108, 240, 191, 0.08);
-  border: 1px solid rgba(108, 240, 191, 0.35);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.editing-banner__info {
-  flex: 1 1 360px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-
-.editing-banner__fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.6rem;
-}
-
-.editing-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  font-size: 0.8rem;
-}
-
-.editing-field input,
-.editing-field textarea {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.5rem;
-  padding: 0.45rem 0.6rem;
-  color: #f5fff8;
-  font-size: 0.85rem;
-  font-family: inherit;
-  resize: vertical;
-}
-
-.editing-field input:focus,
-.editing-field textarea:focus {
-  outline: none;
-  border-color: rgba(108, 240, 191, 0.55);
-  box-shadow: 0 0 0 1px rgba(108, 240, 191, 0.35);
-}
-
-.editing-banner__actions {
-  display: flex;
-  gap: 0.5rem;
-  flex: 0 0 auto;
-}
-
-.editing-banner__actions .ghost {
-  border-color: rgba(108, 240, 191, 0.4);
-  color: var(--accent, #6cf0bf);
 }

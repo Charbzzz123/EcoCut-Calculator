@@ -1,0 +1,174 @@
+<section class="calendar-block" [formGroup]="viewModel.calendarGroup">
+  <header>
+    <p class="section-title">Schedule on EcoCut Calendar</p>
+    <span class="helper">Customer jobs must be scheduled so the crew sees them in Google Calendar.</span>
+  </header>
+
+  <div class="schedule-grid">
+    <label>
+      <span>Date</span>
+      <input type="date" formControlName="date" (change)="handlers.handleCalendarDateChange()" />
+      @if (viewModel.calendarGroup.controls['date'].touched && viewModel.calendarGroup.controls['date'].invalid) {
+        <small class="error">Required</small>
+      }
+    </label>
+    <label>
+      <span>Start time</span>
+      <input type="time" formControlName="startTime" (input)="handlers.handleManualTimeChange()" />
+      @if (viewModel.calendarGroup.controls['startTime'].touched && viewModel.calendarGroup.controls['startTime'].invalid) {
+        <small class="error">Required</small>
+      }
+    </label>
+    <label>
+      <span>End time</span>
+      <input type="time" formControlName="endTime" (input)="handlers.handleManualTimeChange()" />
+      @if (viewModel.calendarGroup.controls['endTime'].errors?.['timeOrder']) {
+        <small class="error">End time must be after the start time</small>
+      } @else if (viewModel.calendarGroup.controls['endTime'].touched && viewModel.calendarGroup.controls['endTime'].invalid) {
+        <small class="error">Required</small>
+      }
+    </label>
+  </div>
+
+  <div class="calendar-preview">
+    <div class="preview-header">
+      <p class="preview-title">Upcoming events</p>
+      <span class="helper">Times shown in {{ viewModel.calendarTimeZone }}.</span>
+    </div>
+
+    <app-entry-timeline
+      [hours]="viewModel.timelineHours"
+      [events]="viewModel.timelineEvents"
+      [selectionStyle]="viewModel.timelineSelectionStyle"
+      [nowLine]="viewModel.timelineNowLine"
+      [helperText]="viewModel.timelineHelperText"
+      (timelinePointerDown)="handlers.handleTimelinePointerDown($event)"
+      (gridReady)="handlers.handleTimelineGridReady($event)"
+    ></app-entry-timeline>
+
+    @if (viewModel.selectionConflict) {
+      <div class="conflict-banner" role="alert">
+        <div>
+          <strong>Conflicting job</strong>
+          <span>{{ viewModel.conflictSummary ?? 'This slot overlaps an existing booking.' }}</span>
+        </div>
+        @if (!viewModel.conflictConfirmed) {
+          <button type="button" class="ghost" (click)="handlers.confirmTimelineConflict()">Overlap</button>
+        } @else {
+          <span class="helper confirmed">Overlap confirmed</span>
+        }
+      </div>
+    }
+
+    @if (viewModel.editingCalendarEvent; as editingEvent) {
+      <div class="editing-banner">
+        <div class="editing-banner__info">
+          <div>
+            <strong>Editing existing event</strong>
+            <span>{{ editingEvent.summary }} • {{ handlers.formatEventTimeRange(editingEvent) }}</span>
+          </div>
+          <div class="editing-banner__fields">
+            <label class="editing-field">
+              <span>Title</span>
+              <input
+                type="text"
+                [formControl]="viewModel.editingCalendarForm.controls['summary']"
+                placeholder="Event title"
+              />
+            </label>
+            <label class="editing-field editing-field--notes">
+              <span>Details</span>
+              <textarea
+                rows="2"
+                [formControl]="viewModel.editingCalendarForm.controls['notes']"
+                placeholder="Calendar notes"
+              ></textarea>
+            </label>
+          </div>
+        </div>
+        <div class="editing-banner__actions">
+          <button
+            type="button"
+            class="ghost"
+            (click)="handlers.updateCalendarEvent()"
+            [disabled]="viewModel.editingUpdateDisabled"
+          >
+            Update
+          </button>
+          <button type="button" class="ghost" (click)="handlers.cancelCalendarEdit()">Cancel</button>
+        </div>
+      </div>
+    }
+
+    <div class="slot-picker">
+      <div class="slot-picker__header">
+        <p class="preview-title">Suggested time slots</p>
+        <span class="helper">Tap an available slot to autofill start & end.</span>
+      </div>
+      @if (viewModel.calendarSlots.length) {
+        <div class="slot-picker__grid">
+          @for (slot of viewModel.calendarSlots; track slot.id) {
+            <button
+              type="button"
+              class="slot-chip"
+              [class.slot-chip--booked]="slot.status === 'booked'"
+              [class.slot-chip--selected]="viewModel.selectedSlotId === slot.id"
+              [disabled]="slot.status === 'booked'"
+              (click)="handlers.selectCalendarSlot(slot.id)"
+            >
+              <span>{{ slot.label }}</span>
+              <small [hidden]="slot.status !== 'booked'">
+                Booked • {{ slot.conflictSummary ?? 'Conflict' }}
+              </small>
+            </button>
+          }
+        </div>
+      } @else {
+        <div class="preview-state">
+          <span class="helper">Pick a date to view suggested slots.</span>
+        </div>
+      }
+    </div>
+
+    @if (viewModel.calendarEventsLoading) {
+      <div class="preview-state">
+        <span class="helper">Loading availability…</span>
+      </div>
+    } @else if (viewModel.calendarEventsError) {
+      <div class="preview-state error">
+        <span>{{ viewModel.calendarEventsError }}</span>
+      </div>
+    } @else if (!viewModel.calendarEvents.length) {
+      <div class="preview-state">
+        <span class="helper">No existing events for this day.</span>
+      </div>
+    } @else {
+      <ul class="event-list">
+        @for (event of viewModel.calendarEvents; track event.id) {
+          <li [class.event-item--editing]="viewModel.editingCalendarEvent?.id === event.id">
+            <div class="event-time">{{ handlers.formatEventTimeRange(event) }}</div>
+            <div class="event-body">
+              <p class="event-summary">{{ event.summary }}</p>
+              @if (event.location) {
+                <p class="event-location">{{ event.location }}</p>
+              }
+            </div>
+            <div class="event-actions">
+              <button type="button" class="ghost" aria-label="Edit calendar event" (click)="handlers.editCalendarEvent(event)">
+                Edit
+              </button>
+              <button
+                type="button"
+                class="ghost danger"
+                aria-label="Delete calendar event"
+                (click)="handlers.deleteCalendarEvent(event)"
+              >
+                Delete
+              </button>
+            </div>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</section>

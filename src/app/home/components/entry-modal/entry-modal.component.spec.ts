@@ -66,6 +66,25 @@ describe('EntryModalComponent', () => {
     calendarService = TestBed.inject(CalendarEventsService) as unknown as CalendarEventsServiceStub;
   });
 
+  it('ignores falsy initialEntry assignments', () => {
+    const spy = vi.spyOn(component as unknown as { prefillFromPayload: (value: EntryModalPayload) => void }, 'prefillFromPayload');
+    component.initialEntry = null;
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('derives shell copy defaults and honors overrides', () => {
+    expect((component as unknown as { headlineText: string })['headlineText']).toBe('Add Entry');
+    expect((component as unknown as { subcopyText: string })['subcopyText']).toContain('Speed-first');
+    expect((component as unknown as { primaryLabelText: string })['primaryLabelText']).toBe('Save Warm Lead');
+
+    component.headline = 'Custom Headline';
+    component.subcopy = 'Custom body copy';
+    component.primaryActionLabel = 'Do It';
+    expect((component as unknown as { headlineText: string })['headlineText']).toBe('Custom Headline');
+    expect((component as unknown as { subcopyText: string })['subcopyText']).toBe('Custom body copy');
+    expect((component as unknown as { primaryLabelText: string })['primaryLabelText']).toBe('Do It');
+  });
+
   it('cycles hedges and saves trim configuration in payload', () => {
     const savedSpy = vi.fn();
     component.saved.subscribe(savedSpy);
@@ -2230,6 +2249,152 @@ describe('EntryModalComponent', () => {
     await fixture.whenStable();
 
     expect(deleteSpy).toHaveBeenCalled();
+  });
+
+  it('clears editing state when deleting without a selected date', async () => {
+    component.open = true;
+    component['editingCalendarEvent'].set({
+      id: 'evt-delete-local',
+      summary: 'Local delete',
+      start: component['combineDateTime']('2026-03-05', '15:00'),
+      end: component['combineDateTime']('2026-03-05', '16:00'),
+    });
+    component['calendarEvents'].set([
+      {
+        id: 'evt-delete-local',
+        summary: 'Local delete',
+        start: component['combineDateTime']('2026-03-05', '15:00'),
+        end: component['combineDateTime']('2026-03-05', '16:00'),
+      },
+    ]);
+    component['calendarGroup'].patchValue({ date: '', startTime: '', endTime: '' });
+
+    await component['deleteCalendarEvent']({
+      id: 'evt-delete-local',
+      summary: 'Local delete',
+      start: component['combineDateTime']('2026-03-05', '15:00'),
+      end: component['combineDateTime']('2026-03-05', '16:00'),
+    });
+
+    expect(component['editingCalendarEvent']()).toBeNull();
+    expect(component['calendarEvents']()).toHaveLength(0);
+  });
+
+  it('formats timeline hours and computes tick positions', () => {
+    expect((component as unknown as { formatTimelineHour: (hour: number) => string })['formatTimelineHour'](7)).toBe('7 AM');
+    expect((component as unknown as { formatTimelineHour: (hour: number) => string })['formatTimelineHour'](15)).toBe('3 PM');
+    const positionStart = (component as unknown as { timelineHourPosition: (index: number) => number })['timelineHourPosition'](0);
+    const positionEnd = (component as unknown as { timelineHourPosition: (index: number) => number })['timelineHourPosition'](
+      component['timelineHours'].length - 1,
+    );
+    expect(positionStart).toBe(0);
+    expect(positionEnd).toBeCloseTo(100);
+  });
+
+  it('clears calendar validators when scheduling becomes optional', () => {
+    component.variant = 'customer';
+    component['calendarGroup'].patchValue({ date: '', startTime: '', endTime: '' });
+    component['syncCalendarValidators']();
+    const dateControl = component['calendarGroup'].controls.date;
+    expect(dateControl.errors?.['required']).toBeTruthy();
+
+    component.variant = 'warm-lead';
+    component['syncCalendarValidators']();
+    expect(dateControl.errors).toBeNull();
+  });
+
+  it('resets calendar preview state via helper', () => {
+    component['calendarEvents'].set([
+      { id: 'evt', summary: 'x', start: '2026-03-05T12:00:00Z', end: '2026-03-05T13:00:00Z' },
+    ]);
+    component['calendarSlots'].set([{ id: 'slot', startTime: '08:00', endTime: '10:00', label: '8-10', status: 'available' }]);
+    component['timelineEvents'].set([{ id: 'evt', summary: 'x', startMinutes: 60, endMinutes: 120, topPercent: 0, heightPercent: 10, column: 0, columns: 1, leftPercent: 0, widthPercent: 100 }]);
+    component['timelineSelection'].set({ startMinutes: 60, endMinutes: 120 });
+    component['selectionConflict'].set(true);
+    component['conflictSummary'].set('conflict');
+    component['conflictConfirmed'].set(true);
+    component['currentTimeMinutes'].set(100);
+    component['editingCalendarEvent'].set({
+      id: 'evt',
+      summary: 'x',
+      start: '2026-03-05T12:00:00Z',
+      end: '2026-03-05T13:00:00Z',
+    });
+
+    component['clearCalendarPreview']();
+
+    expect(component['calendarEvents']()).toHaveLength(0);
+    expect(component['calendarSlots']()).toHaveLength(0);
+    expect(component['timelineEvents']()).toHaveLength(0);
+    expect(component['timelineSelection']()).toBeNull();
+    expect(component['selectionConflict']()).toBe(false);
+    expect(component['conflictSummary']()).toBeNull();
+    expect(component['conflictConfirmed']()).toBe(false);
+    expect(component['currentTimeMinutes']()).toBeNull();
+    expect(component['editingCalendarEvent']()).toBeNull();
+  });
+
+  it('prefills payload data through the helper', () => {
+    const payload: EntryModalPayload = {
+      variant: 'customer',
+      form: {
+        firstName: 'Ema',
+        lastName: 'Doe',
+        address: '123 Pine',
+        phone: '(111) 111-1111',
+        email: 'test@example.com',
+        jobType: 'Hedge Trimming',
+        jobValue: '500',
+        desiredBudget: '450',
+        additionalDetails: 'Front yard only',
+      },
+      hedges: {
+        'hedge-1': { state: 'trim', trim: { mode: 'custom', inside: true } },
+        'hedge-2': { state: 'none' },
+        'hedge-3': { state: 'none' },
+        'hedge-4': { state: 'none' },
+        'hedge-5': { state: 'none' },
+        'hedge-6': { state: 'none' },
+        'hedge-7': { state: 'none' },
+        'hedge-8': { state: 'none' },
+      },
+      calendar: {
+        start: '2026-04-02T13:00:00.000Z',
+        end: '2026-04-02T15:00:00.000Z',
+        timeZone: 'America/Toronto',
+      },
+    };
+
+    component['prefillFromPayload'](payload);
+
+    expect(component.form.value.firstName).toBe('Ema');
+    expect(component.form.value.additionalDetails).toBe('Front yard only');
+    expect(component['calendarGroup'].value.date).toBe('2026-04-02');
+    expect(component['calendarGroup'].value.startTime).toBe(localTimeString(payload.calendar!.start));
+  });
+
+  it('trims override text when updating calendar events', async () => {
+    component.variant = 'customer';
+    component.open = true;
+    component['editingCalendarEvent'].set({
+      id: 'evt-editing',
+      summary: 'Original',
+      description: 'Original desc',
+      start: component['combineDateTime']('2026-03-05', '09:00'),
+      end: component['combineDateTime']('2026-03-05', '10:00'),
+    });
+    component['calendarGroup'].patchValue({
+      date: '2026-03-05',
+      startTime: '11:00',
+      endTime: '12:00',
+    });
+    component['editingCalendarForm'].setValue({ summary: '  New Title  ', notes: '  Extra  ' });
+    await component['updateCalendarEvent']();
+
+    expect(calendarService.updateEvent).toHaveBeenCalledWith(
+      'evt-editing',
+      expect.objectContaining({ summary: 'New Title', description: 'Extra' }),
+    );
   });
 
   it('renders the hedge selection error when present', () => {
