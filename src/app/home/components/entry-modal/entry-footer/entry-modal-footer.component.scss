@@ -4,3 +4,27 @@
   gap: 0.75rem;
   padding-top: 0.5rem;
 }
+
+button {
+  border: none;
+  border-radius: 999px;
+  padding: 0.65rem 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.primary {
+  background: var(--gradient-accent, linear-gradient(120deg, #47efc3, #1ca386));
+  color: #04130b;
+}
+
+button.ghost {
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

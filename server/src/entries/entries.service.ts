@@ -271,8 +271,13 @@ export class EntriesService implements OnModuleInit {
     if (email?.trim()) {
       return email.trim().toLowerCase();
     }
-    if (phone?.trim()) {
-      return phone.replace(/\D/g, '');
+    const phoneDigits = phone?.replace(/\D/g, '');
+    if (phoneDigits) {
+      const addressKey = address?.trim().toLowerCase();
+      const nameKey = `${firstName}::${lastName}`.toLowerCase();
+      const discriminator =
+        addressKey && addressKey.length > 0 ? addressKey : nameKey;
+      return `${phoneDigits}::${discriminator}`;
     }
     return `${firstName}::${lastName}::${address}`.toLowerCase();
   }

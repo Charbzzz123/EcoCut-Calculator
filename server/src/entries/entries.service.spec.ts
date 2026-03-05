@@ -94,6 +94,36 @@ describe('EntriesService', () => {
     expect(clients[0].jobsCount).toBe(2);
   });
 
+  it('keeps separate clients when phone matches but address differs', async () => {
+    await service.createEntry(
+      createPayload({
+        form: {
+          firstName: 'Alex',
+          lastName: 'Stone',
+          address: '123 Pine',
+          phone: '(438) 555-1111',
+          jobType: 'Trim',
+          jobValue: '1200',
+        },
+      }),
+    );
+    await service.createEntry(
+      createPayload({
+        form: {
+          firstName: 'Jamie',
+          lastName: 'Brook',
+          address: '987 Maple',
+          phone: '(438) 555-1111',
+          jobType: 'Rabattage',
+          jobValue: '900',
+        },
+      }),
+    );
+
+    const clients = service.listClients();
+    expect(clients).toHaveLength(2);
+  });
+
   it('boots from the persisted snapshot on init', async () => {
     const persisted: StoredEntry = {
       ...createPayload(),
