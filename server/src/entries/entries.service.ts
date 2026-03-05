@@ -166,11 +166,12 @@ export class EntriesService implements OnModuleInit {
     if (!matchedEntry) {
       throw new NotFoundException(`Client ${clientId} not found`);
     }
+    const resolvedEntry: StoredEntry = matchedEntry;
     await this.repository.saveEntries(this.entries);
     this.rebuildClientSummaries();
     const newKey = this.computeClientKey({
-      ...matchedEntry,
-      form: { ...matchedEntry.form, ...trimmedUpdates },
+      ...resolvedEntry,
+      form: { ...resolvedEntry.form, ...trimmedUpdates },
     });
     const summary = this.clients.get(newKey);
     if (!summary) {
