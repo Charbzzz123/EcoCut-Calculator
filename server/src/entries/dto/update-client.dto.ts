@@ -5,4 +5,3 @@ export interface UpdateClientDto {
   phone?: string;
   email?: string;
 }
-

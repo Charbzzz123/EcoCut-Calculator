@@ -6,7 +6,7 @@ const angular = require('angular-eslint');
 
 module.exports = defineConfig([
   {
-    files: ['**/*.ts'],
+    files: ['src/**/*.ts'],
     extends: [
       eslint.configs.recommended,
       tseslint.configs.recommended,
@@ -14,6 +14,12 @@ module.exports = defineConfig([
       angular.configs.tsRecommended,
     ],
     processor: angular.processInlineTemplates,
+    languageOptions: {
+      parserOptions: {
+        project: ['tsconfig.json', 'tsconfig.spec.json'],
+        tsconfigRootDir: __dirname,
+      },
+    },
     rules: {
       '@angular-eslint/directive-selector': [
         'error',
@@ -34,8 +40,22 @@ module.exports = defineConfig([
     },
   },
   {
-    files: ['**/*.html'],
+    files: ['src/**/*.html'],
     extends: [angular.configs.templateRecommended, angular.configs.templateAccessibility],
     rules: {},
+  },
+  {
+    files: ['server/**/*.ts'],
+    extends: [
+      eslint.configs.recommended,
+      tseslint.configs.recommended,
+      tseslint.configs.stylistic,
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['server/tsconfig.json'],
+        tsconfigRootDir: __dirname,
+      },
+    },
   },
 ]);

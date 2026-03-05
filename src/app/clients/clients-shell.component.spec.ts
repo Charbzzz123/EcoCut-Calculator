@@ -9,6 +9,8 @@ import type { EntryModalPayload } from '../home/models/entry-modal.models.js';
 import { ClientsFacade } from './clients.facade.js';
 import { ClientsShellComponent } from './clients-shell.component.js';
 import { By } from '@angular/platform-browser';
+import { CalendarEventsService } from '../home/services/calendar-events.service.js';
+import { CalendarEventsServiceStub } from '../home/components/entry-modal/testing/entry-modal-test-helpers.js';
 
 const baseClients: ClientSummary[] = [
   {
@@ -153,6 +155,7 @@ describe('ClientsShellComponent', () => {
       providers: [
         provideRouter([]),
         { provide: ClientsFacade, useValue: facade },
+        { provide: CalendarEventsService, useClass: CalendarEventsServiceStub },
       ],
       imports: [ClientsShellComponent],
     }).compileComponents();

@@ -1,6 +1,11 @@
 import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import type { CreateEntryDto } from './dto/create-entry.dto.js';
+import type {
+  CreateEntryDto,
+  HedgeConfigDto,
+  RabattageConfigDto,
+  TrimConfigDto,
+} from './dto/create-entry.dto.js';
 import type { UpdateClientDto } from './dto/update-client.dto.js';
 import { EntriesRepository } from './entries.repository.js';
 import type {
@@ -30,6 +35,9 @@ const HEDGE_LABELS: Record<string, string> = {
   'hedge-7': 'Front Right',
   'hedge-8': 'Parking',
 };
+
+type HedgeId = (typeof HEDGE_IDS)[number];
+type HedgeConfigMap = Record<string, HedgeConfigDto>;
 
 @Injectable()
 export class EntriesService implements OnModuleInit {
@@ -117,7 +125,10 @@ export class EntriesService implements OnModuleInit {
     return { ...summary, history };
   }
 
-  async updateEntry(entryId: string, payload: CreateEntryDto): Promise<StoredEntry> {
+  async updateEntry(
+    entryId: string,
+    payload: CreateEntryDto,
+  ): Promise<StoredEntry> {
     const index = this.entries.findIndex((entry) => entry.id === entryId);
     if (index === -1) {
       throw new NotFoundException(`Entry ${entryId} not found`);
@@ -144,7 +155,10 @@ export class EntriesService implements OnModuleInit {
     this.rebuildClientSummaries();
   }
 
-  async updateClient(clientId: string, updates: UpdateClientDto): Promise<ClientSummary> {
+  async updateClient(
+    clientId: string,
+    updates: UpdateClientDto,
+  ): Promise<ClientSummary> {
     const trimmedUpdates = this.normalizeClientUpdates(updates);
     if (!Object.keys(trimmedUpdates).length) {
       return this.getClientDetails(clientId);
@@ -182,7 +196,9 @@ export class EntriesService implements OnModuleInit {
 
   async deleteClient(clientId: string): Promise<void> {
     const before = this.entries.length;
-    this.entries = this.entries.filter((entry) => this.computeClientKey(entry) !== clientId);
+    this.entries = this.entries.filter(
+      (entry) => this.computeClientKey(entry) !== clientId,
+    );
     if (this.entries.length === before) {
       throw new NotFoundException(`Client ${clientId} not found`);
     }
@@ -216,12 +232,16 @@ export class EntriesService implements OnModuleInit {
         jobsCount: existing.jobsCount + 1,
         lastJobDate: existing.lastJobDate,
         nextJobDate: existing.nextJobDate ?? null,
-        lastCalendarEventId: entry.calendar?.eventId ?? existing.lastCalendarEventId,
+        lastCalendarEventId:
+          entry.calendar?.eventId ?? existing.lastCalendarEventId,
       };
       if (isPast) {
         updated.lastJobDate = this.pickLater(updated.lastJobDate, jobTimestamp);
       } else {
-        updated.nextJobDate = this.pickSooner(updated.nextJobDate, jobTimestamp);
+        updated.nextJobDate = this.pickSooner(
+          updated.nextJobDate,
+          jobTimestamp,
+        );
       }
       this.clients.set(key, updated);
       return;
@@ -264,7 +284,10 @@ export class EntriesService implements OnModuleInit {
     return current > candidate ? current : candidate;
   }
 
-  private pickSooner(current: string | null | undefined, candidate: string): string {
+  private pickSooner(
+    current: string | null | undefined,
+    candidate: string,
+  ): string {
     if (!current) {
       return candidate;
     }
@@ -289,14 +312,16 @@ export class EntriesService implements OnModuleInit {
       normalized.email = updates.email.trim();
     }
     return Object.fromEntries(
-      Object.entries(normalized).filter(([_, value]) => value !== undefined && value !== ''),
+      Object.entries(normalized).filter(
+        ([, value]) => value !== undefined && value !== '',
+      ),
     ) as UpdateClientDto;
   }
 
-  private describeHedgePlan(hedges: Record<string, any>): string[] {
+  private describeHedgePlan(hedges: HedgeConfigMap): string[] {
     const handled = new Set<string>();
     const lines: string[] = [];
-    const pair = (a: string, b: string) => {
+    const pair = (a: HedgeId, b: HedgeId) => {
       const first = hedges[a];
       const second = hedges[b];
       if (
@@ -308,7 +333,9 @@ export class EntriesService implements OnModuleInit {
         handled.add(a);
         handled.add(b);
         if (first.state === 'trim') {
-          lines.push(`Front Trim ${this.describeMergedTrim(first.trim, second.trim)}`);
+          lines.push(
+            `Front Trim ${this.describeMergedTrim(first.trim, second.trim)}`,
+          );
         } else if (first.state === 'rabattage') {
           lines.push(
             `Front Rabattage ${this.describeMergedRabattage(first.rabattage, second.rabattage)}`,
@@ -318,9 +345,11 @@ export class EntriesService implements OnModuleInit {
     };
     pair('hedge-1', 'hedge-7');
 
-    const orderedKeys = [
+    const orderedKeys: string[] = [
       ...HEDGE_IDS,
-      ...Object.keys(hedges).filter((key) => !HEDGE_IDS.includes(key as any)),
+      ...Object.keys(hedges).filter(
+        (key) => !HEDGE_IDS.includes(key as HedgeId),
+      ),
     ];
     for (const key of orderedKeys) {
       if (handled.has(key)) {
@@ -334,15 +363,17 @@ export class EntriesService implements OnModuleInit {
       if (config.state === 'trim') {
         lines.push(`${label} Trim ${this.describeTrim(config.trim)}`);
       } else if (config.state === 'rabattage') {
-        lines.push(`${label} Rabattage ${this.describeRabattage(config.rabattage)}`);
+        lines.push(
+          `${label} Rabattage ${this.describeRabattage(config.rabattage)}`,
+        );
       } else {
-        lines.push(`${label} (${config.state})`);
+        lines.push(`${label} (${config.state as string})`);
       }
     }
     return lines;
   }
 
-  private describeTrim(config: any): string {
+  private describeTrim(config?: TrimConfigDto): string {
     if (!config) {
       return '(custom)';
     }
@@ -369,7 +400,7 @@ export class EntriesService implements OnModuleInit {
     return tags.length ? `(${tags.join(',')})` : '(custom)';
   }
 
-  private describeMergedTrim(a: any, b: any): string {
+  private describeMergedTrim(a?: TrimConfigDto, b?: TrimConfigDto): string {
     const first = this.describeTrim(a);
     const second = this.describeTrim(b);
     if (!second || first === second) {
@@ -397,7 +428,7 @@ export class EntriesService implements OnModuleInit {
     return first;
   }
 
-  private describeRabattage(config: any): string {
+  private describeRabattage(config?: RabattageConfigDto): string {
     if (!config) {
       return 'T';
     }
@@ -411,7 +442,10 @@ export class EntriesService implements OnModuleInit {
     return 'T';
   }
 
-  private describeMergedRabattage(a: any, b: any): string {
+  private describeMergedRabattage(
+    a?: RabattageConfigDto,
+    b?: RabattageConfigDto,
+  ): string {
     const first = this.describeRabattage(a);
     const second = this.describeRabattage(b);
     if (!second || first === second) {

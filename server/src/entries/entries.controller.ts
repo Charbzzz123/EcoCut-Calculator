@@ -1,4 +1,12 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { EntriesService } from './entries.service.js';
 import type { CreateEntryDto } from './dto/create-entry.dto.js';
 import type { UpdateClientDto } from './dto/update-client.dto.js';
@@ -36,7 +44,10 @@ export class EntriesController {
   }
 
   @Patch('clients/:clientId')
-  updateClient(@Param('clientId') clientId: string, @Body() body: UpdateClientDto) {
+  updateClient(
+    @Param('clientId') clientId: string,
+    @Body() body: UpdateClientDto,
+  ) {
     return this.entries.updateClient(clientId, body);
   }
 

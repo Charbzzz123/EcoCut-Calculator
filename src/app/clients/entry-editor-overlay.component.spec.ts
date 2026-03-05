@@ -4,6 +4,8 @@ import { By } from '@angular/platform-browser';
 import { EntryEditorOverlayComponent } from './entry-editor-overlay.component.js';
 import type { EntryModalPayload } from '../home/models/entry-modal.models.js';
 import { createEmptyHedgeConfigs } from '../home/models/entry-modal.models.js';
+import { CalendarEventsService } from '../home/services/calendar-events.service.js';
+import { CalendarEventsServiceStub } from '../home/components/entry-modal/testing/entry-modal-test-helpers.js';
 
 const payload: EntryModalPayload = {
   variant: 'customer',
@@ -24,6 +26,7 @@ describe('EntryEditorOverlayComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [EntryEditorOverlayComponent],
+      providers: [{ provide: CalendarEventsService, useClass: CalendarEventsServiceStub }],
     }).compileComponents();
 
     fixture = TestBed.createComponent(EntryEditorOverlayComponent);
