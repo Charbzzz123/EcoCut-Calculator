@@ -1,90 +1,25 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ElementRef, WritableSignal } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { vi } from 'vitest';
 import { EntryModalComponent, northAmericanPhoneValidator } from './entry-modal.component.js';
-import { EntryModalPanelStore } from './entry-modal-panel.store.js';
 import {
-  EntryModalPayload,
-  HedgeConfig,
-  HedgeState,
-  TrimPreset,
-} from '../../models/entry-modal.models.js';
-class CalendarEventsServiceStub {
-  listEventsForDate = vi.fn().mockResolvedValue([]);
-  createEvent = vi.fn();
-  updateEvent = vi.fn().mockResolvedValue({
-    id: 'evt-updated',
-    summary: 'Updated booking',
-    start: '2026-03-05T10:00:00Z',
-    end: '2026-03-05T11:30:00Z',
-    location: '123 Pine',
-  });
-  deleteEvent = vi.fn().mockResolvedValue(undefined);
-}
+  CalendarEventsServiceStub,
+  EntryModalTestHandles,
+  Rect,
+  assignCanvasHost,
+  asEntryModalInternals,
+  createElementRef,
+  createPanelMouseEvent,
+  localTimeString,
+} from './testing/entry-modal-test-helpers.js';
+import { EntryModalPayload } from '../../models/entry-modal.models.js';
 import { CalendarEventSummary, CalendarEventsService } from '../../services/calendar-events.service.js';
-
-interface Rect {
-  left: number;
-  top: number;
-  right: number;
-  width: number;
-  height: number;
-}
-
-interface EntryModalTestHandles {
-  canvasHost?: ElementRef<HTMLElement>;
-  panelStore: EntryModalPanelStore;
-  panelPosition: WritableSignal<{ left: number; top: number }>;
-  panelState: WritableSignal<unknown>;
-  panelError: WritableSignal<string | null>;
-  hedgeStates: WritableSignal<Record<string, HedgeState>>;
-  savedConfigs: WritableSignal<Record<string, HedgeConfig>>;
-  beginPanelDrag(event: PointerEvent): void;
-  closePanel(resetSelection?: boolean): void;
-  cancelPanel(): void;
-  savePanel(): void;
-  panelFloats(): boolean;
-  trimHasCustomSelections(): boolean;
-  trimPresetSelected(): TrimPreset | null;
-  readonly eyebrowText: string;
-  readonly headlineText: string;
-  readonly subcopyText: string;
-  readonly primaryLabelText: string;
-}
-
-const asInternals = (instance: EntryModalComponent): EntryModalTestHandles =>
-  instance as unknown as EntryModalTestHandles;
-
-const createElementRef = (rect: Rect): ElementRef<HTMLElement> =>
-  ({
-    nativeElement: {
-      getBoundingClientRect: () => ({
-        ...rect,
-        bottom: rect.top + rect.height,
-        x: rect.left,
-        y: rect.top,
-        toJSON: () => ({}),
-      }),
-    } as HTMLElement,
-  }) as unknown as ElementRef<HTMLElement>;
-
-const localTimeString = (iso: string): string => {
-  const date = new Date(iso);
-  return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
-};
 
 describe('EntryModalComponent', () => {
   let fixture: ComponentFixture<EntryModalComponent>;
   let component: EntryModalComponent;
   let internals: EntryModalTestHandles;
   let calendarService: CalendarEventsServiceStub;
-  const assignCanvasHost = (rect?: Rect): ElementRef<HTMLElement> | undefined => {
-    const ref = rect ? createElementRef(rect) : undefined;
-    internals.canvasHost = ref;
-    internals.panelStore.setCanvasHost(ref);
-    return ref;
-  };
   const defaultPayload: EntryModalPayload = {
     variant: 'customer',
     form: {
@@ -116,24 +51,6 @@ describe('EntryModalComponent', () => {
   };
 
   const hostRect: Rect = { left: 0, top: 0, right: 820, width: 820, height: 520 };
-  const createEvent = (): MouseEvent =>
-    ({
-      stopPropagation: vi.fn(),
-      currentTarget: {
-        getBoundingClientRect: () => ({
-          left: 10,
-          top: 20,
-          right: 120,
-          width: 110,
-          height: 60,
-          bottom: 80,
-          x: 10,
-          y: 20,
-          toJSON: () => ({}),
-        }),
-      },
-    } as unknown as MouseEvent);
-
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [EntryModalComponent],
@@ -142,9 +59,9 @@ describe('EntryModalComponent', () => {
 
     fixture = TestBed.createComponent(EntryModalComponent);
     component = fixture.componentInstance;
-    internals = asInternals(component);
+    internals = asEntryModalInternals(component);
     component.open = true;
-    assignCanvasHost(hostRect);
+    assignCanvasHost(internals, hostRect);
     fixture.detectChanges();
     calendarService = TestBed.inject(CalendarEventsService) as unknown as CalendarEventsServiceStub;
   });
@@ -165,9 +82,9 @@ describe('EntryModalComponent', () => {
       additionalDetails: '',
     });
 
-    assignCanvasHost({ left: 0, top: 0, right: 500, width: 500, height: 400 });
+    assignCanvasHost(internals, { left: 0, top: 0, right: 500, width: 500, height: 400 });
 
-    component['cycleHedge'](createEvent(), 'hedge-1');
+    component['cycleHedge'](createPanelMouseEvent(), 'hedge-1');
     expect(component['panelPosition']().left).toBeGreaterThan(0);
     expect(component['panelPosition']().top).toBeGreaterThanOrEqual(0);
     component['updateTrimSection']('inside', true);
@@ -249,7 +166,7 @@ describe('EntryModalComponent', () => {
       'hedge-1': { state: 'trim', trim: { mode: 'custom', inside: true } },
     });
 
-    component['cycleHedge'](createEvent(), 'hedge-1');
+    component['cycleHedge'](createPanelMouseEvent(), 'hedge-1');
 
     expect(component['hedgeSelectionError']()).toBeNull();
   });
@@ -353,7 +270,7 @@ describe('EntryModalComponent', () => {
   });
 
   it('cycles through hedge states including rabattage and clearing configs', () => {
-    const event = createEvent();
+    const event = createPanelMouseEvent();
     component['cycleHedge'](event, 'hedge-4');
     expect(component['hedgeStates']()['hedge-4']).toBe('trim');
 
@@ -372,7 +289,7 @@ describe('EntryModalComponent', () => {
       'hedge-2': { state: 'rabattage', rabattage: { option: 'total_no_roots', partialAmountText: '' } },
     });
 
-    component['cycleHedge'](createEvent(), 'hedge-1');
+    component['cycleHedge'](createPanelMouseEvent(), 'hedge-1');
     const trimState = component['panelState']();
     expect(trimState?.state).toBe('trim');
     if (trimState?.state === 'trim') {
@@ -380,7 +297,7 @@ describe('EntryModalComponent', () => {
     }
     component['savePanel']();
 
-    const rabEvent = createEvent();
+    const rabEvent = createPanelMouseEvent();
     component['cycleHedge'](rabEvent, 'hedge-2');
     component['cycleHedge'](rabEvent, 'hedge-2');
     const rabState = component['panelState']();
@@ -499,21 +416,21 @@ describe('EntryModalComponent', () => {
       }),
     } as SVGGraphicsElement;
 
-    assignCanvasHost({ left: 0, top: 0, right: 780, width: 780, height: 480 });
+    assignCanvasHost(internals, { left: 0, top: 0, right: 780, width: 780, height: 480 });
 
     internals.panelStore.forcePanelPositionForTest(element);
 
     expect(component['panelPosition']().left).toBeGreaterThan(0);
     expect(component['panelPosition']().top).toBeGreaterThanOrEqual(0);
 
-    assignCanvasHost(undefined);
+    assignCanvasHost(internals, undefined);
     component['panelPosition'].set({ left: 0, top: 0 });
     internals.panelStore.forcePanelPositionForTest(element);
     expect(component['panelPosition']()).toEqual({ left: 0, top: 0 });
   });
 
   it('keeps hedge panels fully visible within canvas bounds', () => {
-    assignCanvasHost({ left: 0, top: 0, right: 760, width: 760, height: 320 });
+    assignCanvasHost(internals, { left: 0, top: 0, right: 760, width: 760, height: 320 });
 
     const nearTop = {
       getBoundingClientRect: () => ({
@@ -592,7 +509,7 @@ describe('EntryModalComponent', () => {
       trim: { mode: 'custom', inside: false, top: false, outside: false },
     });
     internals.panelStore.currentPanelSize = { width: 200, height: 150 };
-    assignCanvasHost({ left: 0, top: 0, right: 700, width: 700, height: 320 });
+    assignCanvasHost(internals, { left: 0, top: 0, right: 700, width: 700, height: 320 });
     const panelEl = document.createElement('div');
     panelEl.classList.add('hedge-panel');
     panelEl.getBoundingClientRect = () => ({
@@ -640,7 +557,7 @@ describe('EntryModalComponent', () => {
   });
 
   it('centers the panel when no horizontal room exists but vertical space is available', () => {
-    assignCanvasHost({ left: 0, top: 0, right: 720, width: 720, height: 620 });
+    assignCanvasHost(internals, { left: 0, top: 0, right: 720, width: 720, height: 620 });
 
     const spanning = {
       getBoundingClientRect: () => ({
@@ -668,7 +585,7 @@ describe('EntryModalComponent', () => {
     const header = document.createElement('header');
     component['panelPosition'].set({ left: 10, top: 10 });
     internals.panelStore.floatingPanelEnabled.set(false);
-    assignCanvasHost({ left: 0, top: 0, right: 400, width: 400, height: 200 });
+    assignCanvasHost(internals, { left: 0, top: 0, right: 400, width: 400, height: 200 });
 
     component['beginPanelDrag']({
       currentTarget: header,
@@ -684,7 +601,7 @@ describe('EntryModalComponent', () => {
   });
 
   it('uses the desktop panel sizing branch for wide canvases', () => {
-    assignCanvasHost({ left: 0, top: 0, right: 980, width: 980, height: 620 });
+    assignCanvasHost(internals, { left: 0, top: 0, right: 980, width: 980, height: 620 });
 
     const element = {
       getBoundingClientRect: () => ({
@@ -707,8 +624,8 @@ describe('EntryModalComponent', () => {
   });
 
   it('switches to compact mode on narrow canvases', () => {
-    assignCanvasHost({ left: 0, top: 0, right: 400, width: 400, height: 200 });
-    component['cycleHedge'](createEvent(), 'hedge-1');
+    assignCanvasHost(internals, { left: 0, top: 0, right: 400, width: 400, height: 200 });
+    component['cycleHedge'](createPanelMouseEvent(), 'hedge-1');
     expect(component['panelFloats']()).toBe(false);
   });
 
@@ -2381,7 +2298,7 @@ describe('EntryModalComponent', () => {
     });
     component['hedgeStates'].set({ ...component['hedgeStates'](), 'hedge-1': 'trim' });
 
-    component['cycleHedge'](createEvent(), 'hedge-2');
+    component['cycleHedge'](createPanelMouseEvent(), 'hedge-2');
 
     expect(component['panelState']()?.hedgeId).toBe('hedge-2');
     expect(component['hedgeStates']()['hedge-1']).toBe('none');
