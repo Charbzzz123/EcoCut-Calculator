@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
 export interface CalendarEventSummary {
   id: string;
@@ -26,7 +27,7 @@ export type UpdateCalendarEventRequest = Partial<CreateCalendarEventRequest>;
 @Injectable({ providedIn: 'root' })
 export class CalendarEventsService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = '/api/calendar/events';
+  private readonly baseUrl = `${environment.apiBaseUrl}/calendar/events`;
 
   async listEventsForDate(date: string): Promise<CalendarEventSummary[]> {
     const timeMin = new Date(`${date}T00:00:00`).toISOString();

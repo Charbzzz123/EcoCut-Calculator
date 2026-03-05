@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import type { EntryModalPayload } from '../models/entry-modal.models.js';
+import { environment } from '../../../environments/environment';
 
 export interface StoredEntry extends EntryModalPayload {
   id: string;
@@ -54,7 +55,7 @@ export interface UpdateClientPayload {
 @Injectable({ providedIn: 'root' })
 export class EntryRepositoryService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = '/api/entries';
+  private readonly baseUrl = `${environment.apiBaseUrl}/entries`;
 
   async create(payload: EntryModalPayload): Promise<StoredEntry> {
     return firstValueFrom(this.http.post<StoredEntry>(this.baseUrl, payload));

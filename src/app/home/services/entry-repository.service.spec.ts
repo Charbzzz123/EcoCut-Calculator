@@ -3,10 +3,12 @@ import { TestBed } from '@angular/core/testing';
 import type { EntryModalPayload } from '../models/entry-modal.models.js';
 import { createEmptyHedgeConfigs } from '../models/entry-modal.models.js';
 import { EntryRepositoryService } from './entry-repository.service.js';
+import { environment } from '../../../environments/environment';
 
 describe('EntryRepositoryService', () => {
   let service: EntryRepositoryService;
   let httpMock: HttpTestingController;
+  const baseUrl = `${environment.apiBaseUrl}/entries`;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -37,7 +39,7 @@ describe('EntryRepositoryService', () => {
 
     const promise = service.create(payload);
 
-    const req = httpMock.expectOne('/api/entries');
+    const req = httpMock.expectOne(baseUrl);
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual(payload);
     req.flush({ ...payload, id: 'entry-1', createdAt: '2026-03-04T12:00:00Z' });
@@ -47,7 +49,7 @@ describe('EntryRepositoryService', () => {
 
   it('lists clients via the API', async () => {
     const promise = service.listClients();
-    const req = httpMock.expectOne('/api/entries/clients');
+    const req = httpMock.expectOne(`${baseUrl}/clients`);
     expect(req.request.method).toBe('GET');
     req.flush([
       {
@@ -67,7 +69,7 @@ describe('EntryRepositoryService', () => {
 
   it('gets client details from the API', async () => {
     const promise = service.getClientDetail('alex@example.com');
-    const req = httpMock.expectOne('/api/entries/clients/alex@example.com');
+    const req = httpMock.expectOne(`${baseUrl}/clients/alex@example.com`);
     expect(req.request.method).toBe('GET');
     req.flush({
       clientId: 'alex@example.com',
@@ -100,13 +102,13 @@ describe('EntryRepositoryService', () => {
     };
 
     const updatePromise = service.updateEntry('entry-123', payload);
-    const updateReq = httpMock.expectOne('/api/entries/entry-123');
+    const updateReq = httpMock.expectOne(`${baseUrl}/entry-123`);
     expect(updateReq.request.method).toBe('PATCH');
     updateReq.flush({ ...payload, id: 'entry-123', createdAt: '2026-03-01T12:00:00Z' });
     await expect(updatePromise).resolves.toMatchObject({ id: 'entry-123' });
 
     const deletePromise = service.deleteEntry('entry-123');
-    const deleteReq = httpMock.expectOne('/api/entries/entry-123');
+    const deleteReq = httpMock.expectOne(`${baseUrl}/entry-123`);
     expect(deleteReq.request.method).toBe('DELETE');
     deleteReq.flush(null);
     await expect(deletePromise).resolves.toBeNull();
@@ -114,7 +116,7 @@ describe('EntryRepositoryService', () => {
 
   it('updates and deletes clients', async () => {
     const updatePromise = service.updateClient('alex@example.com', { firstName: 'Alexa' });
-    const updateReq = httpMock.expectOne('/api/entries/clients/alex@example.com');
+    const updateReq = httpMock.expectOne(`${baseUrl}/clients/alex@example.com`);
     expect(updateReq.request.method).toBe('PATCH');
     updateReq.flush({
       clientId: 'alex@example.com',
@@ -129,7 +131,7 @@ describe('EntryRepositoryService', () => {
     await expect(updatePromise).resolves.toMatchObject({ firstName: 'Alexa' });
 
     const deletePromise = service.deleteClient('alex@example.com');
-    const deleteReq = httpMock.expectOne('/api/entries/clients/alex@example.com');
+    const deleteReq = httpMock.expectOne(`${baseUrl}/clients/alex@example.com`);
     expect(deleteReq.request.method).toBe('DELETE');
     deleteReq.flush(null);
     await expect(deletePromise).resolves.toBeNull();
