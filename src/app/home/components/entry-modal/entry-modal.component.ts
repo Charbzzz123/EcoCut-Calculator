@@ -16,7 +16,6 @@ import {
   EntryCalendarPayload,
   EntryModalPayload,
   EntryVariant,
-  HedgeConfig,
   HedgeId,
   HedgeState,
   RabattageOption,
@@ -37,6 +36,8 @@ import {
   EntryDetailsFormComponent,
   type EntryDetailsFormHandlers,
 } from './entry-details-form/entry-details-form.component.js';
+import { EntryModalFooterComponent } from './entry-footer/entry-modal-footer.component.js';
+import { EntryModalValidationService } from './entry-modal-validation.service.js';
 import {
   EntryScheduleSectionComponent,
   type EntryScheduleSectionHandlers,
@@ -87,7 +88,13 @@ export interface TimelineEventBlock {
 @Component({
   selector: 'app-entry-modal',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, EntryDetailsFormComponent, EntryScheduleSectionComponent],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    EntryDetailsFormComponent,
+    EntryScheduleSectionComponent,
+    EntryModalFooterComponent,
+  ],
   templateUrl: './entry-modal.component.html',
   styleUrl: './entry-modal.component.scss',
 })
@@ -232,6 +239,7 @@ export class EntryModalComponent implements OnDestroy {
   private readonly onTimelinePointerMove = (event: PointerEvent) => this.handleTimelinePointerMove(event);
   private readonly onTimelinePointerUp = () => this.handleTimelinePointerUp();
   private currentTimeTicker: ReturnType<typeof setInterval> | null = null;
+  private readonly validationService = inject(EntryModalValidationService);
 
   protected readonly rabattageOptions: RabattageOption[] = ['partial', 'total', 'total_no_roots'];
   protected readonly panelFloatsFn = () => this.panelFloats();
@@ -387,7 +395,7 @@ export class EntryModalComponent implements OnDestroy {
     this.panelStore.cycleHedge(event, hedgeId);
     if (this.variant === 'customer' && this.hedgeSelectionError()) {
       const snapshot = this.panelStore.buildHedgePayload();
-      if (this.hasSelectedHedge(snapshot)) {
+      if (this.validationService.hasSelectedHedge(snapshot)) {
         this.hedgeSelectionError.set(null);
       }
     }
@@ -413,7 +421,7 @@ export class EntryModalComponent implements OnDestroy {
     this.panelStore.savePanel();
     if (this.variant === 'customer' && this.hedgeSelectionError()) {
       const snapshot = this.panelStore.buildHedgePayload();
-      if (this.hasSelectedHedge(snapshot)) {
+      if (this.validationService.hasSelectedHedge(snapshot)) {
         this.hedgeSelectionError.set(null);
       }
     }
@@ -442,7 +450,7 @@ export class EntryModalComponent implements OnDestroy {
       this.form.markAllAsTouched();
       return;
     }
-    if (!this.validateCalendarRange()) {
+    if (!this.validationService.validateCalendarRange(this.calendarGroup, this.requiresCalendar())) {
       return;
     }
     if (this.selectionConflict() && !this.conflictConfirmed()) {
@@ -450,7 +458,7 @@ export class EntryModalComponent implements OnDestroy {
     }
 
     const hedgesPayload = this.panelStore.buildHedgePayload();
-    if (this.variant === 'customer' && !this.hasSelectedHedge(hedgesPayload)) {
+    if (this.variant === 'customer' && !this.validationService.hasSelectedHedge(hedgesPayload)) {
       this.hedgeSelectionError.set('Select at least one hedge before saving this customer entry.');
       return;
     }
@@ -620,31 +628,6 @@ export class EntryModalComponent implements OnDestroy {
     return today.toISOString().slice(0, 10);
   }
 
-  private validateCalendarRange(): boolean {
-    if (!this.requiresCalendar()) {
-      return true;
-    }
-    const { date, startTime, endTime } = this.calendarGroup.getRawValue();
-    if (!date || !startTime || !endTime) {
-      this.calendarGroup.markAllAsTouched();
-      return false;
-    }
-    const startIso = this.combineDateTime(date, startTime);
-    const endIso = this.combineDateTime(date, endTime);
-    const endControl = this.calendarGroup.controls.endTime;
-    if (new Date(startIso).getTime() >= new Date(endIso).getTime()) {
-      endControl.setErrors({ ...(endControl.errors ?? {}), timeOrder: true });
-      endControl.markAsTouched();
-      return false;
-    }
-    if (endControl.errors?.['timeOrder']) {
-      const rest = { ...endControl.errors };
-      delete rest['timeOrder'];
-      endControl.setErrors(Object.keys(rest).length ? rest : null);
-    }
-    return true;
-  }
-
   private combineDateTime(date: string, time: string): string {
     return new Date(`${date}T${time}`).toISOString();
   }
@@ -689,10 +672,6 @@ export class EntryModalComponent implements OnDestroy {
     this.selectionConflict.set(false);
     this.conflictSummary.set(null);
     this.conflictConfirmed.set(false);
-  }
-
-  private hasSelectedHedge(hedges: Record<HedgeId, HedgeConfig>): boolean {
-    return Object.values(hedges).some((config) => config?.state && config.state !== 'none');
   }
 
   private syncCanvasHost(): void {
@@ -1178,7 +1157,7 @@ export class EntryModalComponent implements OnDestroy {
     if (!editing) {
       return;
     }
-    if (!this.validateCalendarRange()) {
+    if (!this.validationService.validateCalendarRange(this.calendarGroup, this.requiresCalendar())) {
       return;
     }
     if (this.selectionConflict() && !this.conflictConfirmed()) {

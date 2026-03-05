@@ -21,6 +21,7 @@ Living checklist for in-flight feature work so we never lose track of what’s d
 
 | Task | Owner | Notes |
 | --- | --- | --- |
-| Split entry-modal feature into smaller subcomponents (form + data sections still pending) | TBD | **2026-03-05:** Entry details + schedule sections now live in dedicated components. Next up is evaluating whether the footer/actions and validation helpers should move into lightweight child components/services to keep the shell lean. |
+| Split entry-modal feature into smaller subcomponents (form + data sections still pending) | TBD | **2026-03-05:** Entry details + schedule sections now live in dedicated components. Next up: carve out the modal footer/CTA bar and move validation helpers into a dedicated service so the shell only orchestrates state. |
+| Extract entry modal footer + validation helpers | TBD | Coordinated task for shrinking the modal: build `EntryModalFooterComponent` for the Cancel/Save buttons + conflict messaging, and introduce an injectable validation utility that centralizes calendar/hedge validation. |
 | Break clients-shell component/spec into façade + child components | TBD | File sizes >10 KB / 16 KB; create toolbar, roster, overlay components. |
 | Persist entry data outside process memory | TBD | EntriesService still stores data in-memory; move to SQLite/Postgres so undo/report survive restarts. |

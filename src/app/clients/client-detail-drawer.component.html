@@ -1,4 +1,9 @@
-<article class="client-drawer" role="dialog" aria-modal="true" [attr.aria-labelledby]="'client-drawer-' + client.clientId">
+<article
+  class="client-drawer"
+  role="dialog"
+  aria-modal="true"
+  [attr.aria-labelledby]="'client-drawer-' + client.clientId"
+>
   <header class="client-drawer__header">
     <div>
       <p class="client-drawer__eyebrow">Client detail</p>
@@ -10,13 +15,20 @@
     <div class="client-drawer__header-actions">
       @if (!editingClient) {
         <button type="button" class="ghost" (click)="startClientEdit()">Edit client</button>
-        <button type="button" class="ghost danger" (click)="requestClientDelete()">Delete client</button>
+        <button type="button" class="ghost danger" (click)="requestClientDelete()">
+          Delete client
+        </button>
       } @else {
         <button type="button" class="ghost" (click)="cancelClientEdit()">Cancel</button>
         <button type="button" class="primary" (click)="submitClientEdits()">Save client</button>
       }
     </div>
-    <button type="button" class="client-drawer__close" (click)="closed.emit()" aria-label="Close details">
+    <button
+      type="button"
+      class="client-drawer__close"
+      (click)="closed.emit()"
+      aria-label="Close details"
+    >
       &times;
     </button>
   </header>
@@ -99,9 +111,7 @@
         <p class="client-drawer__state">Loading job history&hellip;</p>
       }
       @case ('error') {
-        <p class="client-drawer__state client-drawer__state--error">
-          Could not load job history.
-        </p>
+        <p class="client-drawer__state client-drawer__state--error">Could not load job history.</p>
       }
       @case ('ready') {
         @if ((detail?.history?.length ?? 0) > 0) {
@@ -110,7 +120,9 @@
               <li>
                 <div class="history__header">
                   <p class="history__date">{{ history.createdAt | date: 'MMM d, y, h:mm a' }}</p>
-                  <span class="history__badge" [attr.data-variant]="history.variant">{{ history.variant }}</span>
+                  <span class="history__badge" [attr.data-variant]="history.variant">{{
+                    history.variant
+                  }}</span>
                 </div>
                 <p class="history__job">
                   {{ history.jobType }}
@@ -150,8 +162,12 @@
                   <p class="history__note">{{ history.additionalDetails }}</p>
                 }
                 <div class="history__actions">
-                  <button type="button" class="ghost" (click)="requestEntryEdit(history)">Edit job</button>
-                  <button type="button" class="ghost danger" (click)="requestEntryDelete(history)">Delete job</button>
+                  <button type="button" class="ghost" (click)="requestEntryEdit(history)">
+                    Edit job
+                  </button>
+                  <button type="button" class="ghost danger" (click)="requestEntryDelete(history)">
+                    Delete job
+                  </button>
                 </div>
               </li>
             }

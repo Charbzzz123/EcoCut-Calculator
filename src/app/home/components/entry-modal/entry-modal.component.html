@@ -32,10 +32,11 @@
       @if (requiresCalendar()) {
         <app-entry-schedule-section [viewModel]="scheduleViewModel" [handlers]="scheduleHandlers"></app-entry-schedule-section>
       }
-        <footer class="form-footer">
-          <button type="button" class="ghost" (click)="closeModal()">Cancel</button>
-          <button type="submit" class="primary" [disabled]="isPrimaryDisabled()">{{ primaryLabelText }}</button>
-        </footer>
+        <app-entry-modal-footer
+          [primaryLabel]="primaryLabelText"
+          [primaryDisabled]="isPrimaryDisabled()"
+          (dismiss)="closeModal()"
+        ></app-entry-modal-footer>
       </form>
     </div>
   </div>

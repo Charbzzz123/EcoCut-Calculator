@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormControl } from '@angular/forms';
 import { vi } from 'vitest';
 import { EntryModalComponent, northAmericanPhoneValidator } from './entry-modal.component.js';
+import { EntryModalValidationService } from './entry-modal-validation.service.js';
 import {
   CalendarEventsServiceStub,
   EntryModalTestHandles,
@@ -1410,7 +1411,6 @@ describe('EntryModalComponent', () => {
     const orderingFixture = TestBed.createComponent(EntryModalComponent);
     const orderingComponent = orderingFixture.componentInstance;
     const exposed = orderingComponent as unknown as {
-      validateCalendarRange: () => boolean;
       calendarEndTimeError: string | null;
     };
     orderingComponent.open = true;
@@ -1420,7 +1420,8 @@ describe('EntryModalComponent', () => {
     orderingComponent.form.get('calendar.endTime')?.setValue('14:00');
     orderingFixture.detectChanges();
 
-    exposed.validateCalendarRange();
+    const validation = TestBed.inject(EntryModalValidationService);
+    validation.validateCalendarRange(orderingComponent['calendarGroup'], true);
     orderingFixture.detectChanges();
 
     expect(exposed.calendarEndTimeError).toBe('End time must be after the start time');
@@ -1606,7 +1607,7 @@ describe('EntryModalComponent', () => {
     customerComponent.form.get('calendar.startTime')?.setValue('10:00');
     customerComponent.form.get('calendar.endTime')?.setValue('09:00');
 
-    customerComponent['validateCalendarRange']();
+    TestBed.inject(EntryModalValidationService).validateCalendarRange(customerComponent['calendarGroup'], true);
     customerFixture.detectChanges();
 
     const calendarBlock = customerFixture.nativeElement.querySelector('.calendar-block') as HTMLElement | null;
@@ -1625,7 +1626,7 @@ describe('EntryModalComponent', () => {
     const endControl = component.form.get('calendar.endTime') as FormControl;
     endControl.setErrors({ timeOrder: true, required: true });
 
-    const valid = component['validateCalendarRange']();
+    const valid = TestBed.inject(EntryModalValidationService).validateCalendarRange(component['calendarGroup'], true);
     expect(valid).toBe(true);
     expect(endControl.errors).toEqual({ required: true });
   });
@@ -2052,7 +2053,7 @@ describe('EntryModalComponent', () => {
 
   it('marks calendar controls as touched when fields are missing', () => {
     component.variant = 'customer';
-    const result = component['validateCalendarRange']();
+    const result = TestBed.inject(EntryModalValidationService).validateCalendarRange(component['calendarGroup'], true);
     expect(result).toBe(false);
     const calendarControls = component['calendarGroup'].controls;
     expect(calendarControls.date.touched).toBe(true);
@@ -2068,7 +2069,7 @@ describe('EntryModalComponent', () => {
     const endControl = component.form.get('calendar.endTime') as FormControl;
     endControl.setErrors({ timeOrder: true });
 
-    const valid = component['validateCalendarRange']();
+    const valid = TestBed.inject(EntryModalValidationService).validateCalendarRange(component['calendarGroup'], true);
     expect(valid).toBe(true);
     expect(endControl.errors).toBeNull();
   });
