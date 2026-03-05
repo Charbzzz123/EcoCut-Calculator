@@ -5,7 +5,13 @@ Living checklist for in-flight feature work so we never lose track of what’s d
 ## ✅ Completed
 
 | Task | Done | Notes |
-| *(none yet — add next task here)* | --- | --- |
+| Stand up CI workflow for lint/test/build | --- | Add a GitHub Actions (or similar) pipeline that runs `npm run lint`, `npm run test:ci`, `npm run build`, and the Nest `npm run check` on every PR. |
+| Fix Husky/test scripts & lint-staged | --- | Add a `test:ci` script (no browser pop-up), have Husky run `npm run lint && npm run test:ci && npx lint-staged`, and keep the coverage viewer in a dev-only script. |
+| Mock calendar APIs in Angular specs | --- | Use HttpTestingController or dedicated mock services so unit tests don’t hit `/api` and spam 404 logs. |
+| Add Nest server Jest coverage | --- | Create Jest specs for `EntriesService`, `EntriesRepository`, and the calendar controller/service and run them via `npm run check`. |
+| Normalize docs encoding | --- | Convert `docs/*.md` to clean UTF-8 (replace mojibake like `â€”`, `ðŸ`) and note the rule in contributor docs. |
+| Document env + secrets template | --- | Provide `.env.example` / README instructions for `GOOGLE_CALENDAR_*` and other required vars so secrets stay out of git but onboarding stays easy. |
+| Add `npm run clean` for artifacts | --- | Add a script (rimraf) to remove `dist/`, `coverage/`, `server/dist/`, `server/data/*.json`, etc., and run it in CI to keep trees pristine. |
 | Restyle Clients page to match dark evergreen theme | 2026-03-04 | Banner + controls reuse home branding/CTA tokens. |
 | Normalize client search to ignore phone punctuation | 2026-03-04 | Search strips masking characters before matching. |
 | Job entries show scheduled slot, desired budget, hedge plan | 2026-03-05 | Drawer mirrors Google Calendar payload. |
