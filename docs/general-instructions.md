@@ -38,6 +38,7 @@ Build and maintain the EcoCut Calculator, an Angular 21 single-page app (SPA) th
 3. Keep `main`/`master` pristine for tagged releases only (alpha/beta/GA). Merge feature PRs into `dev`; promote to `main` only when the version is publish-ready.
 4. Build iteratively: design -> implement -> lint/test (all passing) -> review.
 5. Keep commits focused, logically sized, and descriptive; commit often enough to capture milestones without noise.
+6. Treat `docs/work-tracker.md` as the source of truth for in-flight tasks: review it before starting work and update it within the same PR whenever scope changes or tasks finish.
 6. Document UI/UX changes in the functionality doc and changelog (to add later).
 
 ## Communication

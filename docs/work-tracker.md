@@ -14,11 +14,12 @@ Living checklist for in-flight feature work so we never lose track of what’s d
 | Rule: keep repo clean (no stray compiled files committed) | 2026-03-03 | Added to general-instructions.md and enforced in reviews. |
 | Hedge plan displayed per job in client drawer | 2026-03-04 | Uses same structure as calendar descriptions. |
 | Extract entry-modal.spec helpers into shared test utilities | 2026-03-05 | Calendar/hedge harness moved to testing helpers + tsconfig excludes from coverage. |
+| Extract calendar timeline into standalone component | 2026-03-05 | `EntryTimelineComponent` now owns layout/styles/tests; modal stays lean. |
 
 ## 🔧 In Progress / Backlog
 
 | Task | Owner | Notes |
 | --- | --- | --- |
-| Split entry-modal feature into smaller subcomponents (form, timeline, calendar) | TBD | Current component/html/spec > 40 KB; aim for <1K lines each. |
+| Split entry-modal feature into smaller subcomponents (form + data sections still pending) | TBD | Timeline extracted to `EntryTimelineComponent`; remaining form + validation helpers need their own components/services. |
 | Break clients-shell component/spec into façade + child components | TBD | File sizes >10 KB / 16 KB; create toolbar, roster, overlay components. |
 | Persist entry data outside process memory | TBD | EntriesService still stores data in-memory; move to SQLite/Postgres so undo/report survive restarts. |
