@@ -7,6 +7,15 @@
         {{ client.address }}
       </p>
     </div>
+    <div class="client-drawer__header-actions">
+      @if (!editingClient) {
+        <button type="button" class="ghost" (click)="startClientEdit()">Edit client</button>
+        <button type="button" class="ghost danger" (click)="requestClientDelete()">Delete client</button>
+      } @else {
+        <button type="button" class="ghost" (click)="cancelClientEdit()">Cancel</button>
+        <button type="button" class="primary" (click)="submitClientEdits()">Save client</button>
+      }
+    </div>
     <button type="button" class="client-drawer__close" (click)="closed.emit()" aria-label="Close details">
       &times;
     </button>
@@ -14,32 +23,67 @@
 
   <section class="client-drawer__section">
     <h3>Contact</h3>
-    <dl>
-      <div>
-        <dt>Phone</dt>
-        <dd>{{ client.phone }}</dd>
-      </div>
-      @if (client.email) {
+    @if (editingClient) {
+      <form class="client-form" [formGroup]="clientForm" (ngSubmit)="submitClientEdits()">
+        <label>
+          <span>First name</span>
+          <input formControlName="firstName" />
+        </label>
+        <label>
+          <span>Last name</span>
+          <input formControlName="lastName" />
+        </label>
+        <label>
+          <span>Address</span>
+          <input formControlName="address" />
+        </label>
+        <label>
+          <span>Phone</span>
+          <input formControlName="phone" />
+        </label>
+        <label>
+          <span>Email</span>
+          <input formControlName="email" />
+        </label>
+      </form>
+    } @else {
+      <dl>
         <div>
-          <dt>Email</dt>
-          <dd>{{ client.email }}</dd>
+          <dt>Phone</dt>
+          <dd>{{ client.phone }}</dd>
         </div>
-      }
-      <div>
-        <dt>Jobs logged</dt>
-        <dd>{{ client.jobsCount }}</dd>
-      </div>
-      <div>
-        <dt>Last job date</dt>
-        <dd>
-          @if (client.lastJobDate) {
-            {{ client.lastJobDate | date: 'MMM d, y, h:mm a' }}
-          } @else {
-            &mdash;
-          }
-        </dd>
-      </div>
-    </dl>
+        @if (client.email) {
+          <div>
+            <dt>Email</dt>
+            <dd>{{ client.email }}</dd>
+          </div>
+        }
+        <div>
+          <dt>Jobs logged</dt>
+          <dd>{{ client.jobsCount }}</dd>
+        </div>
+        <div>
+          <dt>Last job</dt>
+          <dd>
+            @if (client.lastJobDate) {
+              {{ client.lastJobDate | date: 'MMM d, y, h:mm a' }}
+            } @else {
+              &mdash;
+            }
+          </dd>
+        </div>
+        <div>
+          <dt>Next job</dt>
+          <dd>
+            @if (client.nextJobDate) {
+              {{ client.nextJobDate | date: 'MMM d, y, h:mm a' }}
+            } @else {
+              &mdash;
+            }
+          </dd>
+        </div>
+      </dl>
+    }
   </section>
 
   <section class="client-drawer__section">
@@ -92,12 +136,26 @@
                     <span>&middot; {{ history.contactEmail }}</span>
                   }
                 </p>
+                @if (history.hedgePlan.length) {
+                  <div class="history__hedges">
+                    <p>Hedge plan</p>
+                    <ul>
+                      @for (plan of history.hedgePlan; track $index) {
+                        <li>{{ plan }}</li>
+                      }
+                    </ul>
+                  </div>
+                }
                 @if (history.desiredBudget) {
                   <p class="history__note">Desired budget: {{ history.desiredBudget }}</p>
                 }
                 @if (history.additionalDetails) {
                   <p class="history__note">{{ history.additionalDetails }}</p>
                 }
+                <div class="history__actions">
+                  <button type="button" class="ghost" (click)="requestEntryEdit(history)">Edit job</button>
+                  <button type="button" class="ghost danger" (click)="requestEntryDelete(history)">Delete job</button>
+                </div>
               </li>
             }
           </ul>

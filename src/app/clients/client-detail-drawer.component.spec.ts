@@ -1,16 +1,20 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import type { ClientDetail } from '../home/services/entry-repository.service.js';
 import { createEmptyHedgeConfigs } from '../home/models/entry-modal.models.js';
 import { ClientDetailDrawerComponent } from './client-detail-drawer.component.js';
 
 const detail: ClientDetail = {
   clientId: 'alex@example.com',
+  firstName: 'Alex',
+  lastName: 'Stone',
   fullName: 'Alex Stone',
   address: '123 Pine Ave',
   phone: '(438) 555-1111',
   email: 'alex@example.com',
   jobsCount: 2,
   lastJobDate: '2026-03-04T12:00:00Z',
+  nextJobDate: '2026-03-10T12:00:00Z',
   history: [
     {
       entryId: 'job-1',
@@ -29,6 +33,18 @@ const detail: ClientDetail = {
         timeZone: 'America/Toronto',
       },
       hedges: createEmptyHedgeConfigs(),
+      hedgePlan: ['Front Trim (i,t)'],
+      form: {
+        firstName: 'Alex',
+        lastName: 'Stone',
+        address: '123 Pine Ave',
+        phone: '(438) 555-1111',
+        email: 'alex@example.com',
+        jobType: 'Hedge Trimming',
+        jobValue: '$920',
+        desiredBudget: '$800',
+        additionalDetails: 'Leave debris curbside.',
+      },
     },
   ],
 };
@@ -50,6 +66,12 @@ describe('ClientDetailDrawerComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Loading job history');
   });
 
+  it('renders the edit form when toggled', () => {
+    fixture.componentInstance['editingClient'] = true;
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.client-form')).toBeTruthy();
+  });
+
   it('renders job history entries', () => {
     fixture.componentInstance.state = 'ready';
     fixture.componentInstance.detail = detail;
@@ -64,7 +86,9 @@ describe('ClientDetailDrawerComponent', () => {
     fixture.componentInstance.state = 'error';
     fixture.componentInstance.retry.subscribe(retrySpy);
     fixture.detectChanges();
-    const button = fixture.nativeElement.querySelector('.ghost') as HTMLButtonElement;
+    const button = fixture.nativeElement.querySelector(
+      '.client-drawer__section-heading button.ghost',
+    ) as HTMLButtonElement;
     button.click();
     expect(retrySpy).toHaveBeenCalled();
   });
@@ -74,6 +98,7 @@ describe('ClientDetailDrawerComponent', () => {
       ...detail,
       email: undefined,
       lastJobDate: '',
+      nextJobDate: undefined,
     };
     const emptyDetail: ClientDetail = { ...detail, history: [] };
     fixture.componentInstance.detail = emptyDetail;
@@ -81,6 +106,120 @@ describe('ClientDetailDrawerComponent', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('No jobs recorded yet.');
     expect(fixture.nativeElement.textContent).not.toContain('Email');
+  });
+
+  it('shows hedge plan and emits job edit/delete actions', () => {
+    const editSpy = vi.fn();
+    const deleteSpy = vi.fn();
+    fixture.componentInstance.state = 'ready';
+    fixture.componentInstance.detail = detail;
+    fixture.componentInstance.editEntry.subscribe(editSpy);
+    fixture.componentInstance.deleteEntry.subscribe(deleteSpy);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Front Trim');
+    const actionButtons = fixture.nativeElement.querySelectorAll('.history__actions button');
+    (actionButtons[0] as HTMLButtonElement).click();
+    (actionButtons[1] as HTMLButtonElement).click();
+    expect(editSpy).toHaveBeenCalledWith(detail.history[0]);
+    expect(deleteSpy).toHaveBeenCalledWith(detail.history[0]);
+  });
+
+  it('emits client updates when editing form is saved', () => {
+    const updateSpy = vi.fn();
+    fixture.componentInstance.updateClient.subscribe(updateSpy);
+    fixture.detectChanges();
+    fixture.componentInstance['startClientEdit']();
+    fixture.componentInstance.clientForm.controls.firstName.setValue('Alicia');
+    fixture.componentInstance['submitClientEdits']();
+    expect(updateSpy).toHaveBeenCalledWith(expect.objectContaining({ firstName: 'Alicia' }));
+  });
+
+  it('emits delete client event when requested', () => {
+    const deleteSpy = vi.fn();
+    fixture.componentInstance.deleteClient.subscribe(deleteSpy);
+    fixture.detectChanges();
+    const button = fixture.nativeElement.querySelector(
+      '.client-drawer__header-actions .danger',
+    ) as HTMLButtonElement;
+    button.click();
+    expect(deleteSpy).toHaveBeenCalled();
+  });
+
+  it('marks the form invalid when required fields are empty', () => {
+    fixture.detectChanges();
+    fixture.componentInstance['startClientEdit']();
+    fixture.componentInstance.clientForm.controls.firstName.setValue('');
+    fixture.componentInstance['submitClientEdits']();
+    expect(fixture.componentInstance.clientForm.invalid).toBe(true);
+  });
+
+  it('emits updates for every editable field', () => {
+    const updateSpy = vi.fn();
+    fixture.componentInstance.updateClient.subscribe(updateSpy);
+    fixture.detectChanges();
+    fixture.componentInstance['startClientEdit']();
+    fixture.componentInstance.clientForm.setValue({
+      firstName: 'Alex',
+      lastName: 'Stone Jr',
+      address: '999 Birch',
+      phone: '123',
+      email: 'alexjr@example.com',
+    });
+    fixture.componentInstance['submitClientEdits']();
+    expect(updateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastName: 'Stone Jr',
+        address: '999 Birch',
+        phone: '123',
+        email: 'alexjr@example.com',
+      }),
+    );
+  });
+
+  it('skips emitting when nothing changed', () => {
+    const updateSpy = vi.fn();
+    fixture.componentInstance.updateClient.subscribe(updateSpy);
+    fixture.detectChanges();
+    fixture.componentInstance['startClientEdit']();
+    fixture.componentInstance['submitClientEdits']();
+    expect(updateSpy).not.toHaveBeenCalled();
+  });
+
+  it('toggles edit mode via header actions', () => {
+    fixture.detectChanges();
+    const editButton = fixture.nativeElement.querySelector(
+      '.client-drawer__header-actions button.ghost',
+    ) as HTMLButtonElement;
+    editButton.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.client-form')).toBeTruthy();
+    const cancelButton = fixture.nativeElement.querySelector(
+      '.client-drawer__header-actions button.ghost',
+    ) as HTMLButtonElement;
+    cancelButton.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance['editingClient']).toBe(false);
+  });
+
+  it('submits edits through the form binding', () => {
+    const submitSpy = vi.spyOn(fixture.componentInstance as unknown as Record<string, any>, 'submitClientEdits');
+    fixture.detectChanges();
+    const editButton = fixture.nativeElement.querySelector(
+      '.client-drawer__header-actions button.ghost',
+    ) as HTMLButtonElement;
+    editButton.click();
+    fixture.detectChanges();
+    const form = fixture.nativeElement.querySelector('.client-form') as HTMLFormElement;
+    form.dispatchEvent(new Event('submit'));
+    expect(submitSpy).toHaveBeenCalled();
+  });
+
+  it('resets the form when cancelClientEdit is invoked', () => {
+    fixture.detectChanges();
+    fixture.componentInstance['startClientEdit']();
+    fixture.componentInstance.clientForm.controls.firstName.setValue('Reset');
+    fixture.componentInstance['cancelClientEdit']();
+    expect(fixture.componentInstance.clientForm.controls.firstName.value).toBe('');
   });
 
   it('emits closed when the close button is clicked', () => {

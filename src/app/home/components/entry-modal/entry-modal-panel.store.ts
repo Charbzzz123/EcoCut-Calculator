@@ -293,6 +293,20 @@ export class EntryModalPanelStore {
     this.stopDragging();
   }
 
+  loadFromConfigs(configs: Record<string, HedgeConfig>): void {
+    const nextStates = createEmptyHedgeState();
+    const nextConfigs = createEmptyHedgeConfigs();
+    HEDGE_IDS.forEach((hedgeId) => {
+      const config = configs[hedgeId] ?? { state: 'none' };
+      nextStates[hedgeId] = config.state ?? 'none';
+      nextConfigs[hedgeId] = { ...config };
+    });
+    this.hedgeStates.set(nextStates);
+    this.savedConfigs.set(nextConfigs);
+    this.panelState.set(null);
+    this.panelError.set(null);
+  }
+
   beginPanelDrag(event: PointerEvent): void {
     event.preventDefault();
     const grip = event.currentTarget as HTMLElement | null;

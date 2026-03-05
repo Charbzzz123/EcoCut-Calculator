@@ -219,3 +219,10 @@ Update this document whenever we clarify rules or add new functionality so imple
 - The roster remains keyboard-friendly: cards render as buttons so the drawer can be opened without a mouse, and focus is trapped inside the drawer until it’s closed.
 - All drawer logic is signal-driven and fully covered by unit tests so future CRM actions (quick actions, edit flows) can be added without refactoring the roster list again.
 
+### Client Editing & Hedge Plan Enhancements
+- Client history entries now show the saved hedge plan lines (trim/rabattage breakdown) alongside desired budget and notes so crews know exactly what was requested before rolling out.
+- Each job row in the drawer exposes **Edit job** and **Delete job** actions. Edit opens the shared Entry Modal prefilled with the job payload; saving issues a "PATCH /entries/:entryId" call. Delete confirms and routes through "DELETE /entries/:entryId" to keep the roster in sync.
+- Client metadata includes both **Last job** (only past-dated work) and **Next job** timestamps, mirroring the cards on the roster so upcoming bookings are obvious.
+- Owners/managers can update contact info inline (first/last name, address, phone, email). Submitting emits "PATCH /entries/clients/:clientId" which updates all matching entries and refreshes the roster + drawer immediately.
+- A Delete client action removes the customer (and all related jobs) via "DELETE /entries/clients/:clientId" after confirmation.
+- Search continues to ignore punctuation in phone numbers/emails, so typing raw digits (e.g., 4385551111) still matches entries stored as (438) 555-1111.

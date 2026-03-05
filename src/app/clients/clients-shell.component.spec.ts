@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { vi } from 'vitest';
 import type { ClientDetail, ClientSummary } from '../home/services/entry-repository.service.js';
 import { createEmptyHedgeConfigs } from '../home/models/entry-modal.models.js';
 import { EntryRepositoryService } from '../home/services/entry-repository.service.js';
@@ -8,29 +9,38 @@ import { ClientsShellComponent } from './clients-shell.component.js';
 const baseClients: ClientSummary[] = [
   {
     clientId: 'alex@example.com',
+    firstName: 'Alex',
+    lastName: 'Stone',
     fullName: 'Alex Stone',
     address: '123 Pine Ave',
     phone: '(438) 555-1111',
     email: 'alex@example.com',
     jobsCount: 2,
     lastJobDate: '2026-03-04T12:00:00Z',
+    nextJobDate: '2026-03-10T12:00:00Z',
   },
   {
     clientId: 'lana@example.com',
+    firstName: 'Lana',
+    lastName: 'Poe',
     fullName: 'Lana Poe',
     address: '55 Cedar St',
     phone: '(438) 555-2222',
     email: 'lana@example.com',
     jobsCount: 1,
     lastJobDate: '2026-02-10T15:00:00Z',
+    nextJobDate: '2026-03-20T12:00:00Z',
   },
   {
     clientId: 'parking',
+    firstName: 'Parking',
+    lastName: 'Lot',
     fullName: 'Parking Lot',
     address: 'Near HQ',
     phone: '(438) 555-3333',
     jobsCount: 1,
     lastJobDate: '',
+    nextJobDate: '',
   },
 ];
 
@@ -54,6 +64,18 @@ const clientDetail: ClientDetail = {
         timeZone: 'America/Toronto',
       },
       hedges: createEmptyHedgeConfigs(),
+      hedgePlan: ['Front Trim (i,t)'],
+      form: {
+        firstName: 'Alex',
+        lastName: 'Stone',
+        address: '123 Pine Ave',
+        phone: '(438) 555-1111',
+        email: 'alex@example.com',
+        jobType: 'Hedge Trimming',
+        jobValue: '$850',
+        desiredBudget: '$700',
+        additionalDetails: 'Bring debris bags.',
+      },
     },
   ],
 };
@@ -75,6 +97,15 @@ const secondClientDetail: ClientDetail = {
         timeZone: 'America/Toronto',
       },
       hedges: createEmptyHedgeConfigs(),
+      hedgePlan: [],
+      form: {
+        firstName: 'Lana',
+        lastName: 'Poe',
+        address: '55 Cedar St',
+        phone: '(438) 555-2222',
+        jobType: 'Rabattage',
+        jobValue: '$1,250',
+      },
     },
   ],
 };
@@ -82,6 +113,10 @@ const secondClientDetail: ClientDetail = {
 class EntryRepositoryServiceStub {
   listClients = vi.fn(() => Promise.resolve<ClientSummary[]>(baseClients));
   getClientDetail = vi.fn(() => Promise.resolve<ClientDetail>(clientDetail));
+  updateClient = vi.fn(() => Promise.resolve<ClientSummary>(baseClients[0]));
+  deleteClient = vi.fn(() => Promise.resolve());
+  updateEntry = vi.fn(() => Promise.resolve());
+  deleteEntry = vi.fn(() => Promise.resolve());
 }
 
 describe('ClientsShellComponent', () => {
@@ -112,6 +147,7 @@ describe('ClientsShellComponent', () => {
     expect(component.statsSnapshot().totalClients).toBe(3);
     expect(component.statsSnapshot().totalJobs).toBe(4);
     expect(component.filteredClientsSnapshot()).toHaveLength(3);
+    expect(component.statsSnapshot().nextJobDate).toBe('2026-03-10T12:00:00Z');
   });
 
   it('filters clients based on the search query', async () => {
@@ -124,6 +160,124 @@ describe('ClientsShellComponent', () => {
     component['querySignal'].set('no match');
     fixture.detectChanges();
     expect(component.filteredClientsSnapshot()).toHaveLength(0);
+  });
+
+  it('handles client update events', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await component.openClientDrawer(baseClients[0]);
+    await fixture.whenStable();
+    await component['handleClientUpdate']({ firstName: 'Alexis' });
+    expect(repository.updateClient).toHaveBeenCalledWith('alex@example.com', { firstName: 'Alexis' });
+  });
+
+  it('handles client deletion', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await component.openClientDrawer(baseClients[0]);
+    await fixture.whenStable();
+    await component['handleClientDelete']();
+    expect(repository.deleteClient).toHaveBeenCalledWith('alex@example.com');
+    confirmSpy.mockRestore();
+  });
+
+  it('opens entry editor and sends payload to modal', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await component.openClientDrawer(baseClients[0]);
+    await fixture.whenStable();
+    component['openEntryEditor'](clientDetail.history[0]);
+    expect(component.entryEditorOpen()).toBe(true);
+    expect(component.entryEditorPayload()?.form.firstName).toBe('Alex');
+  });
+
+  it('saves edited job via repository', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await component.openClientDrawer(baseClients[0]);
+    await fixture.whenStable();
+    component['openEntryEditor'](clientDetail.history[0]);
+    const payload = {
+      variant: clientDetail.history[0].variant,
+      form: clientDetail.history[0].form,
+      hedges: clientDetail.history[0].hedges,
+      calendar: clientDetail.history[0].calendar,
+    };
+    await component['handleEntryEditorSaved'](payload);
+    expect(repository.updateEntry).toHaveBeenCalledWith('job-1', expect.any(Object));
+  });
+
+  it('deletes job entries', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await component.openClientDrawer(baseClients[0]);
+    await fixture.whenStable();
+    await component['deleteHistoryEntry'](clientDetail.history[0]);
+    expect(repository.deleteEntry).toHaveBeenCalledWith('job-1');
+    confirmSpy.mockRestore();
+  });
+
+  it('no-ops client update/delete when no drawer is open', async () => {
+    component.closeDrawer();
+    await component['handleClientUpdate']({ firstName: 'Test' });
+    expect(repository.updateClient).not.toHaveBeenCalledWith('missing');
+    await component['handleClientDelete']();
+    expect(repository.deleteClient).not.toHaveBeenCalled();
+  });
+
+  it('warns when client update/delete fail', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await component.openClientDrawer(baseClients[0]);
+    await fixture.whenStable();
+    repository.updateClient.mockRejectedValueOnce(new Error('fail'));
+    await component['handleClientUpdate']({ firstName: 'Err' });
+    repository.deleteClient.mockRejectedValueOnce(new Error('boom'));
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await component['handleClientDelete']();
+    confirmSpy.mockRestore();
+    expect(warnSpy).toHaveBeenCalledWith('Failed to update client', expect.any(Error));
+    expect(warnSpy).toHaveBeenCalledWith('Failed to delete client', expect.any(Error));
+    warnSpy.mockRestore();
+  });
+
+  it('guards entry editor actions without state', async () => {
+    const payload = {
+      variant: 'warm-lead' as const,
+      form: clientDetail.history[0].form,
+      hedges: clientDetail.history[0].hedges,
+    };
+    await component['handleEntryEditorSaved'](payload);
+    expect(repository.updateEntry).not.toHaveBeenCalledWith('missing', expect.anything());
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    await component['deleteHistoryEntry'](clientDetail.history[0]);
+    confirmSpy.mockRestore();
+    expect(repository.deleteEntry).not.toHaveBeenCalledWith('job-1');
+  });
+
+  it('warns when entry update/delete fail', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await component.openClientDrawer(baseClients[0]);
+    await fixture.whenStable();
+    component['openEntryEditor'](clientDetail.history[0]);
+    repository.updateEntry.mockRejectedValueOnce(new Error('job-fail'));
+    await component['handleEntryEditorSaved']({
+      variant: clientDetail.history[0].variant,
+      form: clientDetail.history[0].form,
+      hedges: clientDetail.history[0].hedges,
+    });
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    repository.deleteEntry.mockRejectedValueOnce(new Error('delete-fail'));
+    await component['deleteHistoryEntry'](clientDetail.history[0]);
+    confirmSpy.mockRestore();
+    expect(warnSpy).toHaveBeenCalledWith('Failed to update job entry', expect.any(Error));
+    expect(warnSpy).toHaveBeenCalledWith('Failed to delete entry', expect.any(Error));
+    warnSpy.mockRestore();
   });
 
   it('matches phone numbers regardless of punctuation', async () => {

@@ -13,7 +13,14 @@ import {
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { debounceTime, distinctUntilChanged, startWith, Subscription } from 'rxjs';
-import type { ClientDetail, ClientSummary } from '../home/services/entry-repository.service.js';
+import type {
+  ClientDetail,
+  ClientHistoryEntry,
+  ClientSummary,
+  UpdateClientPayload,
+} from '../home/services/entry-repository.service.js';
+import { EntryModalComponent } from '../home/components/entry-modal/entry-modal.component.js';
+import type { EntryModalPayload, EntryVariant } from '../home/models/entry-modal.models.js';
 import { EntryRepositoryService } from '../home/services/entry-repository.service.js';
 import { ClientDetailDrawerComponent, ClientDetailState } from './client-detail-drawer.component.js';
 
@@ -34,7 +41,7 @@ const digitsOnly = (value: string): string => value.replace(/\D/g, '');
   selector: 'app-clients-shell',
   templateUrl: './clients-shell.component.html',
   styleUrls: ['./clients-shell.component.scss'],
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, ClientDetailDrawerComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, ClientDetailDrawerComponent, EntryModalComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ClientsShellComponent implements OnInit, OnDestroy {
@@ -49,6 +56,12 @@ export class ClientsShellComponent implements OnInit, OnDestroy {
   private readonly detailSignal = signal<ClientDetail | null>(null);
   private readonly detailStateSignal = signal<ClientDetailState>('loading');
   private detailRequestId = 0;
+  private readonly entryEditorOpenSignal = signal(false);
+  private readonly entryEditorPayloadSignal = signal<EntryModalPayload | null>(null);
+  private readonly entryEditorVariantSignal = signal<EntryVariant>('warm-lead');
+  private readonly entryEditorHeadlineSignal = signal('Edit job');
+  private readonly entryEditorEyebrowSignal = signal('Client job');
+  private editingEntryId: string | null = null;
 
   readonly headingId = 'client-roster-heading';
 
@@ -58,6 +71,11 @@ export class ClientsShellComponent implements OnInit, OnDestroy {
   readonly activeClient = this.activeClientSignal.asReadonly();
   readonly clientDetail = this.detailSignal.asReadonly();
   readonly detailState = this.detailStateSignal.asReadonly();
+  readonly entryEditorOpen = this.entryEditorOpenSignal.asReadonly();
+  readonly entryEditorPayload = this.entryEditorPayloadSignal.asReadonly();
+  readonly entryEditorVariant = this.entryEditorVariantSignal.asReadonly();
+  readonly entryEditorHeadline = this.entryEditorHeadlineSignal.asReadonly();
+  readonly entryEditorEyebrow = this.entryEditorEyebrowSignal.asReadonly();
 
   constructor() {
     const signals = createClientSignals();
@@ -86,6 +104,13 @@ export class ClientsShellComponent implements OnInit, OnDestroy {
       const clients = await this.repository.listClients();
       this.clientsSignal.set(clients);
       this.stateSignal.set('ready');
+      const active = this.activeClientSignal();
+      if (active) {
+        const refreshed = clients.find((client) => client.clientId === active.clientId);
+        if (refreshed) {
+          this.activeClientSignal.set(refreshed);
+        }
+      }
     } catch (error) {
       console.warn('Failed to load clients roster', error);
       this.stateSignal.set('error');
@@ -96,7 +121,12 @@ export class ClientsShellComponent implements OnInit, OnDestroy {
     return client.clientId;
   }
 
-  statsSnapshot(): { totalClients: number; totalJobs: number; mostRecentDate: string | null } {
+  statsSnapshot(): {
+    totalClients: number;
+    totalJobs: number;
+    mostRecentDate: string | null;
+    nextJobDate: string | null;
+  } {
     const clients = this.clientsSignal();
     const totalJobs = clients.reduce((acc, client) => acc + client.jobsCount, 0);
     const mostRecentDate = clients.reduce<string | null>((latest, client) => {
@@ -108,7 +138,16 @@ export class ClientsShellComponent implements OnInit, OnDestroy {
       }
       return latest;
     }, null);
-    return { totalClients: clients.length, totalJobs, mostRecentDate };
+    const nextJobDate = clients.reduce<string | null>((soonest, client) => {
+      if (!client.nextJobDate) {
+        return soonest;
+      }
+      if (!soonest || client.nextJobDate < soonest) {
+        return client.nextJobDate;
+      }
+      return soonest;
+    }, null);
+    return { totalClients: clients.length, totalJobs, mostRecentDate, nextJobDate };
   }
 
   filteredClientsSnapshot(): ClientSummary[] {
@@ -170,5 +209,107 @@ export class ClientsShellComponent implements OnInit, OnDestroy {
       }
       this.detailStateSignal.set('error');
     }
+  }
+
+  protected async handleClientUpdate(updates: UpdateClientPayload): Promise<void> {
+    const active = this.activeClientSignal();
+    if (!active) {
+      return;
+    }
+    try {
+      const summary = await this.repository.updateClient(active.clientId, updates);
+      this.activeClientSignal.set(summary);
+      await this.loadClients();
+      await this.fetchClientDetail(summary);
+    } catch (error) {
+      console.warn('Failed to update client', error);
+    }
+  }
+
+  protected async handleClientDelete(): Promise<void> {
+    const active = this.activeClientSignal();
+    if (!active) {
+      return;
+    }
+    const confirmed = window.confirm(`Delete ${active.fullName}? This removes all jobs too.`);
+    if (!confirmed) {
+      return;
+    }
+    try {
+      await this.repository.deleteClient(active.clientId);
+      await this.loadClients();
+      this.closeDrawer();
+    } catch (error) {
+      console.warn('Failed to delete client', error);
+    }
+  }
+
+  protected openEntryEditor(history: ClientHistoryEntry): void {
+    const active = this.activeClientSignal();
+    if (!active) {
+      return;
+    }
+    const payload = this.historyToPayload(history, active);
+    this.entryEditorPayloadSignal.set(payload);
+    this.entryEditorVariantSignal.set(history.variant);
+    this.entryEditorHeadlineSignal.set(`Edit ${history.jobType}`);
+    this.entryEditorEyebrowSignal.set(`${active.fullName} job`);
+    this.entryEditorOpenSignal.set(true);
+    this.editingEntryId = history.entryId;
+  }
+
+  protected closeEntryEditor(): void {
+    this.entryEditorOpenSignal.set(false);
+    this.entryEditorPayloadSignal.set(null);
+    this.editingEntryId = null;
+  }
+
+  protected async handleEntryEditorSaved(payload: EntryModalPayload): Promise<void> {
+    if (!this.editingEntryId) {
+      this.closeEntryEditor();
+      return;
+    }
+    try {
+      await this.repository.updateEntry(this.editingEntryId, payload);
+      await this.loadClients();
+      await this.reloadClientDetail();
+    } catch (error) {
+      console.warn('Failed to update job entry', error);
+    } finally {
+      this.closeEntryEditor();
+    }
+  }
+
+  protected async deleteHistoryEntry(history: ClientHistoryEntry): Promise<void> {
+    const confirmed = window.confirm(`Delete job "${history.jobType}"?`);
+    if (!confirmed) {
+      return;
+    }
+    try {
+      await this.repository.deleteEntry(history.entryId);
+      await this.loadClients();
+      await this.reloadClientDetail();
+    } catch (error) {
+      console.warn('Failed to delete entry', error);
+    }
+  }
+
+  private historyToPayload(history: ClientHistoryEntry, client: ClientSummary): EntryModalPayload {
+    return {
+      variant: history.variant,
+      form: history.form ?? {
+        firstName: client.firstName,
+        lastName: client.lastName,
+        address: history.location,
+        phone: history.contactPhone,
+        email: history.contactEmail,
+        jobType: history.jobType,
+        jobValue: history.jobValue,
+        desiredBudget: history.desiredBudget,
+        additionalDetails: history.additionalDetails,
+      },
+      hedges: history.hedges,
+      calendar: history.calendar,
+    };
   }
 }

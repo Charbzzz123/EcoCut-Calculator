@@ -45,6 +45,16 @@
         }
       </p>
     </article>
+    <article class="summary-card">
+      <p class="summary-card__label">Next job</p>
+      <p class="summary-card__value">
+        @if (statsSnapshot().nextJobDate) {
+          {{ statsSnapshot().nextJobDate | date: 'MMM d, y, h:mm a' }}
+        } @else {
+          &mdash;
+        }
+      </p>
+    </article>
   </section>
 
   <section class="clients-toolbar" aria-label="Client filters and actions">
@@ -97,6 +107,16 @@
                       }
                     </strong>
                   </p>
+                  <p class="client-card__meta client-card__meta--upcoming">
+                    Next job:
+                    <strong>
+                      @if (client.nextJobDate) {
+                        {{ client.nextJobDate | date: 'MMM d, y h:mm a' }}
+                      } @else {
+                        &mdash;
+                      }
+                    </strong>
+                  </p>
                 </button>
               </li>
             }
@@ -124,7 +144,27 @@
         [state]="detailState()"
         (closed)="closeDrawer()"
         (retry)="reloadClientDetail()"
+        (updateClient)="handleClientUpdate($event)"
+        (deleteClient)="handleClientDelete()"
+        (editEntry)="openEntryEditor($event)"
+        (deleteEntry)="deleteHistoryEntry($event)"
       ></app-client-detail-drawer>
+    </div>
+  }
+
+  @if (entryEditorOpen()) {
+    <div class="entry-editor-overlay">
+      <div class="entry-editor-backdrop" (click)="closeEntryEditor()" aria-hidden="true"></div>
+      <app-entry-modal
+        [open]="entryEditorOpen()"
+        [variant]="entryEditorVariant()"
+        [headline]="entryEditorHeadline()"
+        [eyebrow]="entryEditorEyebrow()"
+        primaryActionLabel="Update job"
+        [initialEntry]="entryEditorPayload()!"
+        (closed)="closeEntryEditor()"
+        (saved)="handleEntryEditorSaved($event)"
+      />
     </div>
   }
 </section>

@@ -10,12 +10,15 @@ export interface StoredEntry extends EntryModalPayload {
 
 export interface ClientSummary {
   clientId: string;
+  firstName: string;
+  lastName: string;
   fullName: string;
   address: string;
   phone: string;
   email?: string;
   jobsCount: number;
-  lastJobDate: string;
+  lastJobDate: string | null;
+  nextJobDate?: string | null;
   lastCalendarEventId?: string;
 }
 
@@ -32,10 +35,20 @@ export interface ClientHistoryEntry {
   additionalDetails?: string;
   calendar?: EntryModalPayload['calendar'];
   hedges: EntryModalPayload['hedges'];
+  hedgePlan: string[];
+  form: EntryModalPayload['form'];
 }
 
 export interface ClientDetail extends ClientSummary {
   history: ClientHistoryEntry[];
+}
+
+export interface UpdateClientPayload {
+  firstName?: string;
+  lastName?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -47,6 +60,16 @@ export class EntryRepositoryService {
     return firstValueFrom(this.http.post<StoredEntry>(this.baseUrl, payload));
   }
 
+  async updateEntry(entryId: string, payload: EntryModalPayload): Promise<StoredEntry> {
+    return firstValueFrom(
+      this.http.patch<StoredEntry>(`${this.baseUrl}/${entryId}`, payload),
+    );
+  }
+
+  async deleteEntry(entryId: string): Promise<void> {
+    return firstValueFrom(this.http.delete<void>(`${this.baseUrl}/${entryId}`));
+  }
+
   async listClients(): Promise<ClientSummary[]> {
     return firstValueFrom(this.http.get<ClientSummary[]>(`${this.baseUrl}/clients`));
   }
@@ -54,5 +77,17 @@ export class EntryRepositoryService {
   async getClientDetail(clientId: string): Promise<ClientDetail> {
     return firstValueFrom(this.http.get<ClientDetail>(`${this.baseUrl}/clients/${clientId}`));
   }
-}
 
+  async updateClient(
+    clientId: string,
+    payload: UpdateClientPayload,
+  ): Promise<ClientSummary> {
+    return firstValueFrom(
+      this.http.patch<ClientSummary>(`${this.baseUrl}/clients/${clientId}`, payload),
+    );
+  }
+
+  async deleteClient(clientId: string): Promise<void> {
+    return firstValueFrom(this.http.delete<void>(`${this.baseUrl}/clients/${clientId}`));
+  }
+}

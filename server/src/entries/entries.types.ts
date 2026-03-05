@@ -1,6 +1,7 @@
 import type {
   CreateEntryDto,
   EntryCalendarDto,
+  EntryFormDto,
   EntryVariant,
   HedgeConfigDto,
 } from './dto/create-entry.dto.js';
@@ -12,12 +13,15 @@ export interface StoredEntry extends CreateEntryDto {
 
 export interface ClientSummary {
   clientId: string;
+  firstName: string;
+  lastName: string;
   fullName: string;
   address: string;
   phone: string;
   email?: string;
   jobsCount: number;
-  lastJobDate: string;
+  lastJobDate: string | null;
+  nextJobDate?: string | null;
   lastCalendarEventId?: string;
 }
 
@@ -34,6 +38,8 @@ export interface ClientHistoryEntry {
   additionalDetails?: string;
   calendar?: EntryCalendarDto;
   hedges: Record<string, HedgeConfigDto>;
+  hedgePlan: string[];
+  form: EntryFormDto;
 }
 
 export interface ClientDetail extends ClientSummary {

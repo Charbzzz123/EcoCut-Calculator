@@ -85,6 +85,7 @@ interface TimelineEventBlock {
 export class EntryModalComponent implements OnDestroy {
   @Input({ required: true }) open = false;
   private _variant: EntryVariant = 'warm-lead';
+  private variantPrefillInProgress = false;
   @Input()
   get variant(): EntryVariant {
     return this._variant;
@@ -93,17 +94,28 @@ export class EntryModalComponent implements OnDestroy {
     this._variant = value;
     this.syncCalendarValidators();
     if (value === 'customer') {
-      this.ensureCalendarDefaults();
+      if (!this.variantPrefillInProgress) {
+        this.ensureCalendarDefaults();
+      }
     } else {
-      this.clearCalendarPreview();
-      this.hedgeSelectionError.set(null);
-      this.setEditingCalendarEvent(null);
+      if (!this.variantPrefillInProgress) {
+        this.clearCalendarPreview();
+        this.hedgeSelectionError.set(null);
+        this.setEditingCalendarEvent(null);
+      }
     }
   }
   @Input() headline?: string;
   @Input() eyebrow?: string;
   @Input() subcopy?: string;
   @Input() primaryActionLabel?: string;
+  @Input()
+  set initialEntry(value: EntryModalPayload | null) {
+    if (!value) {
+      return;
+    }
+    this.prefillFromPayload(value);
+  }
   @Output() closed = new EventEmitter<void>();
   @Output() saved = new EventEmitter<EntryModalPayload>();
 
@@ -447,6 +459,59 @@ export class EntryModalComponent implements OnDestroy {
     this.currentTimeMinutes.set(null);
     this.clearCurrentTimeTicker();
     this.setEditingCalendarEvent(null);
+  }
+
+  private prefillFromPayload(payload: EntryModalPayload): void {
+    this.variantPrefillInProgress = true;
+    this.variant = payload.variant;
+    this.variantPrefillInProgress = false;
+    this.resetModalState();
+    this.form.patchValue(
+      {
+        firstName: payload.form.firstName,
+        lastName: payload.form.lastName,
+        address: payload.form.address,
+        phone: payload.form.phone,
+        email: payload.form.email ?? '',
+        jobType: payload.form.jobType,
+        jobValue: payload.form.jobValue,
+        desiredBudget: payload.form.desiredBudget ?? '',
+        additionalDetails: payload.form.additionalDetails ?? '',
+      },
+      { emitEvent: false },
+    );
+    this.panelStore.loadFromConfigs(payload.hedges);
+    this.hedgeSelectionError.set(null);
+    if (payload.variant === 'customer' && payload.calendar) {
+      const date = this.isoToDateString(payload.calendar.start);
+      const startTime = this.isoToTimeString(payload.calendar.start);
+      const endTime = this.isoToTimeString(payload.calendar.end);
+      this.calendarGroup.patchValue(
+        {
+          date,
+          startTime,
+          endTime,
+        },
+        { emitEvent: false },
+      );
+      this.setTimelineSelectionFromTimes(startTime, endTime);
+      this.selectionConflict.set(false);
+      this.conflictSummary.set(null);
+      this.conflictConfirmed.set(false);
+      this.selectedSlotId.set(null);
+      this.syncCurrentTimeTicker();
+      void this.refreshCalendarEventsForDate(date);
+    } else {
+      this.calendarGroup.reset(
+        {
+          date: '',
+          startTime: '',
+          endTime: '',
+        },
+        { emitEvent: false },
+      );
+      this.clearCalendarPreview();
+    }
   }
 
   private async refreshCalendarEventsForDate(date: string): Promise<void> {

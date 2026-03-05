@@ -69,6 +69,11 @@ const createElementRef = (rect: Rect): ElementRef<HTMLElement> =>
     } as HTMLElement,
   }) as unknown as ElementRef<HTMLElement>;
 
+const localTimeString = (iso: string): string => {
+  const date = new Date(iso);
+  return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+};
+
 describe('EntryModalComponent', () => {
   let fixture: ComponentFixture<EntryModalComponent>;
   let component: EntryModalComponent;
@@ -79,6 +84,35 @@ describe('EntryModalComponent', () => {
     internals.canvasHost = ref;
     internals.panelStore.setCanvasHost(ref);
     return ref;
+  };
+  const defaultPayload: EntryModalPayload = {
+    variant: 'customer',
+    form: {
+      firstName: 'Lina',
+      lastName: 'Foret',
+      address: '12 Pine Ave',
+      phone: '5141112222',
+      email: 'lina@example.com',
+      jobType: 'Full trim',
+      jobValue: '$950',
+      desiredBudget: '900',
+      additionalDetails: 'Prefer mornings',
+    },
+    hedges: {
+      'hedge-1': { state: 'trim', trim: { mode: 'custom', inside: true } },
+      'hedge-2': { state: 'rabattage', rabattage: { option: 'partial', partialAmountText: '3ft' } },
+      'hedge-3': { state: 'none' },
+      'hedge-4': { state: 'none' },
+      'hedge-5': { state: 'none' },
+      'hedge-6': { state: 'none' },
+      'hedge-7': { state: 'none' },
+      'hedge-8': { state: 'none' },
+    },
+    calendar: {
+      start: '2026-04-02T13:00:00.000Z',
+      end: '2026-04-02T15:00:00.000Z',
+      timeZone: 'America/Toronto',
+    },
   };
 
   const hostRect: Rect = { left: 0, top: 0, right: 820, width: 820, height: 520 };
@@ -153,6 +187,34 @@ describe('EntryModalComponent', () => {
     expect(payload.hedges['hedge-1'].trim?.inside).toBe(true);
     expect(component['panelState']()).toBeNull();
     expect(component['hasSavedConfig']('hedge-1')).toBe(false);
+  });
+
+  it('prefills customer data when initialEntry is provided', async () => {
+    const payload = JSON.parse(JSON.stringify(defaultPayload)) as EntryModalPayload;
+    component.initialEntry = payload;
+    await fixture.whenStable();
+    const formValue = component['form'].value;
+    expect(formValue.firstName).toBe(payload.form.firstName);
+    expect(formValue.jobType).toBe(payload.form.jobType);
+    expect(component['calendarGroup'].value.date).toBe('2026-04-02');
+    expect(component['calendarGroup'].value.startTime).toBe(localTimeString(payload.calendar!.start));
+    expect(component['calendarGroup'].value.endTime).toBe(localTimeString(payload.calendar!.end));
+    const hedges = internals.panelStore.buildHedgePayload();
+    expect(hedges['hedge-1'].state).toBe('trim');
+    expect(calendarService.listEventsForDate).toHaveBeenCalledWith('2026-04-02');
+  });
+
+  it('prefill skips calendar loading for warm-lead entries', async () => {
+    const warmPayload: EntryModalPayload = {
+      ...(JSON.parse(JSON.stringify(defaultPayload)) as EntryModalPayload),
+      variant: 'warm-lead',
+      calendar: undefined,
+    };
+    calendarService.listEventsForDate.mockClear();
+    component.initialEntry = warmPayload;
+    await fixture.whenStable();
+    expect(component['calendarGroup'].value.date).toBe('');
+    expect(calendarService.listEventsForDate).not.toHaveBeenCalled();
   });
 
   it('blocks customer submissions without any hedge selections', () => {
