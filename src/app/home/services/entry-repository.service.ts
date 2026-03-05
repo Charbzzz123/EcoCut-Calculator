@@ -52,6 +52,18 @@ export interface UpdateClientPayload {
   email?: string;
 }
 
+export type ClientMatchReason =
+  | 'email'
+  | 'phone-address'
+  | 'phone-name'
+  | 'name-address';
+
+export interface ClientMatchResult {
+  client: ClientSummary;
+  matchedBy: ClientMatchReason;
+  descriptor: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class EntryRepositoryService {
   private readonly http = inject(HttpClient);
@@ -77,6 +89,12 @@ export class EntryRepositoryService {
 
   async getClientDetail(clientId: string): Promise<ClientDetail> {
     return firstValueFrom(this.http.get<ClientDetail>(`${this.baseUrl}/clients/${clientId}`));
+  }
+
+  async findClientMatch(form: EntryModalPayload['form']): Promise<ClientMatchResult | null> {
+    return firstValueFrom(
+      this.http.post<ClientMatchResult | null>(`${this.baseUrl}/clients/match`, { form }),
+    );
   }
 
   async updateClient(

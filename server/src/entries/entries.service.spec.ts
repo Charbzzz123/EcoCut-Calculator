@@ -140,4 +140,67 @@ describe('EntriesService', () => {
     expect(freshService.listEntries()).toHaveLength(1);
     expect(freshService.listClients()[0].jobsCount).toBe(1);
   });
+
+  it('matches clients by email and phone/address combos', async () => {
+    await service.createEntry(
+      createPayload({
+        form: {
+          firstName: 'Alex',
+          lastName: 'Stone',
+          address: '123 Pine',
+          phone: '(438) 555-1111',
+          email: 'alex@example.com',
+          jobType: 'Trim',
+          jobValue: '1200',
+        },
+      }),
+    );
+    await service.createEntry(
+      createPayload({
+        form: {
+          firstName: 'Jamie',
+          lastName: 'Brook',
+          address: '77 Cedar',
+          phone: '(438) 555-9999',
+          jobType: 'Trim',
+          jobValue: '900',
+        },
+      }),
+    );
+
+    const emailMatch = service.findClientMatch({
+      firstName: 'New',
+      lastName: 'Person',
+      address: '000 Test',
+      phone: '(438) 111-1111',
+      email: 'Alex@example.com',
+      jobType: 'Trim',
+      jobValue: '500',
+    });
+    expect(emailMatch?.matchedBy).toBe('email');
+    expect(emailMatch?.client.fullName).toBe('Alex Stone');
+
+    const phoneAddressMatch = service.findClientMatch({
+      firstName: 'Another',
+      lastName: 'Client',
+      address: '77 Cedar',
+      phone: '(438) 555-9999',
+      jobType: 'Trim',
+      jobValue: '500',
+    });
+    expect(phoneAddressMatch?.matchedBy).toBe('phone-address');
+    expect(phoneAddressMatch?.client.fullName).toBe('Jamie Brook');
+  });
+
+  it('returns null when no client matches', () => {
+    const result = service.findClientMatch({
+      firstName: 'Nobody',
+      lastName: 'Here',
+      address: '999 Nowhere',
+      phone: '111',
+      jobType: 'Trim',
+      jobValue: '100',
+    });
+    expect(result).toBeNull();
+  });
 });

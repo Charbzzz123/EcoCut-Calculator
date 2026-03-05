@@ -43,6 +43,11 @@ import {
   type EntryScheduleSectionHandlers,
   type EntryScheduleSectionViewModel,
 } from './entry-schedule-section/entry-schedule-section.component.js';
+import {
+  EntryRepositoryService,
+  type ClientMatchResult,
+} from '../../services/entry-repository.service.js';
+import { Subscription } from 'rxjs';
 
 export { northAmericanPhoneValidator } from './entry-modal-phone.util.js';
 
@@ -166,6 +171,7 @@ export class EntryModalComponent implements OnDestroy {
     notes: new FormControl('', { nonNullable: true }),
   });
   private readonly calendarService = inject(CalendarEventsService);
+  private readonly entryRepository = inject(EntryRepositoryService);
   /* c8 ignore next */
   protected readonly calendarEvents = signal<CalendarEventSummary[]>([]);
   /* c8 ignore next */
@@ -198,6 +204,13 @@ export class EntryModalComponent implements OnDestroy {
     'Click and drag to choose a slot. Conflicts require confirmation.';
   /* c8 ignore next */
   protected readonly editingCalendarEvent = signal<CalendarEventSummary | null>(null);
+  protected readonly duplicateMatch = signal<ClientMatchResult | null>(null);
+  protected readonly duplicateMatchError = signal<string | null>(null);
+  protected readonly duplicateCheckLoading = signal(false);
+  private pendingSubmissionPayload: EntryModalPayload | null = null;
+  private pendingSubmissionSignature: string | null = null;
+  private confirmedDuplicateSignature: string | null = null;
+  private readonly formChangesSub: Subscription;
   private syncEditingFormFromEvent(event: CalendarEventSummary | null): void {
     if (!event) {
       this.editingCalendarForm.reset({ summary: '', notes: '' });
@@ -271,6 +284,11 @@ export class EntryModalComponent implements OnDestroy {
     cancelCalendarEdit: () => this.cancelCalendarEdit(),
     formatEventTimeRange: (event) => this.formatEventTimeRange(event),
   };
+
+  constructor() {
+    this.formChangesSub = this.form.valueChanges.subscribe(() => this.resetDuplicateGuards());
+    this.syncCalendarValidators();
+  }
   protected get scheduleViewModel(): EntryScheduleSectionViewModel {
     return {
       calendarGroup: this.calendarGroup,
@@ -385,10 +403,6 @@ export class EntryModalComponent implements OnDestroy {
     return `${this.eventTimeFormatter.format(start)} – ${this.eventTimeFormatter.format(end)}`;
   }
 
-  constructor() {
-    this.syncCalendarValidators();
-  }
-
   protected cycleHedge(event: MouseEvent, hedgeId: HedgeId): void {
     event.stopPropagation();
     this.syncCanvasHost();
@@ -437,6 +451,7 @@ export class EntryModalComponent implements OnDestroy {
 
   protected closeModal(): void {
     this.resetModalState();
+    this.resetDuplicateGuards();
     this.closed.emit();
   }
 
@@ -444,7 +459,7 @@ export class EntryModalComponent implements OnDestroy {
     this.timelineGrid = ref;
   }
 
-  protected submitEntry(): void {
+  protected async submitEntry(): Promise<void> {
     this.syncCalendarValidators();
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -485,8 +500,13 @@ export class EntryModalComponent implements OnDestroy {
       payload.calendar = calendarPayload;
     }
 
-    this.saved.emit(payload);
-    this.resetModalState();
+    const signature = this.buildFormSignature(payload.form);
+    const duplicateCleared = await this.ensureDuplicateClearance(payload, signature);
+    if (!duplicateCleared) {
+      return;
+    }
+
+    this.finalizeSubmission(payload);
   }
 
   protected getHedgeState(hedgeId: HedgeId): HedgeState {
@@ -497,7 +517,121 @@ export class EntryModalComponent implements OnDestroy {
     return this.panelStore.hasSavedConfig(hedgeId);
   }
 
+  protected duplicateReasonText(match: ClientMatchResult | null = null): string | null {
+    const candidate = match ?? this.duplicateMatch();
+    if (!candidate) {
+      return null;
+    }
+    switch (candidate.matchedBy) {
+      case 'email':
+        return 'email address';
+      case 'phone-address':
+        return 'phone number + address';
+      case 'phone-name':
+        return 'phone number + name';
+      default:
+        return 'name + address';
+    }
+  }
+
+  protected confirmDuplicateAndSave(): void {
+    if (!this.pendingSubmissionPayload || !this.pendingSubmissionSignature) {
+      return;
+    }
+    this.confirmedDuplicateSignature = this.pendingSubmissionSignature;
+    const payload = this.pendingSubmissionPayload;
+    this.clearPendingSubmission();
+    this.resetDuplicatePrompts();
+    this.finalizeSubmission(payload);
+  }
+
+  protected dismissDuplicateWarning(): void {
+    this.resetDuplicatePrompts();
+    this.clearPendingSubmission();
+  }
+
+  protected async retryDuplicateCheck(): Promise<void> {
+    if (!this.pendingSubmissionPayload || !this.pendingSubmissionSignature) {
+      await this.submitEntry();
+      return;
+    }
+    const payload = this.pendingSubmissionPayload;
+    const signature = this.pendingSubmissionSignature;
+    this.duplicateMatchError.set(null);
+    const allowed = await this.ensureDuplicateClearance(payload, signature);
+    if (allowed) {
+      this.finalizeSubmission(payload);
+    }
+  }
+
   /* c8 ignore start */
+  private resetDuplicateGuards(): void {
+    this.resetDuplicatePrompts();
+    this.clearPendingSubmission();
+    this.confirmedDuplicateSignature = null;
+  }
+
+  private resetDuplicatePrompts(): void {
+    this.duplicateMatch.set(null);
+    this.duplicateMatchError.set(null);
+    this.duplicateCheckLoading.set(false);
+  }
+
+  private clearPendingSubmission(): void {
+    this.pendingSubmissionPayload = null;
+    this.pendingSubmissionSignature = null;
+  }
+
+  private finalizeSubmission(payload: EntryModalPayload): void {
+    this.saved.emit(payload);
+    this.resetModalState();
+    this.resetDuplicateGuards();
+  }
+
+  private buildFormSignature(form: EntryModalPayload['form']): string {
+    const email = form.email?.trim().toLowerCase() ?? '';
+    const phoneDigits = form.phone.replace(/\D/g, '');
+    const name = `${form.firstName}::${form.lastName}`.toLowerCase();
+    const address = form.address.trim().toLowerCase();
+    return `${email}::${phoneDigits}::${name}::${address}`;
+  }
+
+  private async ensureDuplicateClearance(
+    payload: EntryModalPayload,
+    signature: string,
+  ): Promise<boolean> {
+    if (this.variant !== 'customer') {
+      return true;
+    }
+    if (this.confirmedDuplicateSignature && this.confirmedDuplicateSignature === signature) {
+      return true;
+    }
+
+    this.duplicateMatchError.set(null);
+    this.duplicateMatch.set(null);
+    this.duplicateCheckLoading.set(true);
+
+    try {
+      const match = await this.entryRepository.findClientMatch(payload.form);
+      if (!match) {
+        this.clearPendingSubmission();
+        return true;
+      }
+      this.pendingSubmissionPayload = payload;
+      this.pendingSubmissionSignature = signature;
+      this.duplicateMatch.set(match);
+      return false;
+    } catch (error) {
+      console.error('Failed to check client match', error);
+      this.pendingSubmissionPayload = payload;
+      this.pendingSubmissionSignature = signature;
+      this.duplicateMatchError.set('Unable to check for existing clients. Please retry.');
+      return false;
+    } finally {
+      this.duplicateCheckLoading.set(false);
+    }
+  }
+
   private syncCalendarValidators(): void {
     const calendar = this.calendarGroup;
     const controls = [calendar.controls.date, calendar.controls.startTime, calendar.controls.endTime];
@@ -1199,6 +1333,7 @@ export class EntryModalComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.formChangesSub.unsubscribe();
     this.panelStore.destroy();
     this.stopTimelineDragListeners();
     this.clearCurrentTimeTicker();

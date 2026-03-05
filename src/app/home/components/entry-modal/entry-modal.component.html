@@ -7,31 +7,71 @@
           <h2>{{ headlineText }}</h2>
           <span class="modal-subcopy">{{ subcopyText }}</span>
         </div>
-        <button type="button" class="icon-btn" (click)="closeModal()" aria-label="Close dialog">&times;</button>
+        <button type="button" class="icon-btn" (click)="closeModal()" aria-label="Close dialog">
+          &times;
+        </button>
       </header>
 
       <form class="content" [formGroup]="form" (ngSubmit)="submitEntry()">
-      <app-entry-details-form
-        [form]="form"
-        [variant]="variant"
-        [hedgeSelectionError]="hedgeSelectionError()"
-        [hedges]="hedges"
-        [hedgePoints]="hedgePoints"
-        [panelState]="panelState"
-        [panelPosition]="panelPosition"
-        [panelError]="panelError"
-        [panelFloats]="panelFloatsFn"
-        [trimHasCustomSelections]="trimHasCustomSelectionsFn"
-        [trimPresetSelected]="trimPresetSelectedFn"
-        [hasSavedConfig]="hasSavedConfigFn"
-        [getHedgeState]="getHedgeStateFn"
-        [handlers]="detailsHandlers"
-        (canvasHostChange)="onCanvasHostChange($event)"
-      ></app-entry-details-form>
+        <app-entry-details-form
+          [form]="form"
+          [variant]="variant"
+          [hedgeSelectionError]="hedgeSelectionError()"
+          [hedges]="hedges"
+          [hedgePoints]="hedgePoints"
+          [panelState]="panelState"
+          [panelPosition]="panelPosition"
+          [panelError]="panelError"
+          [panelFloats]="panelFloatsFn"
+          [trimHasCustomSelections]="trimHasCustomSelectionsFn"
+          [trimPresetSelected]="trimPresetSelectedFn"
+          [hasSavedConfig]="hasSavedConfigFn"
+          [getHedgeState]="getHedgeStateFn"
+          [handlers]="detailsHandlers"
+          (canvasHostChange)="onCanvasHostChange($event)"
+        ></app-entry-details-form>
 
-      @if (requiresCalendar()) {
-        <app-entry-schedule-section [viewModel]="scheduleViewModel" [handlers]="scheduleHandlers"></app-entry-schedule-section>
-      }
+        @if (requiresCalendar()) {
+          <app-entry-schedule-section
+            [viewModel]="scheduleViewModel"
+            [handlers]="scheduleHandlers"
+          ></app-entry-schedule-section>
+        }
+        @if (duplicateCheckLoading()) {
+          <div class="duplicate-banner duplicate-banner--loading">Checking existing clients…</div>
+        } @else if (duplicateMatch(); as match) {
+          <div class="duplicate-banner">
+            <div class="duplicate-banner__text">
+              <strong>Existing client detected</strong>
+              <p>
+                We already have {{ match.client.fullName }} (matched by
+                {{ duplicateReasonText(match) }}). Log this job under their record?
+              </p>
+              <small>{{ match.descriptor }}</small>
+            </div>
+            <div class="duplicate-banner__actions">
+              <button type="button" class="ghost" (click)="dismissDuplicateWarning()">
+                Edit details
+              </button>
+              <button type="button" class="primary" (click)="confirmDuplicateAndSave()">
+                Use existing client
+              </button>
+            </div>
+          </div>
+        } @else if (duplicateMatchError(); as duplicateError) {
+          <div class="duplicate-banner duplicate-banner--error">
+            <div class="duplicate-banner__text">
+              <strong>Duplicate check failed</strong>
+              <p>{{ duplicateError }}</p>
+            </div>
+            <div class="duplicate-banner__actions">
+              <button type="button" class="ghost" (click)="retryDuplicateCheck()">
+                Retry check
+              </button>
+            </div>
+          </div>
+        }
+
         <app-entry-modal-footer
           [primaryLabel]="primaryLabelText"
           [primaryDisabled]="isPrimaryDisabled()"
@@ -41,4 +81,3 @@
     </div>
   </div>
 }
-

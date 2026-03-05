@@ -45,3 +45,15 @@ export interface ClientHistoryEntry {
 export interface ClientDetail extends ClientSummary {
   history: ClientHistoryEntry[];
 }
+
+export type ClientMatchReason =
+  | 'email'
+  | 'phone-address'
+  | 'phone-name'
+  | 'name-address';
+
+export interface ClientMatchResult {
+  client: ClientSummary;
+  matchedBy: ClientMatchReason;
+  descriptor: string;
+}

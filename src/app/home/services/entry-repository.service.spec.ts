@@ -136,4 +136,34 @@ describe('EntryRepositoryService', () => {
     deleteReq.flush(null);
     await expect(deletePromise).resolves.toBeNull();
   });
+
+  it('detects potential client duplicates', async () => {
+    const form = {
+      firstName: 'Alex',
+      lastName: 'Stone',
+      address: '123 Pine',
+      phone: '(438) 555-1111',
+      jobType: 'Trim',
+      jobValue: '500',
+    };
+    const promise = service.findClientMatch(form);
+    const req = httpMock.expectOne(`${baseUrl}/clients/match`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ form });
+    req.flush({
+      matchedBy: 'phone-address',
+      descriptor: '(438) 555-1111 • 123 Pine',
+      client: {
+        clientId: 'alex@example.com',
+        firstName: 'Alex',
+        lastName: 'Stone',
+        fullName: 'Alex Stone',
+        address: '123 Pine',
+        phone: '(438) 555-1111',
+        jobsCount: 2,
+        lastJobDate: '2026-03-04T12:00:00Z',
+      },
+    });
+    await expect(promise).resolves.toMatchObject({ matchedBy: 'phone-address' });
+  });
 });

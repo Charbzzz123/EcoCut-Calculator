@@ -1,4 +1,4 @@
-﻿.modal-backdrop {
+.modal-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(5, 8, 7, 0.82);
@@ -342,32 +342,45 @@ button:hover {
   }
 }
 
-.conflict-banner {
-  border: 1px solid rgba(255, 149, 64, 0.55);
+.duplicate-banner {
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 0.85rem;
-  padding: 0.65rem 0.85rem;
-  background: rgba(255, 149, 64, 0.1);
+  padding: 0.85rem 1rem;
   display: flex;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: 1rem;
   align-items: center;
+  background: rgba(4, 19, 11, 0.6);
 }
 
-.conflict-banner strong {
+.duplicate-banner strong {
   display: block;
   font-size: 0.9rem;
+  margin-bottom: 0.2rem;
 }
 
-.conflict-banner span {
-  font-size: 0.8rem;
+.duplicate-banner small {
+  color: var(--text-muted, #9fb3a8);
 }
 
-.conflict-banner .confirmed {
-  color: var(--accent, #6cf0bf);
+.duplicate-banner__text {
+  max-width: 70%;
 }
 
-.conflict-banner button {
-  white-space: nowrap;
+.duplicate-banner__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.duplicate-banner--error {
+  border-color: rgba(255, 149, 64, 0.55);
+  background: rgba(255, 149, 64, 0.08);
+}
+
+.duplicate-banner--loading {
+  justify-content: flex-start;
 }
 
 .editing-banner {

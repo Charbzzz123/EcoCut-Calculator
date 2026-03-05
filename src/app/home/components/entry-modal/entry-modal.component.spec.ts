@@ -15,12 +15,17 @@ import {
 } from './testing/entry-modal-test-helpers.js';
 import { EntryModalPayload } from '../../models/entry-modal.models.js';
 import { CalendarEventSummary, CalendarEventsService } from '../../services/calendar-events.service.js';
+class EntryRepositoryServiceStub {
+  findClientMatch = vi.fn().mockResolvedValue(null);
+}
+import { EntryRepositoryService } from '../../services/entry-repository.service.js';
 
 describe('EntryModalComponent', () => {
   let fixture: ComponentFixture<EntryModalComponent>;
   let component: EntryModalComponent;
   let internals: EntryModalTestHandles;
   let calendarService: CalendarEventsServiceStub;
+  let entryRepository: EntryRepositoryServiceStub;
   const defaultPayload: EntryModalPayload = {
     variant: 'customer',
     form: {
@@ -55,7 +60,10 @@ describe('EntryModalComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [EntryModalComponent],
-      providers: [{ provide: CalendarEventsService, useClass: CalendarEventsServiceStub }],
+      providers: [
+        { provide: CalendarEventsService, useClass: CalendarEventsServiceStub },
+        { provide: EntryRepositoryService, useClass: EntryRepositoryServiceStub },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(EntryModalComponent);
@@ -65,6 +73,7 @@ describe('EntryModalComponent', () => {
     assignCanvasHost(internals, hostRect);
     fixture.detectChanges();
     calendarService = TestBed.inject(CalendarEventsService) as unknown as CalendarEventsServiceStub;
+    entryRepository = TestBed.inject(EntryRepositoryService) as unknown as EntryRepositoryServiceStub;
   });
 
   it('ignores falsy initialEntry assignments', () => {
@@ -86,7 +95,7 @@ describe('EntryModalComponent', () => {
     expect((component as unknown as { primaryLabelText: string })['primaryLabelText']).toBe('Do It');
   });
 
-  it('cycles hedges and saves trim configuration in payload', () => {
+  it('cycles hedges and saves trim configuration in payload', async () => {
     const savedSpy = vi.fn();
     component.saved.subscribe(savedSpy);
 
@@ -114,7 +123,7 @@ describe('EntryModalComponent', () => {
     const previewPayload = internals.panelStore.buildHedgePayload();
     expect(previewPayload['hedge-1'].trim?.inside).toBe(true);
 
-    component['submitEntry']();
+    await component['submitEntry']();
 
     expect(savedSpy).toHaveBeenCalledTimes(1);
     const payload = savedSpy.mock.calls[0][0];
@@ -154,7 +163,7 @@ describe('EntryModalComponent', () => {
     expect(calendarService.listEventsForDate).not.toHaveBeenCalled();
   });
 
-  it('blocks customer submissions without any hedge selections', () => {
+  it('blocks customer submissions without any hedge selections', async () => {
     const savedSpy = vi.fn();
     component.saved.subscribe(savedSpy);
     (component as unknown as { _variant: 'warm-lead' | 'customer' })._variant = 'customer';
@@ -172,7 +181,7 @@ describe('EntryModalComponent', () => {
       },
     });
 
-    component['submitEntry']();
+    await component['submitEntry']();
 
     expect(savedSpy).not.toHaveBeenCalled();
     expect(component['hedgeSelectionError']()).toContain('Select at least one hedge');
@@ -191,7 +200,7 @@ describe('EntryModalComponent', () => {
     expect(component['hedgeSelectionError']()).toBeNull();
   });
 
-  it('includes hedge states in the payload even when configs are not saved explicitly', () => {
+  it('includes hedge states in the payload even when configs are not saved explicitly', async () => {
     const savedSpy = vi.fn();
     component.saved.subscribe(savedSpy);
     component.form.patchValue({
@@ -207,7 +216,7 @@ describe('EntryModalComponent', () => {
       'hedge-4': 'trim',
     });
 
-    component['submitEntry']();
+    await component['submitEntry']();
 
     expect(savedSpy).toHaveBeenCalledTimes(1);
     const payload = savedSpy.mock.calls[0][0] as EntryModalPayload;
@@ -713,17 +722,17 @@ describe('EntryModalComponent', () => {
     expect(fixture.nativeElement.querySelector('.hedge-panel')).toBeNull();
   });
 
-  it('prevents submission when the form is invalid', () => {
+  it('prevents submission when the form is invalid', async () => {
     const savedSpy = vi.fn();
     component.saved.subscribe(savedSpy);
 
-    component['submitEntry']();
+    await component['submitEntry']();
 
     expect(component.form.get('firstName')?.touched).toBe(true);
     expect(savedSpy).not.toHaveBeenCalled();
   });
 
-  it('requires calendar details for customer entries', () => {
+  it('requires calendar details for customer entries', async () => {
     const savedSpy = vi.fn();
     component.saved.subscribe(savedSpy);
     component.variant = 'customer';
@@ -736,13 +745,13 @@ describe('EntryModalComponent', () => {
       jobValue: '900',
     });
 
-    component['submitEntry']();
+    await component['submitEntry']();
 
     expect(savedSpy).not.toHaveBeenCalled();
     expect(component.form.get('calendar.date')?.touched).toBe(true);
   });
 
-  it('emits calendar payload when customer scheduling is provided', () => {
+  it('emits calendar payload when customer scheduling is provided', async () => {
     const savedSpy = vi.fn();
     component.saved.subscribe(savedSpy);
     component.variant = 'customer';
@@ -762,7 +771,7 @@ describe('EntryModalComponent', () => {
     component.form.get('calendar.startTime')?.setValue('09:00');
     component.form.get('calendar.endTime')?.setValue('11:00');
 
-    component['submitEntry']();
+    await component['submitEntry']();
 
     expect(savedSpy).toHaveBeenCalledTimes(1);
     const payload = savedSpy.mock.calls[0][0] as EntryModalPayload;
@@ -771,7 +780,7 @@ describe('EntryModalComponent', () => {
     expect(payload.calendar?.end).toContain('2026-03-05');
   });
 
-  it('flags when end time precedes start time and clears the error after fixing it', () => {
+  it('flags when end time precedes start time and clears the error after fixing it', async () => {
     const savedSpy = vi.fn();
     component.saved.subscribe(savedSpy);
     component.variant = 'customer';
@@ -787,12 +796,12 @@ describe('EntryModalComponent', () => {
     component.form.get('calendar.startTime')?.setValue('11:00');
     component.form.get('calendar.endTime')?.setValue('10:00');
 
-    component['submitEntry']();
+    await component['submitEntry']();
     expect(savedSpy).not.toHaveBeenCalled();
     expect(component.form.get('calendar.endTime')?.errors?.['timeOrder']).toBe(true);
 
     component.form.get('calendar.endTime')?.setValue('12:30');
-    component['submitEntry']();
+    await component['submitEntry']();
     expect(component.form.get('calendar.endTime')?.errors?.['timeOrder']).toBeUndefined();
   });
 
@@ -1209,7 +1218,7 @@ describe('EntryModalComponent', () => {
     expect(events.some((evt) => evt.column > 0)).toBe(true);
   });
 
-  it('blocks submission until calendar conflicts are confirmed', () => {
+  it('blocks submission until calendar conflicts are confirmed', async () => {
     component.variant = 'customer';
     component.form.patchValue({
       firstName: 'Jon',
@@ -1231,11 +1240,11 @@ describe('EntryModalComponent', () => {
     const savedSpy = vi.fn();
     component.saved.subscribe(savedSpy);
 
-    component['submitEntry']();
+    await component['submitEntry']();
     expect(savedSpy).not.toHaveBeenCalled();
 
     component['selectionConflict'].set(false);
-    component['submitEntry']();
+    await component['submitEntry']();
     expect(savedSpy).toHaveBeenCalledTimes(1);
   });
 
@@ -2157,6 +2166,125 @@ describe('EntryModalComponent', () => {
     expect(banner?.textContent).toContain('Banner event');
   });
 
+  it('skips duplicate checks for warm leads', async () => {
+    const savedSpy = vi.fn();
+    component.saved.subscribe(savedSpy);
+    component.variant = 'warm-lead';
+    component.form.patchValue({
+      firstName: 'Warm',
+      lastName: 'Lead',
+      address: '11 Test',
+      phone: '(438) 111-4444',
+      jobType: 'Trim',
+      jobValue: '400',
+    });
+
+    await component['submitEntry']();
+
+    expect(entryRepository.findClientMatch).not.toHaveBeenCalled();
+    expect(savedSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('prompts for confirmation when a duplicate customer exists', async () => {
+    const savedSpy = vi.fn();
+    component.saved.subscribe(savedSpy);
+    component.variant = 'customer';
+    component.form.patchValue({
+      firstName: 'Alex',
+      lastName: 'Stone',
+      address: '123 Pine',
+      phone: '(438) 555-1111',
+      jobType: 'Trim',
+      jobValue: '900',
+    });
+    component['hedgeStates'].set({ ...component['hedgeStates'](), 'hedge-1': 'trim' });
+    component.form.get('calendar.date')?.setValue('2026-03-05');
+    component.form.get('calendar.startTime')?.setValue('09:00');
+    component.form.get('calendar.endTime')?.setValue('10:00');
+    entryRepository.findClientMatch.mockResolvedValue({
+      matchedBy: 'phone-address',
+      descriptor: '(438) 555-1111 • 123 Pine',
+      client: {
+        clientId: 'alex@example.com',
+        firstName: 'Alex',
+        lastName: 'Stone',
+        fullName: 'Alex Stone',
+        address: '123 Pine',
+        phone: '(438) 555-1111',
+        jobsCount: 2,
+        lastJobDate: '2026-03-04T12:00:00Z',
+      },
+    });
+
+    await component['submitEntry']();
+
+    expect(savedSpy).not.toHaveBeenCalled();
+    expect(component['duplicateMatch']()?.client.fullName).toBe('Alex Stone');
+  });
+
+  it('saves after the user confirms the duplicate match', async () => {
+    const savedSpy = vi.fn();
+    component.saved.subscribe(savedSpy);
+    component.variant = 'customer';
+    component.form.patchValue({
+      firstName: 'Alex',
+      lastName: 'Stone',
+      address: '123 Pine',
+      phone: '(438) 555-1111',
+      jobType: 'Trim',
+      jobValue: '900',
+    });
+    component['hedgeStates'].set({ ...component['hedgeStates'](), 'hedge-1': 'trim' });
+    component.form.get('calendar.date')?.setValue('2026-03-05');
+    component.form.get('calendar.startTime')?.setValue('09:00');
+    component.form.get('calendar.endTime')?.setValue('10:00');
+    entryRepository.findClientMatch.mockResolvedValue({
+      matchedBy: 'phone-address',
+      descriptor: '(438) 555-1111 • 123 Pine',
+      client: {
+        clientId: 'alex@example.com',
+        firstName: 'Alex',
+        lastName: 'Stone',
+        fullName: 'Alex Stone',
+        address: '123 Pine',
+        phone: '(438) 555-1111',
+        jobsCount: 2,
+        lastJobDate: '2026-03-04T12:00:00Z',
+      },
+    });
+
+    await component['submitEntry']();
+    component['confirmDuplicateAndSave']();
+
+    expect(savedSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('surfaces duplicate check errors and allows retry', async () => {
+    const savedSpy = vi.fn();
+    component.saved.subscribe(savedSpy);
+    component.variant = 'customer';
+    component.form.patchValue({
+      firstName: 'Alex',
+      lastName: 'Stone',
+      address: '123 Pine',
+      phone: '(438) 555-1111',
+      jobType: 'Trim',
+      jobValue: '900',
+    });
+    component['hedgeStates'].set({ ...component['hedgeStates'](), 'hedge-1': 'trim' });
+    component.form.get('calendar.date')?.setValue('2026-03-05');
+    component.form.get('calendar.startTime')?.setValue('09:00');
+    component.form.get('calendar.endTime')?.setValue('10:00');
+    entryRepository.findClientMatch.mockRejectedValue(new Error('boom'));
+
+    await component['submitEntry']();
+    expect(component['duplicateMatchError']()).toContain('Unable to check');
+
+    entryRepository.findClientMatch.mockResolvedValue(null);
+    await component['retryDuplicateCheck']();
+    expect(savedSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('routes editing banner actions through template buttons', async () => {
     component.variant = 'customer';
     component.open = true;
@@ -2408,7 +2536,94 @@ describe('EntryModalComponent', () => {
     expect(errorEl?.textContent).toContain('Select at least one hedge');
   });
 
-  it('submits the form via the ngSubmit binding', () => {
+  it('renders the duplicate confirmation banner with descriptor', () => {
+    component.open = true;
+    component['duplicateMatch'].set({
+      matchedBy: 'phone-address',
+      descriptor: '(438) 555-1111 • 123 Pine',
+      client: {
+        clientId: 'alex@example.com',
+        firstName: 'Alex',
+        lastName: 'Stone',
+        fullName: 'Alex Stone',
+        address: '123 Pine',
+        phone: '(438) 555-1111',
+        jobsCount: 2,
+        lastJobDate: '2026-03-04T12:00:00Z',
+      },
+    });
+    fixture.detectChanges();
+
+    const banner = fixture.nativeElement.querySelector('.duplicate-banner') as HTMLElement;
+    expect(banner?.textContent).toContain('Existing client detected');
+    expect(banner?.textContent).toContain('(438) 555-1111 • 123 Pine');
+  });
+
+  it('renders duplicate check errors in the template', () => {
+    component.open = true;
+    component['duplicateMatchError'].set('Unable to check for existing clients. Please retry.');
+    fixture.detectChanges();
+
+    const banner = fixture.nativeElement.querySelector('.duplicate-banner--error') as HTMLElement;
+    expect(banner?.textContent).toContain('Duplicate check failed');
+  });
+
+  it('renders the duplicate loading state', () => {
+    component.open = true;
+    component['duplicateCheckLoading'].set(true);
+    fixture.detectChanges();
+
+    const banner = fixture.nativeElement.querySelector('.duplicate-banner--loading') as HTMLElement;
+    expect(banner?.textContent).toContain('Checking existing clients');
+  });
+
+  it('routes duplicate banner actions through template buttons', () => {
+    component.open = true;
+    const match = {
+      matchedBy: 'phone-address' as const,
+      descriptor: '(438) 555-1111 • 123 Pine',
+      client: {
+        clientId: 'alex@example.com',
+        firstName: 'Alex',
+        lastName: 'Stone',
+        fullName: 'Alex Stone',
+        address: '123 Pine',
+        phone: '(438) 555-1111',
+        jobsCount: 2,
+        lastJobDate: '2026-03-04T12:00:00Z',
+      },
+    };
+    component['duplicateMatch'].set(match);
+    const dismissSpy = vi.spyOn(component as unknown as { dismissDuplicateWarning(): void }, 'dismissDuplicateWarning');
+    fixture.detectChanges();
+    const dismissBtn = fixture.nativeElement.querySelector('.duplicate-banner .ghost') as HTMLButtonElement;
+    dismissBtn.click();
+    expect(dismissSpy).toHaveBeenCalled();
+
+    component['duplicateMatch'].set(match);
+    const confirmSpy = vi.spyOn(
+      component as unknown as { confirmDuplicateAndSave(): void },
+      'confirmDuplicateAndSave',
+    );
+    fixture.detectChanges();
+    const confirmBtn = fixture.nativeElement.querySelector('.duplicate-banner .primary') as HTMLButtonElement;
+    confirmBtn.click();
+    expect(confirmSpy).toHaveBeenCalled();
+  });
+
+  it('routes duplicate retry action through the template button', () => {
+    component.open = true;
+    component['duplicateMatchError'].set('Unable to check for existing clients. Please retry.');
+    const retrySpy = vi
+      .spyOn(component as unknown as { retryDuplicateCheck(): Promise<void> }, 'retryDuplicateCheck')
+      .mockResolvedValue();
+    fixture.detectChanges();
+    const retryBtn = fixture.nativeElement.querySelector('.duplicate-banner--error button') as HTMLButtonElement;
+    retryBtn.click();
+    expect(retrySpy).toHaveBeenCalled();
+  });
+
+  it('submits the form via the ngSubmit binding', async () => {
     const savedSpy = vi.fn();
     component.saved.subscribe(savedSpy);
     component.form.patchValue({
@@ -2427,7 +2642,7 @@ describe('EntryModalComponent', () => {
     const formEl = fixture.nativeElement.querySelector('form') as HTMLFormElement;
     formEl.dispatchEvent(new Event('submit'));
     fixture.detectChanges();
-
+    await fixture.whenStable();
     expect(savedSpy).toHaveBeenCalledTimes(1);
   });
 

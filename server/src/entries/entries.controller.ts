@@ -10,6 +10,7 @@ import {
 import { EntriesService } from './entries.service.js';
 import type { CreateEntryDto } from './dto/create-entry.dto.js';
 import type { UpdateClientDto } from './dto/update-client.dto.js';
+import type { FindClientMatchDto } from './dto/find-client-match.dto.js';
 
 @Controller('entries')
 export class EntriesController {
@@ -54,5 +55,10 @@ export class EntriesController {
   @Delete('clients/:clientId')
   removeClient(@Param('clientId') clientId: string) {
     return this.entries.deleteClient(clientId);
+  }
+
+  @Post('clients/match')
+  findClientMatch(@Body() body: FindClientMatchDto) {
+    return this.entries.findClientMatch(body.form);
   }
 }

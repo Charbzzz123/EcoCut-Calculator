@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type {
   CreateEntryDto,
+  EntryFormDto,
   HedgeConfigDto,
   RabattageConfigDto,
   TrimConfigDto,
@@ -10,6 +11,8 @@ import type { UpdateClientDto } from './dto/update-client.dto.js';
 import { EntriesRepository } from './entries.repository.js';
 import type {
   ClientDetail,
+  ClientMatchReason,
+  ClientMatchResult,
   ClientSummary,
   StoredEntry,
 } from './entries.types.js';
@@ -94,6 +97,73 @@ export class EntriesService implements OnModuleInit {
       }
       return 0;
     });
+  }
+
+  findClientMatch(form: EntryFormDto): ClientMatchResult | null {
+    const email = this.normalizeEmail(form.email);
+    if (email) {
+      const byEmail = this.findClient((client) => {
+        const clientEmail = this.normalizeEmail(client.email);
+        return Boolean(clientEmail && clientEmail === email);
+      });
+      if (byEmail) {
+        return this.buildMatchResult(byEmail, 'email', byEmail.email ?? email);
+      }
+    }
+
+    const phone = this.normalizePhone(form.phone);
+    const address = this.normalizeAddress(form.address);
+    const nameKey = this.normalizeName(form.firstName, form.lastName);
+
+    if (phone && address) {
+      const byPhoneAddress = this.findClient((client) => {
+        return (
+          this.normalizePhone(client.phone) === phone &&
+          this.normalizeAddress(client.address) === address
+        );
+      });
+      if (byPhoneAddress) {
+        return this.buildMatchResult(
+          byPhoneAddress,
+          'phone-address',
+          this.describePhoneAddress(byPhoneAddress),
+        );
+      }
+    }
+
+    if (phone && nameKey) {
+      const byPhoneName = this.findClient((client) => {
+        return (
+          this.normalizePhone(client.phone) === phone &&
+          this.normalizeName(client.firstName, client.lastName) === nameKey
+        );
+      });
+      if (byPhoneName) {
+        return this.buildMatchResult(
+          byPhoneName,
+          'phone-name',
+          this.describePhoneName(byPhoneName),
+        );
+      }
+    }
+
+    if (nameKey && address) {
+      const byNameAddress = this.findClient((client) => {
+        return (
+          this.normalizeName(client.firstName, client.lastName) === nameKey &&
+          this.normalizeAddress(client.address) === address
+        );
+      });
+      if (byNameAddress) {
+        return this.buildMatchResult(
+          byNameAddress,
+          'name-address',
+          this.describeNameAddress(byNameAddress),
+        );
+      }
+    }
+
+    return null;
   }
 
   getClientDetails(clientId: string): ClientDetail {
@@ -213,6 +283,17 @@ export class EntriesService implements OnModuleInit {
     }
   }
 
+  private findClient(
+    predicate: (client: ClientSummary) => boolean,
+  ): ClientSummary | undefined {
+    for (const client of this.clients.values()) {
+      if (predicate(client)) {
+        return client;
+      }
+    }
+    return undefined;
+  }
+
   private upsertClientSummary(entry: StoredEntry): void {
     const key = this.computeClientKey(entry);
     const existing = this.clients.get(key);
@@ -321,6 +402,63 @@ export class EntriesService implements OnModuleInit {
         ([, value]) => value !== undefined && value !== '',
       ),
     ) as UpdateClientDto;
+  }
+
+  private normalizeEmail(value?: string): string | null {
+    const trimmed = value?.trim().toLowerCase();
+    return trimmed && trimmed.length > 0 ? trimmed : null;
+  }
+
+  private normalizePhone(value?: string): string | null {
+    const digits = value?.replace(/\D/g, '');
+    return digits && digits.length > 0 ? digits : null;
+  }
+
+  private normalizeAddress(value?: string): string | null {
+    const trimmed = value?.trim().toLowerCase();
+    return trimmed && trimmed.length > 0 ? trimmed : null;
+  }
+
+  private normalizeName(firstName?: string, lastName?: string): string | null {
+    const first = firstName?.trim() ?? '';
+    const last = lastName?.trim() ?? '';
+    const full = `${first} ${last}`.trim().toLowerCase();
+    return full.length > 0 ? full : null;
+  }
+
+  private buildMatchResult(
+    client: ClientSummary,
+    matchedBy: ClientMatchReason,
+    descriptor: string,
+  ): ClientMatchResult {
+    return {
+      client,
+      matchedBy,
+      descriptor,
+    };
+  }
+
+  private describePhoneAddress(client: ClientSummary): string {
+    const phone = client.phone ?? '';
+    const address = client.address ?? '';
+    if (phone && address) {
+      return `${phone} • ${address}`;
+    }
+    return phone || address || client.fullName;
+  }
+
+  private describePhoneName(client: ClientSummary): string {
+    if (client.phone && client.fullName) {
+      return `${client.phone} • ${client.fullName}`;
+    }
+    return client.phone ?? client.fullName;
+  }
+
+  private describeNameAddress(client: ClientSummary): string {
+    if (client.fullName && client.address) {
+      return `${client.fullName} @ ${client.address}`;
+    }
+    return client.fullName || client.address || client.clientId;
   }
 
   private describeHedgePlan(hedges: HedgeConfigMap): string[] {
