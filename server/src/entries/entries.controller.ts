@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { EntriesService } from './entries.service.js';
 import type { CreateEntryDto } from './dto/create-entry.dto.js';
 
@@ -20,4 +20,9 @@ export class EntriesController {
   listClients() {
     return this.entries.listClients();
   }
+  @Get('clients/:clientId')
+  getClient(@Param('clientId') clientId: string) {
+    return this.entries.getClientDetails(clientId);
+  }
 }
+

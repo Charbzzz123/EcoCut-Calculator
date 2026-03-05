@@ -62,4 +62,21 @@ describe('EntryRepositoryService', () => {
 
     await expect(promise).resolves.toHaveLength(1);
   });
+
+  it('gets client details from the API', async () => {
+    const promise = service.getClientDetail('alex@example.com');
+    const req = httpMock.expectOne('/api/entries/clients/alex@example.com');
+    expect(req.request.method).toBe('GET');
+    req.flush({
+      clientId: 'alex@example.com',
+      fullName: 'Alex Stone',
+      address: '123 Pine',
+      phone: '(438) 555-1111',
+      jobsCount: 2,
+      lastJobDate: '2026-03-04T12:00:00Z',
+      history: [],
+    });
+
+    await expect(promise).resolves.toMatchObject({ clientId: 'alex@example.com' });
+  });
 });

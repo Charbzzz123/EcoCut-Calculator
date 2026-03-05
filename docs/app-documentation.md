@@ -102,3 +102,11 @@ root/
 - **Brand assets** belong in public/assets/brand/. Expected files: eco-logo.png (wordmark) and eco-mascot.png (character). A placeholder SVG loads if the mascot file is absent.
 
 
+### Client detail drawer implementation
+- `/clients` now composes `ClientsShellComponent` with `ClientDetailDrawerComponent`. Cards render as buttons and open the drawer, which fetches data via `EntryRepositoryService.getClientDetail` and renders contact info plus job history.
+- Drawer state is driven entirely by signals (`activeClient`, `clientDetail`, `detailState`). Requests are guarded with a `detailRequestId` so stale responses don’t clobber newer selections.
+- Tests (`clients-shell.component.spec.ts`, `client-detail-drawer.component.spec.ts`) cover the roster interactions, overlay behavior, error/retry UX, and drawer rendering states to keep coverage at 100%.
+
+### Entries API updates
+- Added `GET /entries/clients/:clientId` which merges the stored client summary with the append-only job history for that key. History rows include variant, form info, calendar metadata, and hedge configs so UI layers can render deep CRM timelines later.
+- `EntriesService` exposes `getClientDetails` and throws `NotFoundException` when a key is missing; `EntryRepositoryService` now shares the `ClientDetail`/`ClientHistoryEntry` types with the frontend.

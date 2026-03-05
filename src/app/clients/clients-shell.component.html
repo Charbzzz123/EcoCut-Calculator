@@ -23,7 +23,7 @@
         @if (statsSnapshot().mostRecentDate) {
           {{ statsSnapshot().mostRecentDate | date: 'MMM d, y, h:mm a' }}
         } @else {
-          —
+          &mdash;
         }
       </p>
     </article>
@@ -44,11 +44,11 @@
   <section class="clients-roster" aria-live="polite">
     @switch (loadState()) {
       @case ('loading') {
-        <div class="clients-roster__state">Loading client roster…</div>
+        <div class="clients-roster__state">Loading client roster&hellip;</div>
       }
       @case ('error') {
         <div class="clients-roster__state clients-roster__state--error">
-          <p>We couldn’t load clients right now.</p>
+          <p>We couldn't load clients right now.</p>
           <button type="button" (click)="loadClients()">Try again</button>
         </div>
       }
@@ -56,24 +56,30 @@
         @if (filteredClientsSnapshot().length) {
           <ul class="client-list">
             @for (client of filteredClientsSnapshot(); track trackByClientId($index, client)) {
-              <li class="client-card">
-                <div class="client-card__header">
-                  <p class="client-card__name">{{ client.fullName }}</p>
-                  <p class="client-card__jobs">{{ client.jobsCount }} job(s)</p>
-                </div>
-                <p class="client-card__contact">
-                  <span>{{ client.phone }}</span>
-                  @if (client.email) {
-                    <span>&middot; {{ client.email }}</span>
-                  }
-                </p>
-                <p class="client-card__address">{{ client.address }}</p>
-                <p class="client-card__meta">
-                  Last job:
-                  <strong>
-                    {{ client.lastJobDate ? (client.lastJobDate | date: 'MMM d, y h:mm a') : '—' }}
-                  </strong>
-                </p>
+              <li>
+                <button type="button" class="client-card" (click)="openClientDrawer(client)">
+                  <div class="client-card__header">
+                    <p class="client-card__name">{{ client.fullName }}</p>
+                    <p class="client-card__jobs">{{ client.jobsCount }} job(s)</p>
+                  </div>
+                  <p class="client-card__contact">
+                    <span>{{ client.phone }}</span>
+                    @if (client.email) {
+                      <span>&middot; {{ client.email }}</span>
+                    }
+                  </p>
+                  <p class="client-card__address">{{ client.address }}</p>
+                  <p class="client-card__meta">
+                    Last job:
+                    <strong>
+                      @if (client.lastJobDate) {
+                        {{ client.lastJobDate | date: 'MMM d, y h:mm a' }}
+                      } @else {
+                        &mdash;
+                      }
+                    </strong>
+                  </p>
+                </button>
               </li>
             }
           </ul>
@@ -85,4 +91,22 @@
       }
     }
   </section>
+
+  @if (drawerVisible()) {
+    <div class="client-detail-overlay" aria-live="polite">
+      <button
+        type="button"
+        aria-label="Close client drawer"
+        class="client-detail-overlay__backdrop"
+        (click)="closeDrawer()"
+      ></button>
+      <app-client-detail-drawer
+        [client]="activeClient()!"
+        [detail]="clientDetail()"
+        [state]="detailState()"
+        (closed)="closeDrawer()"
+        (retry)="reloadClientDetail()"
+      ></app-client-detail-drawer>
+    </div>
+  }
 </section>

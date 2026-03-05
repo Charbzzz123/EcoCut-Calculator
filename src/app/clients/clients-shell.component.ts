@@ -13,8 +13,9 @@ import {
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { debounceTime, distinctUntilChanged, startWith, Subscription } from 'rxjs';
-import type { ClientSummary } from '../home/services/entry-repository.service.js';
+import type { ClientDetail, ClientSummary } from '../home/services/entry-repository.service.js';
 import { EntryRepositoryService } from '../home/services/entry-repository.service.js';
+import { ClientDetailDrawerComponent, ClientDetailState } from './client-detail-drawer.component.js';
 
 type LoadState = 'loading' | 'ready' | 'error';
 
@@ -31,7 +32,7 @@ const createClientSignals = () => {
   selector: 'app-clients-shell',
   templateUrl: './clients-shell.component.html',
   styleUrls: ['./clients-shell.component.scss'],
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, ClientDetailDrawerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ClientsShellComponent implements OnInit, OnDestroy {
@@ -42,11 +43,19 @@ export class ClientsShellComponent implements OnInit, OnDestroy {
   private readonly clientsSignal: WritableSignal<ClientSummary[]>;
   private readonly stateSignal: WritableSignal<LoadState>;
   private readonly querySignal: WritableSignal<string>;
+  private readonly activeClientSignal = signal<ClientSummary | null>(null);
+  private readonly detailSignal = signal<ClientDetail | null>(null);
+  private readonly detailStateSignal = signal<ClientDetailState>('loading');
+  private detailRequestId = 0;
 
   readonly headingId = 'client-roster-heading';
 
   readonly loadState: Signal<LoadState>;
   readonly query = this.queryControl;
+  readonly drawerVisible = computed(() => this.activeClientSignal() !== null);
+  readonly activeClient = this.activeClientSignal.asReadonly();
+  readonly clientDetail = this.detailSignal.asReadonly();
+  readonly detailState = this.detailStateSignal.asReadonly();
 
   constructor() {
     const signals = createClientSignals();
@@ -114,5 +123,44 @@ export class ClientsShellComponent implements OnInit, OnDestroy {
         (client.email?.toLowerCase().includes(term) ?? false)
       );
     });
+  }
+
+  async openClientDrawer(client: ClientSummary): Promise<void> {
+    this.activeClientSignal.set(client);
+    await this.fetchClientDetail(client);
+  }
+
+  async reloadClientDetail(): Promise<void> {
+    const active = this.activeClientSignal();
+    if (!active) {
+      return;
+    }
+    await this.fetchClientDetail(active);
+  }
+
+  closeDrawer(): void {
+    this.activeClientSignal.set(null);
+    this.detailSignal.set(null);
+    this.detailStateSignal.set('loading');
+  }
+
+  private async fetchClientDetail(client: ClientSummary): Promise<void> {
+    const requestId = ++this.detailRequestId;
+    this.detailSignal.set(null);
+    this.detailStateSignal.set('loading');
+    try {
+      const detail = await this.repository.getClientDetail(client.clientId);
+      if (requestId !== this.detailRequestId) {
+        return;
+      }
+      this.detailSignal.set(detail);
+      this.detailStateSignal.set('ready');
+    } catch (error) {
+      console.warn('Failed to load client detail', error);
+      if (requestId !== this.detailRequestId) {
+        return;
+      }
+      this.detailStateSignal.set('error');
+    }
   }
 }

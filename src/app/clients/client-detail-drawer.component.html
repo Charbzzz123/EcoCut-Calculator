@@ -1,0 +1,95 @@
+<article class="client-drawer" role="dialog" aria-modal="true" [attr.aria-labelledby]="'client-drawer-' + client.clientId">
+  <header class="client-drawer__header">
+    <div>
+      <p class="client-drawer__eyebrow">Client detail</p>
+      <h2 id="{{ 'client-drawer-' + client.clientId }}">{{ client.fullName }}</h2>
+      <p class="client-drawer__subtitle">
+        {{ client.address }}
+      </p>
+    </div>
+    <button type="button" class="client-drawer__close" (click)="closed.emit()" aria-label="Close details">
+      &times;
+    </button>
+  </header>
+
+  <section class="client-drawer__section">
+    <h3>Contact</h3>
+    <dl>
+      <div>
+        <dt>Phone</dt>
+        <dd>{{ client.phone }}</dd>
+      </div>
+      @if (client.email) {
+        <div>
+          <dt>Email</dt>
+          <dd>{{ client.email }}</dd>
+        </div>
+      }
+      <div>
+        <dt>Jobs logged</dt>
+        <dd>{{ client.jobsCount }}</dd>
+      </div>
+      <div>
+        <dt>Last job date</dt>
+        <dd>
+          @if (client.lastJobDate) {
+            {{ client.lastJobDate | date: 'MMM d, y, h:mm a' }}
+          } @else {
+            &mdash;
+          }
+        </dd>
+      </div>
+    </dl>
+  </section>
+
+  <section class="client-drawer__section">
+    <div class="client-drawer__section-heading">
+      <h3>Job history</h3>
+      @if (state === 'error') {
+        <button type="button" class="ghost" (click)="retry.emit()">Retry</button>
+      }
+    </div>
+
+    @switch (state) {
+      @case ('loading') {
+        <p class="client-drawer__state">Loading job history&hellip;</p>
+      }
+      @case ('error') {
+        <p class="client-drawer__state client-drawer__state--error">
+          Could not load job history.
+        </p>
+      }
+      @case ('ready') {
+        @if ((detail?.history?.length ?? 0) > 0) {
+          <ul class="client-drawer__history">
+            @for (history of detail?.history ?? []; track trackHistory($index, history)) {
+              <li>
+                <div class="history__header">
+                  <p class="history__date">{{ history.createdAt | date: 'MMM d, y, h:mm a' }}</p>
+                  <span class="history__badge" [attr.data-variant]="history.variant">{{ history.variant }}</span>
+                </div>
+                <p class="history__job">{{ history.jobType }} &middot; {{ history.jobValue }}</p>
+                <p class="history__calendar">
+                  @if (history.calendar?.start) {
+                    {{ history.calendar?.start | date: 'MMM d, y, h:mm a' }} &ndash;
+                    {{ history.calendar?.end | date: 'h:mm a' }}
+                  } @else {
+                    Schedule TBD
+                  }
+                </p>
+                @if (history.desiredBudget) {
+                  <p class="history__note">Desired budget: {{ history.desiredBudget }}</p>
+                }
+                @if (history.additionalDetails) {
+                  <p class="history__note">{{ history.additionalDetails }}</p>
+                }
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="client-drawer__state">No jobs recorded yet.</p>
+        }
+      }
+    }
+  </section>
+</article>

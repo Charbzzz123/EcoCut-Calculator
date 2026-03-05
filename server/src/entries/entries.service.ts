@@ -1,6 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import type { CreateEntryDto } from './dto/create-entry.dto.js';
+import type {
+  CreateEntryDto,
+  EntryCalendarDto,
+  EntryVariant,
+  HedgeConfigDto,
+} from './dto/create-entry.dto.js';
 
 export interface StoredEntry extends CreateEntryDto {
   id: string;
@@ -16,7 +21,22 @@ export interface ClientSummary {
   jobsCount: number;
   lastJobDate: string;
   lastCalendarEventId?: string;
+}export interface ClientHistoryEntry {
+  entryId: string;
+  createdAt: string;
+  variant: EntryVariant;
+  jobValue: string;
+  jobType: string;
+  desiredBudget?: string;
+  additionalDetails?: string;
+  calendar?: EntryCalendarDto;
+  hedges: Record<string, HedgeConfigDto>;
 }
+
+export interface ClientDetail extends ClientSummary {
+  history: ClientHistoryEntry[];
+}
+
 
 @Injectable()
 export class EntriesService {
@@ -42,6 +62,29 @@ export class EntriesService {
     return Array.from(this.clients.values()).sort((a, b) =>
       b.lastJobDate.localeCompare(a.lastJobDate),
     );
+  }
+  getClientDetails(clientId: string): ClientDetail {
+    const summary = this.clients.get(clientId);
+    if (!summary) {
+      throw new NotFoundException(`Client ${clientId} not found`);
+    }
+
+    const history = this.entries
+      .filter((entry) => this.computeClientKey(entry) === clientId)
+      .map((entry) => ({
+        entryId: entry.id,
+        createdAt: entry.createdAt,
+        variant: entry.variant,
+        jobValue: entry.form.jobValue,
+        jobType: entry.form.jobType,
+        desiredBudget: entry.form.desiredBudget,
+        additionalDetails: entry.form.additionalDetails,
+        calendar: entry.calendar,
+        hedges: entry.hedges,
+      }))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+    return { ...summary, history };
   }
 
   private upsertClientSummary(entry: StoredEntry): void {
@@ -83,3 +126,4 @@ export class EntriesService {
     return `${firstName}::${lastName}::${address}`.toLowerCase();
   }
 }
+

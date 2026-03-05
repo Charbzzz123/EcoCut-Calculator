@@ -210,3 +210,10 @@ Update this document whenever we clarify rules or add new functionality so imple
 - **Search & refresh**: sticky toolbar with a pill-shaped search field (name, address, phone, email) plus a refresh button that re-queries `/entries/clients`. Typing debounces at 150 ms so the list feels instant.
 - **Roster list**: stacked cards displaying name, job count, contact info, address, and “Last job” timestamp. List is keyboard accessible, announces changes via `aria-live`, and shows informative states (loading, empty, error with retry).
 - **Performance expectations**: roster fetch must resolve in <600 ms for average data sets; filtering stays client-side until we add pagination. Coverage includes loading/error paths so the feature remains evolutive.
+#### Client detail drawer
+- Clicking a client card opens a right-side drawer (kept entirely within the Clients view) that shows contact info, aggregate stats, and the entire job history for that customer. Drawer loads data via `GET /entries/clients/:clientId` and stays responsive with loading + error states.
+- Job history entries list the created timestamp, variant (warm lead or customer), job type/value, desired budget, calendar slot (start/end), and any additional notes captured on the entry form.
+- If calendar info exists on a history item we display the precise time range so schedulers can trace what was booked in Google Calendar for that job.
+- Drawer can be closed via the header button, backdrop click, or Escape. An inline Retry button re-fetches the detail if the initial call fails.
+- The roster remains keyboard-friendly: cards render as buttons so the drawer can be opened without a mouse, and focus is trapped inside the drawer until it’s closed.
+- All drawer logic is signal-driven and fully covered by unit tests so future CRM actions (quick actions, edit flows) can be added without refactoring the roster list again.

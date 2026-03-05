@@ -19,6 +19,22 @@ export interface ClientSummary {
   lastCalendarEventId?: string;
 }
 
+export interface ClientHistoryEntry {
+  entryId: string;
+  createdAt: string;
+  variant: EntryModalPayload['variant'];
+  jobValue: string;
+  jobType: string;
+  desiredBudget?: string;
+  additionalDetails?: string;
+  calendar?: EntryModalPayload['calendar'];
+  hedges: EntryModalPayload['hedges'];
+}
+
+export interface ClientDetail extends ClientSummary {
+  history: ClientHistoryEntry[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class EntryRepositoryService {
   private readonly http = inject(HttpClient);
@@ -31,4 +47,9 @@ export class EntryRepositoryService {
   async listClients(): Promise<ClientSummary[]> {
     return firstValueFrom(this.http.get<ClientSummary[]>(`${this.baseUrl}/clients`));
   }
+
+  async getClientDetail(clientId: string): Promise<ClientDetail> {
+    return firstValueFrom(this.http.get<ClientDetail>(`${this.baseUrl}/clients/${clientId}`));
+  }
 }
+

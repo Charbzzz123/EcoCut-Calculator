@@ -6,4 +6,5 @@ export declare class EntriesController {
     create(body: CreateEntryDto): import("./entries.service.js").StoredEntry;
     listEntries(): import("./entries.service.js").StoredEntry[];
     listClients(): import("./entries.service.js").ClientSummary[];
+    getClient(clientId: string): import("./entries.service.js").ClientDetail;
 }
