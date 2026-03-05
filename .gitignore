@@ -45,3 +45,4 @@ secrets/
 .DS_Store
 Thumbs.db
 server/data/*.json
+server/dist/
