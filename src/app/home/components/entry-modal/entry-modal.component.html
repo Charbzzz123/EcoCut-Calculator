@@ -266,51 +266,15 @@
               <span class="helper">Times shown in {{ calendarTimeZone }}.</span>
             </div>
 
-            <div class="timeline-wrapper">
-              <div class="timeline-grid" #timelineGrid (pointerdown)="onTimelinePointerDown($event)">
-                <div class="timeline-hours">
-                  @for (hour of timelineHours; track hour; let i = $index) {
-                    <div
-                      class="timeline-hour"
-                      [style.top.%]="timelineHourPosition(i)"
-                      [class.timeline-hour--last]="i === timelineHours.length - 1"
-                    >
-                      <span>{{ formatTimelineHour(hour) }}</span>
-                    </div>
-                  }
-                </div>
-                <div class="timeline-layer">
-                  @if (timelineNowLineStyle(); as nowLine) {
-                    <div class="timeline-now-line" [style.top.%]="nowLine.topPercent"></div>
-                  }
-                  @for (eventBlock of timelineEvents(); track eventBlock.id) {
-                    <div
-                      class="timeline-event-block"
-                      [style.top.%]="eventBlock.topPercent"
-                      [style.height.%]="eventBlock.heightPercent"
-                      [style.left.%]="eventBlock.leftPercent"
-                      [style.width.%]="eventBlock.widthPercent"
-                    >
-                      <p class="event-summary">{{ eventBlock.summary }}</p>
-                      @if (eventBlock.location) {
-                        <small>{{ eventBlock.location }}</small>
-                      }
-                    </div>
-                  }
-                  @if (timelineSelectionStyle(); as selectionStyle) {
-                    <div
-                      class="timeline-selection"
-                      [class.timeline-selection--conflict]="selectionStyle.conflict"
-                      [style.top.%]="selectionStyle.topPercent"
-                      [style.height.%]="selectionStyle.heightPercent"
-                    ></div>
-                  }
-                </div>
-              </div>
-              <div class="timeline-helper">
-                <span class="helper">Click and drag to choose a slot. Conflicts require confirmation.</span>
-              </div>
-            </div>
+            <app-entry-timeline
+              [hours]="timelineHours"
+              [events]="timelineEvents()"
+              [selectionStyle]="timelineSelectionStyle()"
+              [nowLine]="timelineNowLineStyle()"
+              [helperText]="timelineHelperText"
+              (timelinePointerDown)="onTimelinePointerDown($event)"
+              (gridReady)="onTimelineGridReady($event)"
+            ></app-entry-timeline>
 
             @if (selectionConflict()) {
               <div class="conflict-banner" role="alert">

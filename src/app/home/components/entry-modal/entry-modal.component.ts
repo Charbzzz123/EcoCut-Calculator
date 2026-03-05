@@ -33,6 +33,7 @@ import {
   CalendarEventsService,
   type UpdateCalendarEventRequest,
 } from '../../services/calendar-events.service.js';
+import { EntryTimelineComponent } from './entry-timeline/entry-timeline.component.js';
 
 export { northAmericanPhoneValidator } from './entry-modal-phone.util.js';
 
@@ -61,7 +62,7 @@ const MIN_SELECTION_MINUTES = 30;
 const TIMELINE_INCREMENT = 15;
 const TIMELINE_SELECTION_OFFSET = 15;
 
-interface TimelineEventBlock {
+export interface TimelineEventBlock {
   id: string;
   summary: string;
   startMinutes: number;
@@ -78,7 +79,7 @@ interface TimelineEventBlock {
 @Component({
   selector: 'app-entry-modal',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, EntryTimelineComponent],
   templateUrl: './entry-modal.component.html',
   styleUrl: './entry-modal.component.scss',
 })
@@ -120,7 +121,7 @@ export class EntryModalComponent implements OnDestroy {
   @Output() saved = new EventEmitter<EntryModalPayload>();
 
   @ViewChild('canvasHost', { static: false }) private canvasHost?: ElementRef<HTMLElement>;
-  @ViewChild('timelineGrid', { static: false }) private timelineGrid?: ElementRef<HTMLElement>;
+  private timelineGrid?: ElementRef<HTMLElement>;
 
   private readonly fb = inject(NonNullableFormBuilder);
 
@@ -174,6 +175,8 @@ export class EntryModalComponent implements OnDestroy {
   protected readonly conflictConfirmed = signal(false);
   /* c8 ignore next */
   protected readonly currentTimeMinutes = signal<number | null>(null);
+  protected readonly timelineHelperText =
+    'Click and drag to choose a slot. Conflicts require confirmation.';
   /* c8 ignore next */
   protected readonly editingCalendarEvent = signal<CalendarEventSummary | null>(null);
   private syncEditingFormFromEvent(event: CalendarEventSummary | null): void {
@@ -365,6 +368,10 @@ export class EntryModalComponent implements OnDestroy {
   protected closeModal(): void {
     this.resetModalState();
     this.closed.emit();
+  }
+
+  protected onTimelineGridReady(ref: ElementRef<HTMLElement>): void {
+    this.timelineGrid = ref;
   }
 
   protected submitEntry(): void {

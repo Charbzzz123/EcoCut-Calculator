@@ -1,0 +1,45 @@
+<div class="timeline-wrapper">
+  <div class="timeline-grid" #timelineGrid (pointerdown)="handlePointerDown($event)">
+    <div class="timeline-hours">
+      @for (hour of hours; track hour; let i = $index) {
+        <div
+          class="timeline-hour"
+          [style.top.%]="hourPosition(i)"
+          [class.timeline-hour--last]="i === hours.length - 1"
+        >
+          <span>{{ formatTimelineHour(hour) }}</span>
+        </div>
+      }
+    </div>
+    <div class="timeline-layer">
+      @if (nowLine) {
+        <div class="timeline-now-line" [style.top.%]="nowLine.topPercent"></div>
+      }
+      @for (eventBlock of events; track eventBlock.id) {
+        <div
+          class="timeline-event-block"
+          [style.top.%]="eventBlock.topPercent"
+          [style.height.%]="eventBlock.heightPercent"
+          [style.left.%]="eventBlock.leftPercent"
+          [style.width.%]="eventBlock.widthPercent"
+        >
+          <p class="event-summary">{{ eventBlock.summary }}</p>
+          @if (eventBlock.location) {
+            <small>{{ eventBlock.location }}</small>
+          }
+        </div>
+      }
+      @if (selectionStyle) {
+        <div
+          class="timeline-selection"
+          [class.timeline-selection--conflict]="selectionStyle.conflict"
+          [style.top.%]="selectionStyle.topPercent"
+          [style.height.%]="selectionStyle.heightPercent"
+        ></div>
+      }
+    </div>
+  </div>
+  <div class="timeline-helper">
+    <span class="helper">{{ helperText }}</span>
+  </div>
+</div>
