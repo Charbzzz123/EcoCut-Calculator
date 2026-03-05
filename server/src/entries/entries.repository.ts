@@ -49,11 +49,13 @@ export class EntriesRepository {
   }
 
   private isFileMissing(error: unknown): error is NodeJS.ErrnoException {
+    if (!error || typeof error !== 'object') {
+      return false;
+    }
     return (
-      Boolean(error) &&
-      typeof error === 'object' &&
-      'code' in error &&
+      'code' in (error as Record<string, unknown>) &&
       (error as NodeJS.ErrnoException).code === 'ENOENT'
     );
   }
 }
+
