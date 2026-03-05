@@ -1,1 +1,5 @@
-npm test
+#!/bin/sh
+
+npm run lint || exit 1
+npm run test:ci || exit 1
+npx lint-staged --config lint-staged.config.mjs || exit 1

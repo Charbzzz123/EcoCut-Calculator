@@ -1,14 +1,17 @@
 # Project Working Agreement
 
 ## Mission
+
 Build and maintain the EcoCut Calculator, an Angular 21 single-page app (SPA) that helps EcoCut estimate jobs quickly with a **speed-first ethos**—performance and snappy UX take priority while still delivering polished visuals.
 
 ## Development Environment
+
 - Node.js 20.11+ (or >=18.18) with npm 11.x; prefer `npm ci` for clean installs.
 - Angular CLI 21 with the default standalone/ESBuild toolchain.
 - Typescript 5.9, ESLint 9, Prettier 3.
 
 ## Coding Guidelines
+
 1. Follow Angular style guide (standalone components, strict typing, feature-based folders when we outgrow `src/app`).
 2. Default to a **facade-driven feature structure**: components talk to a feature facade that orchestrates services, adapters, and API clients so the codebase stays evolutive.
 3. Prioritize performance: keep bundle size lean, avoid blocking operations on the main thread, budget for sub-second interactions, and profile hot paths regularly.
@@ -20,7 +23,8 @@ Build and maintain the EcoCut Calculator, an Angular 21 single-page app (SPA) th
 9. Never assume requirements—ask, discuss, and capture the agreement before implementing.
 
 ## Tooling Rules
-- Run `npm run lint` and `npm run test` before pushing.
+
+- Run `npm run lint` and `npm run test:ci` before pushing. Use `npm run test` locally when you want the coverage report to open afterward.
 - Enforce **100% coverage per file** (statements/branches/functions/lines). Yellow reports mean failure—write or extend specs until every metric is green before committing.
 - Never leave generated build artifacts, dist bundles, or temporary files lingering in git; delete or re-`git clean` them so every commit contains only intentional source changes.
 - Use Prettier for formatting; never hand-format conflicting styles.
@@ -33,16 +37,17 @@ Build and maintain the EcoCut Calculator, an Angular 21 single-page app (SPA) th
   - If a secret ever leaks into git history, remove it with a rebase and rotate credentials immediately.
 
 ## Workflow
+
 1. Create a task ticket; write down acceptance criteria and planned approach.
 2. Branch from the active integration branch (`dev`) using `feature/<ticket-id>-short-desc`.
 3. Keep `main`/`master` pristine for tagged releases only (alpha/beta/GA). Merge feature PRs into `dev`; promote to `main` only when the version is publish-ready.
 4. Build iteratively: design -> implement -> lint/test (all passing) -> review.
 5. Keep commits focused, logically sized, and descriptive; commit often enough to capture milestones without noise.
 6. Treat `docs/work-tracker.md` as the source of truth for in-flight tasks: review it before starting work and update it within the same PR whenever scope changes or tasks finish.
-6. Document UI/UX changes in the functionality doc and changelog (to add later).
+7. Document UI/UX changes in the functionality doc and changelog (to add later).
 
 ## Communication
+
 - Document major decisions in pull requests and in `docs/app-documentation.md`.
 - Surface blockers early; never let an unresolved issue sit silently.
 - Keep README updated for onboarding; mirror high-level info in project wiki when available.
-

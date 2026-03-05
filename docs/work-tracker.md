@@ -6,7 +6,6 @@ Living checklist for in-flight feature work so we never lose track of what’s d
 
 | Task | Done | Notes |
 | Stand up CI workflow for lint/test/build | --- | Add a GitHub Actions (or similar) pipeline that runs `npm run lint`, `npm run test:ci`, `npm run build`, and the Nest `npm run check` on every PR. |
-| Fix Husky/test scripts & lint-staged | --- | Add a `test:ci` script (no browser pop-up), have Husky run `npm run lint && npm run test:ci && npx lint-staged`, and keep the coverage viewer in a dev-only script. |
 | Mock calendar APIs in Angular specs | --- | Use HttpTestingController or dedicated mock services so unit tests don’t hit `/api` and spam 404 logs. |
 | Add Nest server Jest coverage | --- | Create Jest specs for `EntriesService`, `EntriesRepository`, and the calendar controller/service and run them via `npm run check`. |
 | Normalize docs encoding | --- | Convert `docs/*.md` to clean UTF-8 (replace mojibake like `â€”`, `ðŸ`) and note the rule in contributor docs. |
@@ -28,9 +27,10 @@ Living checklist for in-flight feature work so we never lose track of what’s d
 | Split entry-modal feature into standalone subcomponents | 2026-03-05 | Entry details form, schedule section, footer, and validation helpers are now standalone pieces so the shell only orchestrates state/handlers. |
 | Extract entry modal footer + validation helpers | 2026-03-05 | Added EntryModalFooterComponent + EntryModalValidationService so the shell delegates CTA + validation logic. |
 | Persist entry data outside process memory | 2026-03-05 | EntriesRepository writes JSON snapshots under data/entries-store.json, so client/job history survives restarts. |
+| Fix Husky/test scripts & lint-staged | 2026-03-05 | Added `test:ci`, left `npm run test` for the coverage viewer, and updated Husky to run lint + test:ci + lint-staged before each commit. |
 
 ## 🔧 In Progress / Backlog
 
-| Task | Owner | Notes |
-| --- | --- | --- |
-| *(none yet — add next task here)* | --- | --- |
+| Task                              | Owner | Notes |
+| --------------------------------- | ----- | ----- |
+| _(none yet — add next task here)_ | ---   | ---   |
