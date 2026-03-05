@@ -50,6 +50,19 @@ export class ClientDetailDrawerComponent {
     return history.entryId;
   }
 
+  protected formatCurrency(value: string | number | null | undefined): string {
+    if (value === null || value === undefined || value === '') {
+      return '—';
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return `$${value.toLocaleString('en-US')}`;
+    }
+    const numeric = Number(value.toString().replace(/[^0-9.-]/g, ''));
+    return Number.isFinite(numeric) && value !== ''
+      ? `$${numeric.toLocaleString('en-US')}`
+      : value.toString();
+  }
+
   protected startClientEdit(): void {
     this.editingClient = true;
     this.clientForm.setValue({

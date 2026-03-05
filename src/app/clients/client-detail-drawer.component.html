@@ -112,7 +112,11 @@
                   <p class="history__date">{{ history.createdAt | date: 'MMM d, y, h:mm a' }}</p>
                   <span class="history__badge" [attr.data-variant]="history.variant">{{ history.variant }}</span>
                 </div>
-                <p class="history__job">{{ history.jobType }} &middot; {{ history.jobValue }}</p>
+                <p class="history__job">
+                  {{ history.jobType }}
+                  &middot;
+                  {{ formatCurrency(history.jobValue) }}
+                </p>
                 <p class="history__calendar">
                   @if (history.calendar?.start) {
                     <span class="history__calendar-label">Scheduled</span>
@@ -126,16 +130,6 @@
                     Schedule TBD
                   }
                 </p>
-                <p class="history__location">
-                  <span>Location</span>
-                  <strong>{{ history.location }}</strong>
-                </p>
-                <p class="history__contact">
-                  Contact: <strong>{{ history.contactPhone }}</strong>
-                  @if (history.contactEmail) {
-                    <span>&middot; {{ history.contactEmail }}</span>
-                  }
-                </p>
                 @if (history.hedgePlan.length) {
                   <div class="history__hedges">
                     <p>Hedge plan</p>
@@ -147,7 +141,10 @@
                   </div>
                 }
                 @if (history.desiredBudget) {
-                  <p class="history__note">Desired budget: {{ history.desiredBudget }}</p>
+                  <p class="history__note">
+                    Desired budget:
+                    {{ formatCurrency(history.desiredBudget) }}
+                  </p>
                 }
                 @if (history.additionalDetails) {
                   <p class="history__note">{{ history.additionalDetails }}</p>

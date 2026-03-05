@@ -77,7 +77,6 @@ describe('ClientDetailDrawerComponent', () => {
     fixture.componentInstance.detail = detail;
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Hedge Trimming');
-    expect(fixture.nativeElement.textContent).toContain('Location');
     expect(fixture.nativeElement.textContent).toContain('(438) 555-1111');
   });
 
@@ -202,7 +201,10 @@ describe('ClientDetailDrawerComponent', () => {
   });
 
   it('submits edits through the form binding', () => {
-    const submitSpy = vi.spyOn(fixture.componentInstance as unknown as Record<string, any>, 'submitClientEdits');
+    const component = fixture.componentInstance as ClientDetailDrawerComponent & {
+      submitClientEdits(): void;
+    };
+    const submitSpy = vi.spyOn(component, 'submitClientEdits');
     fixture.detectChanges();
     const editButton = fixture.nativeElement.querySelector(
       '.client-drawer__header-actions button.ghost',
