@@ -24,6 +24,56 @@
   gap: 0.5rem;
 }
 
+.client-drawer__header-actions button,
+.client-drawer__section-heading button,
+.history__actions button {
+  --btn-border: rgba(255, 255, 255, 0.12);
+  --btn-bg: rgba(255, 255, 255, 0.08);
+  --btn-color: #f5f8f6;
+  border: 1px solid var(--btn-border);
+  border-radius: 999px;
+  padding: 0.35rem 1.1rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+  letter-spacing: 0.01em;
+  background: var(--btn-bg);
+  color: var(--btn-color);
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+.client-drawer__header-actions button:hover,
+.client-drawer__section-heading button:hover,
+.history__actions button:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.client-drawer__header-actions button.primary {
+  --btn-bg: linear-gradient(120deg, #b8f3d3, #7ae2ac);
+  --btn-border: rgba(184, 243, 211, 0.5);
+  --btn-color: #03130d;
+  box-shadow: 0 8px 18px rgba(122, 226, 172, 0.35);
+}
+
+.client-drawer__header-actions button.primary:hover {
+  transform: translateY(-1px) scale(1.01);
+}
+
+.client-drawer__header-actions button.danger,
+.history__actions button.danger {
+  --btn-bg: rgba(255, 112, 112, 0.15);
+  --btn-border: rgba(255, 112, 112, 0.5);
+  --btn-color: #ffc9c9;
+}
+
+.client-drawer__header-actions button.ghost,
+.history__actions button.ghost {
+  background: rgba(11, 24, 18, 0.65);
+}
+
 .client-drawer__eyebrow {
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -113,12 +163,9 @@
 }
 
 .client-drawer__section-heading .ghost {
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: transparent;
-  color: #f5f8f6;
-  border-radius: 999px;
-  padding: 0.2rem 0.75rem;
-  cursor: pointer;
+  --btn-bg: rgba(11, 24, 18, 0.65);
+  --btn-border: rgba(255, 255, 255, 0.18);
+  padding: 0.25rem 0.9rem;
 }
 
 .client-drawer__state {
@@ -205,6 +252,7 @@
 .history__actions {
   display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
   margin-top: 0.75rem;
 }
 
