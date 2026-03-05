@@ -1,8 +1,8 @@
-# Work Tracker
+﻿# Work Tracker
 
-Living checklist for in-flight feature work so we never lose track of what’s done vs. still active. Update this document in the same PR as the related code change.
+Living checklist for in-flight feature work so we never lose track of what€™s done vs. still active. Update this document in the same PR as the related code change.
 
-## ✅ Completed
+## œ... Completed
 
 | Task                                                                 | Done       | Notes                                                                                                                                             |
 | -------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -19,7 +19,7 @@ Living checklist for in-flight feature work so we never lose track of what’s d
 | Restyle Clients page to match the dark Evergreen theme               | 2026-03-04 | Banner + controls reuse home branding/CTA tokens.                                                                                                 |
 | Normalize client search to ignore phone punctuation                  | 2026-03-04 | Search strips masking characters before matching.                                                                                                 |
 | Job entries show scheduled slot, desired budget, hedge plan          | 2026-03-05 | Drawer mirrors Google Calendar payload.                                                                                                           |
-| “Last serviced / last job date” respect future bookings              | 2026-03-04 | Only completed jobs update “Last job”; future jobs fill “Next job.”                                                                               |
+| €œLast serviced / last job date€ respect future bookings             | 2026-03-04 | Only completed jobs update €œLast job€; future jobs fill €œNext job.€                                                                             |
 | Client/job edit & delete actions (no calendar sync)                  | 2026-03-04 | Drawer exposes edit/delete with optimistic updates; calendar handled separately.                                                                  |
 | Hedge plan displayed per job in client drawer                        | 2026-03-04 | Uses same structure as calendar descriptions.                                                                                                     |
 | Rule: keep repo clean (no stray compiled files committed)            | 2026-03-03 | Added to general-instructions.md and enforced in reviews.                                                                                         |
@@ -28,16 +28,20 @@ Living checklist for in-flight feature work so we never lose track of what’s d
 | Extract calendar scheduling block into EntryScheduleSectionComponent | 2026-03-05 | Dedicated schedule section renders calendar form, slots, conflict UI, and editing banner; modal feeds it view models/handlers.                    |
 | Break clients-shell component/spec into facade + child components    | 2026-03-05 | Introduced `ClientsFacade`, toolbar, roster, detail drawer, and entry-editor overlays with full specs.                                            |
 | Client CRM coverage hardening                                        | 2026-03-05 | Added exhaustive facade/component specs so every template branch is executed and coverage stays 100%.                                             |
-| Client summary fallback spec stabilized                              | 2026-03-05 | Rebuilt the shell fixture with a stubbed `statsSnapshot` so the UI shows “—” when no history exists.                                              |
+| Client summary fallback spec stabilized                              | 2026-03-05 | Rebuilt the shell fixture with a stubbed `statsSnapshot` so the UI shows €œ—€ when no history exists.                                             |
 | Split entry-modal feature into standalone subcomponents              | 2026-03-05 | Entry details form, schedule section, footer, and validation helpers are standalone; shell now orchestrates only state/handlers.                  |
 | Extract entry modal footer + validation helpers                      | 2026-03-05 | Added EntryModalFooterComponent + EntryModalValidationService so the shell delegates CTA + validation logic.                                      |
 | Persist entry data outside process memory                            | 2026-03-05 | EntriesRepository writes JSON snapshots under `data/entries-store.json`, so client/job history survives restarts.                                 |
 | Fix Husky/test scripts & lint-staged                                 | 2026-03-05 | Added `test:ci`, left `npm run test` for the coverage viewer, and updated Husky to run lint + test:ci + lint-staged before each commit.           |
 | Introduce Angular environment configs                                | 2026-03-05 | Added `src/environments/*`, wired file replacements, and pointed HTTP services/tests at `environment.apiBaseUrl`.                                 |
 | Document durable persistence upgrade plan                            | 2026-03-05 | Added a detailed migration outline (SQLite/Postgres + Prisma) to app-documentation.md so engineering knows the exact next steps.                  |
+| Highlight conflict override CTA                                      | 2026-03-05 | Conflict banner now adds spacing plus a red Overlap button in entry-schedule-section styles so warnings stand out.                                |
+| Wrap entry modal logic in a façade base class                        | 2026-03-05 | Extracted EntryModalFacade so the component shell is thin and ready for future slices.                                                            |
 
-## 🔧 In Progress / Backlog
+## In Progress / Backlog
 
-| Task   | Owner | Notes                                                              |
-| ------ | ----- | ------------------------------------------------------------------ |
-| _None_ | —     | All tracked items are complete. Add the next task here when ready. |
+| Task                                       | Owner | Notes                                                                                                       |
+| ------------------------------------------ | ----- | ----------------------------------------------------------------------------------------------------------- |
+| Create shared/core/app feature folders     | —     | Formalize `features/`, `shared/`, and `core/` directories (or libs) so new modules don’t clutter `src/app`. |
+| Extract reusable UI + domain libraries     | —     | Move common buttons, banners, models, and DTO mappers into shared packages to avoid cross-feature coupling. |
+| Migrate EntriesRepository to real database | —     | Replace JSON file persistence with SQLite/Postgres (e.g., Prisma) so client/job history scales safely.      |
