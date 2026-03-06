@@ -6,16 +6,16 @@ import type {
   HedgeConfigDto,
   RabattageConfigDto,
   TrimConfigDto,
-} from './dto/create-entry.dto.js';
-import type { UpdateClientDto } from './dto/update-client.dto.js';
-import { EntriesRepository } from './entries.repository.js';
+} from './dto/create-entry.dto';
+import type { UpdateClientDto } from './dto/update-client.dto';
+import { EntriesRepository } from './entries.repository';
 import type {
   ClientDetail,
   ClientMatchReason,
   ClientMatchResult,
   ClientSummary,
   StoredEntry,
-} from './entries.types.js';
+} from './entries.types';
 
 const HEDGE_IDS = [
   'hedge-1',
@@ -597,3 +597,4 @@ export class EntriesService implements OnModuleInit {
     return first;
   }
 }
+

@@ -14,7 +14,7 @@ type RouterTarget = string | readonly unknown[];
 })
 export class BackChipComponent {
   @Input() label = 'Back to dashboard';
-  @Input() icon = '?';
+  @Input() icon = '↩';
   @Input() ariaLabel?: string;
   @Input() routerLink?: RouterTarget;
   @Output() back = new EventEmitter<void>();

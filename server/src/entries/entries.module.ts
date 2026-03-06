@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
-import { EntriesController } from './entries.controller.js';
-import { EntriesRepository } from './entries.repository.js';
-import { EntriesService } from './entries.service.js';
+import { EntriesController } from './entries.controller';
+import { EntriesRepository } from './entries.repository';
+import { EntriesService } from './entries.service';
 
 @Module({
   controllers: [EntriesController],
@@ -9,3 +9,4 @@ import { EntriesService } from './entries.service.js';
   exports: [EntriesService],
 })
 export class EntriesModule {}
+

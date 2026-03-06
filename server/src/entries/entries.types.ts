@@ -4,7 +4,7 @@ import type {
   EntryFormDto,
   EntryVariant,
   HedgeConfigDto,
-} from './dto/create-entry.dto.js';
+} from './dto/create-entry.dto';
 
 export interface StoredEntry extends CreateEntryDto {
   id: string;
@@ -57,3 +57,4 @@ export interface ClientMatchResult {
   matchedBy: ClientMatchReason;
   descriptor: string;
 }
+

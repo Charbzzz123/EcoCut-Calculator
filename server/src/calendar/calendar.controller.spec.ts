@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
-import { CalendarController } from './calendar.controller.js';
-import type { CalendarService } from './calendar.service.js';
+import { CalendarController } from './calendar.controller';
+import type { CalendarService } from './calendar.service';
 
 const serviceMock = {
   createEvent: jest.fn(),
@@ -58,3 +58,4 @@ describe('CalendarController', () => {
     });
   });
 });
+

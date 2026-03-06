@@ -1,7 +1,7 @@
-import type { CreateEntryDto } from './dto/create-entry.dto.js';
-import { EntriesService } from './entries.service.js';
-import type { EntriesRepository } from './entries.repository.js';
-import type { StoredEntry } from './entries.types.js';
+import type { CreateEntryDto } from './dto/create-entry.dto';
+import { EntriesService } from './entries.service';
+import type { EntriesRepository } from './entries.repository';
+import type { StoredEntry } from './entries.types';
 
 class FakeEntriesRepository {
   snapshot: StoredEntry[] = [];
@@ -204,3 +204,4 @@ describe('EntriesService', () => {
     expect(result).toBeNull();
   });
 });
+

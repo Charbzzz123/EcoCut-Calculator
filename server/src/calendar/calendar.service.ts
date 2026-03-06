@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { calendar_v3, google } from 'googleapis';
-import { loadCalendarConfig } from './calendar.config.js';
-import type { CreateCalendarEventDto } from './dto/create-calendar-event.dto.js';
-import type { CalendarEventDto } from './dto/calendar-event.dto.js';
-import type { UpdateCalendarEventDto } from './dto/update-calendar-event.dto.js';
+import { loadCalendarConfig } from './calendar.config';
+import type { CreateCalendarEventDto } from './dto/create-calendar-event.dto';
+import type { CalendarEventDto } from './dto/calendar-event.dto';
+import type { UpdateCalendarEventDto } from './dto/update-calendar-event.dto';
 
 const CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar'];
 
@@ -152,3 +152,4 @@ export class CalendarService {
     return { calendar, calendarId };
   }
 }
+

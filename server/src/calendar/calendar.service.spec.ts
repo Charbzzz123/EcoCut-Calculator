@@ -1,5 +1,5 @@
 import type { calendar_v3 } from 'googleapis';
-import { CalendarService } from './calendar.service.js';
+import { CalendarService } from './calendar.service';
 
 const eventsMock = {
   insert: jest.fn<
@@ -146,3 +146,4 @@ describe('CalendarService', () => {
     ).rejects.toThrow('Google Calendar is not configured');
   });
 });
+

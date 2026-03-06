@@ -9,9 +9,9 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { CalendarService } from './calendar.service.js';
-import type { CreateCalendarEventDto } from './dto/create-calendar-event.dto.js';
-import type { UpdateCalendarEventDto } from './dto/update-calendar-event.dto.js';
+import { CalendarService } from './calendar.service';
+import type { CreateCalendarEventDto } from './dto/create-calendar-event.dto';
+import type { UpdateCalendarEventDto } from './dto/update-calendar-event.dto';
 
 @Controller('calendar')
 export class CalendarController {
@@ -48,3 +48,4 @@ export class CalendarController {
     return this.calendarService.updateEvent(eventId, body);
   }
 }
+

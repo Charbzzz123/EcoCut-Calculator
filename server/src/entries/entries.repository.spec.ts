@@ -1,6 +1,6 @@
 import { promises as fs } from 'node:fs';
-import type { StoredEntry } from './entries.types.js';
-import { EntriesRepository } from './entries.repository.js';
+import type { StoredEntry } from './entries.types';
+import { EntriesRepository } from './entries.repository';
 
 jest.mock('node:fs', () => ({
   promises: {
@@ -73,3 +73,4 @@ describe('EntriesRepository', () => {
     );
   });
 });
+

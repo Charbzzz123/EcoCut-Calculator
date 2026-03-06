@@ -7,10 +7,10 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
-import { EntriesService } from './entries.service.js';
-import type { CreateEntryDto } from './dto/create-entry.dto.js';
-import type { UpdateClientDto } from './dto/update-client.dto.js';
-import type { FindClientMatchDto } from './dto/find-client-match.dto.js';
+import { EntriesService } from './entries.service';
+import type { CreateEntryDto } from './dto/create-entry.dto';
+import type { UpdateClientDto } from './dto/update-client.dto';
+import type { FindClientMatchDto } from './dto/find-client-match.dto';
 
 @Controller('entries')
 export class EntriesController {
@@ -62,3 +62,4 @@ export class EntriesController {
     return this.entries.findClientMatch(body.form);
   }
 }
+
