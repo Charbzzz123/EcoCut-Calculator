@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { HomeShellComponent } from './home/home-shell.component.js';
+import { HomeShellComponent } from '../features/home/home-shell.component.js';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'home' },
@@ -10,7 +10,8 @@ export const routes: Routes = [
   },
   {
     path: 'clients',
-    loadComponent: () => import('./clients/clients-shell.component.js').then((m) => m.ClientsShellComponent),
+    loadComponent: () =>
+      import('../features/clients/clients-shell.component.js').then((m) => m.ClientsShellComponent),
     title: 'EcoCut | Clients',
   },
   { path: '**', redirectTo: 'home' },

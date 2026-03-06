@@ -96,7 +96,9 @@
   opacity: 0;
   pointer-events: none;
   transform: translateY(-6px);
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
   z-index: 5;
 }
 
@@ -124,7 +126,9 @@
   padding: 0.35rem 0.25rem;
   cursor: pointer;
   border-radius: 0.65rem;
-  transition: background 0.2s ease, transform 0.2s ease;
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
 }
 
 .dropdown-btn:hover {
@@ -154,14 +158,15 @@
   background: var(--gradient-accent);
   color: var(--text-inverse);
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
   box-shadow: 0 15px 35px var(--surface-glow);
 }
 
 .primary:hover {
   transform: translateY(-1px);
 }
-
 
 .weekly-hours {
   border: 1px solid var(--border-soft);
@@ -265,7 +270,9 @@
   align-items: center;
   gap: 0.4rem;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
   min-width: 0;
 }
 
@@ -289,7 +296,9 @@
   min-width: 210px;
   opacity: 1;
   transform-origin: right bottom;
-  transition: opacity 0.18s ease, transform 0.18s ease;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
   position: absolute;
   bottom: calc(100% + 0.4rem);
   right: 0;
@@ -334,12 +343,12 @@
     left: 1rem;
     right: 1rem;
     bottom: 1rem;
-}
+  }
 
-.floating-cta {
-  justify-content: center;
-  width: 100%;
-}
+  .floating-cta {
+    justify-content: center;
+    width: 100%;
+  }
 
   .cta-dropdown__menu {
     width: 100%;
@@ -348,4 +357,3 @@
     right: 0;
   }
 }
-

@@ -22,7 +22,12 @@
   </label>
   <label>
     <span>Phone number</span>
-    <input type="tel" formControlName="phone" (input)="handlers.handlePhoneInput($event)" placeholder="(514) 555-1234" />
+    <input
+      type="tel"
+      formControlName="phone"
+      (input)="handlers.handlePhoneInput($event)"
+      placeholder="(514) 555-1234"
+    />
     @if (phoneHasError('required')) {
       <small class="error">Required</small>
     } @else if (phoneHasError('phoneInvalid')) {
@@ -62,7 +67,14 @@
     <div class="canvas-wrapper" #canvasHost [class.compact]="!panelFloats()">
       <div class="canvas-surface">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1536 1024">
-          <image href="assets/entry-planner/eco-yard-topdown.png" x="0" y="0" width="1536" height="1024" preserveAspectRatio="xMidYMid meet" />
+          <image
+            href="assets/entry-planner/eco-yard-topdown.png"
+            x="0"
+            y="0"
+            width="1536"
+            height="1024"
+            preserveAspectRatio="xMidYMid meet"
+          />
           <g id="hedges">
             @for (hedgeId of hedges; track hedgeId) {
               <polygon
@@ -72,7 +84,7 @@
                 [ngClass]="{
                   trim: getHedgeState(hedgeId) === 'trim',
                   rabattage: getHedgeState(hedgeId) === 'rabattage',
-                  'has-config': hasSavedConfig(hedgeId)
+                  'has-config': hasSavedConfig(hedgeId),
                 }"
                 (click)="handlers.cycleHedge($event, hedgeId)"
               ></polygon>
@@ -165,7 +177,9 @@
                       [checked]="rabattage.option === option"
                       (change)="handlers.selectRabattage(option)"
                     />
-                    <span>{{ option === 'total_no_roots' ? 'Total without roots' : (option | titlecase) }}</span>
+                    <span>{{
+                      option === 'total_no_roots' ? 'Total without roots' : (option | titlecase)
+                    }}</span>
                   </label>
                 }
               </div>
@@ -209,6 +223,10 @@
   </label>
   <label class="wide">
     <span>Additional details (optional)</span>
-    <textarea rows="3" formControlName="additionalDetails" placeholder="Extra bushes, notes for crew..."></textarea>
+    <textarea
+      rows="3"
+      formControlName="additionalDetails"
+      placeholder="Extra bushes, notes for crew..."
+    ></textarea>
   </label>
 </section>

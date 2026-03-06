@@ -8,7 +8,10 @@
           alt="EcoCut mascot"
           class="brand-banner__mascot"
           loading="lazy"
-          onerror="this.src='assets/brand/mascot-placeholder.svg'; this.onerror=null;"
+          onerror="
+            this.src = 'assets/brand/mascot-placeholder.svg';
+            this.onerror = null;
+          "
         />
       </a>
     </div>
@@ -52,10 +55,7 @@
   </article>
 
   <article class="home-actions" aria-label="Quick actions">
-    <app-quick-actions
-      [actions]="quickActions()"
-      (actionSelected)="onQuickAction($event)"
-    />
+    <app-quick-actions [actions]="quickActions()" (actionSelected)="onQuickAction($event)" />
   </article>
 
   <div
@@ -80,15 +80,17 @@
         </button>
       </li>
       <li>
-        <button type="button" class="dropdown-btn dropdown-btn--customer" (click)="startCustomerClosed()">
+        <button
+          type="button"
+          class="dropdown-btn dropdown-btn--customer"
+          (click)="startCustomerClosed()"
+        >
           + Customer / Closed
         </button>
       </li>
     </ul>
   </div>
 </section>
-
-
 
 @if (entryModalOpen()) {
   <app-entry-modal

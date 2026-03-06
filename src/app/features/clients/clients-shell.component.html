@@ -8,7 +8,10 @@
           alt="EcoCut mascot"
           class="brand-banner__mascot"
           loading="lazy"
-          onerror="this.src='assets/brand/mascot-placeholder.svg'; this.onerror=null;"
+          onerror="
+            this.src = 'assets/brand/mascot-placeholder.svg';
+            this.onerror = null;
+          "
         />
       </a>
     </div>
@@ -17,7 +20,9 @@
       <div class="hero-copy">
         <p class="eyebrow">Client Relationship Manager</p>
         <h1 id="{{ headingId }}">Client book</h1>
-        <p class="subtitle">Review historical customers, jobs logged, and the last time they were serviced.</p>
+        <p class="subtitle">
+          Review historical customers, jobs logged, and the last time they were serviced.
+        </p>
       </div>
       <a routerLink="/home" class="back-chip" aria-label="Return to EcoCut home">
         <span aria-hidden="true">←</span>
@@ -57,7 +62,10 @@
     </article>
   </section>
 
-  <app-clients-toolbar [queryControl]="queryControl" (refresh)="loadClients()"></app-clients-toolbar>
+  <app-clients-toolbar
+    [queryControl]="queryControl"
+    (refresh)="loadClients()"
+  ></app-clients-toolbar>
 
   <app-clients-roster
     [loadState]="loadState()"
