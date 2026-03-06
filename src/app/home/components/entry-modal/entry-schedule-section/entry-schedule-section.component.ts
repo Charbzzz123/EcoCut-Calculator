@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
 import { ElementRef } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import type { CalendarEventSummary } from '../../../services/calendar-events.service.js';
-import type { CalendarSlot, TimelineEventBlock } from '../entry-modal.component.js';
+import type { CalendarSlot, TimelineEventBlock } from '../entry-modal-schedule.controller.js';
 import { EntryTimelineComponent } from '../entry-timeline/entry-timeline.component.js';
 import type { TimelineSelectionStyle } from '../entry-timeline/entry-timeline.component.js';
 

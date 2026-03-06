@@ -201,8 +201,10 @@
   margin-bottom: 0.1rem;
 }
 
-.conflict-banner span {
+.conflict-banner .conflict-summary {
   font-size: 0.8rem;
+  display: block;
+  margin-top: 0.1rem;
 }
 
 .conflict-banner .confirmed {

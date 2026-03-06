@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { EntryTimelineComponent, TimelineSelectionStyle } from './entry-timeline.component.js';
-import type { TimelineEventBlock } from '../entry-modal.component.js';
+import type { TimelineEventBlock } from '../entry-modal-schedule.controller.js';
 
 describe('EntryTimelineComponent', () => {
   let fixture: ComponentFixture<EntryTimelineComponent>;

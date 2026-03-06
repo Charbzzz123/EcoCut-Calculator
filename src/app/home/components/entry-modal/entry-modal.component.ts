@@ -7,7 +7,7 @@ import { EntryModalFacade } from './entry-modal.facade.js';
 import { EntryScheduleSectionComponent } from './entry-schedule-section/entry-schedule-section.component.js';
 
 export { northAmericanPhoneValidator } from './entry-modal-phone.util.js';
-export type { CalendarSlot, TimelineEventBlock } from './entry-modal.facade.js';
+export type { CalendarSlot, TimelineEventBlock } from './entry-modal-schedule.controller.js';
 
 @Component({
   selector: 'app-entry-modal',

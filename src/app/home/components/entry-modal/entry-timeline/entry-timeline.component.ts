@@ -9,7 +9,7 @@ import {
   ViewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import type { TimelineEventBlock } from '../entry-modal.component.js';
+import type { TimelineEventBlock } from '../entry-modal-schedule.controller.js';
 
 export interface TimelineSelectionStyle {
   topPercent: number;

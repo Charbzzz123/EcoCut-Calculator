@@ -1,21 +1,29 @@
 <section class="calendar-block" [formGroup]="viewModel.calendarGroup">
   <header>
     <p class="section-title">Schedule on EcoCut Calendar</p>
-    <span class="helper">Customer jobs must be scheduled so the crew sees them in Google Calendar.</span>
+    <span class="helper"
+      >Customer jobs must be scheduled so the crew sees them in Google Calendar.</span
+    >
   </header>
 
   <div class="schedule-grid">
     <label>
       <span>Date</span>
       <input type="date" formControlName="date" (change)="handlers.handleCalendarDateChange()" />
-      @if (viewModel.calendarGroup.controls['date'].touched && viewModel.calendarGroup.controls['date'].invalid) {
+      @if (
+        viewModel.calendarGroup.controls['date'].touched &&
+        viewModel.calendarGroup.controls['date'].invalid
+      ) {
         <small class="error">Required</small>
       }
     </label>
     <label>
       <span>Start time</span>
       <input type="time" formControlName="startTime" (input)="handlers.handleManualTimeChange()" />
-      @if (viewModel.calendarGroup.controls['startTime'].touched && viewModel.calendarGroup.controls['startTime'].invalid) {
+      @if (
+        viewModel.calendarGroup.controls['startTime'].touched &&
+        viewModel.calendarGroup.controls['startTime'].invalid
+      ) {
         <small class="error">Required</small>
       }
     </label>
@@ -24,7 +32,10 @@
       <input type="time" formControlName="endTime" (input)="handlers.handleManualTimeChange()" />
       @if (viewModel.calendarGroup.controls['endTime'].errors?.['timeOrder']) {
         <small class="error">End time must be after the start time</small>
-      } @else if (viewModel.calendarGroup.controls['endTime'].touched && viewModel.calendarGroup.controls['endTime'].invalid) {
+      } @else if (
+        viewModel.calendarGroup.controls['endTime'].touched &&
+        viewModel.calendarGroup.controls['endTime'].invalid
+      ) {
         <small class="error">Required</small>
       }
     </label>
@@ -50,10 +61,14 @@
       <div class="conflict-banner" role="alert">
         <div>
           <strong>Conflicting job</strong>
-          <span>{{ viewModel.conflictSummary ?? 'This slot overlaps an existing booking.' }}</span>
+          <span class="conflict-summary">
+            {{ viewModel.conflictSummary ?? 'This slot overlaps an existing booking.' }}
+          </span>
         </div>
         @if (!viewModel.conflictConfirmed) {
-          <button type="button" class="ghost" (click)="handlers.confirmTimelineConflict()">Overlap</button>
+          <button type="button" class="ghost danger" (click)="handlers.confirmTimelineConflict()">
+            Overlap
+          </button>
         } @else {
           <span class="helper confirmed">Overlap confirmed</span>
         }
@@ -65,7 +80,9 @@
         <div class="editing-banner__info">
           <div>
             <strong>Editing existing event</strong>
-            <span>{{ editingEvent.summary }} • {{ handlers.formatEventTimeRange(editingEvent) }}</span>
+            <span
+              >{{ editingEvent.summary }} • {{ handlers.formatEventTimeRange(editingEvent) }}</span
+            >
           </div>
           <div class="editing-banner__fields">
             <label class="editing-field">
@@ -95,7 +112,9 @@
           >
             Update
           </button>
-          <button type="button" class="ghost" (click)="handlers.cancelCalendarEdit()">Cancel</button>
+          <button type="button" class="ghost" (click)="handlers.cancelCalendarEdit()">
+            Cancel
+          </button>
         </div>
       </div>
     }
@@ -154,7 +173,12 @@
               }
             </div>
             <div class="event-actions">
-              <button type="button" class="ghost" aria-label="Edit calendar event" (click)="handlers.editCalendarEvent(event)">
+              <button
+                type="button"
+                class="ghost"
+                aria-label="Edit calendar event"
+                (click)="handlers.editCalendarEvent(event)"
+              >
                 Edit
               </button>
               <button
