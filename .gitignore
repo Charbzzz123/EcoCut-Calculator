@@ -43,10 +43,12 @@ ecocut-calendar-link-*.json
 secrets/
 .env
 server/node_modules/
+server/server/data/
 
 # System files
 .DS_Store
 Thumbs.db
 server/data/*.json
+server/data/*.db
 server/dist/
 server/prisma/*.db
