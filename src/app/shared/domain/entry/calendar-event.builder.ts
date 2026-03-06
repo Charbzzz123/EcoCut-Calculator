@@ -1,4 +1,4 @@
-import type { CreateCalendarEventRequest } from '../services/calendar-events.service.js';
+import type { CreateCalendarEventRequest } from './calendar-events.service.js';
 import {
   HEDGE_IDS,
   type EntryModalPayload,

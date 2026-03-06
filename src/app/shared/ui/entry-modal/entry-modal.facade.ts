@@ -19,7 +19,7 @@ import {
   HedgeState,
   RabattageOption,
   TrimPreset,
-} from '../../models/entry-modal.models.js';
+} from '@shared/domain/entry/entry-modal.models.js';
 import { EntryModalPanelStore, PanelState } from './entry-modal-panel.store.js';
 import {
   formatNorthAmericanPhone,
@@ -29,7 +29,7 @@ import {
 import {
   CalendarEventSummary,
   CalendarEventsService,
-} from '../../services/calendar-events.service.js';
+} from '@shared/domain/entry/calendar-events.service.js';
 import type { EntryDetailsFormHandlers } from './entry-details-form/entry-details-form.component.js';
 import { EntryModalValidationService } from './entry-modal-validation.service.js';
 import type {
@@ -39,7 +39,7 @@ import type {
 import {
   EntryRepositoryService,
   type ClientMatchResult,
-} from '../../services/entry-repository.service.js';
+} from '@shared/domain/entry/entry-repository.service.js';
 import { Subscription } from 'rxjs';
 import { EntryModalDuplicateGuard } from './entry-modal-duplicate.guard.js';
 import { EntryModalScheduleController } from './entry-modal-schedule.controller.js';

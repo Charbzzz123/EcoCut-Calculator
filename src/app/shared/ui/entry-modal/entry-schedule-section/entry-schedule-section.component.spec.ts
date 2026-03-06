@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormBuilder, FormControl, FormGroup } from '@angular/forms';
 import { vi } from 'vitest';
 import { EntryScheduleSectionComponent, EntryScheduleSectionHandlers, EntryScheduleSectionViewModel } from './entry-schedule-section.component.js';
-import type { CalendarEventSummary } from '../../../services/calendar-events.service.js';
+import type { CalendarEventSummary } from '@shared/domain/entry/calendar-events.service.js';
 import type { CalendarSlot, TimelineEventBlock } from '../entry-modal-schedule.controller.js';
 
 describe('EntryScheduleSectionComponent', () => {

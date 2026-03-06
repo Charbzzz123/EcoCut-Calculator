@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
-import type { EntryModalPayload, EntryVariant } from '../home/models/entry-modal.models.js';
-import { EntryModalComponent } from '../home/components/entry-modal/entry-modal.component.js';
+import type { EntryModalPayload, EntryVariant } from '@shared/domain/entry/entry-modal.models.js';
+import { EntryModalComponent } from '@shared/ui/entry-modal/entry-modal.component.js';
 
 @Component({
   selector: 'app-entry-editor-overlay',

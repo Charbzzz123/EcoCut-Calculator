@@ -79,7 +79,7 @@
           "builder": "@angular/build:unit-test",
           "options": {
             "coverageExclude": [
-              "src/app/home/components/entry-modal/testing/*.ts",
+              "src/app/shared/ui/entry-modal/testing/*.ts",
               "src/environments/**/*.ts"
             ]
           }

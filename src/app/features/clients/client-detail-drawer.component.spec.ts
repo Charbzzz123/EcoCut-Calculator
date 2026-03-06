@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
-import type { ClientDetail } from '../home/services/entry-repository.service.js';
-import { createEmptyHedgeConfigs } from '../home/models/entry-modal.models.js';
+import type { ClientDetail } from '@shared/domain/entry/entry-repository.service.js';
+import { createEmptyHedgeConfigs } from '@shared/domain/entry/entry-modal.models.js';
 import { ClientDetailDrawerComponent } from './client-detail-drawer.component.js';
 
 const detail: ClientDetail = {

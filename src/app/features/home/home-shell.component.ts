@@ -2,14 +2,15 @@ import { CommonModule } from '@angular/common';
 import { Component, ElementRef, HostListener, inject, signal, ViewChild } from '@angular/core';
 import { HeroMetricsComponent } from './components/hero-metrics/hero-metrics.component.js';
 import { QuickActionsComponent } from './components/quick-actions/quick-actions.component.js';
-import { EntryModalComponent } from './components/entry-modal/entry-modal.component.js';
-import type { EntryModalPayload } from './models/entry-modal.models.js';
+import { EntryModalComponent } from '@shared/ui/entry-modal/entry-modal.component.js';
+import { BrandBannerComponent } from '@shared/ui/brand-banner/brand-banner.component.js';
+import type { EntryModalPayload } from '@shared/domain/entry/entry-modal.models.js';
 import { HomeFacade } from './home.facade.js';
 
 @Component({
   selector: 'app-home-shell',
   standalone: true,
-  imports: [CommonModule, HeroMetricsComponent, QuickActionsComponent, EntryModalComponent],
+  imports: [CommonModule, HeroMetricsComponent, QuickActionsComponent, EntryModalComponent, BrandBannerComponent],
   templateUrl: './home-shell.component.html',
   styleUrl: './home-shell.component.scss',
   providers: [HomeFacade],

@@ -5,10 +5,10 @@ import type {
   ClientDetail,
   ClientHistoryEntry,
   ClientSummary,
-} from '../home/services/entry-repository.service.js';
-import { EntryRepositoryService } from '../home/services/entry-repository.service.js';
-import { createEmptyHedgeConfigs } from '../home/models/entry-modal.models.js';
-import { EntryModalPayload } from '../home/models/entry-modal.models.js';
+} from '@shared/domain/entry/entry-repository.service.js';
+import { EntryRepositoryService } from '@shared/domain/entry/entry-repository.service.js';
+import { createEmptyHedgeConfigs } from '@shared/domain/entry/entry-modal.models.js';
+import { EntryModalPayload } from '@shared/domain/entry/entry-modal.models.js';
 import { ClientsFacade } from './clients.facade.js';
 
 const baseClients: ClientSummary[] = [

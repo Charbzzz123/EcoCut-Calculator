@@ -1,0 +1,14 @@
+<div class="hero-brand-row" aria-hidden="false">
+  <a [routerLink]="routerLink" class="brand-banner" [attr.aria-label]="ariaLabel">
+    <img [src]="logoSrc" [alt]="logoAlt" class="brand-banner__logo" />
+    @if (showMascot) {
+      <img
+        [src]="safeMascotSrc()"
+        [alt]="mascotAlt"
+        class="brand-banner__mascot"
+        loading="lazy"
+        (error)="handleMascotError()"
+      />
+    }
+  </a>
+</div>

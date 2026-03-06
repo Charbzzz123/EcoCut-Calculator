@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { FormBuilder } from '@angular/forms';
-import type { HedgeConfig } from '../../models/entry-modal.models.js';
+import type { HedgeConfig } from '@shared/domain/entry/entry-modal.models.js';
 import { EntryModalValidationService } from './entry-modal-validation.service.js';
 
 describe('EntryModalValidationService', () => {

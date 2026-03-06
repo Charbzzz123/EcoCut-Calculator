@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   ClientMatchResult,
   EntryRepositoryService,
-} from '../../services/entry-repository.service.js';
-import type { EntryModalPayload } from '../../models/entry-modal.models.js';
+} from '@shared/domain/entry/entry-repository.service.js';
+import type { EntryModalPayload } from '@shared/domain/entry/entry-modal.models.js';
 import { EntryModalDuplicateGuard } from './entry-modal-duplicate.guard.js';
 
 const buildPayload = (): EntryModalPayload => ({

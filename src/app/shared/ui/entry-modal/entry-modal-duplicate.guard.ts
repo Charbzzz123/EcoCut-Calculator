@@ -2,11 +2,11 @@ import { signal } from '@angular/core';
 import type {
   EntryModalPayload,
   EntryVariant,
-} from '../../models/entry-modal.models.js';
+} from '@shared/domain/entry/entry-modal.models.js';
 import {
   EntryRepositoryService,
   type ClientMatchResult,
-} from '../../services/entry-repository.service.js';
+} from '@shared/domain/entry/entry-repository.service.js';
 
 export class EntryModalDuplicateGuard {
   readonly match = signal<ClientMatchResult | null>(null);

@@ -1,11 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { ClientsToolbarComponent } from './clients-toolbar.component.js';
 import { ClientsRosterComponent } from './clients-roster.component.js';
 import { ClientDetailOverlayComponent } from './client-detail-overlay.component.js';
 import { EntryEditorOverlayComponent } from './entry-editor-overlay.component.js';
 import { ClientsFacade } from './clients.facade.js';
+import { BrandBannerComponent } from '@shared/ui/brand-banner/brand-banner.component.js';
+import { BackChipComponent } from '@shared/ui/back-chip/back-chip.component.js';
 
 @Component({
   standalone: true,
@@ -14,7 +15,8 @@ import { ClientsFacade } from './clients.facade.js';
   styleUrls: ['./clients-shell.component.scss'],
   imports: [
     CommonModule,
-    RouterLink,
+    BrandBannerComponent,
+    BackChipComponent,
     ClientsToolbarComponent,
     ClientsRosterComponent,
     ClientDetailOverlayComponent,

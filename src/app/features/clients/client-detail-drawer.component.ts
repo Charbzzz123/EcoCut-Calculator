@@ -13,7 +13,7 @@ import type {
   ClientHistoryEntry,
   ClientSummary,
   UpdateClientPayload,
-} from '../home/services/entry-repository.service.js';
+} from '@shared/domain/entry/entry-repository.service.js';
 import type { ClientDetailState } from './clients.types.js';
 
 @Component({

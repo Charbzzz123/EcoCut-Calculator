@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { ClientsRosterComponent } from './clients-roster.component.js';
-import type { ClientSummary } from '../home/services/entry-repository.service.js';
+import type { ClientSummary } from '@shared/domain/entry/entry-repository.service.js';
 
 const clients: ClientSummary[] = [
   {

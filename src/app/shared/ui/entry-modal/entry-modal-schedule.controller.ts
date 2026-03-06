@@ -4,8 +4,8 @@ import {
   CalendarEventSummary,
   CalendarEventsService,
   type UpdateCalendarEventRequest,
-} from '../../services/calendar-events.service.js';
-import type { EntryCalendarPayload, EntryVariant } from '../../models/entry-modal.models.js';
+} from '@shared/domain/entry/calendar-events.service.js';
+import type { EntryCalendarPayload, EntryVariant } from '@shared/domain/entry/entry-modal.models.js';
 import { EntryModalValidationService } from './entry-modal-validation.service.js';
 import type { EntryScheduleSectionViewModel } from './entry-schedule-section/entry-schedule-section.component.js';
 import type { TimelineSelectionStyle } from './entry-timeline/entry-timeline.component.js';

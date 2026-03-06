@@ -212,7 +212,7 @@ Update this document whenever we clarify rules or add new functionality so imple
 ## Client Roster & Job History
 
 - Every entry emitted by the modal is now persisted through the Nest API (`POST /entries`). The saved payload includes the original form data, hedge configs, calendar info (start/end/time zone), and the Google Calendar `eventId` returned by the sync step so future edits can target the same calendar record.
-- The backend now persists an append-only array of saved entries to `server/data/entries-store.json` (file-backed on disk so restarts keep history). Provide `ENTRIES_STORE_PATH` to override the default path. Each record receives a generated `id` and `createdAt` timestamp for auditing.
+- The backend now persists an append-only array of saved entries to a SQLite database (`ENTRIES_DB_PATH`, default `server/data/entries.db`). Each record receives a generated `id` and `createdAt` timestamp for auditing, and the repository automatically migrates any legacy JSON snapshot on first boot.
 - A derived client roster is kept in sync automatically. Deduplication uses email (preferred), otherwise normalized phone number, otherwise `first+last+address`. Each client summary tracks full name, address, phone/email, total jobs logged, last job timestamp, and the most recent calendar event id.
 - New API surface:
   - `GET /entries` – returns the raw entry history (future undo pipeline will read from here).

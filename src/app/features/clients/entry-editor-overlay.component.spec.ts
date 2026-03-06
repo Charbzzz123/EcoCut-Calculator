@@ -2,10 +2,10 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { By } from '@angular/platform-browser';
 import { EntryEditorOverlayComponent } from './entry-editor-overlay.component.js';
-import type { EntryModalPayload } from '../home/models/entry-modal.models.js';
-import { createEmptyHedgeConfigs } from '../home/models/entry-modal.models.js';
-import { CalendarEventsService } from '../home/services/calendar-events.service.js';
-import { CalendarEventsServiceStub } from '../home/components/entry-modal/testing/entry-modal-test-helpers.js';
+import type { EntryModalPayload } from '@shared/domain/entry/entry-modal.models.js';
+import { createEmptyHedgeConfigs } from '@shared/domain/entry/entry-modal.models.js';
+import { CalendarEventsService } from '@shared/domain/entry/calendar-events.service.js';
+import { CalendarEventsServiceStub } from '@shared/testing/entry-modal-test-helpers.js';
 
 const payload: EntryModalPayload = {
   variant: 'customer',

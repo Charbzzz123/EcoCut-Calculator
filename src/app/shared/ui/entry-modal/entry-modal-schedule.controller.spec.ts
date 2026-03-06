@@ -1,8 +1,8 @@
 import { FormControl, FormGroup } from '@angular/forms';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CalendarEventsService, CalendarEventSummary } from '../../services/calendar-events.service.js';
+import type { CalendarEventsService, CalendarEventSummary } from '@shared/domain/entry/calendar-events.service.js';
 import type { EntryModalValidationService } from './entry-modal-validation.service.js';
-import type { EntryVariant } from '../../models/entry-modal.models.js';
+import type { EntryVariant } from '@shared/domain/entry/entry-modal.models.js';
 import { EntryModalScheduleController } from './entry-modal-schedule.controller.js';
 
 const iso = (date: string, time: string) => `${date}T${time}:00`;

@@ -1,20 +1,6 @@
 <section class="clients-shell" aria-labelledby="{{ headingId }}">
   <article class="clients-hero">
-    <div class="hero-brand-row">
-      <a routerLink="/" class="brand-banner" aria-label="Back to EcoCut home via EcoCut branding">
-        <img src="assets/brand/eco-logo.png" alt="EcoCut logo" class="brand-banner__logo" />
-        <img
-          src="assets/brand/eco-mascot.png"
-          alt="EcoCut mascot"
-          class="brand-banner__mascot"
-          loading="lazy"
-          onerror="
-            this.src = 'assets/brand/mascot-placeholder.svg';
-            this.onerror = null;
-          "
-        />
-      </a>
-    </div>
+    <app-brand-banner></app-brand-banner>
 
     <header class="clients-shell__header">
       <div class="hero-copy">
@@ -24,10 +10,7 @@
           Review historical customers, jobs logged, and the last time they were serviced.
         </p>
       </div>
-      <a routerLink="/home" class="back-chip" aria-label="Return to EcoCut home">
-        <span aria-hidden="true">←</span>
-        Back to dashboard
-      </a>
+      <app-back-chip routerLink="/home" label="Back to dashboard"></app-back-chip>
     </header>
   </article>
 

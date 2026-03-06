@@ -5,7 +5,7 @@ import type {
   ClientSummary,
   ClientHistoryEntry,
   UpdateClientPayload,
-} from '../home/services/entry-repository.service.js';
+} from '@shared/domain/entry/entry-repository.service.js';
 import type { ClientDetailState } from './clients.types.js';
 import { ClientDetailDrawerComponent } from './client-detail-drawer.component.js';
 

@@ -2,14 +2,10 @@
 /* c8 ignore file */
 import { ElementRef, WritableSignal } from '@angular/core';
 import { vi } from 'vitest';
-import type { EntryModalComponent } from '../entry-modal.component.js';
-import { EntryModalPanelStore } from '../entry-modal-panel.store.js';
-import type {
-  HedgeConfig,
-  HedgeState,
-  TrimPreset,
-} from '../../../models/entry-modal.models.js';
-import type { CalendarEventsService } from '../../../services/calendar-events.service.js';
+import type { EntryModalComponent } from '@shared/ui/entry-modal/entry-modal.component.js';
+import { EntryModalPanelStore } from '@shared/ui/entry-modal/entry-modal-panel.store.js';
+import type { HedgeConfig, HedgeState, TrimPreset } from '@shared/domain/entry/entry-modal.models.js';
+import type { CalendarEventsService } from '@shared/domain/entry/calendar-events.service.js';
 
 export class CalendarEventsServiceStub implements Pick<CalendarEventsService, 'listEventsForDate' | 'createEvent' | 'updateEvent' | 'deleteEvent'> {
   listEventsForDate = vi.fn().mockResolvedValue([]);

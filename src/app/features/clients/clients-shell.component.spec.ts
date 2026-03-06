@@ -3,14 +3,14 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { FormControl } from '@angular/forms';
 import { vi } from 'vitest';
-import type { ClientDetail, ClientSummary } from '../home/services/entry-repository.service.js';
-import { createEmptyHedgeConfigs } from '../home/models/entry-modal.models.js';
-import type { EntryModalPayload } from '../home/models/entry-modal.models.js';
+import type { ClientDetail, ClientSummary } from '@shared/domain/entry/entry-repository.service.js';
+import { createEmptyHedgeConfigs } from '@shared/domain/entry/entry-modal.models.js';
+import type { EntryModalPayload } from '@shared/domain/entry/entry-modal.models.js';
 import { ClientsFacade } from './clients.facade.js';
 import { ClientsShellComponent } from './clients-shell.component.js';
 import { By } from '@angular/platform-browser';
-import { CalendarEventsService } from '../home/services/calendar-events.service.js';
-import { CalendarEventsServiceStub } from '../home/components/entry-modal/testing/entry-modal-test-helpers.js';
+import { CalendarEventsService } from '@shared/domain/entry/calendar-events.service.js';
+import { CalendarEventsServiceStub } from '@shared/testing/entry-modal-test-helpers.js';
 
 const baseClients: ClientSummary[] = [
   {

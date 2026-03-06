@@ -1,7 +1,7 @@
 import { Injectable, WritableSignal, inject, signal, type Signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { HomeDataService } from './home-data.service.js';
-import type { EntryModalPayload } from './models/entry-modal.models.js';
+import type { EntryModalPayload } from '@shared/domain/entry/entry-modal.models.js';
 import type { HeroMetric, QuickAction, QuickActionCommand, WeeklyHourSummary } from './home.models.js';
 
 @Injectable()

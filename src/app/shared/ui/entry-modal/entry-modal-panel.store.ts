@@ -10,7 +10,7 @@ import {
   TrimPreset,
   createEmptyHedgeConfigs,
   createEmptyHedgeState,
-} from '../../models/entry-modal.models.js';
+} from '@shared/domain/entry/entry-modal.models.js';
 
 export type PanelState =
   | { hedgeId: HedgeId; state: 'trim'; trim: TrimConfig }

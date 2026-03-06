@@ -7,8 +7,8 @@ import {
   ClientSummary,
   EntryRepositoryService,
   UpdateClientPayload,
-} from '../home/services/entry-repository.service.js';
-import type { EntryModalPayload, EntryVariant } from '../home/models/entry-modal.models.js';
+} from '@shared/domain/entry/entry-repository.service.js';
+import type { EntryModalPayload, EntryVariant } from '@shared/domain/entry/entry-modal.models.js';
 import type { ClientDetailState, ClientsLoadState } from './clients.types.js';
 
 const digitsOnly = (value: string): string => value.replace(/\D/g, '');

@@ -42,9 +42,11 @@ __screenshots__/
 ecocut-calendar-link-*.json
 secrets/
 .env
+server/node_modules/
 
 # System files
 .DS_Store
 Thumbs.db
 server/data/*.json
 server/dist/
+server/prisma/*.db

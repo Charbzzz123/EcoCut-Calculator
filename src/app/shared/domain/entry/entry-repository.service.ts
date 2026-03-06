@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import type { EntryModalPayload } from '../models/entry-modal.models.js';
+import type { EntryModalPayload } from './entry-modal.models.js';
 import { environment } from '../../../../environments/environment';
 
 export interface StoredEntry extends EntryModalPayload {

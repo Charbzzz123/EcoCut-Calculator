@@ -3,8 +3,8 @@ import { Router } from '@angular/router';
 import { vi } from 'vitest';
 import { HomeFacade } from './home.facade.js';
 import { HomeDataService } from './home-data.service.js';
-import type { EntryModalPayload, HedgeConfig, HedgeId } from './models/entry-modal.models.js';
-import { HEDGE_IDS } from './models/entry-modal.models.js';
+import type { EntryModalPayload, HedgeConfig, HedgeId } from '@shared/domain/entry/entry-modal.models.js';
+import { HEDGE_IDS } from '@shared/domain/entry/entry-modal.models.js';
 
 class RouterStub {
   lastUrl: string | null = null;

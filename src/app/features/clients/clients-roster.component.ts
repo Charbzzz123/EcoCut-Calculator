@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
-import type { ClientSummary } from '../home/services/entry-repository.service.js';
+import type { ClientSummary } from '@shared/domain/entry/entry-repository.service.js';
 import type { ClientsLoadState } from './clients.types.js';
 
 @Component({

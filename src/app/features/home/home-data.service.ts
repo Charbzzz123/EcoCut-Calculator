@@ -1,9 +1,9 @@
 import { Injectable, inject } from '@angular/core';
-import type { EntryModalPayload } from './models/entry-modal.models.js';
+import type { EntryModalPayload } from '@shared/domain/entry/entry-modal.models.js';
 import type { HeroMetric, QuickAction, WeeklyHourSummary } from './home.models.js';
-import { CalendarEventsService } from './services/calendar-events.service.js';
-import { EntryRepositoryService } from './services/entry-repository.service.js';
-import { buildCalendarEventRequest } from './models/calendar-event.builder.js';
+import { CalendarEventsService } from '@shared/domain/entry/calendar-events.service.js';
+import { EntryRepositoryService } from '@shared/domain/entry/entry-repository.service.js';
+import { buildCalendarEventRequest } from '@shared/domain/entry/calendar-event.builder.js';
 
 @Injectable({ providedIn: 'root' })
 export class HomeDataService {

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import type { FormGroup } from '@angular/forms';
-import type { HedgeConfig } from '../../models/entry-modal.models.js';
+import type { HedgeConfig } from '@shared/domain/entry/entry-modal.models.js';
 
 @Injectable({ providedIn: 'root' })
 export class EntryModalValidationService {

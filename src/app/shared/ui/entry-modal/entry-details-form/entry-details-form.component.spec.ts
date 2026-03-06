@@ -4,7 +4,7 @@ import { signal } from '@angular/core';
 import { vi } from 'vitest';
 import { EntryDetailsFormComponent, EntryDetailsFormHandlers } from './entry-details-form.component.js';
 import { Component } from '@angular/core';
-import { HedgeId, HedgeState } from '../../../models/entry-modal.models.js';
+import { HedgeId, HedgeState } from '@shared/domain/entry/entry-modal.models.js';
 
 const HEDGE_IDS: HedgeId[] = ['hedge-1', 'hedge-2', 'hedge-3', 'hedge-4', 'hedge-5', 'hedge-6', 'hedge-7', 'hedge-8'];
 

@@ -12,13 +12,13 @@ import {
   createElementRef,
   createPanelMouseEvent,
   localTimeString,
-} from './testing/entry-modal-test-helpers.js';
-import { EntryModalPayload } from '../../models/entry-modal.models.js';
-import { CalendarEventSummary, CalendarEventsService } from '../../services/calendar-events.service.js';
+} from '@shared/testing/entry-modal-test-helpers.js';
+import { EntryModalPayload } from '@shared/domain/entry/entry-modal.models.js';
+import { CalendarEventSummary, CalendarEventsService } from '@shared/domain/entry/calendar-events.service.js';
 class EntryRepositoryServiceStub {
   findClientMatch = vi.fn().mockResolvedValue(null);
 }
-import { EntryRepositoryService } from '../../services/entry-repository.service.js';
+import { EntryRepositoryService } from '@shared/domain/entry/entry-repository.service.js';
 
 describe('EntryModalComponent', () => {
   let fixture: ComponentFixture<EntryModalComponent>;

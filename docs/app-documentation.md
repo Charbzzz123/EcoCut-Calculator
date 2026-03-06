@@ -1,4 +1,4 @@
-﻿# EcoCut Calculator — Technical Documentation
+# EcoCut Calculator � Technical Documentation
 
 ## Overview
 
@@ -30,40 +30,41 @@ root/
 - **HTTP/Proxy:** `app.config.ts` registers `provideHttpClient(withFetch())`. During local dev `npm start` passes `--proxy-config proxy.conf.json`, so any `/api/...` call from Angular is forwarded to the Nest server (`http://localhost:3000`). Keep backend running via `npm run server`.
 - **Build:** `@angular/build:application` (esbuild + Vite dev server) configured in `angular.json`.
 - **State:** Currently a single `title` signal; expand using dedicated state services/signals modules as features grow.
+- **Shared UI:** `src/app/shared/ui` hosts cross-feature components such as the entry modal, brand banner, and back chip so features never import from one another directly.
 
 ### Entry Modal Implementation
 
-- **Component**: `src/app/home/components/entry-modal/entry-modal.component.ts` renders the warm lead / customer modal. It uses `NonNullableFormBuilder`, Angular signals for per-hedge state, and an anchored detail panel that moves based on the clicked polygon's bounding box.
-- **SVG / Assets**: The hedge planner background lives in `public/assets/warm-lead/a_bird_s_eye_view_digital_illustration_showcases_a.png`. Each hedge polygon is defined in the component template (`hedge-1`–`hedge-8`). A README in that folder explains how to swap in the branded art.
+- **Component**: `src/app/shared/ui/entry-modal/entry-modal.component.ts` renders the warm lead / customer modal. It uses `NonNullableFormBuilder`, Angular signals for per-hedge state, and an anchored detail panel that moves based on the clicked polygon's bounding box.
+- **SVG / Assets**: The hedge planner background lives in `public/assets/warm-lead/a_bird_s_eye_view_digital_illustration_showcases_a.png`. Each hedge polygon is defined in the component template (`hedge-1`�`hedge-8`). A README in that folder explains how to swap in the branded art.
 - **State machine**:
   - Signals (`hedgeStates`, `savedConfigs`, `panelState`, etc.) keep the component reactive without services.
   - `cycleHedge` toggles `None ? Trim ? Rabattage ? None`, rehydrates saved configs, and clamps the contextual panel position inside the SVG container.
   - Trim configs capture either combinable sections (inside/top/outside) or presets, while Rabattage configs capture option + optional partial text.
-- **Testing/coverage**: `src/app/home/components/entry-modal/entry-modal.component.spec.ts` holds 22 focused specs that exercise DOM interactions, state hydration, validations, and template bindings. Run `npx ng test --watch=false --coverage` to enforce the repo's “100% every file” rule (Husky hooks also run this before commits).
+- **Testing/coverage**: `src/app/shared/ui/entry-modal/entry-modal.component.spec.ts` holds 22 focused specs that exercise DOM interactions, state hydration, validations, and template bindings. Run `npx ng test --watch=false --coverage` to enforce the repo's �100% every file� rule (Husky hooks also run this before commits).
 - **Calendar integration**:
-  - `CalendarEventsService` (`src/app/home/services/calendar-events.service.ts`) wraps the `/api/calendar/events` endpoints. The entry modal consumes it to show live availability; `HomeDataService.saveEntry` uses the same service when creating customer events.
+  - `CalendarEventsService` (`src/app/shared/domain/entry/calendar-events.service.ts`) wraps the `/api/calendar/events` endpoints. The entry modal consumes it to show live availability; `HomeDataService.saveEntry` uses the same service when creating customer events.
   - `calendar-event.builder.ts` converts the payload into a Google Calendar-friendly summary/description (hedge plan, customer info, budgets, notes).
-  - The customer template includes a Google Calendar-style **timeline grid** (7 AM–8 PM) rendered via `timelineHours`, `timelineEvents`, and `timelineSelection` signals. Dragging on the grid fills the start/end controls; overlapping events raise a conflict banner hooked into `selectionConflict` + `conflictConfirmed`.
+  - The customer template includes a Google Calendar-style **timeline grid** (7 AM�8 PM) rendered via `timelineHours`, `timelineEvents`, and `timelineSelection` signals. Dragging on the grid fills the start/end controls; overlapping events raise a conflict banner hooked into `selectionConflict` + `conflictConfirmed`.
 - **Suggested slot picker**:
-  - EntryModalComponent derives a standard grid of crew slots (08:00–17:00) and compares each to the fetched Google events. Conflicts mark the chip `slot-chip--booked`, while open slots remain actionable.
+  - EntryModalComponent derives a standard grid of crew slots (08:00�17:00) and compares each to the fetched Google events. Conflicts mark the chip `slot-chip--booked`, while open slots remain actionable.
   - Manual edits to the start/end inputs clear the selection, so the UI never shows a stale chip highlight.
   - Specs cover slot rebuilding, drag guards, and the DOM states for available/booked chips.
-- **Integration**: `HomeShellComponent` imports the modal and toggles it from the floating “Add Entry” CTA. The component emits `EntryModalPayload` with the selected variant, normalized form payload, and hedge configs, which feed the façade/server. Customer submissions automatically create a Google Calendar event via `HomeDataService`, which in turn stores the returned `eventId` back onto the payload so later edits/deletes can call the appropriate proxy endpoint.
-- **Entry persistence client**: `EntryRepositoryService` (`src/app/home/services/entry-repository.service.ts`) wraps `/api/entries` and `/api/entries/clients`. `HomeDataService.saveEntry` now awaits this service so every submission is recorded immediately (no more console stub). `listClients()` will power the future CRM dashboard without duplicating HTTP plumbing.
+- **Integration**: `HomeShellComponent` imports the modal and toggles it from the floating �Add Entry� CTA. The component emits `EntryModalPayload` with the selected variant, normalized form payload, and hedge configs, which feed the fa�ade/server. Customer submissions automatically create a Google Calendar event via `HomeDataService`, which in turn stores the returned `eventId` back onto the payload so later edits/deletes can call the appropriate proxy endpoint.
+- **Entry persistence client**: `EntryRepositoryService` (`src/app/shared/domain/entry/entry-repository.service.ts`) wraps `/api/entries` and `/api/entries/clients`. `HomeDataService.saveEntry` now awaits this service so every submission is recorded immediately (no more console stub). `listClients()` will power the future CRM dashboard without duplicating HTTP plumbing.
 - **Client roster UI**: `/clients` is backed by `ClientsShellComponent` (standalone) which uses `EntryRepositoryService.listClients()` on init. The view renders summary cards, search/filter controls, and the roster list with dedicated loading/error states. Routes are defined in `app.routes.ts` (lazy loaded via `loadComponent`).
 
 ## Backend Services
 
 - `/server` hosts the NestJS 11 API (ESM). It now contains a **Google Calendar integration** for pushing EcoCut jobs/events.
 - REST endpoints (documented in `server/README.md`):
-  - `POST /calendar/events` — create an event with summary/description/start/end/timezone/attendees.
-  - `GET /calendar/events?timeMin&timeMax` — fetch sanitized Google events for the requested window (used by the entry modal to show availability).
-  - `PATCH /calendar/events/:eventId` — edit an existing Google Calendar entry when schedulers tweak a slot inside the modal.
-  - `DELETE /calendar/events/:eventId` — remove a previously created event.
+  - `POST /calendar/events` � create an event with summary/description/start/end/timezone/attendees.
+  - `GET /calendar/events?timeMin&timeMax` � fetch sanitized Google events for the requested window (used by the entry modal to show availability).
+  - `PATCH /calendar/events/:eventId` � edit an existing Google Calendar entry when schedulers tweak a slot inside the modal.
+  - `DELETE /calendar/events/:eventId` � remove a previously created event.
 - **Entries module**:
-  - `POST /entries` — append the emitted `EntryModalPayload` (plus generated `id` + `createdAt`). Each save flushes to `server/data/entries-store.json` (override via `ENTRIES_STORE_PATH`) so history survives restarts, and the most recent calendar `eventId` stays attached for future edits.
-  - `GET /entries` — retrieve the append-only job history (same file-backed snapshot) so undo/reporting layers can read the source of truth.
-  - `GET /entries/clients` — returns the deduplicated client roster (keyed by email → phone → name+address) with `jobsCount`, `lastJobDate`, and `lastCalendarEventId`.
+  - `POST /entries` � append the emitted `EntryModalPayload` (plus generated `id` + `createdAt`). The repository writes each record to the on-disk SQLite database at `ENTRIES_DB_PATH`, so history survives restarts and the most recent calendar `eventId` stays attached for future edits.
+  - `GET /entries` � retrieve the append-only job history (same SQLite snapshot) so undo/reporting layers can read the source of truth.
+  - `GET /entries/clients` � returns the deduplicated client roster (keyed by email ? phone ? name+address) with `jobsCount`, `lastJobDate`, and `lastCalendarEventId`.
   - Implementation lives in `server/src/entries/` (service, repository, controller, module). The repository handles loading/saving JSON today and can later be swapped for SQLite/Postgres without changing the public API.
 - **Frontend proxying & dev setup**
   - `npm start` automatically passes `--proxy-config proxy.conf.json`, so `/api/*` traffic goes to `http://localhost:3000/*`. Always run `npm run server` in a second terminal before testing calendar flows locally.
@@ -73,7 +74,7 @@ root/
   | ---- | -------- | ------- |
   | `GOOGLE_CALENDAR_CREDENTIALS_PATH` _or_ `GOOGLE_CALENDAR_CREDENTIALS` | Yes | Points to / contains the service-account JSON for `ecocut-calendar-bot@ecocut-calendar-link.iam.gserviceaccount.com`. JSON files live outside the repo. |
   | `GOOGLE_CALENDAR_ID` | Optional | Overrides the default target calendar (`ecojcut@gmail.com`). |
-- Failure to provide credentials disables the calendar module gracefully but the endpoints will throw a clear error—set env vars before local dev or deployments.
+- Failure to provide credentials disables the calendar module gracefully but the endpoints will throw a clear error�set env vars before local dev or deployments.
 - Use `.env.example` as the template for onboarding; copy it to `.env` (or export variables via your shell profile) and fill in the credential values before running `npm run server`. Never commit the real secrets.
 - Always run backend scripts from `server/` (`npm run start:dev`, `npm run test`, etc.) so node_modules stay isolated.
 
@@ -112,22 +113,20 @@ All frontend services derive their HTTP targets from `environment.apiBaseUrl`, s
 ## Next Steps
 
 - Replace placeholder Angular template with real calculator components.
-- Move the in-memory entries store to a durable database (SQLite/Postgres) so undo + reporting have a dependable source.
 - Extend the `/clients` view into a full CRM (client detail drawer, job history timeline, edit/delete hooks) once backend persistence is durable.
 - Automate documentation publishing (Docs site or wiki) once scope grows.
 
-## Durable Persistence Upgrade Plan
+## Durable Persistence
 
-We currently serialize entries to `server/data/entries-store.json`, which is fine for prototyping but can’t handle concurrent requests, backups, or multi-host deployments. The migration path:
+Entries are now stored in a lightweight SQLite database instead of the old JSON snapshot. The Nest repository (`server/src/entries/entries.repository.ts`) opens the file specified by `ENTRIES_DB_PATH` (default `server/data/entries.db`), enables WAL mode, and persists each `StoredEntry` row as JSON text inside the `entries` table. On first boot it automatically migrates any legacy `entries-store.json` snapshot into SQLite so teams upgrading from the previous release keep their history.
 
-1. **Pick the storage engine** — use SQLite for local/dev (single-file, zero setup) and Postgres for staging/prod. Adopt Prisma ORM so we can share schema + migrations across environments.
-2. **Model the schema** — create `entries`, `clients`, and `hedge_configs` tables. Every appended job becomes a row keyed by `entry_id`; tie job history to clients via `client_id` (email+phone composite). Store hedge JSON in a structured table so analytics can query it later.
-3. **Introduce a Repository Abstraction** — keep the existing `EntriesRepository` interface but provide a Prisma-backed implementation. Guard it with an adapter so the JSON store can remain as a fallback during rollout.
-4. **Migration script** — add `npm run migrate:seed` in `/server` to load the JSON snapshot into the new DB the first time we deploy.
-5. **Update API + tests** — point `EntriesService` to the Prisma repository, extend Jest integration tests to spin up an in-memory SQLite DB, and keep contract tests to ensure the REST surface stays identical.
-6. **Ops / CI** — add DB containers to CI so `npm run check` runs migrations + tests against SQLite. Document `.env` knobs (`DATABASE_URL`) alongside the calendar creds.
+Key operational notes:
 
-Once those steps ship we can safely add more CRM features (undo, job timeline analytics, crew assignment) knowing the data layer is durable.
+- **Configuration** � set `ENTRIES_DB_PATH` in `.env` if you want the database elsewhere (e.g., mounted volume in production). The deprecated `ENTRIES_STORE_PATH` only controls where the migration looks for the legacy JSON file.
+- **Backups** � the DB is a single file; copy/zip it for cold backups or take file-system snapshots. Because WAL mode is enabled, copying the `.db` file while the server is running is still safe.
+- **Deployment** � no external service is required. The first write creates the file automatically, and CI can run against the same DB file without extra containers.
+
+With the persistence layer durable we can confidently layer on �undo,� richer CRM history, and analytics without worrying about concurrent writes or data loss.
 
 ## Branding & Theming
 

@@ -1,8 +1,8 @@
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { environment } from '../../../../environments/environment';
-import type { EntryModalPayload } from '../models/entry-modal.models.js';
-import { createEmptyHedgeConfigs } from '../models/entry-modal.models.js';
+import type { EntryModalPayload } from './entry-modal.models.js';
+import { createEmptyHedgeConfigs } from './entry-modal.models.js';
 import { EntryRepositoryService } from './entry-repository.service.js';
 
 describe('EntryRepositoryService', () => {

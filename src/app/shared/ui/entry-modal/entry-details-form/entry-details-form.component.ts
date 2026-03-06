@@ -17,7 +17,7 @@ import {
   HedgeState,
   RabattageOption,
   TrimPreset,
-} from '../../../models/entry-modal.models.js';
+} from '@shared/domain/entry/entry-modal.models.js';
 import { PanelState } from '../entry-modal-panel.store.js';
 
 export interface EntryDetailsFormHandlers {

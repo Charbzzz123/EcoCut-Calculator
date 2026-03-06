@@ -5,10 +5,10 @@ import type {
   ClientDetail,
   ClientHistoryEntry,
   ClientSummary,
-} from '../home/services/entry-repository.service.js';
+} from '@shared/domain/entry/entry-repository.service.js';
 import { ClientDetailOverlayComponent } from './client-detail-overlay.component.js';
 import { ClientDetailDrawerComponent } from './client-detail-drawer.component.js';
-import { createEmptyHedgeConfigs } from '../home/models/entry-modal.models.js';
+import { createEmptyHedgeConfigs } from '@shared/domain/entry/entry-modal.models.js';
 
 const summary: ClientSummary = {
   clientId: '1',

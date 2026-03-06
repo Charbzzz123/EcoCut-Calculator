@@ -1,10 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { HomeDataService } from './home-data.service.js';
-import type { EntryModalPayload } from './models/entry-modal.models.js';
-import { HEDGE_IDS, createEmptyHedgeConfigs } from './models/entry-modal.models.js';
-import { CalendarEventsService } from './services/calendar-events.service.js';
-import { EntryRepositoryService } from './services/entry-repository.service.js';
+import type { EntryModalPayload } from '@shared/domain/entry/entry-modal.models.js';
+import { HEDGE_IDS, createEmptyHedgeConfigs } from '@shared/domain/entry/entry-modal.models.js';
+import { CalendarEventsService } from '@shared/domain/entry/calendar-events.service.js';
+import { EntryRepositoryService } from '@shared/domain/entry/entry-repository.service.js';
 
 class CalendarEventsServiceStub {
   createEvent = vi.fn().mockResolvedValue({
