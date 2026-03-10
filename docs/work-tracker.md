@@ -44,6 +44,10 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 ## In Progress / Backlog
 
-| Task                                       | Owner | Notes                                                                                                  |
-| ------------------------------------------ | ----- | ------------------------------------------------------------------------------------------------------ |
-| Migrate EntriesRepository to real database | —     | Replace JSON file persistence with SQLite/Postgres (e.g., Prisma) so client/job history scales safely. |
+No active items.
+
+## To Eventually Do
+
+| Task                                       | Owner | Notes                                                                                            |
+| ------------------------------------------ | ----- | ------------------------------------------------------------------------------------------------ |
+| Migrate EntriesRepository to real database | —     | Replace file-based persistence with SQLite/Postgres via a managed ORM (e.g., Prisma) when ready. |
