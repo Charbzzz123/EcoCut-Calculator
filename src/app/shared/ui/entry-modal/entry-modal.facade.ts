@@ -115,7 +115,6 @@ export abstract class EntryModalFacade implements OnDestroy {
     validationService: this.validationService,
     initialVariant: this._variant,
     requestRefresh: (date) => this.refreshCalendarEventsForDate(date),
-    requestHandleCalendarDateChange: () => this.handleCalendarDateChange(),
     requestEnsureCalendarDefaults: () => this.ensureCalendarDefaults(),
   });
   protected readonly calendarEvents = this.scheduleController.calendarEventsSignal();

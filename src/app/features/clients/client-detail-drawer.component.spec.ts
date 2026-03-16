@@ -249,4 +249,71 @@ describe('ClientDetailDrawerComponent', () => {
     const calendarEl = fixture.nativeElement.querySelector('.history__calendar') as HTMLElement;
     expect(calendarEl.textContent?.trim()).toContain('Schedule TBD');
   });
+
+  it('falls back to local time label when calendar timezone is missing', () => {
+    const localTimeDetail: ClientDetail = {
+      ...detail,
+      history: [
+        {
+          ...detail.history[0],
+          calendar: {
+            start: '2026-03-05T10:00:00Z',
+            end: '2026-03-05T11:30:00Z',
+          },
+        },
+      ],
+    };
+    fixture.componentInstance.state = 'ready';
+    fixture.componentInstance.detail = localTimeDetail;
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Local time');
+  });
+
+  it('hides optional history sections when fields are missing', () => {
+    const sparseDetail: ClientDetail = {
+      ...detail,
+      history: [
+        {
+          ...detail.history[0],
+          hedgePlan: [],
+          desiredBudget: undefined,
+          additionalDetails: undefined,
+        },
+      ],
+    };
+    fixture.componentInstance.state = 'ready';
+    fixture.componentInstance.detail = sparseDetail;
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.history__hedges')).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('Desired budget');
+    expect(fixture.nativeElement.textContent).not.toContain('Leave debris curbside.');
+  });
+
+  it('formats currency for numeric and non-numeric values', () => {
+    const drawer = fixture.componentInstance as ClientDetailDrawerComponent & {
+      formatCurrency(value: string | number | null | undefined): string;
+    };
+    expect(drawer.formatCurrency(null)).toBe('--');
+    expect(drawer.formatCurrency(1250)).toBe('$1,250');
+    expect(drawer.formatCurrency('abc')).toBe('$0');
+    expect(drawer.formatCurrency('--')).toBe('--');
+  });
+
+  it('defaults client email to blank when editing a client without email', () => {
+    fixture.componentInstance.client = { ...detail, email: undefined };
+    fixture.detectChanges();
+    fixture.componentInstance['startClientEdit']();
+    expect(fixture.componentInstance.clientForm.controls.email.value).toBe('');
+  });
+
+  it('normalizes null email edits to an empty string update', () => {
+    const updateSpy = vi.fn();
+    fixture.componentInstance.client = { ...detail, email: undefined };
+    fixture.componentInstance.updateClient.subscribe(updateSpy);
+    fixture.detectChanges();
+    fixture.componentInstance['startClientEdit']();
+    fixture.componentInstance.clientForm.controls.email.setValue(null as unknown as string);
+    fixture.componentInstance['submitClientEdits']();
+    expect(updateSpy).not.toHaveBeenCalled();
+  });
 });

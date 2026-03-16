@@ -47,10 +47,14 @@ describe('EntryEditorOverlayComponent', () => {
   });
 
   it('re-emits save events', () => {
+    const closeSpy = vi.fn();
     const spy = vi.fn();
+    fixture.componentInstance.closed.subscribe(closeSpy);
     fixture.componentInstance.saved.subscribe(spy);
     const modalRef = fixture.debugElement.query(By.css('app-entry-modal'));
+    modalRef.componentInstance.closed.emit();
     modalRef.componentInstance.saved.emit(payload);
+    expect(closeSpy).toHaveBeenCalled();
     expect(spy).toHaveBeenCalledWith(payload);
   });
 });

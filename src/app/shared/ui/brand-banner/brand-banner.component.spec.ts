@@ -49,4 +49,10 @@ describe('BrandBannerComponent', () => {
     const mascot: HTMLImageElement = fixture.nativeElement.querySelector('.brand-banner__mascot');
     expect(mascot.getAttribute('src')).toContain('eco-mascot');
   });
+
+  it('exposes the currently configured mascot source via getter', () => {
+    fixture.componentRef.setInput('mascotSrc', 'assets/brand/current.png');
+    fixture.detectChanges();
+    expect(fixture.componentInstance.mascotSrc).toBe('assets/brand/current.png');
+  });
 });

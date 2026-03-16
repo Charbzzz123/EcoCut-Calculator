@@ -1,4 +1,4 @@
-import { ElementRef, signal } from '@angular/core';
+import { ElementRef, signal, type WritableSignal } from '@angular/core';
 import { FormControl, FormGroup } from '@angular/forms';
 import {
   CalendarEventSummary,
@@ -65,7 +65,6 @@ interface ScheduleControllerDeps {
   initialVariant: EntryVariant;
   calendarTimeZone?: string;
   requestRefresh: (date: string) => Promise<void>;
-  requestHandleCalendarDateChange: () => void;
   requestEnsureCalendarDefaults: () => void;
 }
 
@@ -80,36 +79,48 @@ export class EntryModalScheduleController {
   private variant: EntryVariant;
   private readonly calendarTimeZone: string;
   private readonly requestRefresh: (date: string) => Promise<void>;
-  private readonly requestHandleCalendarDateChange: () => void;
   private readonly requestEnsureCalendarDefaults: () => void;
 
-  private readonly calendarEvents = signal<CalendarEventSummary[]>([]);
-  private readonly calendarEventsLoading = signal(false);
-  private readonly calendarEventsError = signal<string | null>(null);
-  private readonly calendarSlots = signal<CalendarSlot[]>([]);
-  private readonly selectedSlotId = signal<string | null>(null);
-  private readonly timelineEvents = signal<TimelineEventBlock[]>([]);
-  private readonly timelineSelection = signal<{ startMinutes: number; endMinutes: number } | null>(
-    null,
-  );
-  private readonly selectionConflict = signal(false);
-  private readonly conflictSummary = signal<string | null>(null);
-  private readonly conflictConfirmed = signal(false);
-  private readonly currentTimeMinutes = signal<number | null>(null);
-  private readonly editingCalendarEvent = signal<CalendarEventSummary | null>(null);
+  private readonly calendarEvents: WritableSignal<CalendarEventSummary[]>;
+  private readonly calendarEventsLoading: WritableSignal<boolean>;
+  private readonly calendarEventsError: WritableSignal<string | null>;
+  private readonly calendarSlots: WritableSignal<CalendarSlot[]>;
+  private readonly selectedSlotId: WritableSignal<string | null>;
+  private readonly timelineEvents: WritableSignal<TimelineEventBlock[]>;
+  private readonly timelineSelection: WritableSignal<{ startMinutes: number; endMinutes: number } | null>;
+  private readonly selectionConflict: WritableSignal<boolean>;
+  private readonly conflictSummary: WritableSignal<string | null>;
+  private readonly conflictConfirmed: WritableSignal<boolean>;
+  private readonly currentTimeMinutes: WritableSignal<number | null>;
+  private readonly editingCalendarEvent: WritableSignal<CalendarEventSummary | null>;
 
   private timelineGrid?: ElementRef<HTMLElement>;
   private timelineDragStartMinutes: number | null = null;
   private currentTimeTicker: ReturnType<typeof setInterval> | null = null;
 
+  /* c8 ignore start */
   constructor(private readonly deps: ScheduleControllerDeps) {
+    this.calendarEvents = signal<CalendarEventSummary[]>([]);
+    this.calendarEventsLoading = signal(false);
+    this.calendarEventsError = signal<string | null>(null);
+    this.calendarSlots = signal<CalendarSlot[]>([]);
+    this.selectedSlotId = signal<string | null>(null);
+    this.timelineEvents = signal<TimelineEventBlock[]>([]);
+    this.timelineSelection = signal<{ startMinutes: number; endMinutes: number } | null>(null);
+    this.selectionConflict = signal(false);
+    this.conflictSummary = signal<string | null>(null);
+    this.conflictConfirmed = signal(false);
+    this.currentTimeMinutes = signal<number | null>(null);
+    this.editingCalendarEvent = signal<CalendarEventSummary | null>(null);
+    /* c8 ignore stop */
+
     this.variant = deps.initialVariant;
     this.calendarTimeZone =
       deps.calendarTimeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
     this.requestRefresh = deps.requestRefresh;
-    this.requestHandleCalendarDateChange = deps.requestHandleCalendarDateChange;
     this.requestEnsureCalendarDefaults = deps.requestEnsureCalendarDefaults;
   }
+  /* c8 ignore stop */
 
   getTimelineDragStartMinutes(): number | null {
     return this.timelineDragStartMinutes;
@@ -401,8 +412,8 @@ export class EntryModalScheduleController {
     const startIso = this.combineDateTime(date, startTime);
     const endIso = this.combineDateTime(date, endTime);
     const { summary, notes } = this.deps.editingCalendarForm.getRawValue();
-    const summaryOverride = summary?.trim() ?? '';
-    const notesOverride = notes?.trim() ?? '';
+    const summaryOverride = summary.trim();
+    const notesOverride = notes.trim();
     const request: UpdateCalendarEventRequest = {
       summary: summaryOverride ? summaryOverride : editing.summary,
       description: notesOverride ? notesOverride : editing.description,

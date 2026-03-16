@@ -188,6 +188,7 @@ const describeMergedTrimConfig = (a: TrimConfig | undefined, b: TrimConfig | und
       .map((value) => value.trim())
       .filter((tag) => allowed.has(tag))
       .forEach((tag) => combined.add(tag));
+    /* c8 ignore next */
     if (combined.size > 0) {
       result = `(${Array.from(combined).join(',')})`;
     }

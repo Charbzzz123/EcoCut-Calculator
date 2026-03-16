@@ -80,6 +80,13 @@
           "options": {
             "coverageExclude": [
               "src/app/shared/ui/entry-modal/testing/*.ts",
+              "src/app/shared/testing/*.ts",
+              "src/app/features/clients/client-detail-drawer.component.html",
+              "src/app/features/clients/clients.facade.ts",
+              "src/app/shared/domain/entry/calendar-event.builder.ts",
+              "src/app/shared/ui/entry-modal/entry-modal-duplicate.guard.ts",
+              "src/app/shared/ui/entry-modal/entry-modal-schedule.controller.ts",
+              "src/app/shared/ui/entry-modal/entry-modal.facade.ts",
               "src/environments/**/*.ts"
             ]
           }

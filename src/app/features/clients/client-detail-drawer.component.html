@@ -130,13 +130,13 @@
                   {{ formatCurrency(history.jobValue) }}
                 </p>
                 <p class="history__calendar">
-                  @if (history.calendar?.start) {
+                  @if (history.calendar; as calendar) {
                     <span class="history__calendar-label">Scheduled</span>
-                    <strong>{{ history.calendar?.start | date: 'MMM d, y, h:mm a' }}</strong>
+                    <strong>{{ calendar.start | date: 'MMM d, y, h:mm a' }}</strong>
                     &mdash;
-                    <strong>{{ history.calendar?.end | date: 'h:mm a' }}</strong>
+                    <strong>{{ calendar.end | date: 'h:mm a' }}</strong>
                     <span class="history__tz">
-                      {{ history.calendar?.timeZone ?? 'Local time' }}
+                      {{ calendar.timeZone || 'Local time' }}
                     </span>
                   } @else {
                     Schedule TBD

@@ -48,10 +48,24 @@ describe('ClientDetailOverlayComponent', () => {
   });
 
   it('forwards drawer events', () => {
+    const closeSpy = vi.fn();
+    const retrySpy = vi.fn();
+    const updateSpy = vi.fn();
+    const deleteClientSpy = vi.fn();
     const editSpy = vi.fn();
+    const deleteEntrySpy = vi.fn();
+    fixture.componentInstance.closed.subscribe(closeSpy);
+    fixture.componentInstance.retry.subscribe(retrySpy);
+    fixture.componentInstance.updateClient.subscribe(updateSpy);
+    fixture.componentInstance.deleteClient.subscribe(deleteClientSpy);
     fixture.componentInstance.editEntry.subscribe(editSpy);
+    fixture.componentInstance.deleteEntry.subscribe(deleteEntrySpy);
     const drawerRef = fixture.debugElement.query(By.css('app-client-detail-drawer'));
     const drawerInstance = drawerRef.componentInstance as ClientDetailDrawerComponent;
+    drawerInstance.closed.emit();
+    drawerInstance.retry.emit();
+    drawerInstance.updateClient.emit({ firstName: 'Renamed' });
+    drawerInstance.deleteClient.emit();
     drawerInstance.editEntry.emit({
       entryId: 'job',
       createdAt: '',
@@ -62,6 +76,21 @@ describe('ClientDetailOverlayComponent', () => {
       contactPhone: '',
       hedges: createEmptyHedgeConfigs(),
     } as ClientHistoryEntry);
+    drawerInstance.deleteEntry.emit({
+      entryId: 'job-2',
+      createdAt: '',
+      variant: 'customer',
+      jobType: 'Rabattage',
+      jobValue: '$200',
+      location: '',
+      contactPhone: '',
+      hedges: createEmptyHedgeConfigs(),
+    } as ClientHistoryEntry);
+    expect(closeSpy).toHaveBeenCalled();
+    expect(retrySpy).toHaveBeenCalled();
+    expect(updateSpy).toHaveBeenCalledWith({ firstName: 'Renamed' });
+    expect(deleteClientSpy).toHaveBeenCalled();
     expect(editSpy).toHaveBeenCalled();
+    expect(deleteEntrySpy).toHaveBeenCalled();
   });
 });

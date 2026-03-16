@@ -60,4 +60,17 @@ describe('EntryModalPanelStore', () => {
 
     expect(payload['hedge-2'].trim?.preset).toBe('normal');
   });
+
+  it('normalizes missing states when loading configs', () => {
+    const store = new EntryModalPanelStore();
+    store.loadFromConfigs(
+      {
+        'hedge-1': { state: 'trim', trim: { mode: 'custom', inside: true } },
+        'hedge-2': {} as unknown,
+      } as unknown as Record<string, { state: 'none' | 'trim' | 'rabattage' }>,
+    );
+    expect(store.hedgeStates()['hedge-1']).toBe('trim');
+    expect(store.hedgeStates()['hedge-2']).toBe('none');
+    expect(store.savedConfigs()['hedge-2'].state).toBeUndefined();
+  });
 });

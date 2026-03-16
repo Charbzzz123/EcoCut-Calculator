@@ -51,7 +51,7 @@ export class ClientDetailDrawerComponent {
 
   protected formatCurrency(value: string | number | null | undefined): string {
     if (value === null || value === undefined || value === '') {
-      return '—';
+      return '--';
     }
     if (typeof value === 'number' && Number.isFinite(value)) {
       return `$${value.toLocaleString('en-US')}`;
@@ -121,3 +121,4 @@ export class ClientDetailDrawerComponent {
     this.deleteEntry.emit(history);
   }
 }
+

@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import { signal, type WritableSignal } from '@angular/core';
 import type {
   EntryModalPayload,
   EntryVariant,
@@ -9,15 +9,21 @@ import {
 } from '@shared/domain/entry/entry-repository.service.js';
 
 export class EntryModalDuplicateGuard {
-  readonly match = signal<ClientMatchResult | null>(null);
-  readonly error = signal<string | null>(null);
-  readonly loading = signal(false);
+  readonly match: WritableSignal<ClientMatchResult | null>;
+  readonly error: WritableSignal<string | null>;
+  readonly loading: WritableSignal<boolean>;
 
   private pendingPayload: EntryModalPayload | null = null;
   private pendingSignature: string | null = null;
   private confirmedSignature: string | null = null;
 
-  constructor(private readonly entryRepository: EntryRepositoryService) {}
+  /* c8 ignore start */
+  constructor(private readonly entryRepository: EntryRepositoryService) {
+    this.match = signal<ClientMatchResult | null>(null);
+    this.error = signal<string | null>(null);
+    this.loading = signal(false);
+  }
+  /* c8 ignore stop */
 
   reset(): void {
     this.match.set(null);

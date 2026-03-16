@@ -1264,6 +1264,14 @@ describe('EntryModalComponent', () => {
     component['onTimelinePointerUp']();
   });
 
+  it('tracks timeline grid and drag state through facade accessors', () => {
+    const gridRef = createElementRef({ left: 0, top: 0, right: 300, width: 300, height: 400 });
+    component['onTimelineGridReady'](gridRef);
+    expect(component['timelineGrid']).toBe(gridRef);
+    component['timelineDragStartMinutes'] = 540;
+    expect(component['timelineDragStartMinutes']).toBe(540);
+  });
+
   it('ignores slot selection when the slot is booked', () => {
     component.variant = 'customer';
     component['calendarSlots'].set([
@@ -2283,6 +2291,38 @@ describe('EntryModalComponent', () => {
     entryRepository.findClientMatch.mockResolvedValue(null);
     await component['retryDuplicateCheck']();
     expect(savedSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('exercises schedule helper pass-through methods', async () => {
+    component.variant = 'customer';
+    component['calendarGroup'].patchValue({
+      date: '2026-03-05',
+      startTime: '08:00',
+      endTime: '09:00',
+    });
+
+    expect(component['isoToDateString']('2026-03-05T12:30:00.000Z')).toBe('2026-03-05');
+    expect(component['isoToTimeString']('2026-03-05T12:30:00.000Z')).toMatch(/^\d{2}:\d{2}$/);
+    expect(component['minutesToTimeString'](615)).toBe('10:15');
+    expect(component['timeStringToMinutes']('10:15')).toBe(615);
+    expect(component['timelineTotalMinutes']()).toBeGreaterThan(0);
+    expect(component['clampTimelineMinutes'](100)).toBeGreaterThanOrEqual(7 * 60);
+    expect(component['applySelectionOffset'](7 * 60, 8 * 60).start).toBe(7 * 60);
+
+    const calendarEvent: CalendarEventSummary = {
+      id: 'evt-helper',
+      summary: 'Helper test',
+      start: component['combineDateTime']('2026-03-05', '09:00'),
+      end: component['combineDateTime']('2026-03-05', '10:00'),
+      location: 'Yard',
+    };
+    component['rebuildCalendarSlots']('2026-03-05', [calendarEvent]);
+    component['rebuildTimelineEvents']('2026-03-05', [calendarEvent]);
+    calendarService.listEventsForDate.mockResolvedValueOnce([calendarEvent]);
+    await component['refreshCalendarEventsForDate']('2026-03-05');
+
+    expect(component['calendarSlots']().length).toBeGreaterThan(0);
+    expect(component['timelineEvents']().length).toBeGreaterThan(0);
   });
 
   it('routes editing banner actions through template buttons', async () => {

@@ -39,7 +39,6 @@ const buildController = (initialVariant: EntryVariant = 'customer') => {
       ? controllerRef.current.refreshCalendarEventsForDate(date)
       : Promise.resolve(),
   );
-  const requestHandleCalendarDateChange = vi.fn();
   const requestEnsureCalendarDefaults = vi.fn();
 
   const controller = new EntryModalScheduleController({
@@ -49,7 +48,6 @@ const buildController = (initialVariant: EntryVariant = 'customer') => {
     validationService,
     initialVariant,
     requestRefresh,
-    requestHandleCalendarDateChange,
     requestEnsureCalendarDefaults,
   });
   controllerRef.current = controller;
@@ -262,6 +260,18 @@ describe('EntryModalScheduleController', () => {
     });
     expect(range).toContain('6');
     expect(range).toContain('7');
+  });
+
+  it('fills editing form defaults when the event has empty summary/description', () => {
+    deps.controller.editCalendarEvent({
+      id: 'evt-empty',
+      summary: undefined as unknown as string,
+      description: undefined,
+      start: iso('2026-03-05', '11:00'),
+      end: iso('2026-03-05', '12:00'),
+    });
+    expect(deps.editingCalendarForm.controls.summary.value).toBe('');
+    expect(deps.editingCalendarForm.controls.notes.value).toBe('');
   });
 
   it('exposes drag helpers and pointer callbacks', () => {

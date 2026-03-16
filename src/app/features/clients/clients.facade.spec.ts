@@ -150,6 +150,13 @@ describe('ClientsFacade', () => {
     expect(facade.drawerVisible()).toBe(false);
   });
 
+  it('keeps active selection untouched when roster refresh no longer includes it', async () => {
+    await facade.openClientDrawer(baseClients[0]);
+    repository.listClients.mockResolvedValueOnce([baseClients[1], baseClients[2]]);
+    await facade.loadClients();
+    expect(facade.activeClient()?.clientId).toBe('alex@example.com');
+  });
+
   it('filters clients from the query control', async () => {
     await facade.loadClients();
     facade.queryControl.setValue('cedar');

@@ -128,4 +128,14 @@ describe('EntryModalDuplicateGuard', () => {
     const retried = await guard.retry('customer');
     expect(retried).toBeNull();
   });
+
+  it('keeps blocking retry when duplicate match still exists', async () => {
+    const payload = buildPayload();
+    (entryRepository.findClientMatch as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(buildMatch('email'))
+      .mockResolvedValueOnce(buildMatch('email'));
+    await guard.ensureClearance(payload, 'sig-still-blocked', 'customer');
+    const retried = await guard.retry('customer');
+    expect(retried).toBeNull();
+  });
 });

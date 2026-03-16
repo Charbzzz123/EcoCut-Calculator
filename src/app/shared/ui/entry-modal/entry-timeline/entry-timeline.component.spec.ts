@@ -67,4 +67,24 @@ describe('EntryTimelineComponent', () => {
     expect(pointerSpy).toHaveBeenCalledWith(event);
     expect(gridSpy).toHaveBeenCalledTimes(1);
   });
+
+  it('computes hour positions and formats AM/PM labels', () => {
+    const timeline = component as EntryTimelineComponent & {
+      hourPosition(index: number): number;
+      formatTimelineHour(hour: number): string;
+    };
+    expect(timeline.hourPosition(1)).toBeCloseTo(33.333, 2);
+    component.hours = [7];
+    expect(timeline.hourPosition(0)).toBe(0);
+    expect(timeline.formatTimelineHour(7)).toBe('7 AM');
+    expect(timeline.formatTimelineHour(15)).toBe('3 PM');
+  });
+
+  it('does not emit gridReady when the grid reference is missing', () => {
+    const gridSpy = vi.fn();
+    component.gridReady.subscribe(gridSpy);
+    Object.defineProperty(component, 'timelineGrid', { value: undefined });
+    component.ngAfterViewInit();
+    expect(gridSpy).not.toHaveBeenCalled();
+  });
 });
