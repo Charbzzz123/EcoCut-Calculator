@@ -52,6 +52,7 @@ root/
 - **Integration**: `HomeShellComponent` imports the modal and toggles it from the floating �Add Entry� CTA. The component emits `EntryModalPayload` with the selected variant, normalized form payload, and hedge configs, which feed the fa�ade/server. Customer submissions automatically create a Google Calendar event via `HomeDataService`, which in turn stores the returned `eventId` back onto the payload so later edits/deletes can call the appropriate proxy endpoint.
 - **Entry persistence client**: `EntryRepositoryService` (`src/app/shared/domain/entry/entry-repository.service.ts`) wraps `/api/entries` and `/api/entries/clients`. `HomeDataService.saveEntry` now awaits this service so every submission is recorded immediately (no more console stub). `listClients()` will power the future CRM dashboard without duplicating HTTP plumbing.
 - **Client roster UI**: `/clients` is backed by `ClientsShellComponent` (standalone) which uses `EntryRepositoryService.listClients()` on init. The view renders summary cards, search/filter controls, and the roster list with dedicated loading/error states. Routes are defined in `app.routes.ts` (lazy loaded via `loadComponent`).
+- **Planned broadcast UI**: `/communications/broadcast` should reuse the same shell style as `/clients` (hero, toolbar, card surfaces). Extract shared page-surface tokens/components into `src/app/shared/ui` so styling stays consistent across CRM pages.
 
 ## Backend Services
 
@@ -66,6 +67,14 @@ root/
   - `GET /entries` � retrieve the append-only job history (same SQLite snapshot) so undo/reporting layers can read the source of truth.
   - `GET /entries/clients` � returns the deduplicated client roster (keyed by email ? phone ? name+address) with `jobsCount`, `lastJobDate`, and `lastCalendarEventId`.
   - Implementation lives in `server/src/entries/` (service, repository, controller, module). The repository handles loading/saving JSON today and can later be swapped for SQLite/Postgres without changing the public API.
+- **Planned broadcast module**:
+  - Expose `/communications/broadcasts` endpoints for draft/create/schedule/send/cancel plus status/history retrieval.
+  - Use provider adapters (`SmsProvider`, `EmailProvider`) so vendor choice stays swappable (Twilio/MessageBird for SMS, SendGrid/Postmark/SES for email).
+  - Queue send jobs server-side (BullMQ or equivalent) for retries, throttling, and deterministic status updates.
+  - Enforce provider limits in workers (Quo API 10 req/s; Hostinger mailbox/day caps) and block jobs that exceed configured daily quotas.
+  - Store consent + suppression state per channel and enforce it before enqueueing each recipient.
+  - Ingest provider/webhook events (delivery, bounce, complaint, STOP/START) to keep status dashboards and suppression data current.
+  - Require idempotency keys on send/schedule operations so retries cannot create duplicate campaigns.
 - **Frontend proxying & dev setup**
   - `npm start` automatically passes `--proxy-config proxy.conf.json`, so `/api/*` traffic goes to `http://localhost:3000/*`. Always run `npm run server` in a second terminal before testing calendar flows locally.
   - When the Nest server or credentials are unavailable the frontend logs the failure (via `console.warn`) and surfaces the inline banner but the form remains usable.
@@ -114,6 +123,7 @@ All frontend services derive their HTTP targets from `environment.apiBaseUrl`, s
 
 - Replace placeholder Angular template with real calculator components.
 - Extend the `/clients` view into a full CRM (client detail drawer, job history timeline, edit/delete hooks) once backend persistence is durable.
+- Build `/communications/broadcast` in four slices: route + shared shell, audience/composer UX, backend delivery adapters, then compliance/audit.
 - Automate documentation publishing (Docs site or wiki) once scope grows.
 
 ## Durable Persistence

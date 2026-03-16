@@ -238,6 +238,40 @@ Update this document whenever we clarify rules or add new functionality so imple
 - The roster remains keyboard-friendly: cards render as buttons so the drawer can be opened without a mouse, and focus is trapped inside the drawer until it’s closed.
 - All drawer logic is signal-driven and fully covered by unit tests so future CRM actions (quick actions, edit flows) can be added without refactoring the roster list again.
 
+### Client broadcast workspace (planned)
+
+- **Access and navigation**: Home quick action **Client Broadcast** must open `/communications/broadcast` (same lazy-load pattern as `/clients`). The page keeps the same dark evergreen surface style, floating accents, and button language as Clients/Home.
+- **Audience panel**:
+  - Default mode is **All clients**.
+  - Optional filters: has email, has phone, last serviced window, upcoming job window, and search by name/address.
+  - Show live counts: total recipients, SMS-capable recipients, Email-capable recipients.
+- **Channel selection**:
+  - Modes: `Email`, `SMS`, `Both`.
+  - If `Both`, show channel-specific copy blocks and per-channel recipient counts.
+  - Validation: prevent send if selected channel has zero eligible recipients.
+- **Message composer**:
+  - Subject line (required for email).
+  - Message body with reusable variable chips (for example: `{{firstName}}`, `{{address}}`, `{{nextJobDate}}`).
+  - Optional CTA link and optional internal note (not sent to clients).
+  - Character counter and estimated segment count for SMS.
+- **Preview and safety controls**:
+  - Real-time preview card for email and SMS rendering.
+  - Preview supports selecting a specific client to render the exact final message after all layers are applied (base template, segment variant, channel variant, per-client override).
+  - **Send test** to owner/manager address/phone before final send.
+  - **Schedule send** (now or later) with timezone.
+  - Confirmation modal before dispatch, showing channel, recipient count, and scheduled time.
+- **Operations history**:
+  - List past broadcast jobs with status (`draft`, `scheduled`, `sending`, `sent`, `failed`, `partially sent`), channel, counts, creator, and timestamps.
+  - Ability to reopen a draft, duplicate a prior campaign, or cancel a scheduled campaign.
+- **Compliance and permissions**:
+  - Owner can create, schedule, send, cancel, and view analytics.
+  - Manager can create drafts and schedule sends but cannot bypass approval if approval mode is enabled.
+  - Respect client opt-out flags per channel; suppressed recipients are excluded automatically and shown in summary counts.
+  - Persist consent metadata per channel (type, source, timestamp, expiry for implied consent windows) and block recipients whose consent is expired.
+  - Every email message includes sender identity and unsubscribe details; one-click unsubscribe headers are required for bulk sends.
+  - SMS composer should warn when copy exceeds one segment and clearly show estimated segment/cost impact before send.
+  - Broadcast runs need an emergency stop control that cancels queued deliveries and prevents duplicate dispatches for the same campaign action.
+
 ### Client Editing & Hedge Plan Enhancements
 
 - Client history entries now show the saved hedge plan lines (trim/rabattage breakdown) alongside desired budget and notes so crews know exactly what was requested before rolling out.

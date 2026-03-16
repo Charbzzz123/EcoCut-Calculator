@@ -50,9 +50,30 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 ## In Progress / Backlog
 
-| Task               | Owner | Notes                         |
-| ------------------ | ----- | ----------------------------- |
-| No active backlog. | —     | Coverage phases are complete. |
+| Step | Task                                 | Owner | Notes                                                                                                                                                       |
+| ---- | ------------------------------------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0    | Broadcast requirements lock          | —     | Freeze delivery channels (Hostinger email + Quo SMS), daily caps, permission model, opt-out rules, and consent retention fields before coding.              |
+| 1    | Route + shared shell                 | —     | Create `/communications/broadcast`, wire Home quick action, reuse Clients/Home visual language (hero, toolbar, cards, floating actions).                    |
+| 2    | Audience + channel builder           | —     | Build recipient filters, eligibility counts, and channel toggles (Email/SMS/Both) with validation and excluded-recipient summary.                           |
+| 3    | Template composer + merge fields     | —     | Add manual template editor with merge tokens (for example: name, last job value/date, next job date, address) and missing-data fallbacks.                   |
+| 4    | Layered personalization + overrides  | —     | Support crossed modes with deterministic priority: per-client override > segment rule > channel variant > base template.                                    |
+| 5    | Preview, test send, and confirmation | —     | Render exact per-client preview before sending, show SMS segment counter, add send-test flow and final confirmation modal.                                  |
+| 6    | Backend delivery engine              | —     | Add Nest communications module, provider adapters, queue, retry/throttle controls, and campaign status endpoints.                                           |
+| 7    | Compliance + audit + analytics       | —     | Enforce unsubscribe/suppression, add approval flow, track sent/delivered/failed/suppressed counts, ingest provider webhooks, and keep immutable audit logs. |
+| 8    | Quality gates + rollout              | —     | Full unit/integration coverage, lint/build clean, staging dry run, then production release checklist.                                                       |
+
+### Broadcast Requirements (locked for implementation)
+
+- No AI-generated campaign copy required for MVP; operators write templates manually.
+- Personalization is merge-field based, not bot-generated, and must support per-client values.
+- Operators can combine multiple customization modes in one campaign (segments + channel variants + individual overrides).
+- Final message preview must show the exact rendered content for a selected client before send.
+- SMS and email must both support unsubscribe behavior and automatic suppression enforcement.
+- Default stack for MVP: Hostinger business email transport + Quo SMS API transport.
+- Use safe sending defaults: queue, throttling, daily caps, retries, and explicit confirmation before send.
+- Configure and verify SPF, DKIM, and DMARC before enabling production email broadcasts.
+- Include one-click unsubscribe support for bulk email sends and honor unsubscribe requests within policy windows.
+- Enforce provider guardrails in-app (Quo request-rate limits and mailbox/day send caps).
 
 ## To Eventually Do
 
