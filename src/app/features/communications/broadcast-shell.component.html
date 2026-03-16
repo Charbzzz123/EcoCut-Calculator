@@ -18,7 +18,15 @@
   <section class="broadcast-summary" aria-label="Broadcast metrics">
     <article class="summary-card">
       <p class="summary-card__label">Recipients selected</p>
-      <p class="summary-card__value">0</p>
+      <p class="summary-card__value">{{ counts().total }}</p>
+    </article>
+    <article class="summary-card">
+      <p class="summary-card__label">Email-eligible</p>
+      <p class="summary-card__value">{{ counts().emailEligible }}</p>
+    </article>
+    <article class="summary-card">
+      <p class="summary-card__label">SMS-eligible</p>
+      <p class="summary-card__value">{{ counts().smsEligible }}</p>
     </article>
     <article class="summary-card">
       <p class="summary-card__label">Email cap (daily)</p>
@@ -29,28 +37,110 @@
       <p class="summary-card__value">200</p>
     </article>
     <article class="summary-card">
-      <p class="summary-card__label">Campaign status</p>
-      <p class="summary-card__value">Draft</p>
+      <p class="summary-card__label">Eligible for both</p>
+      <p class="summary-card__value">{{ counts().bothEligible }}</p>
     </article>
   </section>
 
   <section class="broadcast-board" aria-label="Broadcast setup panels">
     <article class="board-card">
-      <h2>Audience and channels</h2>
-      <ul>
-        <li>Filter clients and channel eligibility.</li>
-        <li>Combine segment rules with channel variants.</li>
-        <li>Track suppressed recipients before send.</li>
-      </ul>
+      <h2>Audience filters</h2>
+      <label class="field">
+        <span>Search</span>
+        <input
+          [formControl]="queryControl"
+          type="search"
+          placeholder="Name, address, email, or phone"
+        />
+      </label>
+
+      <div class="field-grid">
+        <label class="check">
+          <input type="checkbox" [formControl]="requireEmailControl" />
+          <span>Email only</span>
+        </label>
+        <label class="check">
+          <input type="checkbox" [formControl]="requirePhoneControl" />
+          <span>SMS-capable only</span>
+        </label>
+      </div>
+
+      <div class="field-grid">
+        <label class="field">
+          <span>Last service</span>
+          <select [formControl]="serviceWindowControl">
+            <option value="any">Any</option>
+            <option value="last-90">Last 90 days</option>
+            <option value="last-365">Last 365 days</option>
+            <option value="no-history">No service yet</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Upcoming jobs</span>
+          <select [formControl]="upcomingWindowControl">
+            <option value="any">Any</option>
+            <option value="next-30">Next 30 days</option>
+            <option value="next-90">Next 90 days</option>
+            <option value="no-upcoming">None scheduled</option>
+          </select>
+        </label>
+      </div>
+
+      <button type="button" class="refresh-btn" (click)="reloadRecipients()">
+        Refresh recipients
+      </button>
     </article>
 
     <article class="board-card">
-      <h2>Composer and preview</h2>
-      <ul>
-        <li>Insert merge fields like name, last job value, and next service date.</li>
-        <li>Add per-client overrides when needed.</li>
-        <li>Preview exact rendered output for one client before dispatch.</li>
+      <h2>Channel and exclusion summary</h2>
+      <div class="channel-toggle" role="group" aria-label="Broadcast channel">
+        <label class="channel-option">
+          <input type="radio" [formControl]="channelControl" value="email" />
+          <span>Email</span>
+        </label>
+        <label class="channel-option">
+          <input type="radio" [formControl]="channelControl" value="sms" />
+          <span>SMS</span>
+        </label>
+        <label class="channel-option">
+          <input type="radio" [formControl]="channelControl" value="both" />
+          <span>Both</span>
+        </label>
+      </div>
+
+      <ul class="summary-list">
+        <li>Missing email: {{ exclusions().missingEmail }}</li>
+        <li>Missing phone: {{ exclusions().missingPhone }}</li>
+        <li>Missing both channels: {{ exclusions().missingBoth }}</li>
+        <li>Excluded for selected channel: {{ exclusions().excludedForSelectedChannel }}</li>
       </ul>
+
+      @if (channelValidationMessage()) {
+        <p class="validation-banner">{{ channelValidationMessage() }}</p>
+      } @else {
+        <p class="validation-banner validation-banner--ok">
+          Channel is valid for {{ filteredRecipients().length }} recipients.
+        </p>
+      }
+
+      <h3>Step 2 status</h3>
+      <ul>
+        <li>Recipient filtering is live and channel aware.</li>
+        <li>Eligibility/exclusion counts are computed in real time.</li>
+        <li>Validation blocks channels with zero deliverable recipients.</li>
+      </ul>
+
+      <p class="dispatch-status" [class.dispatch-status--disabled]="!canDispatch()">
+        Dispatch readiness: {{ canDispatch() ? 'Ready' : 'Blocked' }}
+      </p>
     </article>
   </section>
+
+  @if (loadState() === 'loading') {
+    <p class="state-banner">Loading recipient roster…</p>
+  } @else if (loadState() === 'error') {
+    <p class="state-banner state-banner--error">
+      Could not load recipients right now. Retry after checking the backend.
+    </p>
+  }
 </section>

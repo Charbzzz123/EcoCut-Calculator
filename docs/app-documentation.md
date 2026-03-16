@@ -52,7 +52,10 @@ root/
 - **Integration**: `HomeShellComponent` imports the modal and toggles it from the floating �Add Entry� CTA. The component emits `EntryModalPayload` with the selected variant, normalized form payload, and hedge configs, which feed the fa�ade/server. Customer submissions automatically create a Google Calendar event via `HomeDataService`, which in turn stores the returned `eventId` back onto the payload so later edits/deletes can call the appropriate proxy endpoint.
 - **Entry persistence client**: `EntryRepositoryService` (`src/app/shared/domain/entry/entry-repository.service.ts`) wraps `/api/entries` and `/api/entries/clients`. `HomeDataService.saveEntry` now awaits this service so every submission is recorded immediately (no more console stub). `listClients()` will power the future CRM dashboard without duplicating HTTP plumbing.
 - **Client roster UI**: `/clients` is backed by `ClientsShellComponent` (standalone) which uses `EntryRepositoryService.listClients()` on init. The view renders summary cards, search/filter controls, and the roster list with dedicated loading/error states. Routes are defined in `app.routes.ts` (lazy loaded via `loadComponent`).
-- **Planned broadcast UI**: `/communications/broadcast` should reuse the same shell style as `/clients` (hero, toolbar, card surfaces). Extract shared page-surface tokens/components into `src/app/shared/ui` so styling stays consistent across CRM pages.
+- **Broadcast UI (Phase 1-2 live)**:
+  - `/communications/broadcast` now lazy-loads `BroadcastShellComponent` and reuses the same evergreen shell language as `/clients`.
+  - `BroadcastFacade` owns recipient loading, filter controls, channel selection, eligibility counts, exclusion summaries, and dispatch gating (no eligible recipients => dispatch blocked).
+  - Next UI slices will add composer, preview/test-send, and broadcast history on top of the existing shell/facade.
 
 ## Backend Services
 
@@ -123,7 +126,7 @@ All frontend services derive their HTTP targets from `environment.apiBaseUrl`, s
 
 - Replace placeholder Angular template with real calculator components.
 - Extend the `/clients` view into a full CRM (client detail drawer, job history timeline, edit/delete hooks) once backend persistence is durable.
-- Build `/communications/broadcast` in four slices: route + shared shell, audience/composer UX, backend delivery adapters, then compliance/audit.
+- Continue `/communications/broadcast` rollout in remaining slices: composer + preview UX, backend delivery adapters, then compliance/audit.
 - Automate documentation publishing (Docs site or wiki) once scope grows.
 
 ## Durable Persistence

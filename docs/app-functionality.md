@@ -238,17 +238,17 @@ Update this document whenever we clarify rules or add new functionality so imple
 - The roster remains keyboard-friendly: cards render as buttons so the drawer can be opened without a mouse, and focus is trapped inside the drawer until it’s closed.
 - All drawer logic is signal-driven and fully covered by unit tests so future CRM actions (quick actions, edit flows) can be added without refactoring the roster list again.
 
-### Client broadcast workspace (planned)
+### Client broadcast workspace
 
 - **Access and navigation**: Home quick action **Client Broadcast** must open `/communications/broadcast` (same lazy-load pattern as `/clients`). The page keeps the same dark evergreen surface style, floating accents, and button language as Clients/Home.
-- **Audience panel**:
+- **Audience panel** (implemented):
   - Default mode is **All clients**.
-  - Optional filters: has email, has phone, last serviced window, upcoming job window, and search by name/address.
-  - Show live counts: total recipients, SMS-capable recipients, Email-capable recipients.
-- **Channel selection**:
+  - Active filters: search by name/address/phone/email, has email, has phone, last serviced window, and upcoming job window.
+  - Live counts render total recipients, SMS-capable recipients, Email-capable recipients, and dual-channel recipients.
+  - Exclusion summary shows how many recipients are missing email, missing SMS, missing both, and excluded by the currently selected channel.
+- **Channel selection** (implemented):
   - Modes: `Email`, `SMS`, `Both`.
-  - If `Both`, show channel-specific copy blocks and per-channel recipient counts.
-  - Validation: prevent send if selected channel has zero eligible recipients.
+  - Validation blocks dispatch when selected channel has zero eligible recipients and surfaces a clear inline error.
 - **Message composer**:
   - Subject line (required for email).
   - Message body with reusable variable chips (for example: `{{firstName}}`, `{{address}}`, `{{nextJobDate}}`).
