@@ -271,6 +271,7 @@ Update this document whenever we clarify rules or add new functionality so imple
   - Every email message includes sender identity and unsubscribe details; one-click unsubscribe headers are required for bulk sends.
   - SMS composer should warn when copy exceeds one segment and clearly show estimated segment/cost impact before send.
   - Broadcast runs need an emergency stop control that cancels queued deliveries and prevents duplicate dispatches for the same campaign action.
+  - MVP defaults: `email <= 80/day`, `sms <= 200/day`, Owner approval required before dispatch, and immediate suppression for email unsubscribes/SMS STOP events.
 
 ### Client Editing & Hedge Plan Enhancements
 

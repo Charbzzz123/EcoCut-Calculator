@@ -1,0 +1,56 @@
+<section class="broadcast-shell" aria-labelledby="{{ headingId }}">
+  <article class="broadcast-hero">
+    <app-brand-banner></app-brand-banner>
+
+    <header class="broadcast-shell__header">
+      <div class="hero-copy">
+        <p class="eyebrow">Client communications</p>
+        <h1 id="{{ headingId }}">Client broadcast</h1>
+        <p class="subtitle">
+          Build personalized campaigns with merge fields, per-client overrides, and a preview before
+          dispatch.
+        </p>
+      </div>
+      <app-back-chip routerLink="/home" label="Back to dashboard"></app-back-chip>
+    </header>
+  </article>
+
+  <section class="broadcast-summary" aria-label="Broadcast metrics">
+    <article class="summary-card">
+      <p class="summary-card__label">Recipients selected</p>
+      <p class="summary-card__value">0</p>
+    </article>
+    <article class="summary-card">
+      <p class="summary-card__label">Email cap (daily)</p>
+      <p class="summary-card__value">80</p>
+    </article>
+    <article class="summary-card">
+      <p class="summary-card__label">SMS cap (daily)</p>
+      <p class="summary-card__value">200</p>
+    </article>
+    <article class="summary-card">
+      <p class="summary-card__label">Campaign status</p>
+      <p class="summary-card__value">Draft</p>
+    </article>
+  </section>
+
+  <section class="broadcast-board" aria-label="Broadcast setup panels">
+    <article class="board-card">
+      <h2>Audience and channels</h2>
+      <ul>
+        <li>Filter clients and channel eligibility.</li>
+        <li>Combine segment rules with channel variants.</li>
+        <li>Track suppressed recipients before send.</li>
+      </ul>
+    </article>
+
+    <article class="board-card">
+      <h2>Composer and preview</h2>
+      <ul>
+        <li>Insert merge fields like name, last job value, and next service date.</li>
+        <li>Add per-client overrides when needed.</li>
+        <li>Preview exact rendered output for one client before dispatch.</li>
+      </ul>
+    </article>
+  </section>
+</section>

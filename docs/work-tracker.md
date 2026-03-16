@@ -47,13 +47,13 @@ Living checklist for in-flight feature work so we never lose track of what€™
 | Coverage hardening - Phase 2 (Entry modal core branches)             | 2026-03-16 | Closed remaining branches in modal facade/schedule/duplicate/timeline paths; modal feature now reports 100% per-file coverage.                           |
 | Coverage hardening - Phase 3 (Shared utilities and minor gaps)       | 2026-03-16 | Added missing branch coverage for panel store, builder, banner, and shared test helpers; all shared utility files are now fully covered.                 |
 | Coverage hardening - Phase 4 (Guardrails + CI threshold handling)    | 2026-03-16 | Added deterministic per-file threshold enforcement (99% floor, currently passing at 100%) and documented/validated the guardrails in CI workflow.        |
+| Broadcast Phase 0 defaults locked                                    | 2026-03-16 | Locked MVP channels, caps, permissions, consent windows, unsubscribe behavior, and deliverability requirements before implementation.                    |
+| Broadcast Phase 1 route + shell scaffold                             | 2026-03-16 | Added `/communications/broadcast` route and standalone shell that reuses the Clients/Home visual language with starter metrics and planning cards.       |
 
 ## In Progress / Backlog
 
 | Step | Task                                 | Owner | Notes                                                                                                                                                       |
 | ---- | ------------------------------------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0    | Broadcast requirements lock          | —     | Freeze delivery channels (Hostinger email + Quo SMS), daily caps, permission model, opt-out rules, and consent retention fields before coding.              |
-| 1    | Route + shared shell                 | —     | Create `/communications/broadcast`, wire Home quick action, reuse Clients/Home visual language (hero, toolbar, cards, floating actions).                    |
 | 2    | Audience + channel builder           | —     | Build recipient filters, eligibility counts, and channel toggles (Email/SMS/Both) with validation and excluded-recipient summary.                           |
 | 3    | Template composer + merge fields     | —     | Add manual template editor with merge tokens (for example: name, last job value/date, next job date, address) and missing-data fallbacks.                   |
 | 4    | Layered personalization + overrides  | —     | Support crossed modes with deterministic priority: per-client override > segment rule > channel variant > base template.                                    |
@@ -71,6 +71,10 @@ Living checklist for in-flight feature work so we never lose track of what€™
 - SMS and email must both support unsubscribe behavior and automatic suppression enforcement.
 - Default stack for MVP: Hostinger business email transport + Quo SMS API transport.
 - Use safe sending defaults: queue, throttling, daily caps, retries, and explicit confirmation before send.
+- MVP daily caps: `email <= 80/day`, `sms <= 200/day` until deliverability is validated.
+- Role defaults: Owner can send/cancel; Manager can draft and request scheduling but cannot dispatch without Owner approval.
+- Consent defaults (Canada): existing-customer implied window tracked from last paid service (24 months) and inquiry window tracked separately (6 months); expired records are excluded automatically.
+- Unsubscribe defaults: email one-click + SMS STOP/START sync, with suppression applied immediately and fully honored within policy windows.
 - Configure and verify SPF, DKIM, and DMARC before enabling production email broadcasts.
 - Include one-click unsubscribe support for bulk email sends and honor unsubscribe requests within policy windows.
 - Enforce provider guardrails in-app (Quo request-rate limits and mailbox/day send caps).

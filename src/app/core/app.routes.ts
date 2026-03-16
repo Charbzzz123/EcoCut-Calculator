@@ -14,5 +14,13 @@ export const routes: Routes = [
       import('../features/clients/clients-shell.component.js').then((m) => m.ClientsShellComponent),
     title: 'EcoCut | Clients',
   },
+  {
+    path: 'communications/broadcast',
+    loadComponent: () =>
+      import('../features/communications/broadcast-shell.component.js').then(
+        (m) => m.BroadcastShellComponent,
+      ),
+    title: 'EcoCut | Broadcast',
+  },
   { path: '**', redirectTo: 'home' },
 ];
