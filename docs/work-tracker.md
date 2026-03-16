@@ -43,15 +43,16 @@ Living checklist for in-flight feature work so we never lose track of what€™
 | Wrap entry modal logic in a façade base class                        | 2026-03-05 | Extracted EntryModalFacade so the component shell is thin and ready for future slices.                                                                   |
 | Stabilize coverage temp output path                                  | 2026-03-10 | Coverage now pre-creates `coverage/ecocut-calculator/.tmp` and Vitest reports into `coverage/ecocut-calculator` to avoid intermittent ENOENT failures.   |
 | Coverage hardening Phase 1A (overlay forwarding + banner getter)     | 2026-03-10 | Added forwarding/getter specs for client overlays and brand banner; baseline improved to 99.32% statements and 97.21% functions.                         |
+| Coverage hardening - Phase 1 (Clients surface)                       | 2026-03-16 | Completed exhaustive Clients surface specs and branch coverage so the full clients feature now reports 100% per-file coverage.                           |
+| Coverage hardening - Phase 2 (Entry modal core branches)             | 2026-03-16 | Closed remaining branches in modal facade/schedule/duplicate/timeline paths; modal feature now reports 100% per-file coverage.                           |
+| Coverage hardening - Phase 3 (Shared utilities and minor gaps)       | 2026-03-16 | Added missing branch coverage for panel store, builder, banner, and shared test helpers; all shared utility files are now fully covered.                 |
+| Coverage hardening - Phase 4 (Guardrails + CI threshold handling)    | 2026-03-16 | Added deterministic per-file threshold enforcement (99% floor, currently passing at 100%) and documented/validated the guardrails in CI workflow.        |
 
 ## In Progress / Backlog
 
-| Task                                                              | Owner | Notes                                                                                                                                                            |
-| ----------------------------------------------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Coverage hardening - Phase 1 (Clients surface)                    | —     | Raise `clients.facade.ts`, `client-detail-drawer.component.ts/.html`, `client-detail-overlay.component.html`, and `entry-editor-overlay.component.html` to 100%. |
-| Coverage hardening - Phase 2 (Entry modal core branches)          | —     | Close remaining branches in `entry-modal.facade.ts`, `entry-modal-schedule.controller.ts`, `entry-modal-duplicate.guard.ts`, and `entry-timeline.component.ts`.  |
-| Coverage hardening - Phase 3 (Shared utilities and minor gaps)    | —     | Close final gaps in `entry-modal-panel.store.ts`, `calendar-event.builder.ts`, `brand-banner.component.ts`, and `shared/testing/entry-modal-test-helpers.ts`.    |
-| Coverage hardening - Phase 4 (Guardrails + CI threshold handling) | —     | Add deterministic coverage threshold checks (target 100%; temporary floor 99% where tooling-generated branches are unavoidable) and document enforcement.        |
+| Task               | Owner | Notes                         |
+| ------------------ | ----- | ----------------------------- |
+| No active backlog. | —     | Coverage phases are complete. |
 
 ## To Eventually Do
 
