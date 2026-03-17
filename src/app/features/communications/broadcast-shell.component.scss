@@ -366,6 +366,19 @@
   white-space: pre-wrap;
 }
 
+.send-controls {
+  margin-top: 1rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.9rem;
+  background: rgba(9, 24, 18, 0.88);
+  padding: 0.9rem 1rem;
+}
+
+.send-controls h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
 .state-banner {
   margin: 0;
   border-radius: 0.9rem;
@@ -378,6 +391,30 @@
 .state-banner--error {
   border-color: rgba(248, 113, 113, 0.45);
   color: #ffcaca;
+}
+
+.confirmation-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 9, 7, 0.7);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+  padding: 1rem;
+}
+
+.confirmation-modal {
+  width: min(500px, 100%);
+  border: 1px solid var(--border-soft);
+  border-radius: 1rem;
+  background: rgba(6, 18, 14, 0.98);
+  box-shadow: var(--shadow-elevated);
+  padding: 1rem 1.1rem;
+}
+
+.confirmation-modal h2 {
+  margin: 0;
+  font-size: 1.05rem;
 }
 
 @media (max-width: 900px) {

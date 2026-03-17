@@ -499,6 +499,137 @@ describe('BroadcastFacade', () => {
     expect(facade.previewPayload().activeLayers).not.toContain('Client override: Alex North');
   });
 
+  it('opens and confirms dispatch confirmation payload', async () => {
+    listClients.mockResolvedValue(clientsFixture);
+    const facade = TestBed.inject(BroadcastFacade);
+    await facade.loadRecipients();
+
+    facade.scheduleModeControl.setValue('later');
+    facade.scheduleAtControl.setValue('2026-07-01T09:30');
+    facade.openDispatchConfirmation();
+
+    expect(facade.confirmationOpen()).toBe(true);
+    expect(facade.confirmationPayload()).toEqual({
+      mode: 'dispatch',
+      channel: 'both',
+      recipients: 3,
+      scheduledAtLabel: '2026-07-01T09:30',
+    });
+
+    facade.confirmCurrentAction();
+    expect(facade.confirmationOpen()).toBe(false);
+    expect(facade.confirmationPayload()).toBeNull();
+    expect(facade.statusBanner()).toContain('Broadcast scheduled for 3 recipients');
+  });
+
+  it('queues dispatch immediately when schedule mode is now', async () => {
+    listClients.mockResolvedValue(clientsFixture);
+    const facade = TestBed.inject(BroadcastFacade);
+    await facade.loadRecipients();
+
+    facade.scheduleModeControl.setValue('now');
+    facade.openDispatchConfirmation();
+    facade.confirmCurrentAction();
+
+    expect(facade.statusBanner()).toContain('Broadcast queued for 3 recipients');
+  });
+
+  it('marks missing schedule time when dispatch is set to later without a timestamp', async () => {
+    listClients.mockResolvedValue(clientsFixture);
+    const facade = TestBed.inject(BroadcastFacade);
+    await facade.loadRecipients();
+
+    facade.scheduleModeControl.setValue('later');
+    facade.scheduleAtControl.setValue('   ');
+    facade.openDispatchConfirmation();
+
+    expect(facade.confirmationPayload()).toEqual({
+      mode: 'dispatch',
+      channel: 'both',
+      recipients: 3,
+      scheduledAtLabel: 'Scheduled time missing',
+    });
+  });
+
+  it('opens and confirms test send payload only with valid destinations', async () => {
+    listClients.mockResolvedValue(clientsFixture);
+    const facade = TestBed.inject(BroadcastFacade);
+    await facade.loadRecipients();
+
+    facade.openTestConfirmation();
+    expect(facade.confirmationOpen()).toBe(false);
+
+    facade.channelControl.setValue('email');
+    facade.testEmailControl.setValue('owner@ecocutqc.com');
+    facade.openTestConfirmation();
+    expect(facade.confirmationPayload()).toEqual({
+      mode: 'test',
+      channel: 'email',
+      recipients: 1,
+      scheduledAtLabel: 'Send now',
+    });
+    facade.confirmCurrentAction();
+    expect(facade.statusBanner()).toContain('owner@ecocutqc.com');
+
+    facade.channelControl.setValue('sms');
+    facade.testPhoneControl.setValue('(514) 555-0000');
+    facade.openTestConfirmation();
+    facade.confirmCurrentAction();
+    expect(facade.statusBanner()).toContain('(514) 555-0000');
+
+    facade.channelControl.setValue('both');
+    facade.testEmailControl.setValue('');
+    facade.openTestConfirmation();
+    expect(facade.confirmationOpen()).toBe(false);
+    facade.testEmailControl.setValue('owner@ecocutqc.com');
+    facade.openTestConfirmation();
+    expect(facade.confirmationOpen()).toBe(true);
+  });
+
+  it('uses combined destination labels for both-channel test sends', async () => {
+    listClients.mockResolvedValue(clientsFixture);
+    const facade = TestBed.inject(BroadcastFacade);
+    await facade.loadRecipients();
+
+    facade.channelControl.setValue('both');
+    facade.testEmailControl.setValue('owner@ecocutqc.com');
+    facade.testPhoneControl.setValue('(514) 555-0000');
+    facade.openTestConfirmation();
+    facade.confirmCurrentAction();
+
+    expect(facade.statusBanner()).toContain('owner@ecocutqc.com + (514) 555-0000');
+  });
+
+  it('can close confirmation without confirming and ignores confirm when payload is missing', async () => {
+    listClients.mockResolvedValue(clientsFixture);
+    const facade = TestBed.inject(BroadcastFacade);
+    await facade.loadRecipients();
+
+    facade.openDispatchConfirmation();
+    expect(facade.confirmationOpen()).toBe(true);
+    facade.closeConfirmation();
+    expect(facade.confirmationOpen()).toBe(false);
+    expect(facade.confirmationPayload()).toBeNull();
+
+    facade.confirmCurrentAction();
+    expect(facade.statusBanner()).toBeNull();
+  });
+
+  it('blocks dispatch confirmation when channel validation is failing', async () => {
+    listClients.mockResolvedValue(clientsFixture);
+    const facade = TestBed.inject(BroadcastFacade);
+    await facade.loadRecipients();
+
+    facade.channelControl.setValue('both');
+    facade.queryControl.setValue('carter');
+    vi.advanceTimersByTime(151);
+    expect(facade.canDispatch()).toBe(false);
+
+    facade.openDispatchConfirmation();
+    expect(facade.confirmationOpen()).toBe(false);
+    expect(facade.confirmationPayload()).toBeNull();
+  });
+
   it('falls back when preview client has invalid date values', async () => {
     listClients.mockResolvedValue(edgeCaseClientsFixture);
     const facade = TestBed.inject(BroadcastFacade);

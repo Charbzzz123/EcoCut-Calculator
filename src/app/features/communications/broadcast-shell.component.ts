@@ -48,6 +48,13 @@ export class BroadcastShellComponent implements OnInit {
   protected readonly segmentRules = this.facade.segmentRules;
   protected readonly previewPayload = this.facade.previewPayload;
   protected readonly smsMetrics = this.facade.smsMetrics;
+  protected readonly scheduleModeControl = this.facade.scheduleModeControl;
+  protected readonly scheduleAtControl = this.facade.scheduleAtControl;
+  protected readonly testEmailControl = this.facade.testEmailControl;
+  protected readonly testPhoneControl = this.facade.testPhoneControl;
+  protected readonly confirmationOpen = this.facade.confirmationOpen;
+  protected readonly confirmationPayload = this.facade.confirmationPayload;
+  protected readonly statusBanner = this.facade.statusBanner;
 
   ngOnInit(): void {
     void this.facade.loadRecipients();
@@ -67,5 +74,27 @@ export class BroadcastShellComponent implements OnInit {
 
   protected clearOverrideForPreviewClient(): void {
     this.facade.clearOverrideForPreviewClient();
+  }
+
+  protected openTestConfirmation(): void {
+    this.facade.openTestConfirmation();
+  }
+
+  protected openDispatchConfirmation(): void {
+    this.facade.openDispatchConfirmation();
+  }
+
+  protected closeConfirmation(): void {
+    this.facade.closeConfirmation();
+  }
+
+  protected onConfirmationBackdropClick(event: MouseEvent): void {
+    if (event.target === event.currentTarget) {
+      this.closeConfirmation();
+    }
+  }
+
+  protected confirmCurrentAction(): void {
+    this.facade.confirmCurrentAction();
   }
 }

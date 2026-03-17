@@ -63,3 +63,12 @@ export interface BroadcastLayerOption {
   id: string;
   label: string;
 }
+
+export type BroadcastScheduleMode = 'now' | 'later';
+
+export interface BroadcastConfirmationPayload {
+  mode: 'test' | 'dispatch';
+  channel: BroadcastChannel;
+  recipients: number;
+  scheduledAtLabel: string;
+}

@@ -7,12 +7,14 @@ import {
 } from '@shared/domain/entry/entry-repository.service.js';
 import {
   BroadcastChannel,
+  BroadcastConfirmationPayload,
   BroadcastExclusionSummary,
   BroadcastFilters,
   BroadcastMergeField,
   BroadcastLoadState,
   BroadcastLayerOption,
   BroadcastRecipientCounts,
+  BroadcastScheduleMode,
   BroadcastSmsMetrics,
   BroadcastTemplateTarget,
   BroadcastTemplates,
@@ -226,6 +228,10 @@ export class BroadcastFacade {
   readonly overrideSubjectControl = new FormControl('', { nonNullable: true });
   readonly overrideEmailBodyControl = new FormControl('', { nonNullable: true });
   readonly overrideSmsBodyControl = new FormControl('', { nonNullable: true });
+  readonly scheduleModeControl = new FormControl<BroadcastScheduleMode>('now', { nonNullable: true });
+  readonly scheduleAtControl = new FormControl('', { nonNullable: true });
+  readonly testEmailControl = new FormControl('', { nonNullable: true });
+  readonly testPhoneControl = new FormControl('', { nonNullable: true });
 
   private readonly clientsSignal = this.createClientsSignal();
   private readonly loadStateSignal = this.createLoadStateSignal();
@@ -237,6 +243,9 @@ export class BroadcastFacade {
   private readonly selectedSmsVariantSignal = this.createSelectedSmsVariantSignal();
   private readonly selectedSegmentRuleSignal = this.createSelectedSegmentRuleSignal();
   private readonly overridesSignal = this.createOverridesSignal();
+  private readonly confirmationPayloadSignal = this.createConfirmationPayloadSignal();
+  private readonly confirmationOpenSignal = this.createConfirmationOpenSignal();
+  private readonly statusBannerSignal = this.createStatusBannerSignal();
 
   readonly loadState: Signal<BroadcastLoadState> = this.loadStateSignal.asReadonly();
   readonly selectedChannel: Signal<BroadcastChannel> = this.selectedChannelSignal.asReadonly();
@@ -244,6 +253,10 @@ export class BroadcastFacade {
   readonly emailVariants: Signal<BroadcastLayerOption[]> = signal(channelEmailVariants).asReadonly();
   readonly smsVariants: Signal<BroadcastLayerOption[]> = signal(channelSmsVariants).asReadonly();
   readonly segmentRules: Signal<BroadcastLayerOption[]> = signal(segmentRules).asReadonly();
+  readonly confirmationPayload: Signal<BroadcastConfirmationPayload | null> =
+    this.confirmationPayloadSignal.asReadonly();
+  readonly confirmationOpen: Signal<boolean> = this.confirmationOpenSignal.asReadonly();
+  readonly statusBanner: Signal<string | null> = this.statusBannerSignal.asReadonly();
   /* c8 ignore next */
   readonly filteredRecipients: Signal<ClientSummary[]> = computed(() =>
     this.applyFilters(this.clientsSignal(), this.filtersSignal()),
@@ -329,6 +342,13 @@ export class BroadcastFacade {
         this.previewClientIdSignal.set(previewClientId);
         this.syncOverrideEditors(previewClientId);
       });
+    this.scheduleModeControl.valueChanges
+      .pipe(startWith(this.scheduleModeControl.value), distinctUntilChanged())
+      .subscribe((mode) => {
+        if (mode === 'now') {
+          this.scheduleAtControl.setValue('', { emitEvent: false });
+        }
+      });
   }
 
   async loadRecipients(): Promise<void> {
@@ -399,6 +419,56 @@ export class BroadcastFacade {
     this.syncOverrideEditors(previewClientId);
   }
 
+  openDispatchConfirmation(): void {
+    if (!this.canDispatch()) {
+      return;
+    }
+    this.confirmationPayloadSignal.set({
+      mode: 'dispatch',
+      channel: this.selectedChannel(),
+      recipients: this.filteredRecipients().length,
+      scheduledAtLabel: this.resolveScheduledLabel(),
+    });
+    this.statusBannerSignal.set(null);
+    this.confirmationOpenSignal.set(true);
+  }
+
+  openTestConfirmation(): void {
+    if (!this.canDispatch() || !this.hasTestDestination()) {
+      return;
+    }
+    this.confirmationPayloadSignal.set({
+      mode: 'test',
+      channel: this.selectedChannel(),
+      recipients: 1,
+      scheduledAtLabel: this.resolveScheduledLabel(),
+    });
+    this.statusBannerSignal.set(null);
+    this.confirmationOpenSignal.set(true);
+  }
+
+  closeConfirmation(): void {
+    this.confirmationOpenSignal.set(false);
+    this.confirmationPayloadSignal.set(null);
+  }
+
+  confirmCurrentAction(): void {
+    const payload = this.confirmationPayloadSignal();
+    if (!payload) {
+      return;
+    }
+    if (payload.mode === 'test') {
+      this.statusBannerSignal.set(
+        `Test message queued for ${this.resolveTestDestinationLabel()} (${payload.channel}).`,
+      );
+    } else {
+      this.statusBannerSignal.set(
+        `Broadcast ${this.scheduleModeControl.value === 'later' ? 'scheduled' : 'queued'} for ${payload.recipients} recipients (${payload.channel}).`,
+      );
+    }
+    this.closeConfirmation();
+  }
+
   private updateFilters(partial: Partial<BroadcastFilters>): void {
     this.filtersSignal.update((current) => ({ ...current, ...partial }));
     this.syncPreviewSelection();
@@ -413,6 +483,40 @@ export class BroadcastFacade {
     this.overrideSubjectControl.setValue(override?.emailSubject ?? '', { emitEvent: false });
     this.overrideEmailBodyControl.setValue(override?.emailBody ?? '', { emitEvent: false });
     this.overrideSmsBodyControl.setValue(override?.smsBody ?? '', { emitEvent: false });
+  }
+
+  private hasTestDestination(): boolean {
+    const channel = this.selectedChannel();
+    const hasEmailDestination = this.testEmailControl.value.trim().length > 0;
+    const hasPhoneDestination = digitsOnly(this.testPhoneControl.value).length >= 10;
+    if (channel === 'email') {
+      return hasEmailDestination;
+    }
+    if (channel === 'sms') {
+      return hasPhoneDestination;
+    }
+    return hasEmailDestination && hasPhoneDestination;
+  }
+
+  private resolveScheduledLabel(): string {
+    if (this.scheduleModeControl.value === 'now') {
+      return 'Send now';
+    }
+    if (!this.scheduleAtControl.value.trim()) {
+      return 'Scheduled time missing';
+    }
+    return this.scheduleAtControl.value.trim();
+  }
+
+  private resolveTestDestinationLabel(): string {
+    const channel = this.selectedChannel();
+    if (channel === 'email') {
+      return this.testEmailControl.value.trim();
+    }
+    if (channel === 'sms') {
+      return this.testPhoneControl.value.trim();
+    }
+    return `${this.testEmailControl.value.trim()} + ${this.testPhoneControl.value.trim()}`;
   }
 
   private syncPreviewSelection(): void {
@@ -722,5 +826,17 @@ export class BroadcastFacade {
 
   private createOverridesSignal(): WritableSignal<Record<string, BroadcastTemplateLayer>> {
     return signal<Record<string, BroadcastTemplateLayer>>({});
+  }
+
+  private createConfirmationPayloadSignal(): WritableSignal<BroadcastConfirmationPayload | null> {
+    return signal<BroadcastConfirmationPayload | null>(null);
+  }
+
+  private createConfirmationOpenSignal(): WritableSignal<boolean> {
+    return signal(false);
+  }
+
+  private createStatusBannerSignal(): WritableSignal<string | null> {
+    return signal<string | null>(null);
   }
 }

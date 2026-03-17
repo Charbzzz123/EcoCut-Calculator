@@ -272,6 +272,47 @@
           <p class="preview-block">{{ previewPayload().smsBody }}</p>
         </article>
       </div>
+
+      <div class="send-controls">
+        <h3>Test send and confirmation</h3>
+        <div class="field-grid composer-grid">
+          <label class="field">
+            <span>Schedule mode</span>
+            <select [formControl]="scheduleModeControl">
+              <option value="now">Send now</option>
+              <option value="later">Schedule for later</option>
+            </select>
+          </label>
+          @if (scheduleModeControl.value === 'later') {
+            <label class="field">
+              <span>Scheduled timestamp</span>
+              <input [formControl]="scheduleAtControl" type="datetime-local" />
+            </label>
+          }
+        </div>
+        <div class="field-grid composer-grid">
+          <label class="field">
+            <span>Test email destination</span>
+            <input [formControl]="testEmailControl" type="email" placeholder="owner@ecocutqc.com" />
+          </label>
+          <label class="field">
+            <span>Test SMS destination</span>
+            <input [formControl]="testPhoneControl" type="tel" placeholder="(514) 555-0000" />
+          </label>
+        </div>
+        <div class="override-actions">
+          <button type="button" class="refresh-btn" (click)="openTestConfirmation()">
+            Send test
+          </button>
+          <button type="button" class="refresh-btn" (click)="openDispatchConfirmation()">
+            Confirm broadcast
+          </button>
+        </div>
+      </div>
+
+      @if (statusBanner()) {
+        <p class="validation-banner validation-banner--ok">{{ statusBanner() }}</p>
+      }
     </article>
   </section>
 
@@ -281,5 +322,37 @@
     <p class="state-banner state-banner--error">
       Could not load recipients right now. Retry after checking the backend.
     </p>
+  }
+
+  @if (confirmationOpen() && confirmationPayload(); as payload) {
+    <section
+      class="confirmation-backdrop"
+      tabindex="0"
+      (click)="onConfirmationBackdropClick($event)"
+      (keydown.enter)="closeConfirmation()"
+      (keydown.space)="closeConfirmation(); $event.preventDefault()"
+    >
+      <article class="confirmation-modal">
+        <h2>{{ payload.mode === 'test' ? 'Confirm test send' : 'Confirm broadcast dispatch' }}</h2>
+        <ul class="summary-list">
+          <li>Mode: {{ payload.mode }}</li>
+          <li>Channel: {{ payload.channel }}</li>
+          <li>Recipients: {{ payload.recipients }}</li>
+          <li>Schedule: {{ payload.scheduledAtLabel }}</li>
+        </ul>
+        <div class="override-actions">
+          <button type="button" class="refresh-btn" (click)="confirmCurrentAction()">
+            Confirm
+          </button>
+          <button
+            type="button"
+            class="refresh-btn refresh-btn--ghost"
+            (click)="closeConfirmation()"
+          >
+            Cancel
+          </button>
+        </div>
+      </article>
+    </section>
   }
 </section>

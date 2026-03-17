@@ -258,9 +258,10 @@ Update this document whenever we clarify rules or add new functionality so imple
   - Real-time preview card for email and SMS rendering (implemented).
   - Preview supports selecting a specific client to render the exact final message after merge fields and fallback values are applied (implemented).
   - Layer stack is now live (implemented): base template + channel variant + segment rule + per-client override, with deterministic priority `override > segment > channel > base` and an active-layer list visible in the UI.
-  - **Send test** to owner/manager address/phone before final send (planned).
-  - **Schedule send** (now or later) with timezone (planned).
-  - Confirmation modal before dispatch, showing channel, recipient count, and scheduled time (planned).
+  - **Send test** is live (implemented): owner/manager can target test email/SMS destinations and confirm before queueing.
+  - **Schedule send** is live (implemented): dispatch can be `Send now` or `Schedule for later` via timestamp input.
+  - Confirmation modal is live (implemented): shows mode, channel, recipient count, and selected schedule before final action.
+  - Status banner is live (implemented): success copy confirms whether a test or broadcast was queued/scheduled.
 - **Operations history**:
   - List past broadcast jobs with status (`draft`, `scheduled`, `sending`, `sent`, `failed`, `partially sent`), channel, counts, creator, and timestamps.
   - Ability to reopen a draft, duplicate a prior campaign, or cancel a scheduled campaign.

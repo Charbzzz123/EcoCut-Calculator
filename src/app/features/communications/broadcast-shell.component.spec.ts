@@ -11,6 +11,7 @@ import type {
   BroadcastExclusionSummary,
   BroadcastLayerOption,
   BroadcastLoadState,
+  BroadcastConfirmationPayload,
   BroadcastMergeField,
   BroadcastPreviewPayload,
   BroadcastRecipientCounts,
@@ -97,6 +98,10 @@ const createFacadeMock = () => {
   const overrideSubjectControl = new FormControl('', { nonNullable: true });
   const overrideEmailBodyControl = new FormControl('', { nonNullable: true });
   const overrideSmsBodyControl = new FormControl('', { nonNullable: true });
+  const scheduleModeControl = new FormControl<'now' | 'later'>('now', { nonNullable: true });
+  const scheduleAtControl = new FormControl('', { nonNullable: true });
+  const testEmailControl = new FormControl('', { nonNullable: true });
+  const testPhoneControl = new FormControl('', { nonNullable: true });
   const loadRecipients = vi.fn<() => Promise<void>>().mockResolvedValue();
   const mergeFields = signal<BroadcastMergeField[]>([
     {
@@ -140,6 +145,13 @@ const createFacadeMock = () => {
   const insertMergeField = vi.fn<(target: 'emailSubject' | 'emailBody' | 'smsBody', token: string) => void>();
   const saveOverrideForPreviewClient = vi.fn<() => void>();
   const clearOverrideForPreviewClient = vi.fn<() => void>();
+  const confirmationOpen = signal(false);
+  const confirmationPayload = signal<BroadcastConfirmationPayload | null>(null);
+  const statusBanner = signal<string | null>(null);
+  const openTestConfirmation = vi.fn<() => void>();
+  const openDispatchConfirmation = vi.fn<() => void>();
+  const closeConfirmation = vi.fn<() => void>();
+  const confirmCurrentAction = vi.fn<() => void>();
 
   return {
     queryControl,
@@ -157,6 +169,10 @@ const createFacadeMock = () => {
     overrideSubjectControl,
     overrideEmailBodyControl,
     overrideSmsBodyControl,
+    scheduleModeControl,
+    scheduleAtControl,
+    testEmailControl,
+    testPhoneControl,
     serviceWindowControl,
     upcomingWindowControl,
     channelControl,
@@ -173,10 +189,17 @@ const createFacadeMock = () => {
     emailVariants,
     smsVariants,
     segmentRules,
+    confirmationOpen,
+    confirmationPayload,
+    statusBanner,
     loadRecipients,
     insertMergeField,
     saveOverrideForPreviewClient,
     clearOverrideForPreviewClient,
+    openTestConfirmation,
+    openDispatchConfirmation,
+    closeConfirmation,
+    confirmCurrentAction,
     filteredRecipientsSnapshot: vi.fn(() => filteredRecipients()),
     countsSnapshot: vi.fn(() => counts()),
     exclusionSummarySnapshot: vi.fn(() => exclusions()),
@@ -196,6 +219,10 @@ const createFacadeMock = () => {
     overrideSubjectControl: FormControl<string>;
     overrideEmailBodyControl: FormControl<string>;
     overrideSmsBodyControl: FormControl<string>;
+    scheduleModeControl: FormControl<'now' | 'later'>;
+    scheduleAtControl: FormControl<string>;
+    testEmailControl: FormControl<string>;
+    testPhoneControl: FormControl<string>;
     serviceWindowControl: FormControl<ServiceWindow>;
     upcomingWindowControl: FormControl<UpcomingWindow>;
     channelControl: FormControl<BroadcastChannel>;
@@ -212,10 +239,17 @@ const createFacadeMock = () => {
     emailVariants: ReturnType<typeof signal<BroadcastLayerOption[]>>;
     smsVariants: ReturnType<typeof signal<BroadcastLayerOption[]>>;
     segmentRules: ReturnType<typeof signal<BroadcastLayerOption[]>>;
+    confirmationOpen: ReturnType<typeof signal<boolean>>;
+    confirmationPayload: ReturnType<typeof signal<BroadcastConfirmationPayload | null>>;
+    statusBanner: ReturnType<typeof signal<string | null>>;
     loadRecipients: ReturnType<typeof vi.fn<() => Promise<void>>>;
     insertMergeField: ReturnType<typeof vi.fn<(target: 'emailSubject' | 'emailBody' | 'smsBody', token: string) => void>>;
     saveOverrideForPreviewClient: ReturnType<typeof vi.fn<() => void>>;
     clearOverrideForPreviewClient: ReturnType<typeof vi.fn<() => void>>;
+    openTestConfirmation: ReturnType<typeof vi.fn<() => void>>;
+    openDispatchConfirmation: ReturnType<typeof vi.fn<() => void>>;
+    closeConfirmation: ReturnType<typeof vi.fn<() => void>>;
+    confirmCurrentAction: ReturnType<typeof vi.fn<() => void>>;
   };
 };
 
@@ -293,5 +327,78 @@ describe('BroadcastShellComponent', () => {
 
     expect(facadeMock.saveOverrideForPreviewClient).toHaveBeenCalledTimes(1);
     expect(facadeMock.clearOverrideForPreviewClient).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders test/dispatch controls and forwards confirmation actions', () => {
+    const actions = fixture.nativeElement.querySelectorAll('.send-controls .refresh-btn');
+    const sendTestButton = actions[0] as HTMLButtonElement;
+    const dispatchButton = actions[1] as HTMLButtonElement;
+    sendTestButton.click();
+    dispatchButton.click();
+    expect(facadeMock.openTestConfirmation).toHaveBeenCalledTimes(1);
+    expect(facadeMock.openDispatchConfirmation).toHaveBeenCalledTimes(1);
+
+    facadeMock.confirmationOpen.set(true);
+    facadeMock.confirmationPayload.set({
+      mode: 'dispatch',
+      channel: 'both',
+      recipients: 3,
+      scheduledAtLabel: 'Send now',
+    });
+    facadeMock.statusBanner.set('Broadcast queued for 3 recipients.');
+    fixture.detectChanges();
+
+    const modalButtons = fixture.nativeElement.querySelectorAll('.confirmation-modal .refresh-btn');
+    (modalButtons[0] as HTMLButtonElement).click();
+    (modalButtons[1] as HTMLButtonElement).click();
+    expect(facadeMock.confirmCurrentAction).toHaveBeenCalledTimes(1);
+    expect(facadeMock.closeConfirmation).toHaveBeenCalledTimes(1);
+    expect(fixture.nativeElement.textContent).toContain('Broadcast queued for 3 recipients');
+  });
+
+  it('renders later schedule input when mode is later', () => {
+    facadeMock.scheduleModeControl.setValue('later');
+    fixture.detectChanges();
+
+    const dateTimeInput = fixture.nativeElement.querySelector(
+      'input[type="datetime-local"]',
+    ) as HTMLInputElement | null;
+    expect(dateTimeInput).not.toBeNull();
+  });
+
+  it('handles confirmation backdrop interactions for click and keyboard', () => {
+    facadeMock.confirmationOpen.set(true);
+    facadeMock.confirmationPayload.set({
+      mode: 'dispatch',
+      channel: 'both',
+      recipients: 3,
+      scheduledAtLabel: 'Send now',
+    });
+    fixture.detectChanges();
+
+    const modal = fixture.nativeElement.querySelector('.confirmation-modal') as HTMLElement;
+    modal.click();
+    expect(facadeMock.closeConfirmation).toHaveBeenCalledTimes(0);
+
+    const backdrop = fixture.nativeElement.querySelector('.confirmation-backdrop') as HTMLElement;
+    backdrop.click();
+    backdrop.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    backdrop.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }));
+
+    expect(facadeMock.closeConfirmation).toHaveBeenCalledTimes(3);
+  });
+
+  it('renders test confirmation title when payload mode is test', () => {
+    facadeMock.confirmationOpen.set(true);
+    facadeMock.confirmationPayload.set({
+      mode: 'test',
+      channel: 'email',
+      recipients: 1,
+      scheduledAtLabel: 'Send now',
+    });
+    fixture.detectChanges();
+
+    const heading = fixture.nativeElement.querySelector('.confirmation-modal h2') as HTMLElement;
+    expect(heading.textContent).toContain('Confirm test send');
   });
 });
