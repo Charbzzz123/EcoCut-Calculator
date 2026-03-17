@@ -1,4 +1,4 @@
-<section class="broadcast-shell" aria-labelledby="{{ headingId }}">
+﻿<section class="broadcast-shell" aria-labelledby="{{ headingId }}">
   <article class="broadcast-hero">
     <app-brand-banner></app-brand-banner>
 
@@ -123,21 +123,95 @@
         </p>
       }
 
-      <h3>Step 2 status</h3>
-      <ul>
-        <li>Recipient filtering is live and channel aware.</li>
-        <li>Eligibility/exclusion counts are computed in real time.</li>
-        <li>Validation blocks channels with zero deliverable recipients.</li>
-      </ul>
-
       <p class="dispatch-status" [class.dispatch-status--disabled]="!canDispatch()">
         Dispatch readiness: {{ canDispatch() ? 'Ready' : 'Blocked' }}
       </p>
     </article>
+
+    <article class="board-card board-card--wide">
+      <h2>Template composer</h2>
+
+      <div class="merge-field-row" aria-label="Merge field chips">
+        @for (field of mergeFields(); track field.token) {
+          <button
+            type="button"
+            class="merge-chip"
+            (click)="insertMergeField('emailBody', field.token)"
+            [title]="'Fallback: ' + field.fallbackLabel"
+          >
+            {{ field.token }}
+          </button>
+        }
+      </div>
+
+      <div class="field-grid composer-grid">
+        <label class="field">
+          <span>Email subject</span>
+          <input [formControl]="emailSubjectControl" type="text" placeholder="Subject line" />
+        </label>
+        <label class="field">
+          <span>CTA link (optional)</span>
+          <input [formControl]="ctaLinkControl" type="url" placeholder="https://ecocutqc.com" />
+        </label>
+      </div>
+
+      <label class="field">
+        <span>Email body</span>
+        <textarea
+          [formControl]="emailBodyControl"
+          rows="6"
+          placeholder="Write your email message using merge fields."
+        ></textarea>
+      </label>
+
+      <label class="field">
+        <span>SMS body</span>
+        <textarea
+          [formControl]="smsBodyControl"
+          rows="3"
+          placeholder="Write your SMS message using merge fields."
+        ></textarea>
+      </label>
+
+      <p class="sms-counter">
+        SMS length: {{ smsMetrics().characters }} chars / {{ smsMetrics().segments }} segment(s)
+      </p>
+
+      <label class="field">
+        <span>Internal note (not sent)</span>
+        <textarea
+          [formControl]="internalNoteControl"
+          rows="2"
+          placeholder="Operator notes for this campaign."
+        ></textarea>
+      </label>
+
+      <div class="preview-shell">
+        <label class="field">
+          <span>Preview as client</span>
+          <select [formControl]="previewClientIdControl">
+            @for (client of filteredRecipients(); track client.clientId) {
+              <option [value]="client.clientId">{{ client.fullName }}</option>
+            }
+          </select>
+        </label>
+
+        <article class="preview-card" aria-label="Rendered preview">
+          <h3>Rendered preview</h3>
+          <p class="preview-client">{{ previewPayload().clientLabel }}</p>
+          <p class="preview-title">Email subject</p>
+          <p>{{ previewPayload().emailSubject }}</p>
+          <p class="preview-title">Email body</p>
+          <p class="preview-block">{{ previewPayload().emailBody }}</p>
+          <p class="preview-title">SMS</p>
+          <p class="preview-block">{{ previewPayload().smsBody }}</p>
+        </article>
+      </div>
+    </article>
   </section>
 
   @if (loadState() === 'loading') {
-    <p class="state-banner">Loading recipient roster…</p>
+    <p class="state-banner">Loading recipient roster...</p>
   } @else if (loadState() === 'error') {
     <p class="state-banner state-banner--error">
       Could not load recipients right now. Retry after checking the backend.

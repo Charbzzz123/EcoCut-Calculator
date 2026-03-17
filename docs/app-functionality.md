@@ -249,17 +249,17 @@ Update this document whenever we clarify rules or add new functionality so imple
 - **Channel selection** (implemented):
   - Modes: `Email`, `SMS`, `Both`.
   - Validation blocks dispatch when selected channel has zero eligible recipients and surfaces a clear inline error.
-- **Message composer**:
+- **Message composer** (implemented):
   - Subject line (required for email).
   - Message body with reusable variable chips (for example: `{{firstName}}`, `{{address}}`, `{{nextJobDate}}`).
   - Optional CTA link and optional internal note (not sent to clients).
   - Character counter and estimated segment count for SMS.
 - **Preview and safety controls**:
-  - Real-time preview card for email and SMS rendering.
-  - Preview supports selecting a specific client to render the exact final message after all layers are applied (base template, segment variant, channel variant, per-client override).
-  - **Send test** to owner/manager address/phone before final send.
-  - **Schedule send** (now or later) with timezone.
-  - Confirmation modal before dispatch, showing channel, recipient count, and scheduled time.
+  - Real-time preview card for email and SMS rendering (implemented).
+  - Preview supports selecting a specific client to render the exact final message after merge fields and fallback values are applied (implemented).
+  - **Send test** to owner/manager address/phone before final send (planned).
+  - **Schedule send** (now or later) with timezone (planned).
+  - Confirmation modal before dispatch, showing channel, recipient count, and scheduled time (planned).
 - **Operations history**:
   - List past broadcast jobs with status (`draft`, `scheduled`, `sending`, `sent`, `failed`, `partially sent`), channel, counts, creator, and timestamps.
   - Ability to reopen a draft, duplicate a prior campaign, or cancel a scheduled campaign.

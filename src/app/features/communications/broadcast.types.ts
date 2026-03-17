@@ -27,3 +27,33 @@ export interface BroadcastExclusionSummary {
   missingBoth: number;
   excludedForSelectedChannel: number;
 }
+
+export type BroadcastTemplateTarget = 'emailSubject' | 'emailBody' | 'smsBody';
+
+export interface BroadcastTemplates {
+  emailSubject: string;
+  emailBody: string;
+  smsBody: string;
+  ctaLink: string;
+  internalNote: string;
+}
+
+export interface BroadcastMergeField {
+  key: string;
+  token: string;
+  label: string;
+  fallbackLabel: string;
+}
+
+export interface BroadcastPreviewPayload {
+  clientId: string | null;
+  clientLabel: string;
+  emailSubject: string;
+  emailBody: string;
+  smsBody: string;
+}
+
+export interface BroadcastSmsMetrics {
+  characters: number;
+  segments: number;
+}

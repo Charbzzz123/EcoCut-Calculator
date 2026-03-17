@@ -4,6 +4,7 @@ import { ReactiveFormsModule } from '@angular/forms';
 import { BackChipComponent } from '@shared/ui/back-chip/back-chip.component.js';
 import { BrandBannerComponent } from '@shared/ui/brand-banner/brand-banner.component.js';
 import { BroadcastFacade } from './broadcast.facade.js';
+import type { BroadcastTemplateTarget } from './broadcast.types.js';
 
 @Component({
   standalone: true,
@@ -29,6 +30,15 @@ export class BroadcastShellComponent implements OnInit {
   protected readonly channelValidationMessage = this.facade.channelValidationMessage;
   protected readonly canDispatch = this.facade.canDispatch;
   protected readonly filteredRecipients = this.facade.filteredRecipients;
+  protected readonly mergeFields = this.facade.mergeFields;
+  protected readonly emailSubjectControl = this.facade.emailSubjectControl;
+  protected readonly emailBodyControl = this.facade.emailBodyControl;
+  protected readonly smsBodyControl = this.facade.smsBodyControl;
+  protected readonly ctaLinkControl = this.facade.ctaLinkControl;
+  protected readonly internalNoteControl = this.facade.internalNoteControl;
+  protected readonly previewClientIdControl = this.facade.previewClientIdControl;
+  protected readonly previewPayload = this.facade.previewPayload;
+  protected readonly smsMetrics = this.facade.smsMetrics;
 
   ngOnInit(): void {
     void this.facade.loadRecipients();
@@ -36,5 +46,9 @@ export class BroadcastShellComponent implements OnInit {
 
   protected reloadRecipients(): void {
     void this.facade.loadRecipients();
+  }
+
+  protected insertMergeField(target: BroadcastTemplateTarget, token: string): void {
+    this.facade.insertMergeField(target, token);
   }
 }

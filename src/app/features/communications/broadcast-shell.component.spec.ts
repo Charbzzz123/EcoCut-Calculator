@@ -10,8 +10,12 @@ import type {
   BroadcastChannel,
   BroadcastExclusionSummary,
   BroadcastLoadState,
+  BroadcastMergeField,
+  BroadcastPreviewPayload,
   BroadcastRecipientCounts,
+  BroadcastSmsMetrics,
   ServiceWindow,
+  BroadcastTemplates,
   UpcomingWindow,
 } from './broadcast.types.js';
 
@@ -78,12 +82,53 @@ const createFacadeMock = () => {
   const queryControl = new FormControl('', { nonNullable: true });
   const requireEmailControl = new FormControl(false, { nonNullable: true });
   const requirePhoneControl = new FormControl(false, { nonNullable: true });
+  const emailSubjectControl = new FormControl('EcoCut update for {{firstName}}', {
+    nonNullable: true,
+  });
+  const emailBodyControl = new FormControl('Hi {{firstName}}', { nonNullable: true });
+  const smsBodyControl = new FormControl('Hello {{firstName}}', { nonNullable: true });
+  const ctaLinkControl = new FormControl('', { nonNullable: true });
+  const internalNoteControl = new FormControl('', { nonNullable: true });
+  const previewClientIdControl = new FormControl('alex', { nonNullable: true });
   const loadRecipients = vi.fn<() => Promise<void>>().mockResolvedValue();
+  const mergeFields = signal<BroadcastMergeField[]>([
+    {
+      key: 'firstName',
+      token: '{{firstName}}',
+      label: 'First name',
+      fallbackLabel: 'there',
+    },
+  ]);
+  const templates = signal<BroadcastTemplates>({
+    emailSubject: 'EcoCut update for {{firstName}}',
+    emailBody: 'Hi {{firstName}}',
+    smsBody: 'Hello {{firstName}}',
+    ctaLink: '',
+    internalNote: '',
+  });
+  const previewPayload = signal<BroadcastPreviewPayload>({
+    clientId: 'alex',
+    clientLabel: 'Alex North',
+    emailSubject: 'EcoCut update for Alex',
+    emailBody: 'Hi Alex',
+    smsBody: 'Hello Alex',
+  });
+  const smsMetrics = signal<BroadcastSmsMetrics>({
+    characters: 11,
+    segments: 1,
+  });
+  const insertMergeField = vi.fn<(target: 'emailSubject' | 'emailBody' | 'smsBody', token: string) => void>();
 
   return {
     queryControl,
     requireEmailControl,
     requirePhoneControl,
+    emailSubjectControl,
+    emailBodyControl,
+    smsBodyControl,
+    ctaLinkControl,
+    internalNoteControl,
+    previewClientIdControl,
     serviceWindowControl,
     upcomingWindowControl,
     channelControl,
@@ -93,7 +138,12 @@ const createFacadeMock = () => {
     channelValidationMessage,
     canDispatch,
     filteredRecipients,
+    mergeFields,
+    templates,
+    previewPayload,
+    smsMetrics,
     loadRecipients,
+    insertMergeField,
     filteredRecipientsSnapshot: vi.fn(() => filteredRecipients()),
     countsSnapshot: vi.fn(() => counts()),
     exclusionSummarySnapshot: vi.fn(() => exclusions()),
@@ -101,6 +151,12 @@ const createFacadeMock = () => {
     queryControl: FormControl<string>;
     requireEmailControl: FormControl<boolean>;
     requirePhoneControl: FormControl<boolean>;
+    emailSubjectControl: FormControl<string>;
+    emailBodyControl: FormControl<string>;
+    smsBodyControl: FormControl<string>;
+    ctaLinkControl: FormControl<string>;
+    internalNoteControl: FormControl<string>;
+    previewClientIdControl: FormControl<string>;
     serviceWindowControl: FormControl<ServiceWindow>;
     upcomingWindowControl: FormControl<UpcomingWindow>;
     channelControl: FormControl<BroadcastChannel>;
@@ -110,7 +166,12 @@ const createFacadeMock = () => {
     channelValidationMessage: ReturnType<typeof signal<string | null>>;
     canDispatch: ReturnType<typeof signal<boolean>>;
     filteredRecipients: ReturnType<typeof signal<ClientSummary[]>>;
+    mergeFields: ReturnType<typeof signal<BroadcastMergeField[]>>;
+    templates: ReturnType<typeof signal<BroadcastTemplates>>;
+    previewPayload: ReturnType<typeof signal<BroadcastPreviewPayload>>;
+    smsMetrics: ReturnType<typeof signal<BroadcastSmsMetrics>>;
     loadRecipients: ReturnType<typeof vi.fn<() => Promise<void>>>;
+    insertMergeField: ReturnType<typeof vi.fn<(target: 'emailSubject' | 'emailBody' | 'smsBody', token: string) => void>>;
   };
 };
 
@@ -161,5 +222,19 @@ describe('BroadcastShellComponent', () => {
     facadeMock.loadState.set('error');
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Could not load recipients right now');
+  });
+
+  it('renders composer controls, preview, and merge chip actions', () => {
+    const mergeChip = fixture.nativeElement.querySelector('.merge-chip') as HTMLButtonElement;
+    const smsCounter = fixture.nativeElement.querySelector('.sms-counter') as HTMLElement;
+    const preview = fixture.nativeElement.querySelector('.preview-card') as HTMLElement;
+
+    mergeChip.click();
+    fixture.detectChanges();
+
+    expect(facadeMock.insertMergeField).toHaveBeenCalledWith('emailBody', '{{firstName}}');
+    expect(smsCounter.textContent).toContain('11 chars / 1 segment');
+    expect(preview.textContent).toContain('Alex North');
+    expect(preview.textContent).toContain('EcoCut update for Alex');
   });
 });

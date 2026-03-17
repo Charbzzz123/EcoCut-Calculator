@@ -238,4 +238,115 @@ describe('BroadcastFacade', () => {
       'No recipients can receive both email and SMS for the selected filters.',
     );
   });
+
+  it('updates templates and renders merged preview with selected client', async () => {
+    listClients.mockResolvedValue(clientsFixture);
+    const facade = TestBed.inject(BroadcastFacade);
+    await facade.loadRecipients();
+
+    facade.previewClientIdControl.setValue('bella');
+    facade.emailSubjectControl.setValue('Offer for {{firstName}}');
+    facade.emailBodyControl.setValue('Address {{address}} and email {{email}}');
+    facade.smsBodyControl.setValue('Hello {{fullName}}');
+    facade.ctaLinkControl.setValue('https://ecocutqc.com');
+    facade.internalNoteControl.setValue('manager note');
+
+    expect(facade.templates()).toEqual({
+      emailSubject: 'Offer for {{firstName}}',
+      emailBody: 'Address {{address}} and email {{email}}',
+      smsBody: 'Hello {{fullName}}',
+      ctaLink: 'https://ecocutqc.com',
+      internalNote: 'manager note',
+    });
+    expect(facade.previewPayload()).toEqual({
+      clientId: 'bella',
+      clientLabel: 'Bella Stone',
+      emailSubject: 'Offer for Bella',
+      emailBody: 'Address 2 Pine Avenue and email no email on file',
+      smsBody: 'Hello Bella Stone',
+    });
+    expect(facade.smsMetrics()).toEqual({
+      characters: 'Hello Bella Stone'.length,
+      segments: 1,
+    });
+  });
+
+  it('resets preview selection when filters remove all recipients', async () => {
+    listClients.mockResolvedValue(clientsFixture);
+    const facade = TestBed.inject(BroadcastFacade);
+    await facade.loadRecipients();
+
+    facade.previewClientIdControl.setValue('carter');
+    facade.queryControl.setValue('nobody');
+    vi.advanceTimersByTime(151);
+
+    expect(facade.previewClientIdControl.value).toBe('');
+    expect(facade.previewPayload()).toEqual({
+      clientId: null,
+      clientLabel: 'No recipient selected',
+      emailSubject: 'EcoCut update for there',
+      emailBody:
+        'Hi there,\n\nWe loved servicing your property. Your last visit was not on file.\n\n- EcoCut Team',
+      smsBody: 'Hi there - EcoCut here. Want to schedule your next visit at your property?',
+    });
+    expect(facade.smsMetrics()).toEqual({
+      characters: 74,
+      segments: 1,
+    });
+  });
+
+  it('supports merge token insertion for each template target', async () => {
+    listClients.mockResolvedValue(clientsFixture);
+    const facade = TestBed.inject(BroadcastFacade);
+    await facade.loadRecipients();
+
+    facade.emailSubjectControl.setValue('Subject');
+    facade.insertMergeField('emailSubject', '{{firstName}}');
+    expect(facade.emailSubjectControl.value).toBe('Subject {{firstName}}');
+
+    facade.emailBodyControl.setValue('Line one\n');
+    facade.insertMergeField('emailBody', '{{address}}');
+    expect(facade.emailBodyControl.value).toBe('Line one\n{{address}}');
+
+    facade.smsBodyControl.setValue('');
+    facade.insertMergeField('smsBody', '{{phone}}');
+    expect(facade.smsBodyControl.value).toBe('{{phone}}');
+  });
+
+  it('computes multi-segment sms metrics for long messages', async () => {
+    listClients.mockResolvedValue(clientsFixture);
+    const facade = TestBed.inject(BroadcastFacade);
+    await facade.loadRecipients();
+
+    facade.smsBodyControl.setValue('x'.repeat(321));
+
+    expect(facade.smsMetrics()).toEqual({
+      characters: 321,
+      segments: 3,
+    });
+  });
+
+  it('reports zero sms segments for an empty message', async () => {
+    listClients.mockResolvedValue(clientsFixture);
+    const facade = TestBed.inject(BroadcastFacade);
+    await facade.loadRecipients();
+
+    facade.smsBodyControl.setValue('');
+
+    expect(facade.smsMetrics()).toEqual({
+      characters: 0,
+      segments: 0,
+    });
+  });
+
+  it('falls back when preview client has invalid date values', async () => {
+    listClients.mockResolvedValue(edgeCaseClientsFixture);
+    const facade = TestBed.inject(BroadcastFacade);
+    await facade.loadRecipients();
+
+    facade.previewClientIdControl.setValue('drew');
+    facade.emailBodyControl.setValue('Last {{lastJobDate}} / Next {{nextJobDate}}');
+
+    expect(facade.previewPayload().emailBody).toBe('Last not on file / Next not scheduled');
+  });
 });
