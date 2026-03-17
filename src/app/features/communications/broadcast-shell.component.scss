@@ -220,6 +220,14 @@
   outline-offset: 2px;
 }
 
+.field .merge-drop-target {
+  border-color: rgba(103, 232, 194, 0.78);
+  box-shadow:
+    0 0 0 2px rgba(45, 212, 191, 0.2),
+    0 0 0 1px rgba(103, 232, 194, 0.35) inset;
+  background: rgba(11, 28, 21, 0.95);
+}
+
 .field textarea {
   resize: vertical;
   min-height: 5.25rem;

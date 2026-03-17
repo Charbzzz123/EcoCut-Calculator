@@ -80,6 +80,7 @@ export class BroadcastShellComponent implements OnInit {
   protected readonly confirmationOpen = this.facade.confirmationOpen;
   protected readonly confirmationPayload = this.facade.confirmationPayload;
   protected readonly statusBanner = this.facade.statusBanner;
+  protected readonly mergeDragTarget = signal<BroadcastTemplateTarget | null>(null);
   private lastTemplateTarget: BroadcastTemplateTarget = 'emailBody';
   private readonly cursorByTarget: Record<BroadcastTemplateTarget, { start: number; end: number }> = {
     emailSubject: { start: this.emailSubjectControl.value.length, end: this.emailSubjectControl.value.length },
@@ -249,11 +250,16 @@ export class BroadcastShellComponent implements OnInit {
     this.insertTokenAtTarget(target, token, cursor.start, cursor.end);
   }
 
+  protected mergeFieldEditorToken(label: string): string {
+    return `[[${label}]]`;
+  }
+
   protected onTemplateCursorChange(
     event: Event,
     target: BroadcastTemplateTarget,
   ): void {
-    const element = this.resolveTemplateElement(event.target);
+    const element =
+      this.resolveTemplateElement(event.currentTarget) ?? this.resolveTemplateElement(event.target);
     if (!element) {
       return;
     }
@@ -271,26 +277,39 @@ export class BroadcastShellComponent implements OnInit {
     }
   }
 
-  protected onTemplateDragOver(event: DragEvent): void {
-    event.preventDefault();
-    if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = 'copy';
+  protected onMergeChipDragEnd(): void {
+    this.mergeDragTarget.set(null);
+  }
+
+  protected isMergeDragTarget(target: BroadcastTemplateTarget): boolean {
+    return this.mergeDragTarget() === target;
+  }
+
+  protected onTemplateDragOver(event: DragEvent, target: BroadcastTemplateTarget): void {
+    void event;
+    this.mergeDragTarget.set(target);
+    this.lastTemplateTarget = target;
+  }
+
+  protected onTemplateDragLeave(target: BroadcastTemplateTarget): void {
+    if (this.mergeDragTarget() === target) {
+      this.mergeDragTarget.set(null);
     }
   }
 
   protected onTemplateDrop(event: DragEvent, target: BroadcastTemplateTarget): void {
-    event.preventDefault();
-    const token =
-      event.dataTransfer?.getData('application/ecocut-merge-token') ??
-      event.dataTransfer?.getData('text/plain') ??
-      '';
-    if (!token.trim()) {
+    this.mergeDragTarget.set(null);
+    const element =
+      this.resolveTemplateElement(event.currentTarget) ?? this.resolveTemplateElement(event.target);
+    this.lastTemplateTarget = target;
+    if (!element) {
       return;
     }
-    const element = this.resolveTemplateElement(event.target);
-    const start = element?.selectionStart ?? this.cursorByTarget[target].start;
-    const end = element?.selectionEnd ?? this.cursorByTarget[target].end;
-    this.insertTokenAtTarget(target, token, start, end);
+    queueMicrotask(() => {
+      const start = element.selectionStart ?? element.value.length;
+      const end = element.selectionEnd ?? start;
+      this.cursorByTarget[target] = { start, end };
+    });
   }
 
   protected saveOverrideForPreviewClient(): void {

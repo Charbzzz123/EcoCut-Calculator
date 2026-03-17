@@ -221,8 +221,9 @@
             type="button"
             class="merge-chip"
             draggable="true"
-            (dragstart)="onMergeChipDragStart($event, field.token)"
-            (click)="insertMergeField(field.token)"
+            (dragstart)="onMergeChipDragStart($event, mergeFieldEditorToken(field.label))"
+            (dragend)="onMergeChipDragEnd()"
+            (click)="insertMergeField(mergeFieldEditorToken(field.label))"
             [title]="'Fallback: ' + field.fallbackLabel"
           >
             {{ field.label }}
@@ -265,11 +266,13 @@
             type="text"
             placeholder="Subject line"
             data-merge-target="emailSubject"
+            [class.merge-drop-target]="isMergeDragTarget('emailSubject')"
             (focus)="onTemplateCursorChange($event, 'emailSubject')"
             (click)="onTemplateCursorChange($event, 'emailSubject')"
             (keyup)="onTemplateCursorChange($event, 'emailSubject')"
             (select)="onTemplateCursorChange($event, 'emailSubject')"
-            (dragover)="onTemplateDragOver($event)"
+            (dragover)="onTemplateDragOver($event, 'emailSubject')"
+            (dragleave)="onTemplateDragLeave('emailSubject')"
             (drop)="onTemplateDrop($event, 'emailSubject')"
           />
         </label>
@@ -286,15 +289,16 @@
           rows="6"
           placeholder="Write your email message using merge fields."
           data-merge-target="emailBody"
+          [class.merge-drop-target]="isMergeDragTarget('emailBody')"
           (focus)="onTemplateCursorChange($event, 'emailBody')"
           (click)="onTemplateCursorChange($event, 'emailBody')"
           (keyup)="onTemplateCursorChange($event, 'emailBody')"
           (select)="onTemplateCursorChange($event, 'emailBody')"
-          (dragover)="onTemplateDragOver($event)"
+          (dragover)="onTemplateDragOver($event, 'emailBody')"
+          (dragleave)="onTemplateDragLeave('emailBody')"
           (drop)="onTemplateDrop($event, 'emailBody')"
         ></textarea>
       </label>
-
       <label class="field">
         <span>SMS body</span>
         <textarea
@@ -302,11 +306,13 @@
           rows="3"
           placeholder="Write your SMS message using merge fields."
           data-merge-target="smsBody"
+          [class.merge-drop-target]="isMergeDragTarget('smsBody')"
           (focus)="onTemplateCursorChange($event, 'smsBody')"
           (click)="onTemplateCursorChange($event, 'smsBody')"
           (keyup)="onTemplateCursorChange($event, 'smsBody')"
           (select)="onTemplateCursorChange($event, 'smsBody')"
-          (dragover)="onTemplateDragOver($event)"
+          (dragover)="onTemplateDragOver($event, 'smsBody')"
+          (dragleave)="onTemplateDragLeave('smsBody')"
           (drop)="onTemplateDrop($event, 'smsBody')"
         ></textarea>
       </label>
@@ -322,11 +328,13 @@
           rows="2"
           placeholder="Operator notes for this campaign."
           data-merge-target="internalNote"
+          [class.merge-drop-target]="isMergeDragTarget('internalNote')"
           (focus)="onTemplateCursorChange($event, 'internalNote')"
           (click)="onTemplateCursorChange($event, 'internalNote')"
           (keyup)="onTemplateCursorChange($event, 'internalNote')"
           (select)="onTemplateCursorChange($event, 'internalNote')"
-          (dragover)="onTemplateDragOver($event)"
+          (dragover)="onTemplateDragOver($event, 'internalNote')"
+          (dragleave)="onTemplateDragLeave('internalNote')"
           (drop)="onTemplateDrop($event, 'internalNote')"
         ></textarea>
       </label>
@@ -371,11 +379,13 @@
               [formControl]="overrideSubjectControl"
               type="text"
               data-merge-target="overrideSubject"
+              [class.merge-drop-target]="isMergeDragTarget('overrideSubject')"
               (focus)="onTemplateCursorChange($event, 'overrideSubject')"
               (click)="onTemplateCursorChange($event, 'overrideSubject')"
               (keyup)="onTemplateCursorChange($event, 'overrideSubject')"
               (select)="onTemplateCursorChange($event, 'overrideSubject')"
-              (dragover)="onTemplateDragOver($event)"
+              (dragover)="onTemplateDragOver($event, 'overrideSubject')"
+              (dragleave)="onTemplateDragLeave('overrideSubject')"
               (drop)="onTemplateDrop($event, 'overrideSubject')"
             />
           </label>
@@ -385,11 +395,13 @@
               [formControl]="overrideEmailBodyControl"
               rows="3"
               data-merge-target="overrideEmailBody"
+              [class.merge-drop-target]="isMergeDragTarget('overrideEmailBody')"
               (focus)="onTemplateCursorChange($event, 'overrideEmailBody')"
               (click)="onTemplateCursorChange($event, 'overrideEmailBody')"
               (keyup)="onTemplateCursorChange($event, 'overrideEmailBody')"
               (select)="onTemplateCursorChange($event, 'overrideEmailBody')"
-              (dragover)="onTemplateDragOver($event)"
+              (dragover)="onTemplateDragOver($event, 'overrideEmailBody')"
+              (dragleave)="onTemplateDragLeave('overrideEmailBody')"
               (drop)="onTemplateDrop($event, 'overrideEmailBody')"
             ></textarea>
           </label>
@@ -399,11 +411,13 @@
               [formControl]="overrideSmsBodyControl"
               rows="2"
               data-merge-target="overrideSmsBody"
+              [class.merge-drop-target]="isMergeDragTarget('overrideSmsBody')"
               (focus)="onTemplateCursorChange($event, 'overrideSmsBody')"
               (click)="onTemplateCursorChange($event, 'overrideSmsBody')"
               (keyup)="onTemplateCursorChange($event, 'overrideSmsBody')"
               (select)="onTemplateCursorChange($event, 'overrideSmsBody')"
-              (dragover)="onTemplateDragOver($event)"
+              (dragover)="onTemplateDragOver($event, 'overrideSmsBody')"
+              (dragleave)="onTemplateDragLeave('overrideSmsBody')"
               (drop)="onTemplateDrop($event, 'overrideSmsBody')"
             ></textarea>
           </label>

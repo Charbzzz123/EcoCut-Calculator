@@ -418,7 +418,7 @@ describe('BroadcastShellComponent', () => {
     mergeChip.click();
     fixture.detectChanges();
 
-    expect(facadeMock.emailBodyControl.value).toContain('Hi {{firstName}}{{firstName}}');
+    expect(facadeMock.emailBodyControl.value).toContain('Hi {{firstName}}[[First name]]');
     expect(smsCounter.textContent).toContain('11 chars / 1 segment');
     expect(preview.textContent).toContain('Alex North');
     expect(preview.textContent).toContain('Base template');
@@ -438,7 +438,7 @@ describe('BroadcastShellComponent', () => {
     mergeChip.click();
     fixture.detectChanges();
 
-    expect(facadeMock.emailSubjectControl.value).toBe('{{firstName}}EcoCut update for {{firstName}}');
+    expect(facadeMock.emailSubjectControl.value).toBe('[[First name]]EcoCut update for {{firstName}}');
   });
 
   it('calls override actions from the composer', () => {
@@ -614,51 +614,45 @@ describe('BroadcastShellComponent', () => {
     expect(facadeMock.testPhoneControl.value).toBe('(438) 80');
   });
 
-  it('supports drag and drop merge insertion on logical fields', () => {
+  it('tracks drag target and cursor for native drop placement', async () => {
     const component = fixture.componentInstance as BroadcastShellComponent;
     const emailBody = fixture.nativeElement.querySelector(
       'textarea[data-merge-target="emailBody"]',
     ) as HTMLTextAreaElement;
 
-    emailBody.focus();
-    emailBody.setSelectionRange(0, 0);
-    emailBody.dispatchEvent(new Event('focus'));
-    fixture.detectChanges();
-
     const dragPayload = {
-      getData: vi.fn((type: string) => (type === 'application/ecocut-merge-token' ? '{{address}}' : '')),
+      getData: vi.fn(() => '[[Address]]'),
       setData: vi.fn(),
       effectAllowed: 'copy',
-      dropEffect: 'copy',
+      dropEffect: 'none',
     };
 
-    component['onMergeChipDragStart']({ dataTransfer: dragPayload } as unknown as DragEvent, '{{address}}');
-    expect(dragPayload.setData).toHaveBeenCalledWith('text/plain', '{{address}}');
-    expect(dragPayload.setData).toHaveBeenCalledWith('application/ecocut-merge-token', '{{address}}');
-
-    component['onTemplateDrop'](
+    component['onMergeChipDragStart']({ dataTransfer: dragPayload } as unknown as DragEvent, '[[Address]]');
+    expect(dragPayload.setData).toHaveBeenCalledWith('text/plain', '[[Address]]');
+    expect(dragPayload.setData).toHaveBeenCalledWith('application/ecocut-merge-token', '[[Address]]');
+    component['onTemplateDragOver'](
       {
-        preventDefault: vi.fn(),
-        target: emailBody,
         dataTransfer: dragPayload,
       } as unknown as DragEvent,
       'emailBody',
     );
+    expect(component['isMergeDragTarget']('emailBody')).toBe(true);
 
-    expect(facadeMock.emailBodyControl.value.startsWith('{{address}}')).toBe(true);
-
-    const current = facadeMock.emailBodyControl.value;
+    emailBody.setSelectionRange(2, 2);
     component['onTemplateDrop'](
       {
-        preventDefault: vi.fn(),
+        currentTarget: emailBody,
         target: emailBody,
-        dataTransfer: {
-          getData: vi.fn(() => ''),
-        },
       } as unknown as DragEvent,
       'emailBody',
     );
-    expect(facadeMock.emailBodyControl.value).toBe(current);
+    await Promise.resolve();
+
+    expect(component['isMergeDragTarget']('emailBody')).toBe(false);
+    expect(component['cursorByTarget'].emailBody).toEqual({ start: 2, end: 2 });
+
+    component['insertMergeField']('[[Address]]', 'emailBody');
+    expect(facadeMock.emailBodyControl.value).toContain('[[Address]]');
   });
 
   it('navigates preview recipients with previous/next controls', () => {

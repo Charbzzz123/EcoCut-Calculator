@@ -71,6 +71,8 @@ const mergeFields: BroadcastMergeField[] = [
   },
 ];
 
+const mergeFieldEditorToken = (field: BroadcastMergeField): string => `[[${field.label}]]`;
+
 const defaultTemplates: BroadcastTemplates = {
   emailSubject: 'EcoCut update for {{firstName}}',
   emailBody:
@@ -695,7 +697,13 @@ export class BroadcastFacade {
 
   private applyMergeFields(template: string, client: ClientSummary | null): string {
     const map = this.buildMergeMap(client);
-    return mergeFields.reduce((output, field) => output.replaceAll(field.token, map[field.key]), template);
+    return mergeFields.reduce(
+      (output, field) =>
+        output
+          .replaceAll(field.token, map[field.key])
+          .replaceAll(mergeFieldEditorToken(field), map[field.key]),
+      template,
+    );
   }
 
   private buildMergeMap(client: ClientSummary | null): Record<string, string> {
