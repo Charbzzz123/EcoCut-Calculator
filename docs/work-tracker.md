@@ -55,13 +55,14 @@ Living checklist for in-flight feature work so we never lose track of what€™
 | Broadcast Phase 5 test-send + confirmation modal                     | 2026-03-16 | Added schedule mode controls, test destination fields, modal confirmation flow, status banners, accessibility handling, and full coverage for all new branches.                                                                       |
 | Broadcast Phase 6 backend delivery engine                            | 2026-03-17 | Added Nest `communications` module (`/communications/test`, `/communications/dispatch`, campaign status endpoints), Hostinger/Quo provider adapters, retries/throttling, and frontend delivery wiring via `BroadcastDeliveryService`. |
 | Broadcast Phase 7A suppression endpoints + enforcement               | 2026-03-17 | Added unsubscribe/resubscribe endpoints (`/communications/suppressions/*`) and suppression checks during test/dispatch sends so opted-out addresses/numbers are skipped and counted.                                                  |
+| Broadcast Phase 7B approval workflow + immutable campaign audit      | 2026-03-17 | Added manager approval gating (`pending_approval`), owner approve/cancel endpoints, and append-only campaign audit timeline (`/communications/campaigns/:campaignId/audit`).                                                          |
 
 ## In Progress / Backlog
 
-| Step | Task                           | Owner | Notes                                                                                                                          |
-| ---- | ------------------------------ | ----- | ------------------------------------------------------------------------------------------------------------------------------ |
-| 7    | Compliance + audit + analytics | —     | Remaining: approval flow, sent/delivered/bounce analytics, provider webhooks (STOP/START, delivery), and immutable audit logs. |
-| 8    | Quality gates + rollout        | —     | Full unit/integration coverage, lint/build clean, staging dry run, then production release checklist.                          |
+| Step | Task                           | Owner | Notes                                                                                                                                         |
+| ---- | ------------------------------ | ----- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| 7    | Compliance + audit + analytics | —     | Remaining: sent/delivered/bounce analytics, provider webhooks (STOP/START, delivery), and durable audit persistence beyond in-memory runtime. |
+| 8    | Quality gates + rollout        | —     | Full unit/integration coverage, lint/build clean, staging dry run, then production release checklist.                                         |
 
 ### Broadcast Requirements (locked for implementation)
 

@@ -30,6 +30,27 @@ export class CommunicationsController {
     return this.communications.getCampaign(campaignId);
   }
 
+  @Get('campaigns/:campaignId/audit')
+  listCampaignAudit(@Param('campaignId') campaignId: string) {
+    return this.communications.listCampaignAudit(campaignId);
+  }
+
+  @Post('campaigns/:campaignId/approve')
+  approveCampaign(
+    @Param('campaignId') campaignId: string,
+    @Body() body: { approvedBy?: 'owner' | 'manager' } = {},
+  ) {
+    return this.communications.approveCampaign(campaignId, body.approvedBy);
+  }
+
+  @Post('campaigns/:campaignId/cancel')
+  cancelCampaign(
+    @Param('campaignId') campaignId: string,
+    @Body() body: { reason?: string } = {},
+  ) {
+    return this.communications.cancelCampaign(campaignId, body.reason);
+  }
+
   @Get('suppressions')
   listSuppressions() {
     return this.communications.listSuppressions();

@@ -7,6 +7,9 @@ describe('CommunicationsController', () => {
   const dispatch = jest.fn();
   const listCampaigns = jest.fn();
   const getCampaign = jest.fn();
+  const listCampaignAudit = jest.fn();
+  const approveCampaign = jest.fn();
+  const cancelCampaign = jest.fn();
   const listSuppressions = jest.fn();
   const upsertSuppressions = jest.fn();
   const removeSuppressions = jest.fn();
@@ -26,6 +29,9 @@ describe('CommunicationsController', () => {
             dispatch,
             listCampaigns,
             getCampaign,
+            listCampaignAudit,
+            approveCampaign,
+            cancelCampaign,
             listSuppressions,
             upsertSuppressions,
             removeSuppressions,
@@ -76,6 +82,30 @@ describe('CommunicationsController', () => {
     expect(controller.listCampaigns()).toEqual([{ campaignId: 'c-1' }]);
     expect(controller.getCampaign('c-1')).toEqual({ campaignId: 'c-1' });
     expect(getCampaign).toHaveBeenCalledWith('c-1');
+  });
+
+  it('forwards campaign audit, approve, and cancel requests', async () => {
+    listCampaignAudit.mockReturnValue([{ action: 'created' }]);
+    approveCampaign.mockResolvedValue({
+      campaignId: 'c-9',
+      status: 'completed',
+    });
+    cancelCampaign.mockReturnValue({ campaignId: 'c-9', status: 'cancelled' });
+    const controller = await createController();
+
+    expect(controller.listCampaignAudit('c-9')).toEqual([
+      { action: 'created' },
+    ]);
+    await expect(
+      controller.approveCampaign('c-9', { approvedBy: 'owner' }),
+    ).resolves.toEqual({ campaignId: 'c-9', status: 'completed' });
+    expect(
+      controller.cancelCampaign('c-9', { reason: 'operator stop' }),
+    ).toEqual({ campaignId: 'c-9', status: 'cancelled' });
+
+    expect(listCampaignAudit).toHaveBeenCalledWith('c-9');
+    expect(approveCampaign).toHaveBeenCalledWith('c-9', 'owner');
+    expect(cancelCampaign).toHaveBeenCalledWith('c-9', 'operator stop');
   });
 
   it('forwards suppression listing and mutation requests', async () => {

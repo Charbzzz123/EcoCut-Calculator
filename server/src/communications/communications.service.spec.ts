@@ -283,9 +283,123 @@ describe('CommunicationsService', () => {
     ).toThrow(BadRequestException);
   });
 
+  it('queues manager dispatches for owner approval when required', async () => {
+    const service = await createService();
+
+    const result = await service.dispatch({
+      channel: 'email',
+      scheduleMode: 'now',
+      operatorRole: 'manager',
+      requiresApproval: true,
+      recipients: [
+        {
+          clientId: 'alex',
+          clientLabel: 'Alex North',
+          email: 'alex@ecocutqc.com',
+          emailSubject: 'Subj',
+          emailBody: 'Body',
+          smsBody: 'Sms',
+        },
+      ],
+    });
+
+    expect(result.status).toBe('pending_approval');
+    expect(result.approval).toEqual(
+      expect.objectContaining({
+        required: true,
+        requestedBy: 'manager',
+      }),
+    );
+    expect(emailSend).toHaveBeenCalledTimes(0);
+  });
+
+  it('approves pending campaigns and executes delivery', async () => {
+    emailSend.mockResolvedValue('msg-email');
+    const service = await createService();
+
+    const queued = await service.dispatch({
+      channel: 'email',
+      scheduleMode: 'now',
+      operatorRole: 'manager',
+      requiresApproval: true,
+      recipients: [
+        {
+          clientId: 'alex',
+          clientLabel: 'Alex North',
+          email: 'alex@ecocutqc.com',
+          emailSubject: 'Subj',
+          emailBody: 'Body',
+          smsBody: 'Sms',
+        },
+      ],
+    });
+
+    const approved = await service.approveCampaign(queued.campaignId, 'owner');
+
+    expect(approved.status).toBe('completed');
+    expect(approved.approval).toEqual(
+      expect.objectContaining({
+        required: true,
+        requestedBy: 'manager',
+        approvedBy: 'owner',
+      }),
+    );
+    expect(emailSend).toHaveBeenCalledTimes(1);
+
+    const audit = service.listCampaignAudit(queued.campaignId);
+    expect(audit).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ action: 'pending_approval' }),
+        expect.objectContaining({ action: 'approved' }),
+        expect.objectContaining({ action: 'completed' }),
+      ]),
+    );
+  });
+
+  it('cancels scheduled campaigns and rejects invalid cancellation states', async () => {
+    const service = await createService();
+
+    const scheduled = await service.dispatch({
+      channel: 'sms',
+      scheduleMode: 'later',
+      scheduleAt: '2026-07-10T09:00',
+      recipients: [
+        {
+          clientId: 'alex',
+          clientLabel: 'Alex North',
+          phone: '+15145550001',
+          emailSubject: 'Subj',
+          emailBody: 'Body',
+          smsBody: 'Sms',
+        },
+      ],
+    });
+
+    const cancelled = service.cancelCampaign(
+      scheduled.campaignId,
+      'manual stop',
+    );
+    expect(cancelled.status).toBe('cancelled');
+    expect(service.listCampaignAudit(scheduled.campaignId)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ action: 'cancelled', detail: 'manual stop' }),
+      ]),
+    );
+
+    await expect(
+      service.approveCampaign(scheduled.campaignId, 'owner'),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(() => service.cancelCampaign(scheduled.campaignId)).toThrow(
+      BadRequestException,
+    );
+  });
+
   it('throws when requesting an unknown campaign id', async () => {
     const service = await createService();
     expect(() => service.getCampaign('missing-id')).toThrow(
+      BadRequestException,
+    );
+    expect(() => service.listCampaignAudit('missing-id')).toThrow(
       BadRequestException,
     );
   });

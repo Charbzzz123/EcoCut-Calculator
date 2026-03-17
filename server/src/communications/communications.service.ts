@@ -6,8 +6,10 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import {
+  CampaignAuditRecord,
   CampaignSummary,
   DispatchBroadcastDto,
+  OperatorRole,
   SendBroadcastTestDto,
   SmsMessagePayload,
   type CampaignStatus,
@@ -28,6 +30,8 @@ const sleep = async (ms: number): Promise<void> =>
 export class CommunicationsService {
   private readonly logger = new Logger(CommunicationsService.name);
   private readonly campaigns = new Map<string, CampaignSummary>();
+  private readonly pendingDispatches = new Map<string, DispatchBroadcastDto>();
+  private readonly campaignAudit = new Map<string, CampaignAuditRecord[]>();
   private readonly suppressions = {
     email: new Map<string, SuppressionRecord>(),
     sms: new Map<string, SuppressionRecord>(),
@@ -45,14 +49,22 @@ export class CommunicationsService {
       payload.channel,
       payload.scheduleMode,
       payload.scheduleAt,
+      'owner',
+      false,
     );
     this.campaigns.set(campaign.campaignId, campaign);
+    this.appendAudit(campaign.campaignId, 'created', 'Test campaign created.');
 
     if (payload.scheduleMode === 'later') {
       return this.completeScheduled(campaign.campaignId);
     }
 
     this.markStatus(campaign.campaignId, 'processing');
+    this.appendAudit(
+      campaign.campaignId,
+      'processing',
+      'Test campaign started.',
+    );
     try {
       let attempted = 0;
       let sent = 0;
@@ -63,6 +75,11 @@ export class CommunicationsService {
         if (emailPayload) {
           if (this.isSuppressed('email', emailPayload.to)) {
             suppressed += 1;
+            this.appendAudit(
+              campaign.campaignId,
+              'suppressed',
+              `Email test destination suppressed: ${emailPayload.to}`,
+            );
           } else {
             attempted += 1;
             await this.sendWithRetry(() =>
@@ -79,6 +96,11 @@ export class CommunicationsService {
         if (smsPayload) {
           if (this.isSuppressed('sms', smsPayload.to)) {
             suppressed += 1;
+            this.appendAudit(
+              campaign.campaignId,
+              'suppressed',
+              `SMS test destination suppressed: ${smsPayload.to}`,
+            );
           } else {
             attempted += 1;
             await this.sendWithRetry(() => this.smsProvider.send(smsPayload));
@@ -96,6 +118,7 @@ export class CommunicationsService {
         suppressed,
       });
       this.markStatus(campaign.campaignId, 'completed');
+      this.appendAudit(campaign.campaignId, 'test_sent', 'Test send finished.');
     } catch (error) {
       this.updateStats(campaign.campaignId, {
         recipients: 1,
@@ -112,13 +135,24 @@ export class CommunicationsService {
 
   async dispatch(payload: DispatchBroadcastDto): Promise<CampaignSummary> {
     this.validateDispatchPayload(payload);
+    const requestedBy = payload.operatorRole ?? 'owner';
+    const requiresApproval = Boolean(
+      payload.requiresApproval && requestedBy !== 'owner',
+    );
     const campaign = this.createCampaign(
       'dispatch',
       payload.channel,
       payload.scheduleMode,
       payload.scheduleAt,
+      requestedBy,
+      requiresApproval,
     );
     this.campaigns.set(campaign.campaignId, campaign);
+    this.appendAudit(
+      campaign.campaignId,
+      'created',
+      `Dispatch campaign created by ${requestedBy}.`,
+    );
 
     if (payload.scheduleMode === 'later') {
       this.updateStats(campaign.campaignId, {
@@ -128,10 +162,115 @@ export class CommunicationsService {
         failed: 0,
         suppressed: 0,
       });
-      return this.completeScheduled(campaign.campaignId);
+      return this.completeScheduled(
+        campaign.campaignId,
+        'Dispatch scheduled for later.',
+      );
     }
 
-    this.markStatus(campaign.campaignId, 'processing');
+    if (requiresApproval) {
+      this.pendingDispatches.set(campaign.campaignId, payload);
+      this.markStatus(campaign.campaignId, 'pending_approval');
+      this.updateStats(campaign.campaignId, {
+        recipients: payload.recipients.length,
+        attempted: 0,
+        sent: 0,
+        failed: 0,
+        suppressed: 0,
+      });
+      this.appendAudit(
+        campaign.campaignId,
+        'pending_approval',
+        'Dispatch queued and awaiting owner approval.',
+      );
+      return this.getCampaign(campaign.campaignId);
+    }
+
+    await this.runDispatch(campaign.campaignId, payload);
+    return this.getCampaign(campaign.campaignId);
+  }
+
+  async approveCampaign(
+    campaignId: string,
+    approvedBy: OperatorRole = 'owner',
+  ): Promise<CampaignSummary> {
+    const campaign = this.campaigns.get(campaignId);
+    if (!campaign) {
+      throw new BadRequestException(`Campaign ${campaignId} does not exist.`);
+    }
+    if (campaign.status !== 'pending_approval') {
+      throw new BadRequestException(
+        `Campaign ${campaignId} is not waiting for approval.`,
+      );
+    }
+    const pendingPayload = this.pendingDispatches.get(campaignId);
+    if (!pendingPayload) {
+      throw new BadRequestException(
+        `Campaign ${campaignId} has no pending payload to approve.`,
+      );
+    }
+
+    this.campaigns.set(campaignId, {
+      ...campaign,
+      approval: {
+        required: true,
+        requestedBy: campaign.approval?.requestedBy ?? 'manager',
+        approvedBy,
+        approvedAt: new Date().toISOString(),
+      },
+      updatedAt: new Date().toISOString(),
+    });
+    this.appendAudit(
+      campaignId,
+      'approved',
+      `Campaign approved by ${approvedBy}.`,
+    );
+
+    await this.runDispatch(campaignId, pendingPayload);
+    this.pendingDispatches.delete(campaignId);
+    return this.getCampaign(campaignId);
+  }
+
+  cancelCampaign(campaignId: string, reason?: string): CampaignSummary {
+    const campaign = this.campaigns.get(campaignId);
+    if (!campaign) {
+      throw new BadRequestException(`Campaign ${campaignId} does not exist.`);
+    }
+
+    if (
+      campaign.status !== 'scheduled' &&
+      campaign.status !== 'pending_approval' &&
+      campaign.status !== 'processing'
+    ) {
+      throw new BadRequestException(
+        `Campaign ${campaignId} cannot be cancelled from status ${campaign.status}.`,
+      );
+    }
+
+    this.pendingDispatches.delete(campaignId);
+    this.markStatus(campaignId, 'cancelled');
+    this.appendAudit(
+      campaignId,
+      'cancelled',
+      reason?.trim() || 'Campaign cancelled by operator.',
+    );
+
+    return this.getCampaign(campaignId);
+  }
+
+  listCampaignAudit(campaignId: string): CampaignAuditRecord[] {
+    if (!this.campaigns.has(campaignId)) {
+      throw new BadRequestException(`Campaign ${campaignId} does not exist.`);
+    }
+    return [...(this.campaignAudit.get(campaignId) ?? [])];
+  }
+
+  private async runDispatch(
+    campaignId: string,
+    payload: DispatchBroadcastDto,
+  ): Promise<void> {
+    this.markStatus(campaignId, 'processing');
+    this.appendAudit(campaignId, 'processing', 'Dispatch worker started.');
     let attempted = 0;
     let sent = 0;
     let failed = 0;
@@ -143,6 +282,11 @@ export class CommunicationsService {
         if (email) {
           if (this.isSuppressed('email', email)) {
             suppressed += 1;
+            this.appendAudit(
+              campaignId,
+              'suppressed',
+              `Email suppressed for ${recipient.clientLabel}.`,
+            );
           } else {
             attempted += 1;
             try {
@@ -159,6 +303,11 @@ export class CommunicationsService {
               this.logger.warn(
                 `Email delivery failed for ${recipient.clientLabel}: ${this.stringifyError(error)}`,
               );
+              this.appendAudit(
+                campaignId,
+                'failed',
+                `Email failed for ${recipient.clientLabel}.`,
+              );
             }
             await sleep(EMAIL_THROTTLE_MS);
           }
@@ -169,6 +318,11 @@ export class CommunicationsService {
         if (recipient.phone) {
           if (this.isSuppressed('sms', recipient.phone)) {
             suppressed += 1;
+            this.appendAudit(
+              campaignId,
+              'suppressed',
+              `SMS suppressed for ${recipient.clientLabel}.`,
+            );
           } else {
             attempted += 1;
             try {
@@ -183,6 +337,11 @@ export class CommunicationsService {
               this.logger.warn(
                 `SMS delivery failed for ${recipient.clientLabel}: ${this.stringifyError(error)}`,
               );
+              this.appendAudit(
+                campaignId,
+                'failed',
+                `SMS failed for ${recipient.clientLabel}.`,
+              );
             }
             await sleep(SMS_THROTTLE_MS);
           }
@@ -190,15 +349,22 @@ export class CommunicationsService {
       }
     }
 
-    this.updateStats(campaign.campaignId, {
+    this.updateStats(campaignId, {
       recipients: payload.recipients.length,
       attempted,
       sent,
       failed,
       suppressed,
     });
-    this.markStatus(campaign.campaignId, failed > 0 ? 'failed' : 'completed');
-    return this.getCampaign(campaign.campaignId);
+    const finalStatus = failed > 0 ? 'failed' : 'completed';
+    this.markStatus(campaignId, finalStatus);
+    this.appendAudit(
+      campaignId,
+      finalStatus,
+      finalStatus === 'completed'
+        ? 'Dispatch finished successfully.'
+        : 'Dispatch completed with delivery failures.',
+    );
   }
 
   listSuppressions(): SuppressionRecord[] {
@@ -336,13 +502,21 @@ export class CommunicationsService {
     channel: CampaignSummary['channel'],
     scheduleMode: CampaignSummary['scheduleMode'],
     scheduleAt?: string,
+    requestedBy: OperatorRole = 'owner',
+    requiresApproval = false,
   ): CampaignSummary {
     const timestamp = new Date().toISOString();
+    const status: CampaignStatus =
+      requiresApproval && scheduleMode === 'now'
+        ? 'pending_approval'
+        : scheduleMode === 'later'
+          ? 'scheduled'
+          : 'processing';
     return {
       campaignId: randomUUID(),
       type,
       channel,
-      status: scheduleMode === 'later' ? 'scheduled' : 'processing',
+      status,
       scheduleMode,
       scheduleAt: scheduleMode === 'later' ? (scheduleAt ?? null) : null,
       createdAt: timestamp,
@@ -353,6 +527,10 @@ export class CommunicationsService {
         sent: 0,
         failed: 0,
         suppressed: 0,
+      },
+      approval: {
+        required: requiresApproval,
+        requestedBy,
       },
     };
   }
@@ -381,10 +559,15 @@ export class CommunicationsService {
       updatedAt: new Date().toISOString(),
       lastError: message,
     });
+    this.appendAudit(campaignId, 'failed', message);
   }
 
-  private completeScheduled(campaignId: string): CampaignSummary {
+  private completeScheduled(
+    campaignId: string,
+    detail = 'Campaign scheduled.',
+  ): CampaignSummary {
     this.markStatus(campaignId, 'scheduled');
+    this.appendAudit(campaignId, 'scheduled', detail);
     return this.getCampaign(campaignId);
   }
 
@@ -417,6 +600,23 @@ export class CommunicationsService {
       }
     }
     throw lastError;
+  }
+
+  private appendAudit(
+    campaignId: string,
+    action: CampaignAuditRecord['action'],
+    detail: string,
+  ): void {
+    const existing = this.campaignAudit.get(campaignId) ?? [];
+    this.campaignAudit.set(campaignId, [
+      ...existing,
+      {
+        campaignId,
+        timestamp: new Date().toISOString(),
+        action,
+        detail,
+      },
+    ]);
   }
 
   private stringifyError(error: unknown): string {

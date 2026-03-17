@@ -1,13 +1,16 @@
 export type BroadcastChannel = 'email' | 'sms' | 'both';
 export type SuppressionChannel = 'email' | 'sms';
+export type OperatorRole = 'owner' | 'manager';
 
 export type BroadcastScheduleMode = 'now' | 'later';
 
 export type CampaignStatus =
+  | 'pending_approval'
   | 'scheduled'
   | 'processing'
   | 'completed'
-  | 'failed';
+  | 'failed'
+  | 'cancelled';
 
 export interface EmailMessagePayload {
   to: string;
@@ -42,6 +45,8 @@ export interface DispatchBroadcastDto {
   channel: BroadcastChannel;
   scheduleMode: BroadcastScheduleMode;
   scheduleAt?: string;
+  operatorRole?: OperatorRole;
+  requiresApproval?: boolean;
   recipients: BroadcastDispatchRecipient[];
 }
 
@@ -64,6 +69,12 @@ export interface CampaignSummary {
   createdAt: string;
   updatedAt: string;
   lastError?: string;
+  approval?: {
+    required: boolean;
+    requestedBy: OperatorRole;
+    approvedBy?: OperatorRole;
+    approvedAt?: string;
+  };
 }
 
 export interface UpsertSuppressionDto {
@@ -79,4 +90,24 @@ export interface SuppressionRecord {
   reason: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export type CampaignAuditAction =
+  | 'created'
+  | 'queued'
+  | 'pending_approval'
+  | 'approved'
+  | 'scheduled'
+  | 'processing'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'suppressed'
+  | 'test_sent';
+
+export interface CampaignAuditRecord {
+  campaignId: string;
+  timestamp: string;
+  action: CampaignAuditAction;
+  detail: string;
 }

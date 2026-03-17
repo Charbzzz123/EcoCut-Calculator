@@ -77,10 +77,11 @@ root/
 - **Broadcast module (MVP delivery live)**:
   - Exposes `POST /communications/test`, `POST /communications/dispatch`, `GET /communications/campaigns`, and `GET /communications/campaigns/:campaignId`.
   - Phase 7A suppression endpoints are live: `GET /communications/suppressions`, `POST /communications/suppressions/unsubscribe`, `POST /communications/suppressions/resubscribe`.
+  - Phase 7B approval/audit endpoints are live: `POST /communications/campaigns/:campaignId/approve`, `POST /communications/campaigns/:campaignId/cancel`, and `GET /communications/campaigns/:campaignId/audit`.
   - Uses swappable provider adapters via injection tokens:
     - `HostingerEmailProvider` (SMTP via Nodemailer)
     - `QuoSmsProvider` (HTTP API)
-  - `CommunicationsService` applies retry + throttle guards during send loops, skips suppressed recipients by channel, and keeps in-memory campaign status/stats (`recipients`, `attempted`, `sent`, `failed`, `suppressed`) for operator feedback.
+  - `CommunicationsService` applies retry + throttle guards during send loops, skips suppressed recipients by channel, supports approval-gated sends (`pending_approval`), and keeps in-memory campaign status/stats (`recipients`, `attempted`, `sent`, `failed`, `suppressed`) with append-only audit entries for operator feedback.
   - Next slices still pending: durable campaign persistence, queue workers, webhook ingestion, consent expiry enforcement, and idempotency keys.
 - **Frontend proxying & dev setup**
   - `npm start` automatically passes `--proxy-config proxy.conf.json`, so `/api/*` traffic goes to `http://localhost:3000/*`. Always run `npm run server` in a second terminal before testing calendar flows locally.
@@ -132,7 +133,7 @@ All frontend services derive their HTTP targets from `environment.apiBaseUrl`, s
 
 - Replace placeholder Angular template with real calculator components.
 - Extend the `/clients` view into a full CRM (client detail drawer, job history timeline, edit/delete hooks) once backend persistence is durable.
-- Continue `/communications/broadcast` rollout in remaining slices: campaign history UI, compliance/audit, and provider webhook ingestion.
+- Continue `/communications/broadcast` rollout in remaining slices: campaign history UI, webhook ingestion, and durable compliance/audit persistence.
 - Automate documentation publishing (Docs site or wiki) once scope grows.
 
 ## Durable Persistence
