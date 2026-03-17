@@ -12,6 +12,19 @@
   --accent-primary: #4ade80;
   --accent-secondary: #22c55e;
   --accent-amber: #fcd34d;
+  --scrollbar-track: rgba(6, 18, 14, 0.75);
+  --scrollbar-thumb-solid: rgba(103, 232, 194, 0.55);
+  --scrollbar-thumb: linear-gradient(
+    180deg,
+    rgba(103, 232, 194, 0.75) 0%,
+    rgba(45, 212, 191, 0.55) 100%
+  );
+  --scrollbar-thumb-hover: linear-gradient(
+    180deg,
+    rgba(134, 239, 214, 0.82) 0%,
+    rgba(45, 212, 191, 0.68) 100%
+  );
+  --scrollbar-thumb-border: rgba(9, 28, 21, 0.9);
   --gradient-accent: linear-gradient(120deg, #4ade80, #22d3ee);
   --shadow-elevated: 0 25px 55px rgba(3, 10, 7, 0.65);
   --card-radius: 1.25rem;

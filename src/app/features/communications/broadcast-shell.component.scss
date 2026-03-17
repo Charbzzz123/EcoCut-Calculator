@@ -335,29 +335,8 @@
   gap: 0.45rem;
   max-height: 12rem;
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(103, 232, 194, 0.55) rgba(6, 18, 14, 0.75);
   padding-right: 0.25rem;
   -webkit-overflow-scrolling: touch;
-}
-
-.audience-preview__list::-webkit-scrollbar {
-  width: 0.55rem;
-}
-
-.audience-preview__list::-webkit-scrollbar-track {
-  background: rgba(6, 18, 14, 0.75);
-  border-radius: 999px;
-}
-
-.audience-preview__list::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(103, 232, 194, 0.75) 0%, rgba(45, 212, 191, 0.55) 100%);
-  border-radius: 999px;
-  border: 1px solid rgba(9, 28, 21, 0.9);
-}
-
-.audience-preview__list::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(134, 239, 214, 0.82) 0%, rgba(45, 212, 191, 0.68) 100%);
 }
 
 .audience-preview__item {
