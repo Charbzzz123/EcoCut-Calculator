@@ -251,6 +251,7 @@ Update this document whenever we clarify rules or add new functionality so imple
 - **Channel selection** (implemented):
   - Modes: `Email`, `SMS`, `Both`.
   - Validation blocks dispatch when selected channel has zero eligible recipients and surfaces a clear inline error.
+  - Step 2 now includes a mandatory **Confirm channel selection** action; changing channel after confirming requires reconfirmation before test send or dispatch can proceed.
 - **Message composer** (implemented):
   - Subject line (required for email).
   - Message body with reusable variable chips (for example: `{{firstName}}`, `{{address}}`, `{{nextJobDate}}`).

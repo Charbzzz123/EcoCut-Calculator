@@ -290,6 +290,26 @@ describe('BroadcastShellComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Dispatch readiness: Ready');
   });
 
+  it('confirms channel selection and asks for reconfirmation when changed', () => {
+    expect(fixture.nativeElement.textContent).toContain('Current channel: Email + SMS');
+
+    const confirmButton = fixture.nativeElement.querySelector(
+      '.channel-confirmation .refresh-btn',
+    ) as HTMLButtonElement;
+    confirmButton.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Channel confirmed: Email + SMS.');
+
+    const emailChannel = fixture.nativeElement.querySelector(
+      '.channel-toggle input[value="email"]',
+    ) as HTMLInputElement;
+    emailChannel.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain(
+      'Channel changed to Email. Confirm again before moving on.',
+    );
+  });
+
   it('shows blocked status and loading/error banners when signals change', () => {
     facadeMock.channelValidationMessage.set(
       'No recipients have an email address for the selected filters.',
@@ -374,6 +394,10 @@ describe('BroadcastShellComponent', () => {
     facadeMock.channelControl.setValue('email');
     facadeMock.testEmailControl.setValue('owner@ecocutqc.com');
     facadeMock.testPhoneControl.setValue('');
+    const confirmButton = fixture.nativeElement.querySelector(
+      '.channel-confirmation .refresh-btn',
+    ) as HTMLButtonElement;
+    confirmButton.click();
     fixture.detectChanges();
 
     const actions = fixture.nativeElement.querySelectorAll('.send-controls .refresh-btn');
@@ -408,6 +432,10 @@ describe('BroadcastShellComponent', () => {
 
   it('disables test send and shows reason when destinations are missing', () => {
     facadeMock.channelControl.setValue('both');
+    const confirmButton = fixture.nativeElement.querySelector(
+      '.channel-confirmation .refresh-btn',
+    ) as HTMLButtonElement;
+    confirmButton.click();
     facadeMock.testEmailControl.setValue('');
     facadeMock.testPhoneControl.setValue('');
     fixture.detectChanges();
@@ -424,6 +452,7 @@ describe('BroadcastShellComponent', () => {
     const component = fixture.componentInstance as BroadcastShellComponent;
 
     facadeMock.channelControl.setValue('email');
+    component['confirmSelectedChannel']();
     facadeMock.emailBodyControl.setValue('');
     expect(component['dispatchBlockedReason']()).toBe(
       'Add all required subject/body fields for the selected channel.',
@@ -434,14 +463,66 @@ describe('BroadcastShellComponent', () => {
     const component = fixture.componentInstance as BroadcastShellComponent;
 
     facadeMock.channelControl.setValue('email');
+    component['confirmSelectedChannel']();
     facadeMock.emailBodyControl.setValue('Email body');
     facadeMock.testEmailControl.setValue('');
     expect(component['testBlockedReason']()).toBe('Add a test email destination.');
 
     facadeMock.channelControl.setValue('sms');
+    component['confirmSelectedChannel']();
     facadeMock.smsBodyControl.setValue('SMS body');
     facadeMock.testPhoneControl.setValue('');
     expect(component['testBlockedReason']()).toBe('Add a valid test SMS destination.');
+
+    facadeMock.channelControl.setValue('both');
+    component['confirmSelectedChannel']();
+    facadeMock.testEmailControl.setValue('owner@ecocutqc.com');
+    facadeMock.testPhoneControl.setValue('');
+    expect(component['testBlockedReason']()).toBe('Add both test email and test SMS destinations.');
+  });
+
+  it('blocks send actions until channel selection is confirmed', () => {
+    const component = fixture.componentInstance as BroadcastShellComponent;
+    expect(component['dispatchBlockedReason']()).toBe(
+      'Confirm the channel selection in Step 2 before sending.',
+    );
+    expect(component['canConfirmDispatch']()).toBe(false);
+    expect(component['canSendTest']()).toBe(false);
+  });
+
+  it('renders the shared channel-confirmation block reason only once', () => {
+    fixture.detectChanges();
+    const banners = fixture.nativeElement.querySelectorAll('.send-controls .validation-banner');
+    expect(banners.length).toBe(1);
+    expect((banners[0] as HTMLElement).textContent).toContain(
+      'Confirm the channel selection in Step 2 before sending.',
+    );
+  });
+
+  it('requires a timestamp when schedule mode is later', () => {
+    const component = fixture.componentInstance as BroadcastShellComponent;
+    facadeMock.channelControl.setValue('email');
+    const confirmButton = fixture.nativeElement.querySelector(
+      '.channel-confirmation .refresh-btn',
+    ) as HTMLButtonElement;
+    confirmButton.click();
+    facadeMock.scheduleModeControl.setValue('later');
+    facadeMock.scheduleAtControl.setValue('');
+
+    expect(component['dispatchBlockedReason']()).toBe(
+      'Pick a scheduled timestamp before confirming broadcast.',
+    );
+  });
+
+  it('renders SMS confirmation status when SMS channel is confirmed', () => {
+    facadeMock.channelControl.setValue('sms');
+    const confirmButton = fixture.nativeElement.querySelector(
+      '.channel-confirmation .refresh-btn',
+    ) as HTMLButtonElement;
+    confirmButton.click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Channel confirmed: SMS.');
   });
 
   it('navigates preview recipients with previous/next controls', () => {

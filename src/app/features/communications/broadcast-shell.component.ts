@@ -5,7 +5,11 @@ import type { ClientSummary } from '@shared/domain/entry/entry-repository.servic
 import { BackChipComponent } from '@shared/ui/back-chip/back-chip.component.js';
 import { BrandBannerComponent } from '@shared/ui/brand-banner/brand-banner.component.js';
 import { BroadcastFacade } from './broadcast.facade.js';
-import type { BroadcastCostEstimate, BroadcastTemplateTarget } from './broadcast.types.js';
+import type {
+  BroadcastChannel,
+  BroadcastCostEstimate,
+  BroadcastTemplateTarget,
+} from './broadcast.types.js';
 
 const EMAIL_ESTIMATE_COST = 0;
 const SMS_ESTIMATE_COST = 0.02;
@@ -26,6 +30,7 @@ interface AudiencePreviewRow {
 })
 export class BroadcastShellComponent implements OnInit {
   private readonly facade = inject(BroadcastFacade);
+  private confirmedChannel: BroadcastChannel | null = null;
 
   protected readonly headingId = 'broadcast-heading';
   protected readonly queryControl = this.facade.queryControl;
@@ -127,6 +132,30 @@ export class BroadcastShellComponent implements OnInit {
     void this.facade.loadRecipients();
   }
 
+  protected confirmSelectedChannel(): void {
+    this.confirmedChannel = this.channelControl.value;
+  }
+
+  protected channelSelectionStatus(): { confirmed: boolean; message: string } {
+    const selectedChannel = this.channelControl.value;
+    if (this.confirmedChannel === selectedChannel) {
+      return {
+        confirmed: true,
+        message: `Channel confirmed: ${this.channelLabel(selectedChannel)}.`,
+      };
+    }
+    if (this.confirmedChannel === null) {
+      return {
+        confirmed: false,
+        message: `Current channel: ${this.channelLabel(selectedChannel)}. Click confirm to lock your choice.`,
+      };
+    }
+    return {
+      confirmed: false,
+      message: `Channel changed to ${this.channelLabel(selectedChannel)}. Confirm again before moving on.`,
+    };
+  }
+
   protected insertMergeField(target: BroadcastTemplateTarget, token: string): void {
     this.facade.insertMergeField(target, token);
   }
@@ -180,6 +209,9 @@ export class BroadcastShellComponent implements OnInit {
     if (this.channelValidationMessage()) {
       return this.channelValidationMessage();
     }
+    if (!this.isChannelConfirmed()) {
+      return 'Confirm the channel selection in Step 2 before sending.';
+    }
     if (!this.isMessageReadyForChannel()) {
       return 'Add all required subject/body fields for the selected channel.';
     }
@@ -207,6 +239,18 @@ export class BroadcastShellComponent implements OnInit {
       return 'Add both test email and test SMS destinations.';
     }
     return null;
+  }
+
+  protected visibleTestBlockedReason(): string | null {
+    const testReason = this.testBlockedReason();
+    if (!testReason) {
+      return null;
+    }
+    const dispatchReason = this.dispatchBlockedReason();
+    if (dispatchReason && dispatchReason === testReason) {
+      return null;
+    }
+    return testReason;
   }
 
   private hasScheduledTimestamp(): boolean {
@@ -245,11 +289,13 @@ export class BroadcastShellComponent implements OnInit {
   protected readinessChecklist(): { label: string; isReady: boolean }[] {
     const recipientsReady = this.counts().total > 0;
     const channelReady = this.channelValidationMessage() === null;
+    const channelConfirmed = this.isChannelConfirmed();
     const messageReady = this.isMessageReadyForChannel();
     const scheduleReady = this.scheduleModeControl.value === 'now' || this.hasScheduledTimestamp();
     return [
       { label: 'Recipients selected', isReady: recipientsReady },
       { label: 'Channel eligibility', isReady: channelReady },
+      { label: 'Channel confirmation', isReady: channelConfirmed },
       { label: 'Message content', isReady: messageReady },
       { label: 'Schedule', isReady: scheduleReady },
     ];
@@ -282,5 +328,19 @@ export class BroadcastShellComponent implements OnInit {
     const safeIndex = currentIndex < 0 ? 0 : currentIndex;
     const nextIndex = safeIndex + offset;
     return nextIndex >= 0 && nextIndex < recipients.length;
+  }
+
+  private isChannelConfirmed(): boolean {
+    return this.confirmedChannel === this.channelControl.value;
+  }
+
+  private channelLabel(channel: BroadcastChannel): string {
+    if (channel === 'email') {
+      return 'Email';
+    }
+    if (channel === 'sms') {
+      return 'SMS';
+    }
+    return 'Email + SMS';
   }
 }

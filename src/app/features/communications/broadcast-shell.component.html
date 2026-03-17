@@ -151,6 +151,18 @@
         </p>
       }
 
+      <div class="channel-confirmation">
+        <button type="button" class="refresh-btn" (click)="confirmSelectedChannel()">
+          Confirm channel selection
+        </button>
+        <p
+          class="validation-banner"
+          [class.validation-banner--ok]="channelSelectionStatus().confirmed"
+        >
+          {{ channelSelectionStatus().message }}
+        </p>
+      </div>
+
       <p class="dispatch-status" [class.dispatch-status--disabled]="!canDispatch()">
         Dispatch readiness: {{ canDispatch() ? 'Ready' : 'Blocked' }}
       </p>
@@ -399,8 +411,8 @@
             Confirm broadcast
           </button>
         </div>
-        @if (testBlockedReason()) {
-          <p class="validation-banner">{{ testBlockedReason() }}</p>
+        @if (visibleTestBlockedReason()) {
+          <p class="validation-banner">{{ visibleTestBlockedReason() }}</p>
         }
         @if (dispatchBlockedReason()) {
           <p class="validation-banner">{{ dispatchBlockedReason() }}</p>
