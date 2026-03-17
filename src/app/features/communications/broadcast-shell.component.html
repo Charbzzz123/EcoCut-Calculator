@@ -215,129 +215,131 @@
     <article class="board-card board-card--wide">
       <h2>Step 3 - Template composer, preview, and send</h2>
 
-      <div class="merge-field-row" aria-label="Merge field chips">
-        @for (field of mergeFields(); track field.token) {
-          <button
-            type="button"
-            class="merge-chip"
-            draggable="true"
-            (dragstart)="
-              onMergeChipDragStart($event, mergeFieldEditorToken(field.label), field.label)
-            "
-            (dragend)="onMergeChipDragEnd()"
-            (click)="insertMergeField(mergeFieldEditorToken(field.label))"
-            [title]="'Fallback: ' + field.fallbackLabel"
-          >
-            {{ field.label }}
-          </button>
-        }
-      </div>
+      <section class="composer-editor-zone">
+        <div class="field-grid composer-grid">
+          <label class="field">
+            <span>Segment rule</span>
+            <select [formControl]="segmentRuleControl">
+              @for (rule of segmentRules(); track rule.id) {
+                <option [value]="rule.id">{{ rule.label }}</option>
+              }
+            </select>
+          </label>
+          <label class="field">
+            <span>Email variant</span>
+            <select [formControl]="emailVariantControl">
+              @for (variant of emailVariants(); track variant.id) {
+                <option [value]="variant.id">{{ variant.label }}</option>
+              }
+            </select>
+          </label>
+          <label class="field">
+            <span>SMS variant</span>
+            <select [formControl]="smsVariantControl">
+              @for (variant of smsVariants(); track variant.id) {
+                <option [value]="variant.id">{{ variant.label }}</option>
+              }
+            </select>
+          </label>
+        </div>
 
-      <div class="field-grid composer-grid">
-        <label class="field">
-          <span>Segment rule</span>
-          <select [formControl]="segmentRuleControl">
-            @for (rule of segmentRules(); track rule.id) {
-              <option [value]="rule.id">{{ rule.label }}</option>
-            }
-          </select>
-        </label>
-        <label class="field">
-          <span>Email variant</span>
-          <select [formControl]="emailVariantControl">
-            @for (variant of emailVariants(); track variant.id) {
-              <option [value]="variant.id">{{ variant.label }}</option>
-            }
-          </select>
-        </label>
-        <label class="field">
-          <span>SMS variant</span>
-          <select [formControl]="smsVariantControl">
-            @for (variant of smsVariants(); track variant.id) {
-              <option [value]="variant.id">{{ variant.label }}</option>
-            }
-          </select>
-        </label>
-      </div>
+        <div class="merge-field-row merge-field-row--sticky" aria-label="Merge field chips">
+          @for (field of mergeFields(); track field.token) {
+            <button
+              type="button"
+              class="merge-chip"
+              draggable="true"
+              (dragstart)="
+                onMergeChipDragStart($event, mergeFieldEditorToken(field.label), field.label)
+              "
+              (dragend)="onMergeChipDragEnd()"
+              (click)="insertMergeField(mergeFieldEditorToken(field.label))"
+              [title]="'Fallback: ' + field.fallbackLabel"
+            >
+              {{ field.label }}
+            </button>
+          }
+        </div>
 
-      <div class="field-grid composer-grid">
+        <div class="field-grid composer-grid">
+          <div class="field">
+            <span>Email subject</span>
+            <app-merge-token-editor
+              #emailSubjectEditor
+              targetId="emailSubject"
+              [value]="emailSubjectControl.value"
+              [placeholder]="'Subject line'"
+              [singleLine]="true"
+              [mergeFields]="mergeFields()"
+              [class.merge-drop-target]="isMergeDragTarget('emailSubject')"
+              (editorFocused)="onTokenEditorFocus('emailSubject')"
+              (valueChange)="onTokenEditorValueChange('emailSubject', $event)"
+              (dragover)="onTemplateDragOver($event, 'emailSubject')"
+              (dragleave)="onTemplateDragLeave('emailSubject')"
+              (drop)="onTemplateDrop($event, 'emailSubject')"
+            ></app-merge-token-editor>
+          </div>
+          <label class="field">
+            <span>CTA link (optional)</span>
+            <input [formControl]="ctaLinkControl" type="url" placeholder="https://ecocutqc.com" />
+          </label>
+        </div>
+
         <div class="field">
-          <span>Email subject</span>
+          <span>Email body</span>
           <app-merge-token-editor
-            #emailSubjectEditor
-            targetId="emailSubject"
-            [value]="emailSubjectControl.value"
-            [placeholder]="'Subject line'"
-            [singleLine]="true"
+            #emailBodyEditor
+            targetId="emailBody"
+            [value]="emailBodyControl.value"
+            [placeholder]="'Write your email message using merge fields.'"
             [mergeFields]="mergeFields()"
-            [class.merge-drop-target]="isMergeDragTarget('emailSubject')"
-            (editorFocused)="onTokenEditorFocus('emailSubject')"
-            (valueChange)="onTokenEditorValueChange('emailSubject', $event)"
-            (dragover)="onTemplateDragOver($event, 'emailSubject')"
-            (dragleave)="onTemplateDragLeave('emailSubject')"
-            (drop)="onTemplateDrop($event, 'emailSubject')"
+            [class.merge-drop-target]="isMergeDragTarget('emailBody')"
+            (editorFocused)="onTokenEditorFocus('emailBody')"
+            (valueChange)="onTokenEditorValueChange('emailBody', $event)"
+            (dragover)="onTemplateDragOver($event, 'emailBody')"
+            (dragleave)="onTemplateDragLeave('emailBody')"
+            (drop)="onTemplateDrop($event, 'emailBody')"
           ></app-merge-token-editor>
         </div>
+        <div class="field">
+          <span>SMS body</span>
+          <app-merge-token-editor
+            #smsBodyEditor
+            targetId="smsBody"
+            [value]="smsBodyControl.value"
+            [placeholder]="'Write your SMS message using merge fields.'"
+            [mergeFields]="mergeFields()"
+            [class.merge-drop-target]="isMergeDragTarget('smsBody')"
+            (editorFocused)="onTokenEditorFocus('smsBody')"
+            (valueChange)="onTokenEditorValueChange('smsBody', $event)"
+            (dragover)="onTemplateDragOver($event, 'smsBody')"
+            (dragleave)="onTemplateDragLeave('smsBody')"
+            (drop)="onTemplateDrop($event, 'smsBody')"
+          ></app-merge-token-editor>
+        </div>
+
+        <p class="sms-counter">
+          SMS length: {{ smsMetrics().characters }} chars / {{ smsMetrics().segments }} segment(s)
+        </p>
+
         <label class="field">
-          <span>CTA link (optional)</span>
-          <input [formControl]="ctaLinkControl" type="url" placeholder="https://ecocutqc.com" />
+          <span>Internal note (not sent)</span>
+          <textarea
+            [formControl]="internalNoteControl"
+            rows="2"
+            placeholder="Operator notes for this campaign."
+            data-merge-target="internalNote"
+            [class.merge-drop-target]="isMergeDragTarget('internalNote')"
+            (focus)="onTemplateCursorChange($event, 'internalNote')"
+            (click)="onTemplateCursorChange($event, 'internalNote')"
+            (keyup)="onTemplateCursorChange($event, 'internalNote')"
+            (select)="onTemplateCursorChange($event, 'internalNote')"
+            (dragover)="onTemplateDragOver($event, 'internalNote')"
+            (dragleave)="onTemplateDragLeave('internalNote')"
+            (drop)="onTemplateDrop($event, 'internalNote')"
+          ></textarea>
         </label>
-      </div>
-
-      <div class="field">
-        <span>Email body</span>
-        <app-merge-token-editor
-          #emailBodyEditor
-          targetId="emailBody"
-          [value]="emailBodyControl.value"
-          [placeholder]="'Write your email message using merge fields.'"
-          [mergeFields]="mergeFields()"
-          [class.merge-drop-target]="isMergeDragTarget('emailBody')"
-          (editorFocused)="onTokenEditorFocus('emailBody')"
-          (valueChange)="onTokenEditorValueChange('emailBody', $event)"
-          (dragover)="onTemplateDragOver($event, 'emailBody')"
-          (dragleave)="onTemplateDragLeave('emailBody')"
-          (drop)="onTemplateDrop($event, 'emailBody')"
-        ></app-merge-token-editor>
-      </div>
-      <div class="field">
-        <span>SMS body</span>
-        <app-merge-token-editor
-          #smsBodyEditor
-          targetId="smsBody"
-          [value]="smsBodyControl.value"
-          [placeholder]="'Write your SMS message using merge fields.'"
-          [mergeFields]="mergeFields()"
-          [class.merge-drop-target]="isMergeDragTarget('smsBody')"
-          (editorFocused)="onTokenEditorFocus('smsBody')"
-          (valueChange)="onTokenEditorValueChange('smsBody', $event)"
-          (dragover)="onTemplateDragOver($event, 'smsBody')"
-          (dragleave)="onTemplateDragLeave('smsBody')"
-          (drop)="onTemplateDrop($event, 'smsBody')"
-        ></app-merge-token-editor>
-      </div>
-
-      <p class="sms-counter">
-        SMS length: {{ smsMetrics().characters }} chars / {{ smsMetrics().segments }} segment(s)
-      </p>
-
-      <label class="field">
-        <span>Internal note (not sent)</span>
-        <textarea
-          [formControl]="internalNoteControl"
-          rows="2"
-          placeholder="Operator notes for this campaign."
-          data-merge-target="internalNote"
-          [class.merge-drop-target]="isMergeDragTarget('internalNote')"
-          (focus)="onTemplateCursorChange($event, 'internalNote')"
-          (click)="onTemplateCursorChange($event, 'internalNote')"
-          (keyup)="onTemplateCursorChange($event, 'internalNote')"
-          (select)="onTemplateCursorChange($event, 'internalNote')"
-          (dragover)="onTemplateDragOver($event, 'internalNote')"
-          (dragleave)="onTemplateDragLeave('internalNote')"
-          (drop)="onTemplateDrop($event, 'internalNote')"
-        ></textarea>
-      </label>
+      </section>
 
       <div class="preview-shell">
         <label class="field">

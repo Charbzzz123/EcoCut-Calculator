@@ -522,6 +522,17 @@
   gap: 0.45rem;
 }
 
+.merge-field-row--sticky {
+  position: sticky;
+  top: 0.55rem;
+  z-index: 6;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid rgba(103, 232, 194, 0.24);
+  border-radius: 0.9rem;
+  background: rgba(6, 18, 14, 0.92);
+  backdrop-filter: blur(8px);
+}
+
 .merge-chip {
   border: 1px solid rgba(103, 232, 194, 0.45);
   border-radius: 999px;
@@ -539,6 +550,10 @@
 
 .composer-grid {
   margin-top: 0.9rem;
+}
+
+.composer-editor-zone {
+  display: grid;
 }
 
 .sms-counter {
