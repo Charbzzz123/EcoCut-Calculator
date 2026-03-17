@@ -246,6 +246,8 @@ Update this document whenever we clarify rules or add new functionality so imple
   - Active filters: search by name/address/phone/email, has email, has phone, last serviced window, and upcoming job window.
   - Live counts render total recipients, SMS-capable recipients, Email-capable recipients, and dual-channel recipients.
   - Exclusion summary shows how many recipients are missing email, missing SMS, missing both, and excluded by the currently selected channel.
+  - A compact scrollable recipient preview list is always visible under filters so operators can quickly verify who is currently included before sending.
+  - Recipient rows now include eligibility badges (`Email + SMS`, `Email only`, `SMS only`, `Missing channel`) for at-a-glance verification.
 - **Channel selection** (implemented):
   - Modes: `Email`, `SMS`, `Both`.
   - Validation blocks dispatch when selected channel has zero eligible recipients and surfaces a clear inline error.
@@ -257,11 +259,13 @@ Update this document whenever we clarify rules or add new functionality so imple
 - **Preview and safety controls**:
   - Real-time preview card for email and SMS rendering (implemented).
   - Preview supports selecting a specific client to render the exact final message after merge fields and fallback values are applied (implemented).
+  - Preview navigation now includes `Previous` / `Next` controls so operators can scan multiple recipients without reopening dropdowns.
   - Layer stack is now live (implemented): base template + channel variant + segment rule + per-client override, with deterministic priority `override > segment > channel > base` and an active-layer list visible in the UI.
   - **Send test** is live (implemented): owner/manager can target test email/SMS destinations and confirm before queueing.
   - **Schedule send** is live (implemented): dispatch can be `Send now` or `Schedule for later` via timestamp input.
   - Confirmation modal is live (implemented): shows mode, channel, recipient count, and selected schedule before final action.
   - Status banner is live (implemented): success copy confirms whether a test or broadcast was queued/scheduled.
+  - Send controls now show a readiness checklist (`Recipients`, `Channel`, `Message`, `Schedule`) plus blocking-reason feedback before buttons are enabled.
   - **Backend delivery engine** is live (implemented): confirmation actions now call server endpoints (`POST /communications/test`, `POST /communications/dispatch`) instead of local stubs, and return a campaign status payload used by the UI banner.
   - **Approval flow (backend) is live (implemented)**: manager-originated sends can be held in `pending_approval` until an owner approves through campaign endpoints; campaign payload includes approval metadata.
   - **Webhook + analytics ingestion (backend) is live (implemented)**: provider events can be ingested through `POST /communications/webhooks/delivery`, and campaign-level delivery metrics are exposed through `GET /communications/campaigns/:campaignId/analytics`.

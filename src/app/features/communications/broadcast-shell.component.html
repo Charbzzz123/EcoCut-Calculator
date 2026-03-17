@@ -44,7 +44,7 @@
 
   <section class="broadcast-board" aria-label="Broadcast setup panels">
     <article class="board-card">
-      <h2>Audience filters</h2>
+      <h2>Step 1 - Audience filters</h2>
       <label class="field">
         <span>Search</span>
         <input
@@ -89,10 +89,38 @@
       <button type="button" class="refresh-btn" (click)="reloadRecipients()">
         Refresh recipients
       </button>
+
+      <section class="audience-preview" aria-label="Audience preview list">
+        <p class="audience-preview__label">
+          Showing {{ filteredRecipients().length }} recipient{{
+            filteredRecipients().length === 1 ? '' : 's'
+          }}
+        </p>
+        <ul class="audience-preview__list">
+          @for (row of audiencePreviewRows(); track row.client.clientId) {
+            <li class="audience-preview__item">
+              <div class="audience-preview__row">
+                <p class="audience-preview__name">{{ row.client.fullName }}</p>
+                <span
+                  class="audience-preview__badge"
+                  [ngClass]="'audience-preview__badge--' + row.channelClass"
+                >
+                  {{ row.channelLabel }}
+                </span>
+              </div>
+              <p class="audience-preview__meta">
+                {{ row.client.email || 'No email' }} | {{ row.client.phone || 'No phone' }}
+              </p>
+            </li>
+          } @empty {
+            <li class="audience-preview__empty">No recipients match these filters yet.</li>
+          }
+        </ul>
+      </section>
     </article>
 
     <article class="board-card">
-      <h2>Channel and exclusion summary</h2>
+      <h2>Step 2 - Channel and exclusion summary</h2>
       <div class="channel-toggle" role="group" aria-label="Broadcast channel">
         <label class="channel-option">
           <input type="radio" [formControl]="channelControl" value="email" />
@@ -129,7 +157,7 @@
     </article>
 
     <article class="board-card board-card--wide">
-      <h2>Template composer</h2>
+      <h2>Step 3 - Template composer, preview, and send</h2>
 
       <div class="merge-field-row" aria-label="Merge field chips">
         @for (field of mergeFields(); track field.token) {
@@ -222,6 +250,24 @@
             }
           </select>
         </label>
+        <div class="preview-nav">
+          <button
+            type="button"
+            class="refresh-btn refresh-btn--ghost"
+            (click)="movePreview(-1)"
+            [disabled]="!canGoToPreviousPreview()"
+          >
+            Previous
+          </button>
+          <button
+            type="button"
+            class="refresh-btn refresh-btn--ghost"
+            (click)="movePreview(1)"
+            [disabled]="!canGoToNextPreview()"
+          >
+            Next
+          </button>
+        </div>
 
         <div class="override-card">
           <h3>Per-client override</h3>
@@ -275,6 +321,16 @@
 
       <div class="send-controls">
         <h3>Test send and confirmation</h3>
+        <ul class="readiness-list" aria-label="Dispatch readiness checklist">
+          @for (item of readinessChecklist(); track item.label) {
+            <li [class.readiness-list__item--ready]="item.isReady">
+              <span class="readiness-list__icon" aria-hidden="true">{{
+                item.isReady ? '✓' : '!'
+              }}</span>
+              <span>{{ item.label }}</span>
+            </li>
+          }
+        </ul>
         <div class="field-grid composer-grid">
           <label class="field">
             <span>Schedule mode</span>
@@ -301,13 +357,29 @@
           </label>
         </div>
         <div class="override-actions">
-          <button type="button" class="refresh-btn" (click)="openTestConfirmation()">
+          <button
+            type="button"
+            class="refresh-btn"
+            (click)="openTestConfirmation()"
+            [disabled]="!canSendTest()"
+          >
             Send test
           </button>
-          <button type="button" class="refresh-btn" (click)="openDispatchConfirmation()">
+          <button
+            type="button"
+            class="refresh-btn"
+            (click)="openDispatchConfirmation()"
+            [disabled]="!canConfirmDispatch()"
+          >
             Confirm broadcast
           </button>
         </div>
+        @if (testBlockedReason()) {
+          <p class="validation-banner">{{ testBlockedReason() }}</p>
+        }
+        @if (dispatchBlockedReason()) {
+          <p class="validation-banner">{{ dispatchBlockedReason() }}</p>
+        }
       </div>
 
       @if (statusBanner()) {

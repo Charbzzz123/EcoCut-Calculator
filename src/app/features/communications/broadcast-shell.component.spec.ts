@@ -272,11 +272,14 @@ describe('BroadcastShellComponent', () => {
   it('loads recipients on init and renders key summary cards', () => {
     const heading = fixture.nativeElement.querySelector('h1');
     const cards = fixture.nativeElement.querySelectorAll('.summary-card');
+    const audienceRows = fixture.nativeElement.querySelectorAll('.audience-preview__item');
 
     expect(facadeMock.loadRecipients).toHaveBeenCalledTimes(1);
     expect(heading?.textContent).toContain('Client broadcast');
     expect(cards.length).toBe(6);
+    expect(audienceRows.length).toBe(3);
     expect(fixture.nativeElement.textContent).toContain('Email-eligible');
+    expect(fixture.nativeElement.textContent).toContain('Alex North');
   });
 
   it('shows validation success and allows manual refresh', () => {
@@ -300,6 +303,44 @@ describe('BroadcastShellComponent', () => {
     facadeMock.loadState.set('error');
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Could not load recipients right now');
+  });
+
+  it('shows an empty audience state when filters match no recipients', () => {
+    facadeMock.filteredRecipients.set([]);
+    facadeMock.counts.set({ total: 0, emailEligible: 0, smsEligible: 0, bothEligible: 0 });
+    fixture.detectChanges();
+
+    const emptyState = fixture.nativeElement.querySelector('.audience-preview__empty') as HTMLElement;
+    expect(emptyState.textContent).toContain('No recipients match these filters yet.');
+    expect(fixture.nativeElement.textContent).toContain('Showing 0 recipients');
+  });
+
+  it('shows singular recipient wording when exactly one recipient is visible', () => {
+    facadeMock.filteredRecipients.set([facadeMock.filteredRecipients()[0]]);
+    facadeMock.counts.set({ total: 1, emailEligible: 1, smsEligible: 1, bothEligible: 1 });
+    fixture.detectChanges();
+
+    const label = fixture.nativeElement.querySelector('.audience-preview__label') as HTMLElement;
+    expect(label.textContent?.replace(/\s+/g, ' ').trim()).toContain('Showing 1 recipient');
+  });
+
+  it('renders missing-channel badges for recipients without email or SMS', () => {
+    facadeMock.filteredRecipients.set([
+      {
+        clientId: 'no-channel',
+        firstName: 'No',
+        lastName: 'Channel',
+        fullName: 'No Channel',
+        address: '4 Cedar Lane',
+        phone: '123',
+        jobsCount: 0,
+        lastJobDate: null,
+      },
+    ]);
+    facadeMock.counts.set({ total: 1, emailEligible: 0, smsEligible: 0, bothEligible: 0 });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Missing channel');
   });
 
   it('renders composer controls, preview, and merge chip actions', () => {
@@ -330,12 +371,15 @@ describe('BroadcastShellComponent', () => {
   });
 
   it('renders test/dispatch controls and forwards confirmation actions', () => {
+    facadeMock.channelControl.setValue('email');
+    facadeMock.testEmailControl.setValue('owner@ecocutqc.com');
+    facadeMock.testPhoneControl.setValue('');
+    fixture.detectChanges();
+
     const actions = fixture.nativeElement.querySelectorAll('.send-controls .refresh-btn');
-    const sendTestButton = actions[0] as HTMLButtonElement;
     const dispatchButton = actions[1] as HTMLButtonElement;
-    sendTestButton.click();
+    expect(dispatchButton.disabled).toBe(false);
     dispatchButton.click();
-    expect(facadeMock.openTestConfirmation).toHaveBeenCalledTimes(1);
     expect(facadeMock.openDispatchConfirmation).toHaveBeenCalledTimes(1);
 
     facadeMock.confirmationOpen.set(true);
@@ -354,6 +398,110 @@ describe('BroadcastShellComponent', () => {
     expect(facadeMock.confirmCurrentAction).toHaveBeenCalledTimes(1);
     expect(facadeMock.closeConfirmation).toHaveBeenCalledTimes(1);
     expect(fixture.nativeElement.textContent).toContain('Broadcast queued for 3 recipients');
+  });
+
+  it('forwards test-send action through the shell', () => {
+    const component = fixture.componentInstance as BroadcastShellComponent;
+    component['openTestConfirmation']();
+    expect(facadeMock.openTestConfirmation).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables test send and shows reason when destinations are missing', () => {
+    facadeMock.channelControl.setValue('both');
+    facadeMock.testEmailControl.setValue('');
+    facadeMock.testPhoneControl.setValue('');
+    fixture.detectChanges();
+
+    const actions = fixture.nativeElement.querySelectorAll('.send-controls .refresh-btn');
+    const sendTestButton = actions[0] as HTMLButtonElement;
+    expect(sendTestButton.disabled).toBe(true);
+    expect(fixture.nativeElement.textContent).toContain(
+      'Add both test email and test SMS destinations.',
+    );
+  });
+
+  it('blocks dispatch when required message fields are missing', () => {
+    const component = fixture.componentInstance as BroadcastShellComponent;
+
+    facadeMock.channelControl.setValue('email');
+    facadeMock.emailBodyControl.setValue('');
+    expect(component['dispatchBlockedReason']()).toBe(
+      'Add all required subject/body fields for the selected channel.',
+    );
+  });
+
+  it('shows channel-specific test destination warnings', () => {
+    const component = fixture.componentInstance as BroadcastShellComponent;
+
+    facadeMock.channelControl.setValue('email');
+    facadeMock.emailBodyControl.setValue('Email body');
+    facadeMock.testEmailControl.setValue('');
+    expect(component['testBlockedReason']()).toBe('Add a test email destination.');
+
+    facadeMock.channelControl.setValue('sms');
+    facadeMock.smsBodyControl.setValue('SMS body');
+    facadeMock.testPhoneControl.setValue('');
+    expect(component['testBlockedReason']()).toBe('Add a valid test SMS destination.');
+  });
+
+  it('navigates preview recipients with previous/next controls', () => {
+    facadeMock.previewClientIdControl.setValue('alex');
+    facadeMock.testEmailControl.setValue('owner@ecocutqc.com');
+    facadeMock.testPhoneControl.setValue('(514) 555-0000');
+    fixture.detectChanges();
+
+    const navButtons = fixture.nativeElement.querySelectorAll('.preview-nav .refresh-btn');
+    let previousButton = navButtons[0] as HTMLButtonElement;
+    const nextButton = navButtons[1] as HTMLButtonElement;
+
+    expect(previousButton.disabled).toBe(true);
+    nextButton.click();
+    fixture.detectChanges();
+    expect(facadeMock.previewClientIdControl.value).toBe('bella');
+
+    previousButton = fixture.nativeElement.querySelectorAll('.preview-nav .refresh-btn')[0] as HTMLButtonElement;
+    previousButton.click();
+    fixture.detectChanges();
+    expect(facadeMock.previewClientIdControl.value).toBe('alex');
+  });
+
+  it('ignores preview moves when list is too short or out of bounds', () => {
+    const component = fixture.componentInstance as BroadcastShellComponent;
+    facadeMock.filteredRecipients.set([facadeMock.filteredRecipients()[0]]);
+    facadeMock.previewClientIdControl.setValue('alex');
+    component['movePreview'](1);
+    expect(facadeMock.previewClientIdControl.value).toBe('alex');
+
+    facadeMock.filteredRecipients.set([
+      ...facadeMock.filteredRecipients(),
+      {
+        clientId: 'bella',
+        firstName: 'Bella',
+        lastName: 'Stone',
+        fullName: 'Bella Stone',
+        address: '2 Pine Avenue',
+        phone: '(438) 555-2222',
+        jobsCount: 2,
+        lastJobDate: null,
+      },
+    ]);
+    facadeMock.previewClientIdControl.setValue('bella');
+    component['movePreview'](1);
+    expect(facadeMock.previewClientIdControl.value).toBe('bella');
+  });
+
+  it('falls back gracefully when preview id is unknown', () => {
+    const component = fixture.componentInstance as BroadcastShellComponent;
+    facadeMock.previewClientIdControl.setValue('unknown-client');
+
+    expect(component['canGoToNextPreview']()).toBe(true);
+    component['movePreview'](1);
+    expect(facadeMock.previewClientIdControl.value).toBe('bella');
+  });
+
+  it('treats nullish SMS values as not capable', () => {
+    const component = fixture.componentInstance as BroadcastShellComponent;
+    expect(component['isSmsCapable'](null)).toBe(false);
   });
 
   it('renders later schedule input when mode is later', () => {
