@@ -277,11 +277,11 @@ describe('BroadcastShellComponent', () => {
 
     expect(facadeMock.loadRecipients).toHaveBeenCalledTimes(1);
     expect(heading?.textContent).toContain('Client broadcast');
-    expect(cards.length).toBe(6);
+    expect(cards.length).toBe(2);
     expect(audienceRows.length).toBe(3);
     expect(floatingSummary.textContent).toContain('Live audience snapshot');
     expect(floatingSummary.textContent).toContain('Recipients selected');
-    expect(fixture.nativeElement.textContent).toContain('Email-eligible');
+    expect(fixture.nativeElement.textContent).toContain('Email cap (daily)');
     expect(fixture.nativeElement.textContent).toContain('Alex North');
   });
 

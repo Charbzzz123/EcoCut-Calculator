@@ -17,28 +17,12 @@
 
   <section class="broadcast-summary" aria-label="Broadcast metrics">
     <article class="summary-card">
-      <p class="summary-card__label">Recipients selected</p>
-      <p class="summary-card__value">{{ counts().total }}</p>
-    </article>
-    <article class="summary-card">
-      <p class="summary-card__label">Email-eligible</p>
-      <p class="summary-card__value">{{ counts().emailEligible }}</p>
-    </article>
-    <article class="summary-card">
-      <p class="summary-card__label">SMS-eligible</p>
-      <p class="summary-card__value">{{ counts().smsEligible }}</p>
-    </article>
-    <article class="summary-card">
       <p class="summary-card__label">Email cap (daily)</p>
       <p class="summary-card__value">80</p>
     </article>
     <article class="summary-card">
       <p class="summary-card__label">SMS cap (daily)</p>
       <p class="summary-card__value">200</p>
-    </article>
-    <article class="summary-card">
-      <p class="summary-card__label">Eligible for both</p>
-      <p class="summary-card__value">{{ counts().bothEligible }}</p>
     </article>
   </section>
 
