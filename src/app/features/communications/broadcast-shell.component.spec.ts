@@ -273,11 +273,14 @@ describe('BroadcastShellComponent', () => {
     const heading = fixture.nativeElement.querySelector('h1');
     const cards = fixture.nativeElement.querySelectorAll('.summary-card');
     const audienceRows = fixture.nativeElement.querySelectorAll('.audience-preview__item');
+    const floatingSummary = fixture.nativeElement.querySelector('.floating-summary') as HTMLElement;
 
     expect(facadeMock.loadRecipients).toHaveBeenCalledTimes(1);
     expect(heading?.textContent).toContain('Client broadcast');
     expect(cards.length).toBe(6);
     expect(audienceRows.length).toBe(3);
+    expect(floatingSummary.textContent).toContain('Live audience snapshot');
+    expect(floatingSummary.textContent).toContain('Recipients selected');
     expect(fixture.nativeElement.textContent).toContain('Email-eligible');
     expect(fixture.nativeElement.textContent).toContain('Alex North');
   });

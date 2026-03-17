@@ -42,6 +42,28 @@
     </article>
   </section>
 
+  <aside class="floating-summary" aria-label="Selection snapshot">
+    <p class="floating-summary__title">Live audience snapshot</p>
+    <ul class="floating-summary__list">
+      <li>
+        <span>Recipients selected</span>
+        <strong>{{ counts().total }}</strong>
+      </li>
+      <li>
+        <span>Email-eligible</span>
+        <strong>{{ counts().emailEligible }}</strong>
+      </li>
+      <li>
+        <span>SMS-eligible</span>
+        <strong>{{ counts().smsEligible }}</strong>
+      </li>
+      <li>
+        <span>Eligible for both</span>
+        <strong>{{ counts().bothEligible }}</strong>
+      </li>
+    </ul>
+  </aside>
+
   <section class="broadcast-board" aria-label="Broadcast setup panels">
     <article class="board-card">
       <h2>Step 1 - Audience filters</h2>
