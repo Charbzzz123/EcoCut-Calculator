@@ -394,12 +394,124 @@ describe('CommunicationsService', () => {
     );
   });
 
+  it('ingests delivery webhooks and aggregates campaign analytics', async () => {
+    const service = await createService();
+    const dispatchCampaign = await service.dispatch({
+      channel: 'both',
+      scheduleMode: 'later',
+      recipients: [
+        {
+          clientId: 'alex',
+          clientLabel: 'Alex North',
+          email: 'alex@ecocutqc.com',
+          phone: '+15145550000',
+          emailSubject: 'Subj',
+          emailBody: 'Body',
+          smsBody: 'Sms',
+        },
+      ],
+    });
+
+    service.ingestDeliveryWebhook({
+      campaignId: dispatchCampaign.campaignId,
+      channel: 'email',
+      provider: 'hostinger',
+      eventType: 'sent',
+      recipient: 'alex@ecocutqc.com',
+    });
+    service.ingestDeliveryWebhook({
+      campaignId: dispatchCampaign.campaignId,
+      channel: 'email',
+      provider: 'hostinger',
+      eventType: 'delivered',
+      recipient: 'alex@ecocutqc.com',
+    });
+    service.ingestDeliveryWebhook({
+      campaignId: dispatchCampaign.campaignId,
+      channel: 'sms',
+      provider: 'quo',
+      eventType: 'failed',
+      recipient: '+15145550000',
+      reason: 'carrier timeout',
+    });
+
+    const analytics = service.getCampaignAnalytics(dispatchCampaign.campaignId);
+    expect(analytics.totals).toEqual({
+      queued: 0,
+      sent: 1,
+      delivered: 1,
+      failed: 1,
+      bounced: 0,
+      complained: 0,
+      unsubscribed: 0,
+      resubscribed: 0,
+    });
+    expect(analytics.byChannel).toEqual({ email: 2, sms: 1 });
+    expect(analytics.latestEventAt).not.toBeNull();
+  });
+
+  it('syncs suppression state from unsubscribe/resubscribe webhooks', async () => {
+    const service = await createService();
+    const dispatchCampaign = await service.dispatch({
+      channel: 'email',
+      scheduleMode: 'later',
+      recipients: [
+        {
+          clientId: 'alex',
+          clientLabel: 'Alex North',
+          email: 'alex@ecocutqc.com',
+          emailSubject: 'Subj',
+          emailBody: 'Body',
+          smsBody: 'Sms',
+        },
+      ],
+    });
+
+    service.ingestDeliveryWebhook({
+      campaignId: dispatchCampaign.campaignId,
+      channel: 'email',
+      provider: 'hostinger',
+      eventType: 'unsubscribed',
+      recipient: 'alex@ecocutqc.com',
+    });
+    expect(service.listSuppressions()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          channel: 'email',
+          value: 'alex@ecocutqc.com',
+          reason: 'webhook-unsubscribe',
+        }),
+      ]),
+    );
+
+    service.ingestDeliveryWebhook({
+      campaignId: dispatchCampaign.campaignId,
+      channel: 'email',
+      provider: 'hostinger',
+      eventType: 'resubscribed',
+      recipient: 'alex@ecocutqc.com',
+    });
+    expect(service.listSuppressions()).toEqual([]);
+  });
+
   it('throws when requesting an unknown campaign id', async () => {
     const service = await createService();
     expect(() => service.getCampaign('missing-id')).toThrow(
       BadRequestException,
     );
     expect(() => service.listCampaignAudit('missing-id')).toThrow(
+      BadRequestException,
+    );
+    expect(() =>
+      service.ingestDeliveryWebhook({
+        campaignId: 'missing-id',
+        channel: 'email',
+        provider: 'hostinger',
+        eventType: 'delivered',
+        recipient: 'owner@ecocutqc.com',
+      }),
+    ).toThrow(BadRequestException);
+    expect(() => service.getCampaignAnalytics('missing-id')).toThrow(
       BadRequestException,
     );
   });

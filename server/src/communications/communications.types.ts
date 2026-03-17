@@ -1,6 +1,7 @@
 export type BroadcastChannel = 'email' | 'sms' | 'both';
 export type SuppressionChannel = 'email' | 'sms';
 export type OperatorRole = 'owner' | 'manager';
+export type DeliveryChannel = 'email' | 'sms';
 
 export type BroadcastScheduleMode = 'now' | 'later';
 
@@ -110,4 +111,55 @@ export interface CampaignAuditRecord {
   timestamp: string;
   action: CampaignAuditAction;
   detail: string;
+}
+
+export type CampaignDeliveryEventType =
+  | 'queued'
+  | 'sent'
+  | 'delivered'
+  | 'failed'
+  | 'bounced'
+  | 'complained'
+  | 'unsubscribed'
+  | 'resubscribed';
+
+export interface DeliveryWebhookDto {
+  campaignId: string;
+  channel: DeliveryChannel;
+  provider: string;
+  eventType: CampaignDeliveryEventType;
+  recipient: string;
+  externalMessageId?: string;
+  occurredAt?: string;
+  reason?: string;
+}
+
+export interface CampaignDeliveryEvent {
+  campaignId: string;
+  channel: DeliveryChannel;
+  provider: string;
+  eventType: CampaignDeliveryEventType;
+  recipient: string;
+  externalMessageId: string | null;
+  occurredAt: string;
+  reason: string | null;
+}
+
+export interface CampaignAnalyticsSummary {
+  campaignId: string;
+  totals: {
+    queued: number;
+    sent: number;
+    delivered: number;
+    failed: number;
+    bounced: number;
+    complained: number;
+    unsubscribed: number;
+    resubscribed: number;
+  };
+  byChannel: {
+    email: number;
+    sms: number;
+  };
+  latestEventAt: string | null;
 }

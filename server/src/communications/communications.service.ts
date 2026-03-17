@@ -7,7 +7,10 @@ import {
 import { randomUUID } from 'node:crypto';
 import {
   CampaignAuditRecord,
+  CampaignAnalyticsSummary,
+  CampaignDeliveryEvent,
   CampaignSummary,
+  DeliveryWebhookDto,
   DispatchBroadcastDto,
   OperatorRole,
   SendBroadcastTestDto,
@@ -32,6 +35,7 @@ export class CommunicationsService {
   private readonly campaigns = new Map<string, CampaignSummary>();
   private readonly pendingDispatches = new Map<string, DispatchBroadcastDto>();
   private readonly campaignAudit = new Map<string, CampaignAuditRecord[]>();
+  private readonly campaignEvents = new Map<string, CampaignDeliveryEvent[]>();
   private readonly suppressions = {
     email: new Map<string, SuppressionRecord>(),
     sms: new Map<string, SuppressionRecord>(),
@@ -263,6 +267,80 @@ export class CommunicationsService {
       throw new BadRequestException(`Campaign ${campaignId} does not exist.`);
     }
     return [...(this.campaignAudit.get(campaignId) ?? [])];
+  }
+
+  ingestDeliveryWebhook(payload: DeliveryWebhookDto): {
+    accepted: true;
+  } {
+    if (!this.campaigns.has(payload.campaignId)) {
+      throw new BadRequestException(
+        `Campaign ${payload.campaignId} does not exist.`,
+      );
+    }
+
+    const event: CampaignDeliveryEvent = {
+      campaignId: payload.campaignId,
+      channel: payload.channel,
+      provider: payload.provider.trim(),
+      eventType: payload.eventType,
+      recipient: payload.recipient.trim(),
+      externalMessageId: payload.externalMessageId?.trim() || null,
+      occurredAt: payload.occurredAt?.trim() || new Date().toISOString(),
+      reason: payload.reason?.trim() || null,
+    };
+
+    const existing = this.campaignEvents.get(payload.campaignId) ?? [];
+    this.campaignEvents.set(payload.campaignId, [...existing, event]);
+    this.appendAudit(
+      payload.campaignId,
+      this.mapWebhookEventToAuditAction(payload.eventType),
+      `${payload.channel.toUpperCase()} webhook ${payload.eventType} for ${event.recipient}`,
+    );
+
+    if (payload.eventType === 'unsubscribed') {
+      this.applyWebhookUnsubscribe(payload.channel, event.recipient);
+    }
+    if (payload.eventType === 'resubscribed') {
+      this.applyWebhookResubscribe(payload.channel, event.recipient);
+    }
+
+    return { accepted: true };
+  }
+
+  getCampaignAnalytics(campaignId: string): CampaignAnalyticsSummary {
+    if (!this.campaigns.has(campaignId)) {
+      throw new BadRequestException(`Campaign ${campaignId} does not exist.`);
+    }
+
+    const events = this.campaignEvents.get(campaignId) ?? [];
+    const summary: CampaignAnalyticsSummary = {
+      campaignId,
+      totals: {
+        queued: 0,
+        sent: 0,
+        delivered: 0,
+        failed: 0,
+        bounced: 0,
+        complained: 0,
+        unsubscribed: 0,
+        resubscribed: 0,
+      },
+      byChannel: {
+        email: 0,
+        sms: 0,
+      },
+      latestEventAt: null,
+    };
+
+    for (const event of events) {
+      summary.totals[event.eventType] += 1;
+      summary.byChannel[event.channel] += 1;
+      if (!summary.latestEventAt || event.occurredAt > summary.latestEventAt) {
+        summary.latestEventAt = event.occurredAt;
+      }
+    }
+
+    return summary;
   }
 
   private async runDispatch(
@@ -600,6 +678,60 @@ export class CommunicationsService {
       }
     }
     throw lastError;
+  }
+
+  private mapWebhookEventToAuditAction(
+    eventType: DeliveryWebhookDto['eventType'],
+  ): CampaignAuditRecord['action'] {
+    if (eventType === 'unsubscribed' || eventType === 'bounced') {
+      return 'suppressed';
+    }
+    if (eventType === 'failed') {
+      return 'failed';
+    }
+    if (eventType === 'queued') {
+      return 'queued';
+    }
+    if (eventType === 'sent') {
+      return 'processing';
+    }
+    return 'completed';
+  }
+
+  private applyWebhookUnsubscribe(
+    channel: DeliveryWebhookDto['channel'],
+    recipient: string,
+  ): void {
+    if (channel === 'email') {
+      this.upsertSuppressions({
+        channel: 'email',
+        email: recipient,
+        reason: 'webhook-unsubscribe',
+      });
+      return;
+    }
+    this.upsertSuppressions({
+      channel: 'sms',
+      phone: recipient,
+      reason: 'webhook-unsubscribe',
+    });
+  }
+
+  private applyWebhookResubscribe(
+    channel: DeliveryWebhookDto['channel'],
+    recipient: string,
+  ): void {
+    if (channel === 'email') {
+      this.removeSuppressions({
+        channel: 'email',
+        email: recipient,
+      });
+      return;
+    }
+    this.removeSuppressions({
+      channel: 'sms',
+      phone: recipient,
+    });
   }
 
   private appendAudit(

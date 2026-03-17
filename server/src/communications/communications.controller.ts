@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { CommunicationsService } from './communications.service';
 import type {
+  DeliveryWebhookDto,
   DispatchBroadcastDto,
   SendBroadcastTestDto,
   UpsertSuppressionDto,
@@ -30,6 +31,11 @@ export class CommunicationsController {
     return this.communications.getCampaign(campaignId);
   }
 
+  @Get('campaigns/:campaignId/analytics')
+  getCampaignAnalytics(@Param('campaignId') campaignId: string) {
+    return this.communications.getCampaignAnalytics(campaignId);
+  }
+
   @Get('campaigns/:campaignId/audit')
   listCampaignAudit(@Param('campaignId') campaignId: string) {
     return this.communications.listCampaignAudit(campaignId);
@@ -49,6 +55,11 @@ export class CommunicationsController {
     @Body() body: { reason?: string } = {},
   ) {
     return this.communications.cancelCampaign(campaignId, body.reason);
+  }
+
+  @Post('webhooks/delivery')
+  ingestDeliveryWebhook(@Body() body: DeliveryWebhookDto) {
+    return this.communications.ingestDeliveryWebhook(body);
   }
 
   @Get('suppressions')

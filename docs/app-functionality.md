@@ -264,10 +264,12 @@ Update this document whenever we clarify rules or add new functionality so imple
   - Status banner is live (implemented): success copy confirms whether a test or broadcast was queued/scheduled.
   - **Backend delivery engine** is live (implemented): confirmation actions now call server endpoints (`POST /communications/test`, `POST /communications/dispatch`) instead of local stubs, and return a campaign status payload used by the UI banner.
   - **Approval flow (backend) is live (implemented)**: manager-originated sends can be held in `pending_approval` until an owner approves through campaign endpoints; campaign payload includes approval metadata.
+  - **Webhook + analytics ingestion (backend) is live (implemented)**: provider events can be ingested through `POST /communications/webhooks/delivery`, and campaign-level delivery metrics are exposed through `GET /communications/campaigns/:campaignId/analytics`.
 - **Operations history**:
   - List past broadcast jobs with status (`draft`, `scheduled`, `sending`, `sent`, `failed`, `partially sent`), channel, counts, creator, and timestamps.
   - Ability to reopen a draft, duplicate a prior campaign, or cancel a scheduled campaign.
   - Backend audit timeline endpoint is live: `GET /communications/campaigns/:campaignId/audit` returns immutable action events (`created`, `pending_approval`, `approved`, `processing`, `completed`, `failed`, `cancelled`, `suppressed`).
+  - Delivery analytics endpoint is live: campaign dashboards can query totals for `sent`, `delivered`, `failed`, `bounced`, `complained`, `unsubscribed`, and `resubscribed`.
 - **Compliance and permissions**:
   - Owner can create, schedule, send, cancel, and view analytics.
   - Manager can create drafts and schedule sends but cannot bypass approval if approval mode is enabled.

@@ -7,9 +7,11 @@ describe('CommunicationsController', () => {
   const dispatch = jest.fn();
   const listCampaigns = jest.fn();
   const getCampaign = jest.fn();
+  const getCampaignAnalytics = jest.fn();
   const listCampaignAudit = jest.fn();
   const approveCampaign = jest.fn();
   const cancelCampaign = jest.fn();
+  const ingestDeliveryWebhook = jest.fn();
   const listSuppressions = jest.fn();
   const upsertSuppressions = jest.fn();
   const removeSuppressions = jest.fn();
@@ -29,9 +31,11 @@ describe('CommunicationsController', () => {
             dispatch,
             listCampaigns,
             getCampaign,
+            getCampaignAnalytics,
             listCampaignAudit,
             approveCampaign,
             cancelCampaign,
+            ingestDeliveryWebhook,
             listSuppressions,
             upsertSuppressions,
             removeSuppressions,
@@ -77,11 +81,17 @@ describe('CommunicationsController', () => {
   it('returns campaign list and single campaign details', async () => {
     listCampaigns.mockReturnValue([{ campaignId: 'c-1' }]);
     getCampaign.mockReturnValue({ campaignId: 'c-1' });
+    getCampaignAnalytics.mockReturnValue({ campaignId: 'c-1', totals: {} });
     const controller = await createController();
 
     expect(controller.listCampaigns()).toEqual([{ campaignId: 'c-1' }]);
     expect(controller.getCampaign('c-1')).toEqual({ campaignId: 'c-1' });
+    expect(controller.getCampaignAnalytics('c-1')).toEqual({
+      campaignId: 'c-1',
+      totals: {},
+    });
     expect(getCampaign).toHaveBeenCalledWith('c-1');
+    expect(getCampaignAnalytics).toHaveBeenCalledWith('c-1');
   });
 
   it('forwards campaign audit, approve, and cancel requests', async () => {
@@ -140,5 +150,22 @@ describe('CommunicationsController', () => {
       channel: 'email',
       email: 'owner@ecocutqc.com',
     });
+  });
+
+  it('forwards delivery webhook events', async () => {
+    ingestDeliveryWebhook.mockReturnValue({ accepted: true });
+    const controller = await createController();
+    const payload = {
+      campaignId: 'c-9',
+      channel: 'sms',
+      provider: 'quo',
+      eventType: 'delivered',
+      recipient: '+15145550000',
+    } as const;
+
+    expect(controller.ingestDeliveryWebhook(payload)).toEqual({
+      accepted: true,
+    });
+    expect(ingestDeliveryWebhook).toHaveBeenCalledWith(payload);
   });
 });
