@@ -197,6 +197,15 @@
   border-color: rgba(103, 232, 194, 0.6);
 }
 
+.refresh-btn--ghost {
+  background: rgba(35, 16, 16, 0.6);
+  border-color: rgba(248, 113, 113, 0.4);
+}
+
+.refresh-btn--ghost:hover {
+  border-color: rgba(248, 113, 113, 0.65);
+}
+
 .channel-toggle {
   display: flex;
   gap: 0.5rem;
@@ -303,6 +312,25 @@
   gap: 0.9rem;
 }
 
+.override-card {
+  border: 1px solid var(--border-soft);
+  border-radius: 0.9rem;
+  background: rgba(9, 24, 18, 0.88);
+  padding: 0.9rem 1rem;
+}
+
+.override-card h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.override-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .preview-card {
   border: 1px solid var(--border-soft);
   border-radius: 0.9rem;
@@ -325,6 +353,12 @@
   font-size: 0.82rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.active-layers {
+  margin: 0;
+  padding-left: 1rem;
   color: var(--text-muted);
 }
 

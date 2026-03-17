@@ -52,11 +52,12 @@ root/
 - **Integration**: `HomeShellComponent` imports the modal and toggles it from the floating �Add Entry� CTA. The component emits `EntryModalPayload` with the selected variant, normalized form payload, and hedge configs, which feed the fa�ade/server. Customer submissions automatically create a Google Calendar event via `HomeDataService`, which in turn stores the returned `eventId` back onto the payload so later edits/deletes can call the appropriate proxy endpoint.
 - **Entry persistence client**: `EntryRepositoryService` (`src/app/shared/domain/entry/entry-repository.service.ts`) wraps `/api/entries` and `/api/entries/clients`. `HomeDataService.saveEntry` now awaits this service so every submission is recorded immediately (no more console stub). `listClients()` will power the future CRM dashboard without duplicating HTTP plumbing.
 - **Client roster UI**: `/clients` is backed by `ClientsShellComponent` (standalone) which uses `EntryRepositoryService.listClients()` on init. The view renders summary cards, search/filter controls, and the roster list with dedicated loading/error states. Routes are defined in `app.routes.ts` (lazy loaded via `loadComponent`).
-- **Broadcast UI (Phase 1-3 live)**:
+- **Broadcast UI (Phase 1-4 live)**:
   - `/communications/broadcast` now lazy-loads `BroadcastShellComponent` and reuses the same evergreen shell language as `/clients`.
   - `BroadcastFacade` owns recipient loading, filter controls, channel selection, eligibility counts, exclusion summaries, and dispatch gating (no eligible recipients => dispatch blocked).
   - Phase 3 adds composer controls (`emailSubject`, `emailBody`, `smsBody`, CTA link, internal note), merge-token insertion, per-client preview rendering, and SMS character/segment metrics.
-  - Remaining UI slices are layered overrides, send-test flow, confirmation modal, and broadcast history.
+  - Phase 4 adds layered personalization controls: segment-rule selector, channel variant selectors, per-client override editor, and preview trace of active layers with priority `override > segment > channel > base`.
+  - Remaining UI slices are send-test flow, confirmation modal, and broadcast history.
 
 ## Backend Services
 

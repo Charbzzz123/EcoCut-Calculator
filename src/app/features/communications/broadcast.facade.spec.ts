@@ -264,6 +264,7 @@ describe('BroadcastFacade', () => {
       emailSubject: 'Offer for Bella',
       emailBody: 'Address 2 Pine Avenue and email no email on file',
       smsBody: 'Hello Bella Stone',
+      activeLayers: ['Base template'],
     });
     expect(facade.smsMetrics()).toEqual({
       characters: 'Hello Bella Stone'.length,
@@ -288,6 +289,7 @@ describe('BroadcastFacade', () => {
       emailBody:
         'Hi there,\n\nWe loved servicing your property. Your last visit was not on file.\n\n- EcoCut Team',
       smsBody: 'Hi there - EcoCut here. Want to schedule your next visit at your property?',
+      activeLayers: ['Base template'],
     });
     expect(facade.smsMetrics()).toEqual({
       characters: 74,
@@ -337,6 +339,164 @@ describe('BroadcastFacade', () => {
       characters: 0,
       segments: 0,
     });
+  });
+
+  it('applies channel variants and segment rules with deterministic layering', async () => {
+    listClients.mockResolvedValue(clientsFixture);
+    const facade = TestBed.inject(BroadcastFacade);
+    await facade.loadRecipients();
+
+    facade.previewClientIdControl.setValue('alex');
+    facade.emailVariantControl.setValue('promo');
+    facade.smsVariantControl.setValue('follow-up');
+    facade.segmentRuleControl.setValue('high-frequency');
+
+    expect(facade.previewPayload().emailSubject).toBe('Priority update for Alex');
+    expect(facade.previewPayload().emailBody).toContain('Thanks for trusting EcoCut for 4 jobs');
+    expect(facade.previewPayload().smsBody).toContain('repeat client');
+    expect(facade.previewPayload().activeLayers).toEqual([
+      'Base template',
+      'Email variant: Seasonal promo emphasis',
+      'SMS variant: Follow-up SMS',
+      'Segment rule: High-frequency clients (3+ jobs)',
+    ]);
+  });
+
+  it('keeps prior copy when a variant or segment layer omits template fields', async () => {
+    listClients.mockResolvedValue(clientsFixture);
+    const facade = TestBed.inject(BroadcastFacade);
+    await facade.loadRecipients();
+
+    facade.previewClientIdControl.setValue('alex');
+    facade.emailVariantControl.setValue('promo');
+    facade.smsVariantControl.setValue('priority-window');
+    facade.segmentRuleControl.setValue('subject-only');
+
+    expect(facade.previewPayload().emailSubject).toBe('Priority check-in for Alex');
+    expect(facade.previewPayload().emailBody).toContain('Seasonal booking is now open');
+    expect(facade.previewPayload().smsBody).toContain('Want to schedule your next visit');
+    expect(facade.previewPayload().activeLayers).toEqual([
+      'Base template',
+      'Email variant: Seasonal promo emphasis',
+      'SMS variant: Priority window tag',
+      'Segment rule: Subject-only priority layer',
+    ]);
+
+    facade.segmentRuleControl.setValue('none');
+    facade.emailVariantControl.setValue('priority-tag');
+    expect(facade.previewPayload().emailSubject).toBe('EcoCut update for Alex');
+    expect(facade.previewPayload().emailBody).toContain('We loved servicing 1 Maple Street');
+    expect(facade.previewPayload().activeLayers).toContain('Email variant: Priority tag only');
+  });
+
+  it('evaluates inactive and upcoming segment rules against client timelines', async () => {
+    listClients.mockResolvedValue(edgeCaseClientsFixture);
+    const facade = TestBed.inject(BroadcastFacade);
+    await facade.loadRecipients();
+
+    facade.segmentRuleControl.setValue('inactive-90');
+    facade.previewClientIdControl.setValue('evan');
+    expect(facade.previewPayload().activeLayers).toContain(
+      'Segment rule: Inactive 90+ days',
+    );
+    expect(facade.previewPayload().smsBody).toContain('returning-client slot');
+
+    facade.previewClientIdControl.setValue('bella');
+    expect(facade.previewPayload().activeLayers).not.toContain(
+      'Segment rule: Inactive 90+ days',
+    );
+
+    facade.previewClientIdControl.setValue('drew');
+    expect(facade.previewPayload().activeLayers).not.toContain(
+      'Segment rule: Inactive 90+ days',
+    );
+
+    facade.segmentRuleControl.setValue('upcoming-30');
+    facade.previewClientIdControl.setValue('alex');
+    expect(facade.previewPayload().activeLayers).toContain(
+      'Segment rule: Upcoming job in next 30 days',
+    );
+    expect(facade.previewPayload().emailBody).toContain('currently planned for');
+
+    facade.previewClientIdControl.setValue('drew');
+    expect(facade.previewPayload().activeLayers).not.toContain(
+      'Segment rule: Upcoming job in next 30 days',
+    );
+
+    facade.previewClientIdControl.setValue('bella');
+    expect(facade.previewPayload().activeLayers).not.toContain(
+      'Segment rule: Upcoming job in next 30 days',
+    );
+  });
+
+  it('applies per-client overrides above all other layers and can clear them', async () => {
+    listClients.mockResolvedValue(clientsFixture);
+    const facade = TestBed.inject(BroadcastFacade);
+    await facade.loadRecipients();
+
+    facade.previewClientIdControl.setValue('alex');
+    facade.emailVariantControl.setValue('promo');
+    facade.segmentRuleControl.setValue('high-frequency');
+    facade.overrideSubjectControl.setValue('Custom subject for {{firstName}}');
+    facade.overrideEmailBodyControl.setValue('Custom email for {{fullName}}');
+    facade.overrideSmsBodyControl.setValue('Custom sms for {{firstName}}');
+    facade.saveOverrideForPreviewClient();
+
+    expect(facade.previewPayload().emailSubject).toBe('Custom subject for Alex');
+    expect(facade.previewPayload().emailBody).toBe('Custom email for Alex North');
+    expect(facade.previewPayload().smsBody).toBe('Custom sms for Alex');
+    expect(facade.previewPayload().activeLayers.at(-1)).toBe('Client override: Alex North');
+
+    facade.previewClientIdControl.setValue('bella');
+    expect(facade.overrideSubjectControl.value).toBe('');
+
+    facade.previewClientIdControl.setValue('alex');
+    expect(facade.overrideSubjectControl.value).toBe('Custom subject for {{firstName}}');
+
+    facade.clearOverrideForPreviewClient();
+    expect(facade.previewPayload().emailSubject).toBe('Priority update for Alex');
+    expect(facade.previewPayload().activeLayers).not.toContain('Client override: Alex North');
+
+    facade.overrideEmailBodyControl.setValue('Partial custom body');
+    facade.saveOverrideForPreviewClient();
+    expect(facade.previewPayload().emailSubject).toBe('Priority update for Alex');
+    expect(facade.previewPayload().emailBody).toBe('Partial custom body');
+  });
+
+  it('ignores override actions when no preview client is selected', async () => {
+    listClients.mockResolvedValue(clientsFixture);
+    const facade = TestBed.inject(BroadcastFacade);
+    await facade.loadRecipients();
+
+    facade.queryControl.setValue('nobody');
+    vi.advanceTimersByTime(151);
+    facade.overrideSubjectControl.setValue('Should not persist');
+    facade.saveOverrideForPreviewClient();
+    facade.clearOverrideForPreviewClient();
+
+    expect(facade.previewPayload().clientId).toBeNull();
+    facade.queryControl.setValue('');
+    vi.advanceTimersByTime(151);
+    expect(facade.previewClientIdControl.value).toBe('alex');
+    expect(facade.overrideSubjectControl.value).toBe('');
+  });
+
+  it('removes an override when save is called with blank override fields', async () => {
+    listClients.mockResolvedValue(clientsFixture);
+    const facade = TestBed.inject(BroadcastFacade);
+    await facade.loadRecipients();
+
+    facade.previewClientIdControl.setValue('alex');
+    facade.overrideSubjectControl.setValue('Custom subject');
+    facade.saveOverrideForPreviewClient();
+    expect(facade.previewPayload().activeLayers).toContain('Client override: Alex North');
+
+    facade.overrideSubjectControl.setValue('   ');
+    facade.overrideEmailBodyControl.setValue('');
+    facade.overrideSmsBodyControl.setValue('');
+    facade.saveOverrideForPreviewClient();
+
+    expect(facade.previewPayload().activeLayers).not.toContain('Client override: Alex North');
   });
 
   it('falls back when preview client has invalid date values', async () => {

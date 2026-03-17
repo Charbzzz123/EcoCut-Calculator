@@ -51,9 +51,15 @@ export interface BroadcastPreviewPayload {
   emailSubject: string;
   emailBody: string;
   smsBody: string;
+  activeLayers: string[];
 }
 
 export interface BroadcastSmsMetrics {
   characters: number;
   segments: number;
+}
+
+export interface BroadcastLayerOption {
+  id: string;
+  label: string;
 }

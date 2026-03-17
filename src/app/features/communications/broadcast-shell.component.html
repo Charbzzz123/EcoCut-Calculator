@@ -146,6 +146,33 @@
 
       <div class="field-grid composer-grid">
         <label class="field">
+          <span>Segment rule</span>
+          <select [formControl]="segmentRuleControl">
+            @for (rule of segmentRules(); track rule.id) {
+              <option [value]="rule.id">{{ rule.label }}</option>
+            }
+          </select>
+        </label>
+        <label class="field">
+          <span>Email variant</span>
+          <select [formControl]="emailVariantControl">
+            @for (variant of emailVariants(); track variant.id) {
+              <option [value]="variant.id">{{ variant.label }}</option>
+            }
+          </select>
+        </label>
+        <label class="field">
+          <span>SMS variant</span>
+          <select [formControl]="smsVariantControl">
+            @for (variant of smsVariants(); track variant.id) {
+              <option [value]="variant.id">{{ variant.label }}</option>
+            }
+          </select>
+        </label>
+      </div>
+
+      <div class="field-grid composer-grid">
+        <label class="field">
           <span>Email subject</span>
           <input [formControl]="emailSubjectControl" type="text" placeholder="Subject line" />
         </label>
@@ -196,9 +223,47 @@
           </select>
         </label>
 
+        <div class="override-card">
+          <h3>Per-client override</h3>
+          <p class="preview-client">
+            Apply only to {{ previewPayload().clientLabel }}. Overrides win over segment + channel
+            layers.
+          </p>
+          <label class="field">
+            <span>Override subject (optional)</span>
+            <input [formControl]="overrideSubjectControl" type="text" />
+          </label>
+          <label class="field">
+            <span>Override email body (optional)</span>
+            <textarea [formControl]="overrideEmailBodyControl" rows="3"></textarea>
+          </label>
+          <label class="field">
+            <span>Override SMS body (optional)</span>
+            <textarea [formControl]="overrideSmsBodyControl" rows="2"></textarea>
+          </label>
+          <div class="override-actions">
+            <button type="button" class="refresh-btn" (click)="saveOverrideForPreviewClient()">
+              Save override
+            </button>
+            <button
+              type="button"
+              class="refresh-btn refresh-btn--ghost"
+              (click)="clearOverrideForPreviewClient()"
+            >
+              Clear override
+            </button>
+          </div>
+        </div>
+
         <article class="preview-card" aria-label="Rendered preview">
           <h3>Rendered preview</h3>
           <p class="preview-client">{{ previewPayload().clientLabel }}</p>
+          <p class="preview-title">Active layers</p>
+          <ul class="active-layers">
+            @for (layer of previewPayload().activeLayers; track layer) {
+              <li>{{ layer }}</li>
+            }
+          </ul>
           <p class="preview-title">Email subject</p>
           <p>{{ previewPayload().emailSubject }}</p>
           <p class="preview-title">Email body</p>

@@ -9,6 +9,7 @@ import { BroadcastShellComponent } from './broadcast-shell.component.js';
 import type {
   BroadcastChannel,
   BroadcastExclusionSummary,
+  BroadcastLayerOption,
   BroadcastLoadState,
   BroadcastMergeField,
   BroadcastPreviewPayload,
@@ -90,6 +91,12 @@ const createFacadeMock = () => {
   const ctaLinkControl = new FormControl('', { nonNullable: true });
   const internalNoteControl = new FormControl('', { nonNullable: true });
   const previewClientIdControl = new FormControl('alex', { nonNullable: true });
+  const emailVariantControl = new FormControl('default', { nonNullable: true });
+  const smsVariantControl = new FormControl('default', { nonNullable: true });
+  const segmentRuleControl = new FormControl('none', { nonNullable: true });
+  const overrideSubjectControl = new FormControl('', { nonNullable: true });
+  const overrideEmailBodyControl = new FormControl('', { nonNullable: true });
+  const overrideSmsBodyControl = new FormControl('', { nonNullable: true });
   const loadRecipients = vi.fn<() => Promise<void>>().mockResolvedValue();
   const mergeFields = signal<BroadcastMergeField[]>([
     {
@@ -112,12 +119,27 @@ const createFacadeMock = () => {
     emailSubject: 'EcoCut update for Alex',
     emailBody: 'Hi Alex',
     smsBody: 'Hello Alex',
+    activeLayers: ['Base template'],
   });
   const smsMetrics = signal<BroadcastSmsMetrics>({
     characters: 11,
     segments: 1,
   });
+  const emailVariants = signal<BroadcastLayerOption[]>([
+    { id: 'default', label: 'Default email copy' },
+    { id: 'promo', label: 'Seasonal promo emphasis' },
+  ]);
+  const smsVariants = signal<BroadcastLayerOption[]>([
+    { id: 'default', label: 'Default SMS copy' },
+    { id: 'promo', label: 'Promo SMS' },
+  ]);
+  const segmentRules = signal<BroadcastLayerOption[]>([
+    { id: 'none', label: 'No segment rule' },
+    { id: 'high-frequency', label: 'High-frequency clients (3+ jobs)' },
+  ]);
   const insertMergeField = vi.fn<(target: 'emailSubject' | 'emailBody' | 'smsBody', token: string) => void>();
+  const saveOverrideForPreviewClient = vi.fn<() => void>();
+  const clearOverrideForPreviewClient = vi.fn<() => void>();
 
   return {
     queryControl,
@@ -129,6 +151,12 @@ const createFacadeMock = () => {
     ctaLinkControl,
     internalNoteControl,
     previewClientIdControl,
+    emailVariantControl,
+    smsVariantControl,
+    segmentRuleControl,
+    overrideSubjectControl,
+    overrideEmailBodyControl,
+    overrideSmsBodyControl,
     serviceWindowControl,
     upcomingWindowControl,
     channelControl,
@@ -142,8 +170,13 @@ const createFacadeMock = () => {
     templates,
     previewPayload,
     smsMetrics,
+    emailVariants,
+    smsVariants,
+    segmentRules,
     loadRecipients,
     insertMergeField,
+    saveOverrideForPreviewClient,
+    clearOverrideForPreviewClient,
     filteredRecipientsSnapshot: vi.fn(() => filteredRecipients()),
     countsSnapshot: vi.fn(() => counts()),
     exclusionSummarySnapshot: vi.fn(() => exclusions()),
@@ -157,6 +190,12 @@ const createFacadeMock = () => {
     ctaLinkControl: FormControl<string>;
     internalNoteControl: FormControl<string>;
     previewClientIdControl: FormControl<string>;
+    emailVariantControl: FormControl<string>;
+    smsVariantControl: FormControl<string>;
+    segmentRuleControl: FormControl<string>;
+    overrideSubjectControl: FormControl<string>;
+    overrideEmailBodyControl: FormControl<string>;
+    overrideSmsBodyControl: FormControl<string>;
     serviceWindowControl: FormControl<ServiceWindow>;
     upcomingWindowControl: FormControl<UpcomingWindow>;
     channelControl: FormControl<BroadcastChannel>;
@@ -170,8 +209,13 @@ const createFacadeMock = () => {
     templates: ReturnType<typeof signal<BroadcastTemplates>>;
     previewPayload: ReturnType<typeof signal<BroadcastPreviewPayload>>;
     smsMetrics: ReturnType<typeof signal<BroadcastSmsMetrics>>;
+    emailVariants: ReturnType<typeof signal<BroadcastLayerOption[]>>;
+    smsVariants: ReturnType<typeof signal<BroadcastLayerOption[]>>;
+    segmentRules: ReturnType<typeof signal<BroadcastLayerOption[]>>;
     loadRecipients: ReturnType<typeof vi.fn<() => Promise<void>>>;
     insertMergeField: ReturnType<typeof vi.fn<(target: 'emailSubject' | 'emailBody' | 'smsBody', token: string) => void>>;
+    saveOverrideForPreviewClient: ReturnType<typeof vi.fn<() => void>>;
+    clearOverrideForPreviewClient: ReturnType<typeof vi.fn<() => void>>;
   };
 };
 
@@ -235,6 +279,19 @@ describe('BroadcastShellComponent', () => {
     expect(facadeMock.insertMergeField).toHaveBeenCalledWith('emailBody', '{{firstName}}');
     expect(smsCounter.textContent).toContain('11 chars / 1 segment');
     expect(preview.textContent).toContain('Alex North');
+    expect(preview.textContent).toContain('Base template');
     expect(preview.textContent).toContain('EcoCut update for Alex');
+  });
+
+  it('calls override actions from the composer', () => {
+    const buttons = fixture.nativeElement.querySelectorAll('.override-actions .refresh-btn');
+    const saveButton = buttons[0] as HTMLButtonElement;
+    const clearButton = buttons[1] as HTMLButtonElement;
+
+    saveButton.click();
+    clearButton.click();
+
+    expect(facadeMock.saveOverrideForPreviewClient).toHaveBeenCalledTimes(1);
+    expect(facadeMock.clearOverrideForPreviewClient).toHaveBeenCalledTimes(1);
   });
 });

@@ -37,6 +37,15 @@ export class BroadcastShellComponent implements OnInit {
   protected readonly ctaLinkControl = this.facade.ctaLinkControl;
   protected readonly internalNoteControl = this.facade.internalNoteControl;
   protected readonly previewClientIdControl = this.facade.previewClientIdControl;
+  protected readonly emailVariantControl = this.facade.emailVariantControl;
+  protected readonly smsVariantControl = this.facade.smsVariantControl;
+  protected readonly segmentRuleControl = this.facade.segmentRuleControl;
+  protected readonly overrideSubjectControl = this.facade.overrideSubjectControl;
+  protected readonly overrideEmailBodyControl = this.facade.overrideEmailBodyControl;
+  protected readonly overrideSmsBodyControl = this.facade.overrideSmsBodyControl;
+  protected readonly emailVariants = this.facade.emailVariants;
+  protected readonly smsVariants = this.facade.smsVariants;
+  protected readonly segmentRules = this.facade.segmentRules;
   protected readonly previewPayload = this.facade.previewPayload;
   protected readonly smsMetrics = this.facade.smsMetrics;
 
@@ -50,5 +59,13 @@ export class BroadcastShellComponent implements OnInit {
 
   protected insertMergeField(target: BroadcastTemplateTarget, token: string): void {
     this.facade.insertMergeField(target, token);
+  }
+
+  protected saveOverrideForPreviewClient(): void {
+    this.facade.saveOverrideForPreviewClient();
+  }
+
+  protected clearOverrideForPreviewClient(): void {
+    this.facade.clearOverrideForPreviewClient();
   }
 }

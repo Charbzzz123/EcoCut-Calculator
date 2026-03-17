@@ -257,6 +257,7 @@ Update this document whenever we clarify rules or add new functionality so imple
 - **Preview and safety controls**:
   - Real-time preview card for email and SMS rendering (implemented).
   - Preview supports selecting a specific client to render the exact final message after merge fields and fallback values are applied (implemented).
+  - Layer stack is now live (implemented): base template + channel variant + segment rule + per-client override, with deterministic priority `override > segment > channel > base` and an active-layer list visible in the UI.
   - **Send test** to owner/manager address/phone before final send (planned).
   - **Schedule send** (now or later) with timezone (planned).
   - Confirmation modal before dispatch, showing channel, recipient count, and scheduled time (planned).

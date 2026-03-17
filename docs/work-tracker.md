@@ -51,16 +51,16 @@ Living checklist for in-flight feature work so we never lose track of what€™
 | Broadcast Phase 1 route + shell scaffold                             | 2026-03-16 | Added `/communications/broadcast` route and standalone shell that reuses the Clients/Home visual language with starter metrics and planning cards.           |
 | Broadcast Phase 2 audience + channel builder                         | 2026-03-16 | Added `BroadcastFacade` + shell filters (query, channel, service window, upcoming window), eligibility counts, exclusion summaries, and dispatch validation. |
 | Broadcast Phase 3 template composer + merge preview                  | 2026-03-16 | Added merge-token composer controls, SMS segment metrics, per-client rendered preview, and facade/template tests to keep broadcast coverage at 100%.         |
+| Broadcast Phase 4 layered personalization + overrides                | 2026-03-16 | Added segment rules, channel variants, per-client override controls, deterministic layer priority, and active-layer preview tracing with full coverage.      |
 
 ## In Progress / Backlog
 
-| Step | Task                                | Owner | Notes                                                                                                                                                       |
-| ---- | ----------------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 4    | Layered personalization + overrides | —     | Support crossed modes with deterministic priority: per-client override > segment rule > channel variant > base template.                                    |
-| 5    | Test send and confirmation flow     | —     | Add send-test flow and final confirmation modal before dispatch (preview + SMS segment counters are already live in Phase 3).                               |
-| 6    | Backend delivery engine             | —     | Add Nest communications module, provider adapters, queue, retry/throttle controls, and campaign status endpoints.                                           |
-| 7    | Compliance + audit + analytics      | —     | Enforce unsubscribe/suppression, add approval flow, track sent/delivered/failed/suppressed counts, ingest provider webhooks, and keep immutable audit logs. |
-| 8    | Quality gates + rollout             | —     | Full unit/integration coverage, lint/build clean, staging dry run, then production release checklist.                                                       |
+| Step | Task                            | Owner | Notes                                                                                                                                                       |
+| ---- | ------------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 5    | Test send and confirmation flow | —     | Add send-test flow and final confirmation modal before dispatch (preview + SMS segment counters are already live in Phase 3).                               |
+| 6    | Backend delivery engine         | —     | Add Nest communications module, provider adapters, queue, retry/throttle controls, and campaign status endpoints.                                           |
+| 7    | Compliance + audit + analytics  | —     | Enforce unsubscribe/suppression, add approval flow, track sent/delivered/failed/suppressed counts, ingest provider webhooks, and keep immutable audit logs. |
+| 8    | Quality gates + rollout         | —     | Full unit/integration coverage, lint/build clean, staging dry run, then production release checklist.                                                       |
 
 ### Broadcast Requirements (locked for implementation)
 

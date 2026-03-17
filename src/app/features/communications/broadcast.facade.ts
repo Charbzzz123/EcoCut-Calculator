@@ -11,6 +11,7 @@ import {
   BroadcastFilters,
   BroadcastMergeField,
   BroadcastLoadState,
+  BroadcastLayerOption,
   BroadcastRecipientCounts,
   BroadcastSmsMetrics,
   BroadcastTemplateTarget,
@@ -71,6 +72,136 @@ const defaultTemplates: BroadcastTemplates = {
   internalNote: '',
 };
 
+interface BroadcastTemplateLayer {
+  emailSubject?: string;
+  emailBody?: string;
+  smsBody?: string;
+}
+
+interface SegmentRuleDefinition extends BroadcastLayerOption {
+  matches: (client: ClientSummary) => boolean;
+  layer: BroadcastTemplateLayer;
+}
+
+interface ChannelVariantDefinition extends BroadcastLayerOption {
+  layer: BroadcastTemplateLayer;
+}
+
+const channelEmailVariants: ChannelVariantDefinition[] = [
+  { id: 'default', label: 'Default email copy', layer: {} },
+  {
+    id: 'promo',
+    label: 'Seasonal promo emphasis',
+    layer: {
+      emailSubject: 'Seasonal offer for {{firstName}}',
+      emailBody:
+        'Hi {{firstName}},\n\nSeasonal booking is now open for {{address}}. Reply early to secure your preferred slot.\n\n- EcoCut Team',
+    },
+  },
+  {
+    id: 'follow-up',
+    label: 'Follow-up reminder',
+    layer: {
+      emailSubject: 'Quick follow-up for {{firstName}}',
+      emailBody:
+        'Hi {{firstName}},\n\nWe are following up on your property at {{address}}. Let us know if you want a fresh quote this week.\n\n- EcoCut Team',
+    },
+  },
+  {
+    id: 'priority-tag',
+    label: 'Priority tag only',
+    layer: {},
+  },
+];
+
+const channelSmsVariants: ChannelVariantDefinition[] = [
+  { id: 'default', label: 'Default SMS copy', layer: {} },
+  {
+    id: 'promo',
+    label: 'Promo SMS',
+    layer: { smsBody: 'Hi {{firstName}} - EcoCut promo: save on your next visit at {{address}}.' },
+  },
+  {
+    id: 'follow-up',
+    label: 'Follow-up SMS',
+    layer: { smsBody: 'Hi {{firstName}} - just checking in for {{address}}. Reply YES for a callback.' },
+  },
+  {
+    id: 'priority-window',
+    label: 'Priority window tag',
+    layer: {},
+  },
+];
+
+const segmentRules: SegmentRuleDefinition[] = [
+  {
+    id: 'none',
+    label: 'No segment rule',
+    /* c8 ignore next */
+    matches: () => false,
+    layer: {},
+  },
+  {
+    id: 'inactive-90',
+    label: 'Inactive 90+ days',
+    matches: (client) => {
+      if (!client.lastJobDate) {
+        return false;
+      }
+      const lastJob = Date.parse(client.lastJobDate);
+      if (Number.isNaN(lastJob)) {
+        return false;
+      }
+      return Date.now() - lastJob > 90 * 24 * 60 * 60 * 1000;
+    },
+    layer: {
+      emailBody:
+        'Hi {{firstName}},\n\nIt has been a while since your last service at {{address}}. We can reserve a returning-client slot for you.\n\n- EcoCut Team',
+      smsBody: 'Hi {{firstName}} - we have not seen {{address}} in a while. Want a returning-client slot?',
+    },
+  },
+  {
+    id: 'upcoming-30',
+    label: 'Upcoming job in next 30 days',
+    matches: (client) => {
+      if (!client.nextJobDate) {
+        return false;
+      }
+      const nextJob = Date.parse(client.nextJobDate);
+      if (Number.isNaN(nextJob)) {
+        return false;
+      }
+      const delta = nextJob - Date.now();
+      return delta >= 0 && delta <= 30 * 24 * 60 * 60 * 1000;
+    },
+    layer: {
+      emailBody:
+        'Hi {{firstName}},\n\nYour next visit is currently planned for {{nextJobDate}}. Reply if you need any adjustments before the crew arrives.\n\n- EcoCut Team',
+      smsBody: 'Hi {{firstName}} - reminder: your next EcoCut visit is {{nextJobDate}}. Reply to adjust.',
+    },
+  },
+  {
+    id: 'high-frequency',
+    label: 'High-frequency clients (3+ jobs)',
+    matches: (client) => client.jobsCount >= 3,
+    layer: {
+      emailSubject: 'Priority update for {{firstName}}',
+      emailBody:
+        'Hi {{firstName}},\n\nThanks for trusting EcoCut for {{jobsCount}} jobs. We can reserve priority booking for {{address}}.\n\n- EcoCut Team',
+      smsBody:
+        'Hi {{firstName}} - thanks for being a repeat client. Priority booking is available for {{address}}.',
+    },
+  },
+  {
+    id: 'subject-only',
+    label: 'Subject-only priority layer',
+    matches: (client) => client.jobsCount >= 3,
+    layer: {
+      emailSubject: 'Priority check-in for {{firstName}}',
+    },
+  },
+];
+
 @Injectable({ providedIn: 'root' })
 export class BroadcastFacade {
   private readonly repository = inject(EntryRepositoryService);
@@ -89,6 +220,12 @@ export class BroadcastFacade {
   readonly ctaLinkControl = new FormControl(defaultTemplates.ctaLink, { nonNullable: true });
   readonly internalNoteControl = new FormControl(defaultTemplates.internalNote, { nonNullable: true });
   readonly previewClientIdControl = new FormControl('', { nonNullable: true });
+  readonly emailVariantControl = new FormControl('default', { nonNullable: true });
+  readonly smsVariantControl = new FormControl('default', { nonNullable: true });
+  readonly segmentRuleControl = new FormControl('none', { nonNullable: true });
+  readonly overrideSubjectControl = new FormControl('', { nonNullable: true });
+  readonly overrideEmailBodyControl = new FormControl('', { nonNullable: true });
+  readonly overrideSmsBodyControl = new FormControl('', { nonNullable: true });
 
   private readonly clientsSignal = this.createClientsSignal();
   private readonly loadStateSignal = this.createLoadStateSignal();
@@ -96,10 +233,17 @@ export class BroadcastFacade {
   private readonly selectedChannelSignal = this.createSelectedChannelSignal();
   private readonly templatesSignal = this.createTemplatesSignal();
   private readonly previewClientIdSignal = this.createPreviewClientIdSignal();
+  private readonly selectedEmailVariantSignal = this.createSelectedEmailVariantSignal();
+  private readonly selectedSmsVariantSignal = this.createSelectedSmsVariantSignal();
+  private readonly selectedSegmentRuleSignal = this.createSelectedSegmentRuleSignal();
+  private readonly overridesSignal = this.createOverridesSignal();
 
   readonly loadState: Signal<BroadcastLoadState> = this.loadStateSignal.asReadonly();
   readonly selectedChannel: Signal<BroadcastChannel> = this.selectedChannelSignal.asReadonly();
   readonly mergeFields: Signal<BroadcastMergeField[]> = signal(mergeFields).asReadonly();
+  readonly emailVariants: Signal<BroadcastLayerOption[]> = signal(channelEmailVariants).asReadonly();
+  readonly smsVariants: Signal<BroadcastLayerOption[]> = signal(channelSmsVariants).asReadonly();
+  readonly segmentRules: Signal<BroadcastLayerOption[]> = signal(segmentRules).asReadonly();
   /* c8 ignore next */
   readonly filteredRecipients: Signal<ClientSummary[]> = computed(() =>
     this.applyFilters(this.clientsSignal(), this.filtersSignal()),
@@ -121,7 +265,15 @@ export class BroadcastFacade {
   readonly templates: Signal<BroadcastTemplates> = this.templatesSignal.asReadonly();
   /* c8 ignore next */
   readonly previewPayload: Signal<BroadcastPreviewPayload> = computed(() =>
-    this.buildPreviewPayload(this.filteredRecipients(), this.previewClientIdSignal(), this.templatesSignal()),
+    this.buildPreviewPayload(
+      this.filteredRecipients(),
+      this.previewClientIdSignal(),
+      this.templatesSignal(),
+      this.selectedEmailVariantSignal(),
+      this.selectedSmsVariantSignal(),
+      this.selectedSegmentRuleSignal(),
+      this.overridesSignal(),
+    ),
   );
   /* c8 ignore next */
   readonly smsMetrics: Signal<BroadcastSmsMetrics> = computed(() =>
@@ -162,9 +314,21 @@ export class BroadcastFacade {
     this.internalNoteControl.valueChanges
       .pipe(startWith(this.internalNoteControl.value), distinctUntilChanged())
       .subscribe((internalNote) => this.updateTemplates({ internalNote }));
+    this.emailVariantControl.valueChanges
+      .pipe(startWith(this.emailVariantControl.value), distinctUntilChanged())
+      .subscribe((variant) => this.selectedEmailVariantSignal.set(variant));
+    this.smsVariantControl.valueChanges
+      .pipe(startWith(this.smsVariantControl.value), distinctUntilChanged())
+      .subscribe((variant) => this.selectedSmsVariantSignal.set(variant));
+    this.segmentRuleControl.valueChanges
+      .pipe(startWith(this.segmentRuleControl.value), distinctUntilChanged())
+      .subscribe((rule) => this.selectedSegmentRuleSignal.set(rule));
     this.previewClientIdControl.valueChanges
       .pipe(startWith(this.previewClientIdControl.value), distinctUntilChanged())
-      .subscribe((previewClientId) => this.previewClientIdSignal.set(previewClientId));
+      .subscribe((previewClientId) => {
+        this.previewClientIdSignal.set(previewClientId);
+        this.syncOverrideEditors(previewClientId);
+      });
   }
 
   async loadRecipients(): Promise<void> {
@@ -200,6 +364,41 @@ export class BroadcastFacade {
     control.setValue(`${value}${appendWithSpace ? ' ' : ''}${token}`);
   }
 
+  saveOverrideForPreviewClient(): void {
+    const previewClientId = this.previewClientIdSignal();
+    if (!previewClientId) {
+      return;
+    }
+    const override: BroadcastTemplateLayer = {};
+    if (this.overrideSubjectControl.value.trim()) {
+      override.emailSubject = this.overrideSubjectControl.value.trim();
+    }
+    if (this.overrideEmailBodyControl.value.trim()) {
+      override.emailBody = this.overrideEmailBodyControl.value.trim();
+    }
+    if (this.overrideSmsBodyControl.value.trim()) {
+      override.smsBody = this.overrideSmsBodyControl.value.trim();
+    }
+    if (Object.keys(override).length === 0) {
+      this.clearOverrideForPreviewClient();
+      return;
+    }
+    this.overridesSignal.update((current) => ({ ...current, [previewClientId]: override }));
+  }
+
+  clearOverrideForPreviewClient(): void {
+    const previewClientId = this.previewClientIdSignal();
+    if (!previewClientId) {
+      return;
+    }
+    this.overridesSignal.update((current) => {
+      const next = { ...current };
+      delete next[previewClientId];
+      return next;
+    });
+    this.syncOverrideEditors(previewClientId);
+  }
+
   private updateFilters(partial: Partial<BroadcastFilters>): void {
     this.filtersSignal.update((current) => ({ ...current, ...partial }));
     this.syncPreviewSelection();
@@ -209,36 +408,101 @@ export class BroadcastFacade {
     this.templatesSignal.update((current) => ({ ...current, ...partial }));
   }
 
+  private syncOverrideEditors(previewClientId: string): void {
+    const override = this.overridesSignal()[previewClientId];
+    this.overrideSubjectControl.setValue(override?.emailSubject ?? '', { emitEvent: false });
+    this.overrideEmailBodyControl.setValue(override?.emailBody ?? '', { emitEvent: false });
+    this.overrideSmsBodyControl.setValue(override?.smsBody ?? '', { emitEvent: false });
+  }
+
   private syncPreviewSelection(): void {
     const filteredRecipients = this.filteredRecipients();
     const currentPreviewId = this.previewClientIdSignal();
     if (filteredRecipients.length === 0) {
       this.previewClientIdSignal.set('');
       this.previewClientIdControl.setValue('', { emitEvent: false });
+      this.syncOverrideEditors('');
       return;
     }
     if (currentPreviewId && filteredRecipients.some((client) => client.clientId === currentPreviewId)) {
+      this.syncOverrideEditors(currentPreviewId);
       return;
     }
     const nextId = filteredRecipients[0].clientId;
     this.previewClientIdSignal.set(nextId);
     this.previewClientIdControl.setValue(nextId, { emitEvent: false });
+    this.syncOverrideEditors(nextId);
   }
 
   private buildPreviewPayload(
     filteredRecipients: ClientSummary[],
     previewClientId: string,
     templates: BroadcastTemplates,
+    selectedEmailVariant: string,
+    selectedSmsVariant: string,
+    selectedSegmentRule: string,
+    overrides: Record<string, BroadcastTemplateLayer>,
   ): BroadcastPreviewPayload {
     const selectedClient =
       filteredRecipients.find((client) => client.clientId === previewClientId) ?? null;
+    const layered = this.buildLayeredTemplates(
+      templates,
+      selectedClient,
+      selectedEmailVariant,
+      selectedSmsVariant,
+      selectedSegmentRule,
+      overrides,
+    );
     return {
       clientId: selectedClient?.clientId ?? null,
       clientLabel: selectedClient?.fullName ?? 'No recipient selected',
-      emailSubject: this.applyMergeFields(templates.emailSubject, selectedClient),
-      emailBody: this.applyMergeFields(templates.emailBody, selectedClient),
-      smsBody: this.applyMergeFields(templates.smsBody, selectedClient),
+      emailSubject: this.applyMergeFields(layered.templates.emailSubject, selectedClient),
+      emailBody: this.applyMergeFields(layered.templates.emailBody, selectedClient),
+      smsBody: this.applyMergeFields(layered.templates.smsBody, selectedClient),
+      activeLayers: layered.activeLayers,
     };
+  }
+
+  private buildLayeredTemplates(
+    templates: BroadcastTemplates,
+    client: ClientSummary | null,
+    selectedEmailVariant: string,
+    selectedSmsVariant: string,
+    selectedSegmentRule: string,
+    overrides: Record<string, BroadcastTemplateLayer>,
+  ): { templates: BroadcastTemplates; activeLayers: string[] } {
+    const activeLayers = ['Base template'];
+    const layered: BroadcastTemplates = { ...templates };
+    const emailVariant = channelEmailVariants.find((variant) => variant.id === selectedEmailVariant);
+    if (emailVariant && emailVariant.id !== 'default') {
+      layered.emailSubject = emailVariant.layer.emailSubject ?? layered.emailSubject;
+      layered.emailBody = emailVariant.layer.emailBody ?? layered.emailBody;
+      activeLayers.push(`Email variant: ${emailVariant.label}`);
+    }
+
+    const smsVariant = channelSmsVariants.find((variant) => variant.id === selectedSmsVariant);
+    if (smsVariant && smsVariant.id !== 'default') {
+      layered.smsBody = smsVariant.layer.smsBody ?? layered.smsBody;
+      activeLayers.push(`SMS variant: ${smsVariant.label}`);
+    }
+
+    const segmentRule = segmentRules.find((rule) => rule.id === selectedSegmentRule);
+    if (segmentRule && segmentRule.id !== 'none' && client && segmentRule.matches(client)) {
+      layered.emailSubject = segmentRule.layer.emailSubject ?? layered.emailSubject;
+      layered.emailBody = segmentRule.layer.emailBody ?? layered.emailBody;
+      layered.smsBody = segmentRule.layer.smsBody ?? layered.smsBody;
+      activeLayers.push(`Segment rule: ${segmentRule.label}`);
+    }
+
+    const override = client ? overrides[client.clientId] : undefined;
+    if (override) {
+      layered.emailSubject = override.emailSubject ?? layered.emailSubject;
+      layered.emailBody = override.emailBody ?? layered.emailBody;
+      layered.smsBody = override.smsBody ?? layered.smsBody;
+      activeLayers.push(`Client override: ${client?.fullName}`);
+    }
+
+    return { templates: layered, activeLayers };
   }
 
   private applyMergeFields(template: string, client: ClientSummary | null): string {
@@ -442,5 +706,21 @@ export class BroadcastFacade {
 
   private createPreviewClientIdSignal(): WritableSignal<string> {
     return signal('');
+  }
+
+  private createSelectedEmailVariantSignal(): WritableSignal<string> {
+    return signal('default');
+  }
+
+  private createSelectedSmsVariantSignal(): WritableSignal<string> {
+    return signal('default');
+  }
+
+  private createSelectedSegmentRuleSignal(): WritableSignal<string> {
+    return signal('none');
+  }
+
+  private createOverridesSignal(): WritableSignal<Record<string, BroadcastTemplateLayer>> {
+    return signal<Record<string, BroadcastTemplateLayer>>({});
   }
 }
