@@ -171,3 +171,14 @@ export interface CampaignAnalyticsSummary {
   };
   latestEventAt: string | null;
 }
+
+export interface CommunicationsStateSnapshot {
+  campaigns: CampaignSummary[];
+  pendingDispatches: {
+    campaignId: string;
+    payload: DispatchBroadcastDto;
+  }[];
+  campaignAudit: CampaignAuditRecord[];
+  campaignEvents: CampaignDeliveryEvent[];
+  suppressions: SuppressionRecord[];
+}

@@ -58,13 +58,13 @@ Living checklist for in-flight feature work so we never lose track of what€™
 | Broadcast Phase 7B approval workflow + immutable campaign audit      | 2026-03-17 | Added manager approval gating (`pending_approval`), owner approve/cancel endpoints, and append-only campaign audit timeline (`/communications/campaigns/:campaignId/audit`).                                                          |
 | Broadcast Phase 7C webhook ingestion + campaign analytics            | 2026-03-17 | Added delivery webhook ingestion (`/communications/webhooks/delivery`) and per-campaign analytics endpoint (`/communications/campaigns/:campaignId/analytics`) with unsubscribe/resubscribe synchronization.                          |
 | Broadcast Phase 7D provider webhook adapters + signature validation  | 2026-03-17 | Added provider-specific webhook route (`/communications/webhooks/delivery/:provider`), normalized Quo/Hostinger payload mapping, and HMAC signature checks when webhook secrets are configured.                                       |
+| Broadcast Phase 7E durable communications persistence                | 2026-03-17 | Campaigns, pending approvals, audit timeline, analytics events, and suppression lists now persist to SQLite (`COMMUNICATIONS_DB_PATH`) so state survives restarts.                                                                    |
 
 ## In Progress / Backlog
 
-| Step | Task                           | Owner | Notes                                                                                                 |
-| ---- | ------------------------------ | ----- | ----------------------------------------------------------------------------------------------------- |
-| 7    | Compliance + audit + analytics | —     | Remaining: durable audit/analytics persistence beyond in-memory runtime.                              |
-| 8    | Quality gates + rollout        | —     | Full unit/integration coverage, lint/build clean, staging dry run, then production release checklist. |
+| Step | Task                    | Owner | Notes                                                                                                 |
+| ---- | ----------------------- | ----- | ----------------------------------------------------------------------------------------------------- |
+| 8    | Quality gates + rollout | —     | Full unit/integration coverage, lint/build clean, staging dry run, then production release checklist. |
 
 ### Broadcast Requirements (locked for implementation)
 

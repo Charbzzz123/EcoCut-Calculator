@@ -73,7 +73,7 @@ root/
   - `POST /entries` � append the emitted `EntryModalPayload` (plus generated `id` + `createdAt`). The repository writes each record to the on-disk SQLite database at `ENTRIES_DB_PATH`, so history survives restarts and the most recent calendar `eventId` stays attached for future edits.
   - `GET /entries` � retrieve the append-only job history (same SQLite snapshot) so undo/reporting layers can read the source of truth.
   - `GET /entries/clients` � returns the deduplicated client roster (keyed by email ? phone ? name+address) with `jobsCount`, `lastJobDate`, and `lastCalendarEventId`.
-  - Implementation lives in `server/src/entries/` (service, repository, controller, module). The repository handles loading/saving JSON today and can later be swapped for SQLite/Postgres without changing the public API.
+  - Implementation lives in `server/src/entries/` (service, repository, controller, module). The repository persists to SQLite today (`ENTRIES_DB_PATH`) and can later be swapped for Postgres without changing the public API.
 - **Broadcast module (MVP delivery live)**:
   - Exposes `POST /communications/test`, `POST /communications/dispatch`, `GET /communications/campaigns`, and `GET /communications/campaigns/:campaignId`.
   - Phase 7A suppression endpoints are live: `GET /communications/suppressions`, `POST /communications/suppressions/unsubscribe`, `POST /communications/suppressions/resubscribe`.
@@ -83,7 +83,8 @@ root/
   - Uses swappable provider adapters via injection tokens:
     - `HostingerEmailProvider` (SMTP via Nodemailer)
     - `QuoSmsProvider` (HTTP API)
-  - `CommunicationsService` applies retry + throttle guards during send loops, skips suppressed recipients by channel, supports approval-gated sends (`pending_approval`), ingests provider delivery webhooks (including unsubscribe/resubscribe sync), and keeps in-memory campaign status/stats (`recipients`, `attempted`, `sent`, `failed`, `suppressed`) with append-only audit entries.
+  - `CommunicationsService` applies retry + throttle guards during send loops, skips suppressed recipients by channel, supports approval-gated sends (`pending_approval`), ingests provider delivery webhooks (including unsubscribe/resubscribe sync), and persists campaign status/stats (`recipients`, `attempted`, `sent`, `failed`, `suppressed`) with append-only audit entries.
+  - Communications persistence is durable in SQLite (`COMMUNICATIONS_DB_PATH`) via `CommunicationsRepository`, covering campaigns, pending approvals, audit records, delivery events, and suppressions.
   - Provider webhook signatures are validated via HMAC when `QUO_WEBHOOK_SECRET` or `HOSTINGER_WEBHOOK_SECRET` are configured.
   - Next slices still pending: durable campaign persistence, queue workers, consent expiry enforcement, and idempotency keys.
 - **Frontend proxying & dev setup**
@@ -94,6 +95,8 @@ root/
   | ---- | -------- | ------- |
   | `GOOGLE_CALENDAR_CREDENTIALS_PATH` _or_ `GOOGLE_CALENDAR_CREDENTIALS` | Yes | Points to / contains the service-account JSON for `ecocut-calendar-bot@ecocut-calendar-link.iam.gserviceaccount.com`. JSON files live outside the repo. |
   | `GOOGLE_CALENDAR_ID` | Optional | Overrides the default target calendar (`ecojcut@gmail.com`). |
+  | `ENTRIES_DB_PATH` | Optional | SQLite file path for persisted job/CRM entry history (`server/data/entries.db` by default). |
+  | `COMMUNICATIONS_DB_PATH` | Optional | SQLite file path for broadcast campaigns/audit/analytics/suppressions (`server/data/communications.db` by default). |
   | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` | Required for email sends | Hostinger SMTP credentials used by the communications module. |
   | `QUO_API_BASE_URL`, `QUO_API_KEY`, `QUO_FROM_NUMBER`, `QUO_FROM_NUMBER_ID`, `QUO_USER_ID` | Required for SMS sends | Quo API configuration used by `QuoSmsProvider`. |
   | `QUO_WEBHOOK_SECRET`, `HOSTINGER_WEBHOOK_SECRET` | Optional (recommended for production) | Enables signature validation on provider webhook route (`/communications/webhooks/delivery/:provider`). |
@@ -137,7 +140,7 @@ All frontend services derive their HTTP targets from `environment.apiBaseUrl`, s
 
 - Replace placeholder Angular template with real calculator components.
 - Extend the `/clients` view into a full CRM (client detail drawer, job history timeline, edit/delete hooks) once backend persistence is durable.
-- Continue `/communications/broadcast` rollout in remaining slices: campaign history UI and durable compliance/audit persistence.
+- Continue `/communications/broadcast` rollout in remaining slices: campaign history UI and final rollout checklist/integration hardening.
 - Automate documentation publishing (Docs site or wiki) once scope grows.
 
 ## Durable Persistence

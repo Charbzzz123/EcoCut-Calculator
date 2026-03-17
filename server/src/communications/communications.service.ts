@@ -11,6 +11,7 @@ import {
   CampaignDeliveryEvent,
   CampaignDeliveryEventType,
   CampaignSummary,
+  CommunicationsStateSnapshot,
   DeliveryProvider,
   ProviderWebhookResult,
   DeliveryWebhookDto,
@@ -22,6 +23,7 @@ import {
   type SuppressionRecord,
   type UpsertSuppressionDto,
 } from './communications.types';
+import { CommunicationsRepository } from './communications.repository';
 import { EMAIL_PROVIDER, type EmailProvider } from './providers/email-provider';
 import { SMS_PROVIDER, type SmsProvider } from './providers/sms-provider';
 import { createHmac, timingSafeEqual } from 'node:crypto';
@@ -50,7 +52,10 @@ export class CommunicationsService {
   constructor(
     @Inject(EMAIL_PROVIDER) private readonly emailProvider: EmailProvider,
     @Inject(SMS_PROVIDER) private readonly smsProvider: SmsProvider,
-  ) {}
+    private readonly repository: CommunicationsRepository,
+  ) {
+    this.initializeFromStore();
+  }
 
   async sendTest(payload: SendBroadcastTestDto): Promise<CampaignSummary> {
     this.validateTestPayload(payload);
@@ -238,6 +243,7 @@ export class CommunicationsService {
 
     await this.runDispatch(campaignId, pendingPayload);
     this.pendingDispatches.delete(campaignId);
+    this.persistState();
     return this.getCampaign(campaignId);
   }
 
@@ -363,6 +369,80 @@ export class CommunicationsService {
     }
 
     return summary;
+  }
+
+  private initializeFromStore(): void {
+    const snapshot = this.repository.loadState();
+    if (!snapshot) {
+      return;
+    }
+    this.hydrateFromSnapshot(snapshot);
+  }
+
+  private hydrateFromSnapshot(snapshot: CommunicationsStateSnapshot): void {
+    this.campaigns.clear();
+    for (const campaign of snapshot.campaigns) {
+      this.campaigns.set(campaign.campaignId, campaign);
+    }
+
+    this.pendingDispatches.clear();
+    for (const pending of snapshot.pendingDispatches) {
+      this.pendingDispatches.set(pending.campaignId, pending.payload);
+    }
+
+    this.campaignAudit.clear();
+    for (const record of snapshot.campaignAudit) {
+      const existing = this.campaignAudit.get(record.campaignId) ?? [];
+      this.campaignAudit.set(record.campaignId, [...existing, record]);
+    }
+
+    this.campaignEvents.clear();
+    for (const event of snapshot.campaignEvents) {
+      const existing = this.campaignEvents.get(event.campaignId) ?? [];
+      this.campaignEvents.set(event.campaignId, [...existing, event]);
+    }
+
+    this.suppressions.email.clear();
+    this.suppressions.sms.clear();
+    for (const suppression of snapshot.suppressions) {
+      if (suppression.channel === 'email') {
+        this.suppressions.email.set(suppression.value, suppression);
+      } else {
+        this.suppressions.sms.set(suppression.value, suppression);
+      }
+    }
+  }
+
+  private persistState(): void {
+    this.repository.saveState(this.createSnapshot());
+  }
+
+  private createSnapshot(): CommunicationsStateSnapshot {
+    const campaignAudit: CampaignAuditRecord[] = [];
+    for (const records of this.campaignAudit.values()) {
+      campaignAudit.push(...records);
+    }
+
+    const campaignEvents: CampaignDeliveryEvent[] = [];
+    for (const events of this.campaignEvents.values()) {
+      campaignEvents.push(...events);
+    }
+
+    return {
+      campaigns: Array.from(this.campaigns.values()),
+      pendingDispatches: Array.from(this.pendingDispatches.entries()).map(
+        ([campaignId, payload]) => ({
+          campaignId,
+          payload,
+        }),
+      ),
+      campaignAudit,
+      campaignEvents,
+      suppressions: [
+        ...this.suppressions.email.values(),
+        ...this.suppressions.sms.values(),
+      ],
+    };
   }
 
   private async runDispatch(
@@ -518,6 +598,7 @@ export class CommunicationsService {
       records.push(record);
     }
 
+    this.persistState();
     return records;
   }
 
@@ -550,6 +631,7 @@ export class CommunicationsService {
       }
     }
 
+    this.persistState();
     return { removed };
   }
 
@@ -645,6 +727,7 @@ export class CommunicationsService {
       status,
       updatedAt: new Date().toISOString(),
     });
+    this.persistState();
   }
 
   private markFailed(campaignId: string, error: unknown): void {
@@ -684,6 +767,7 @@ export class CommunicationsService {
       stats,
       updatedAt: new Date().toISOString(),
     });
+    this.persistState();
   }
 
   private async sendWithRetry(send: () => Promise<string>): Promise<void> {
@@ -942,6 +1026,7 @@ export class CommunicationsService {
         detail,
       },
     ]);
+    this.persistState();
   }
 
   private stringifyError(error: unknown): string {

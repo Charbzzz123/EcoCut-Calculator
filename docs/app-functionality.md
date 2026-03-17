@@ -271,6 +271,7 @@ Update this document whenever we clarify rules or add new functionality so imple
   - Ability to reopen a draft, duplicate a prior campaign, or cancel a scheduled campaign.
   - Backend audit timeline endpoint is live: `GET /communications/campaigns/:campaignId/audit` returns immutable action events (`created`, `pending_approval`, `approved`, `processing`, `completed`, `failed`, `cancelled`, `suppressed`).
   - Delivery analytics endpoint is live: campaign dashboards can query totals for `sent`, `delivered`, `failed`, `bounced`, `complained`, `unsubscribed`, and `resubscribed`.
+  - Campaign runtime state is durable (implemented): campaign summaries, pending approvals, audit records, delivery events, and suppression data persist in SQLite so analytics/audit survive server restarts.
 - **Compliance and permissions**:
   - Owner can create, schedule, send, cancel, and view analytics.
   - Manager can create drafts and schedule sends but cannot bypass approval if approval mode is enabled.

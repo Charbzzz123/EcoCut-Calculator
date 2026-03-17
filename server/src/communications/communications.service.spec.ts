@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { createHmac } from 'node:crypto';
+import { CommunicationsRepository } from './communications.repository';
 import { CommunicationsService } from './communications.service';
 import { EMAIL_PROVIDER } from './providers/email-provider';
 import { SMS_PROVIDER } from './providers/sms-provider';
@@ -8,11 +9,14 @@ import { SMS_PROVIDER } from './providers/sms-provider';
 describe('CommunicationsService', () => {
   const emailSend = jest.fn<Promise<string>, [unknown]>();
   const smsSend = jest.fn<Promise<string>, [unknown]>();
+  const loadState = jest.fn();
+  const saveState = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
     delete process.env.QUO_WEBHOOK_SECRET;
     delete process.env.HOSTINGER_WEBHOOK_SECRET;
+    loadState.mockReturnValue(null);
   });
 
   const createService = async (): Promise<CommunicationsService> => {
@@ -27,11 +31,63 @@ describe('CommunicationsService', () => {
           provide: SMS_PROVIDER,
           useValue: { send: smsSend },
         },
+        {
+          provide: CommunicationsRepository,
+          useValue: { loadState, saveState },
+        },
       ],
     }).compile();
 
     return moduleRef.get(CommunicationsService);
   };
+
+  it('hydrates runtime maps from persisted communications state', async () => {
+    loadState.mockReturnValue({
+      campaigns: [
+        {
+          campaignId: 'campaign-1',
+          type: 'dispatch',
+          channel: 'email',
+          status: 'scheduled',
+          scheduleMode: 'later',
+          scheduleAt: '2026-08-01T09:00:00.000Z',
+          stats: {
+            recipients: 2,
+            attempted: 0,
+            sent: 0,
+            failed: 0,
+            suppressed: 0,
+          },
+          createdAt: '2026-08-01T08:00:00.000Z',
+          updatedAt: '2026-08-01T08:00:00.000Z',
+          approval: {
+            required: false,
+            requestedBy: 'owner',
+          },
+        },
+      ],
+      pendingDispatches: [],
+      campaignAudit: [
+        {
+          campaignId: 'campaign-1',
+          timestamp: '2026-08-01T08:00:00.000Z',
+          action: 'scheduled',
+          detail: 'Restored from store.',
+        },
+      ],
+      campaignEvents: [],
+      suppressions: [],
+    });
+    const service = await createService();
+
+    expect(service.getCampaign('campaign-1').status).toBe('scheduled');
+    expect(service.listCampaignAudit('campaign-1')).toEqual([
+      expect.objectContaining({
+        action: 'scheduled',
+        detail: 'Restored from store.',
+      }),
+    ]);
+  });
 
   it('sends email test campaigns immediately', async () => {
     emailSend.mockResolvedValue('msg-email');
