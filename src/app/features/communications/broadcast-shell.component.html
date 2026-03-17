@@ -438,12 +438,14 @@
         <article class="preview-card" aria-label="Rendered preview">
           <h3>Rendered preview</h3>
           <p class="preview-client">{{ previewPayload().clientLabel }}</p>
-          <p class="preview-title">Active layers</p>
-          <ul class="active-layers">
-            @for (layer of previewPayload().activeLayers; track layer) {
-              <li>{{ layer }}</li>
-            }
-          </ul>
+          @if (previewPayload().activeLayers.length > 1) {
+            <p class="preview-title">Active layers</p>
+            <ul class="active-layers">
+              @for (layer of previewPayload().activeLayers; track layer) {
+                <li>{{ layer }}</li>
+              }
+            </ul>
+          }
           <p class="preview-title">Email subject</p>
           <p>{{ previewPayload().emailSubject }}</p>
           <p class="preview-title">Email body</p>

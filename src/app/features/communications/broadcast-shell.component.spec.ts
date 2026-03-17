@@ -421,8 +421,21 @@ describe('BroadcastShellComponent', () => {
     expect(facadeMock.emailBodyControl.value).toContain('Hi {{firstName}}[[First name]]');
     expect(smsCounter.textContent).toContain('11 chars / 1 segment');
     expect(preview.textContent).toContain('Alex North');
-    expect(preview.textContent).toContain('Base template');
     expect(preview.textContent).toContain('EcoCut update for Alex');
+  });
+
+  it('shows active layers only when additional layers are applied', () => {
+    const preview = fixture.nativeElement.querySelector('.preview-card') as HTMLElement;
+    expect(preview.textContent).not.toContain('Active layers');
+
+    facadeMock.previewPayload.set({
+      ...facadeMock.previewPayload(),
+      activeLayers: ['Base template', 'Email variant: Seasonal promo emphasis'],
+    });
+    fixture.detectChanges();
+
+    expect(preview.textContent).toContain('Active layers');
+    expect(preview.textContent).toContain('Email variant: Seasonal promo emphasis');
   });
 
   it('inserts merge token at the last focused cursor position', () => {
