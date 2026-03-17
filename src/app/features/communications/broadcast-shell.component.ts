@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject } from '@angular/core';
-import { ReactiveFormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import type { ClientSummary } from '@shared/domain/entry/entry-repository.service.js';
 import { BackChipComponent } from '@shared/ui/back-chip/back-chip.component.js';
 import { BrandBannerComponent } from '@shared/ui/brand-banner/brand-banner.component.js';
@@ -13,6 +13,8 @@ import type {
 
 const EMAIL_ESTIMATE_COST = 0;
 const SMS_ESTIMATE_COST = 0.02;
+const MIN_DAILY_CAP = 1;
+const MAX_DAILY_CAP = 5000;
 
 interface AudiencePreviewRow {
   client: ClientSummary;
@@ -34,6 +36,13 @@ export class BroadcastShellComponent implements OnInit {
   private readonly emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   protected readonly headingId = 'broadcast-heading';
+  protected readonly emailCap = signal(80);
+  protected readonly smsCap = signal(200);
+  protected readonly capEditorOpen = signal(false);
+  protected readonly capConfirmationOpen = signal(false);
+  protected readonly capEditorNotice = signal<string | null>(null);
+  protected readonly emailCapDraftControl = new FormControl(80, { nonNullable: true });
+  protected readonly smsCapDraftControl = new FormControl(200, { nonNullable: true });
   protected readonly queryControl = this.facade.queryControl;
   protected readonly requireEmailControl = this.facade.requireEmailControl;
   protected readonly requirePhoneControl = this.facade.requirePhoneControl;
@@ -131,6 +140,55 @@ export class BroadcastShellComponent implements OnInit {
 
   protected reloadRecipients(): void {
     void this.facade.loadRecipients();
+  }
+
+  protected openCapEditor(): void {
+    this.emailCapDraftControl.setValue(this.emailCap());
+    this.smsCapDraftControl.setValue(this.smsCap());
+    this.capEditorNotice.set(null);
+    this.capConfirmationOpen.set(false);
+    this.capEditorOpen.set(true);
+  }
+
+  protected cancelCapEditor(): void {
+    this.capEditorNotice.set(null);
+    this.capConfirmationOpen.set(false);
+    this.capEditorOpen.set(false);
+  }
+
+  protected requestCapConfirmation(): void {
+    const emailCap = this.normalizeCapValue(this.emailCapDraftControl.value);
+    const smsCap = this.normalizeCapValue(this.smsCapDraftControl.value);
+    if (!this.isCapValueValid(emailCap) || !this.isCapValueValid(smsCap)) {
+      this.capEditorNotice.set(
+        `Caps must be whole numbers between ${MIN_DAILY_CAP} and ${MAX_DAILY_CAP}.`,
+      );
+      this.capConfirmationOpen.set(false);
+      return;
+    }
+    this.capEditorNotice.set(null);
+    this.capConfirmationOpen.set(true);
+  }
+
+  protected applyCapChanges(): void {
+    const emailCap = this.normalizeCapValue(this.emailCapDraftControl.value);
+    const smsCap = this.normalizeCapValue(this.smsCapDraftControl.value);
+    if (!this.isCapValueValid(emailCap) || !this.isCapValueValid(smsCap)) {
+      this.capEditorNotice.set(
+        `Caps must be whole numbers between ${MIN_DAILY_CAP} and ${MAX_DAILY_CAP}.`,
+      );
+      this.capConfirmationOpen.set(false);
+      return;
+    }
+    this.emailCap.set(emailCap);
+    this.smsCap.set(smsCap);
+    this.capEditorNotice.set('Daily caps updated.');
+    this.capConfirmationOpen.set(false);
+    this.capEditorOpen.set(false);
+  }
+
+  protected capEditSummary(): string {
+    return `Email ${this.emailCap()} -> ${this.normalizeCapValue(this.emailCapDraftControl.value)} | SMS ${this.smsCap()} -> ${this.normalizeCapValue(this.smsCapDraftControl.value)}`;
   }
 
   protected confirmSelectedChannel(): void {
@@ -307,6 +365,17 @@ export class BroadcastShellComponent implements OnInit {
     const withoutCountryCode =
       rawDigits.length > 10 && rawDigits.startsWith('1') ? rawDigits.slice(1) : rawDigits;
     return withoutCountryCode.slice(0, 10);
+  }
+
+  private normalizeCapValue(value: number): number {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+    return Math.trunc(value);
+  }
+
+  private isCapValueValid(value: number): boolean {
+    return value >= MIN_DAILY_CAP && value <= MAX_DAILY_CAP;
   }
 
   protected canConfirmDispatch(): boolean {

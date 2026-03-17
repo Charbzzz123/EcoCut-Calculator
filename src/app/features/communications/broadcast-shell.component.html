@@ -18,12 +18,50 @@
   <section class="broadcast-summary" aria-label="Broadcast metrics">
     <article class="summary-card">
       <p class="summary-card__label">Email cap (daily)</p>
-      <p class="summary-card__value">80</p>
+      <p class="summary-card__value">{{ emailCap() }}</p>
     </article>
     <article class="summary-card">
       <p class="summary-card__label">SMS cap (daily)</p>
-      <p class="summary-card__value">200</p>
+      <p class="summary-card__value">{{ smsCap() }}</p>
     </article>
+  </section>
+
+  <section class="cap-controls" aria-label="Daily cap controls">
+    <button type="button" class="refresh-btn" (click)="openCapEditor()">Modify daily caps</button>
+
+    @if (capEditorOpen()) {
+      <article class="cap-editor">
+        <div class="field-grid">
+          <label class="field">
+            <span>Email cap</span>
+            <input [formControl]="emailCapDraftControl" type="number" min="1" max="5000" />
+          </label>
+          <label class="field">
+            <span>SMS cap</span>
+            <input [formControl]="smsCapDraftControl" type="number" min="1" max="5000" />
+          </label>
+        </div>
+        <div class="override-actions">
+          <button type="button" class="refresh-btn" (click)="requestCapConfirmation()">
+            Review changes
+          </button>
+          <button type="button" class="refresh-btn refresh-btn--ghost" (click)="cancelCapEditor()">
+            Cancel
+          </button>
+        </div>
+        @if (capEditorNotice()) {
+          <p class="validation-banner">{{ capEditorNotice() }}</p>
+        }
+        @if (capConfirmationOpen()) {
+          <p class="validation-banner validation-banner--ok">{{ capEditSummary() }}</p>
+          <div class="override-actions">
+            <button type="button" class="refresh-btn" (click)="applyCapChanges()">
+              Confirm apply
+            </button>
+          </div>
+        }
+      </article>
+    }
   </section>
 
   <aside class="floating-summary" aria-label="Selection snapshot">

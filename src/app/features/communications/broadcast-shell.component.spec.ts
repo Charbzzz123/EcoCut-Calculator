@@ -286,11 +286,54 @@ describe('BroadcastShellComponent', () => {
   });
 
   it('shows validation success and allows manual refresh', () => {
-    const button = fixture.nativeElement.querySelector('.refresh-btn') as HTMLButtonElement;
+    const button = fixture.nativeElement.querySelector(
+      '.board-card .refresh-btn',
+    ) as HTMLButtonElement;
     button.click();
 
     expect(facadeMock.loadRecipients).toHaveBeenCalledTimes(2);
     expect(fixture.nativeElement.textContent).toContain('Dispatch readiness: Ready');
+  });
+
+  it('lets the operator modify daily caps with a confirmation step', () => {
+    const modifyButton = fixture.nativeElement.querySelector(
+      '.cap-controls .refresh-btn',
+    ) as HTMLButtonElement;
+    modifyButton.click();
+    fixture.detectChanges();
+
+    const capInputs = fixture.nativeElement.querySelectorAll(
+      '.cap-editor input[type="number"]',
+    ) as NodeListOf<HTMLInputElement>;
+    capInputs[0].value = '120';
+    capInputs[0].dispatchEvent(new Event('input'));
+    capInputs[1].value = '340';
+    capInputs[1].dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    const capButtons = fixture.nativeElement.querySelectorAll(
+      '.cap-editor .refresh-btn',
+    ) as NodeListOf<HTMLButtonElement>;
+    const reviewButton = Array.from(capButtons).find(
+      (button) => button.textContent?.includes('Review changes') ?? false,
+    ) as HTMLButtonElement;
+    reviewButton.click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Email 80 -> 120 | SMS 200 -> 340');
+
+    const refreshedCapButtons = fixture.nativeElement.querySelectorAll(
+      '.cap-editor .refresh-btn',
+    ) as NodeListOf<HTMLButtonElement>;
+    const confirmButton = Array.from(refreshedCapButtons).find(
+      (button) => button.textContent?.includes('Confirm apply') ?? false,
+    ) as HTMLButtonElement;
+    confirmButton.click();
+    fixture.detectChanges();
+
+    const cardValues = fixture.nativeElement.querySelectorAll('.summary-card__value');
+    expect(cardValues[0].textContent?.trim()).toBe('120');
+    expect(cardValues[1].textContent?.trim()).toBe('340');
   });
 
   it('confirms channel selection and asks for reconfirmation when changed', () => {
