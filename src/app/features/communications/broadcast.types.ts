@@ -28,7 +28,14 @@ export interface BroadcastExclusionSummary {
   excludedForSelectedChannel: number;
 }
 
-export type BroadcastTemplateTarget = 'emailSubject' | 'emailBody' | 'smsBody';
+export type BroadcastTemplateTarget =
+  | 'emailSubject'
+  | 'emailBody'
+  | 'smsBody'
+  | 'internalNote'
+  | 'overrideSubject'
+  | 'overrideEmailBody'
+  | 'overrideSmsBody';
 
 export interface BroadcastTemplates {
   emailSubject: string;

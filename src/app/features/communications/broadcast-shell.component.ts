@@ -80,6 +80,34 @@ export class BroadcastShellComponent implements OnInit {
   protected readonly confirmationOpen = this.facade.confirmationOpen;
   protected readonly confirmationPayload = this.facade.confirmationPayload;
   protected readonly statusBanner = this.facade.statusBanner;
+  private lastTemplateTarget: BroadcastTemplateTarget = 'emailBody';
+  private readonly cursorByTarget: Record<BroadcastTemplateTarget, { start: number; end: number }> = {
+    emailSubject: { start: this.emailSubjectControl.value.length, end: this.emailSubjectControl.value.length },
+    emailBody: { start: this.emailBodyControl.value.length, end: this.emailBodyControl.value.length },
+    smsBody: { start: this.smsBodyControl.value.length, end: this.smsBodyControl.value.length },
+    internalNote: { start: this.internalNoteControl.value.length, end: this.internalNoteControl.value.length },
+    overrideSubject: {
+      start: this.overrideSubjectControl.value.length,
+      end: this.overrideSubjectControl.value.length,
+    },
+    overrideEmailBody: {
+      start: this.overrideEmailBodyControl.value.length,
+      end: this.overrideEmailBodyControl.value.length,
+    },
+    overrideSmsBody: {
+      start: this.overrideSmsBodyControl.value.length,
+      end: this.overrideSmsBodyControl.value.length,
+    },
+  };
+  private readonly templateControlByTarget: Record<BroadcastTemplateTarget, FormControl<string>> = {
+    emailSubject: this.emailSubjectControl,
+    emailBody: this.emailBodyControl,
+    smsBody: this.smsBodyControl,
+    internalNote: this.internalNoteControl,
+    overrideSubject: this.overrideSubjectControl,
+    overrideEmailBody: this.overrideEmailBodyControl,
+    overrideSmsBody: this.overrideSmsBodyControl,
+  };
   /* c8 ignore next */
   protected readonly audiencePreviewRows = computed<AudiencePreviewRow[]>(() =>
     this.filteredRecipients().map((client) => {
@@ -215,8 +243,54 @@ export class BroadcastShellComponent implements OnInit {
     };
   }
 
-  protected insertMergeField(target: BroadcastTemplateTarget, token: string): void {
-    this.facade.insertMergeField(target, token);
+  protected insertMergeField(token: string, explicitTarget?: BroadcastTemplateTarget): void {
+    const target = explicitTarget ?? this.lastTemplateTarget;
+    const cursor = this.cursorByTarget[target];
+    this.insertTokenAtTarget(target, token, cursor.start, cursor.end);
+  }
+
+  protected onTemplateCursorChange(
+    event: Event,
+    target: BroadcastTemplateTarget,
+  ): void {
+    const element = this.resolveTemplateElement(event.target);
+    if (!element) {
+      return;
+    }
+    this.lastTemplateTarget = target;
+    const start = element.selectionStart ?? element.value.length;
+    const end = element.selectionEnd ?? start;
+    this.cursorByTarget[target] = { start, end };
+  }
+
+  protected onMergeChipDragStart(event: DragEvent, token: string): void {
+    event.dataTransfer?.setData('text/plain', token);
+    event.dataTransfer?.setData('application/ecocut-merge-token', token);
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'copy';
+    }
+  }
+
+  protected onTemplateDragOver(event: DragEvent): void {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'copy';
+    }
+  }
+
+  protected onTemplateDrop(event: DragEvent, target: BroadcastTemplateTarget): void {
+    event.preventDefault();
+    const token =
+      event.dataTransfer?.getData('application/ecocut-merge-token') ??
+      event.dataTransfer?.getData('text/plain') ??
+      '';
+    if (!token.trim()) {
+      return;
+    }
+    const element = this.resolveTemplateElement(event.target);
+    const start = element?.selectionStart ?? this.cursorByTarget[target].start;
+    const end = element?.selectionEnd ?? this.cursorByTarget[target].end;
+    this.insertTokenAtTarget(target, token, start, end);
   }
 
   protected saveOverrideForPreviewClient(): void {
@@ -310,6 +384,50 @@ export class BroadcastShellComponent implements OnInit {
       return null;
     }
     return testReason;
+  }
+
+  private insertTokenAtTarget(
+    target: BroadcastTemplateTarget,
+    token: string,
+    start: number,
+    end: number,
+  ): void {
+    const control = this.templateControlByTarget[target];
+    const value = control.value;
+    const safeStart = this.clampCursor(start, value.length);
+    const safeEnd = this.clampCursor(Math.max(end, safeStart), value.length);
+    const nextValue = `${value.slice(0, safeStart)}${token}${value.slice(safeEnd)}`;
+    const nextCursor = safeStart + token.length;
+    control.setValue(nextValue);
+    this.lastTemplateTarget = target;
+    this.cursorByTarget[target] = { start: nextCursor, end: nextCursor };
+    this.restoreCaret(target, nextCursor);
+  }
+
+  private clampCursor(value: number, max: number): number {
+    return Math.min(Math.max(value, 0), max);
+  }
+
+  private resolveTemplateElement(
+    value: EventTarget | null,
+  ): HTMLInputElement | HTMLTextAreaElement | null {
+    if (value instanceof HTMLInputElement || value instanceof HTMLTextAreaElement) {
+      return value;
+    }
+    return null;
+  }
+
+  private restoreCaret(target: BroadcastTemplateTarget, cursor: number): void {
+    queueMicrotask(() => {
+      const element = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+        `[data-merge-target="${target}"]`,
+      );
+      if (!element) {
+        return;
+      }
+      element.focus();
+      element.setSelectionRange(cursor, cursor);
+    });
   }
 
   private hasScheduledTimestamp(): boolean {

@@ -18,6 +18,7 @@ import type {
   BroadcastSmsMetrics,
   ServiceWindow,
   BroadcastTemplates,
+  BroadcastTemplateTarget,
   UpcomingWindow,
 } from './broadcast.types.js';
 
@@ -142,7 +143,7 @@ const createFacadeMock = () => {
     { id: 'none', label: 'No segment rule' },
     { id: 'high-frequency', label: 'High-frequency clients (3+ jobs)' },
   ]);
-  const insertMergeField = vi.fn<(target: 'emailSubject' | 'emailBody' | 'smsBody', token: string) => void>();
+  const insertMergeField = vi.fn<(target: BroadcastTemplateTarget, token: string) => void>();
   const saveOverrideForPreviewClient = vi.fn<() => void>();
   const clearOverrideForPreviewClient = vi.fn<() => void>();
   const confirmationOpen = signal(false);
@@ -243,7 +244,7 @@ const createFacadeMock = () => {
     confirmationPayload: ReturnType<typeof signal<BroadcastConfirmationPayload | null>>;
     statusBanner: ReturnType<typeof signal<string | null>>;
     loadRecipients: ReturnType<typeof vi.fn<() => Promise<void>>>;
-    insertMergeField: ReturnType<typeof vi.fn<(target: 'emailSubject' | 'emailBody' | 'smsBody', token: string) => void>>;
+    insertMergeField: ReturnType<typeof vi.fn<(target: BroadcastTemplateTarget, token: string) => void>>;
     saveOverrideForPreviewClient: ReturnType<typeof vi.fn<() => void>>;
     clearOverrideForPreviewClient: ReturnType<typeof vi.fn<() => void>>;
     openTestConfirmation: ReturnType<typeof vi.fn<() => void>>;
@@ -417,11 +418,27 @@ describe('BroadcastShellComponent', () => {
     mergeChip.click();
     fixture.detectChanges();
 
-    expect(facadeMock.insertMergeField).toHaveBeenCalledWith('emailBody', '{{firstName}}');
+    expect(facadeMock.emailBodyControl.value).toContain('Hi {{firstName}}{{firstName}}');
     expect(smsCounter.textContent).toContain('11 chars / 1 segment');
     expect(preview.textContent).toContain('Alex North');
     expect(preview.textContent).toContain('Base template');
     expect(preview.textContent).toContain('EcoCut update for Alex');
+  });
+
+  it('inserts merge token at the last focused cursor position', () => {
+    const subjectInput = fixture.nativeElement.querySelector(
+      'input[data-merge-target="emailSubject"]',
+    ) as HTMLInputElement;
+    subjectInput.focus();
+    subjectInput.setSelectionRange(0, 0);
+    subjectInput.dispatchEvent(new Event('focus'));
+    fixture.detectChanges();
+
+    const mergeChip = fixture.nativeElement.querySelector('.merge-chip') as HTMLButtonElement;
+    mergeChip.click();
+    fixture.detectChanges();
+
+    expect(facadeMock.emailSubjectControl.value).toBe('{{firstName}}EcoCut update for {{firstName}}');
   });
 
   it('calls override actions from the composer', () => {
@@ -595,6 +612,53 @@ describe('BroadcastShellComponent', () => {
     facadeMock.testPhoneControl.setValue('43880');
     component['onTestPhoneInput']();
     expect(facadeMock.testPhoneControl.value).toBe('(438) 80');
+  });
+
+  it('supports drag and drop merge insertion on logical fields', () => {
+    const component = fixture.componentInstance as BroadcastShellComponent;
+    const emailBody = fixture.nativeElement.querySelector(
+      'textarea[data-merge-target="emailBody"]',
+    ) as HTMLTextAreaElement;
+
+    emailBody.focus();
+    emailBody.setSelectionRange(0, 0);
+    emailBody.dispatchEvent(new Event('focus'));
+    fixture.detectChanges();
+
+    const dragPayload = {
+      getData: vi.fn((type: string) => (type === 'application/ecocut-merge-token' ? '{{address}}' : '')),
+      setData: vi.fn(),
+      effectAllowed: 'copy',
+      dropEffect: 'copy',
+    };
+
+    component['onMergeChipDragStart']({ dataTransfer: dragPayload } as unknown as DragEvent, '{{address}}');
+    expect(dragPayload.setData).toHaveBeenCalledWith('text/plain', '{{address}}');
+    expect(dragPayload.setData).toHaveBeenCalledWith('application/ecocut-merge-token', '{{address}}');
+
+    component['onTemplateDrop'](
+      {
+        preventDefault: vi.fn(),
+        target: emailBody,
+        dataTransfer: dragPayload,
+      } as unknown as DragEvent,
+      'emailBody',
+    );
+
+    expect(facadeMock.emailBodyControl.value.startsWith('{{address}}')).toBe(true);
+
+    const current = facadeMock.emailBodyControl.value;
+    component['onTemplateDrop'](
+      {
+        preventDefault: vi.fn(),
+        target: emailBody,
+        dataTransfer: {
+          getData: vi.fn(() => ''),
+        },
+      } as unknown as DragEvent,
+      'emailBody',
+    );
+    expect(facadeMock.emailBodyControl.value).toBe(current);
   });
 
   it('navigates preview recipients with previous/next controls', () => {

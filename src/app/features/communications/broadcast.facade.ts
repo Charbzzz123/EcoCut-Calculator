@@ -715,6 +715,18 @@ export class BroadcastFacade {
     if (target === 'emailSubject') {
       return this.emailSubjectControl;
     }
+    if (target === 'internalNote') {
+      return this.internalNoteControl;
+    }
+    if (target === 'overrideSubject') {
+      return this.overrideSubjectControl;
+    }
+    if (target === 'overrideEmailBody') {
+      return this.overrideEmailBodyControl;
+    }
+    if (target === 'overrideSmsBody') {
+      return this.overrideSmsBodyControl;
+    }
     if (target === 'smsBody') {
       return this.smsBodyControl;
     }

@@ -220,10 +220,12 @@
           <button
             type="button"
             class="merge-chip"
-            (click)="insertMergeField('emailBody', field.token)"
+            draggable="true"
+            (dragstart)="onMergeChipDragStart($event, field.token)"
+            (click)="insertMergeField(field.token)"
             [title]="'Fallback: ' + field.fallbackLabel"
           >
-            {{ field.token }}
+            {{ field.label }}
           </button>
         }
       </div>
@@ -258,7 +260,18 @@
       <div class="field-grid composer-grid">
         <label class="field">
           <span>Email subject</span>
-          <input [formControl]="emailSubjectControl" type="text" placeholder="Subject line" />
+          <input
+            [formControl]="emailSubjectControl"
+            type="text"
+            placeholder="Subject line"
+            data-merge-target="emailSubject"
+            (focus)="onTemplateCursorChange($event, 'emailSubject')"
+            (click)="onTemplateCursorChange($event, 'emailSubject')"
+            (keyup)="onTemplateCursorChange($event, 'emailSubject')"
+            (select)="onTemplateCursorChange($event, 'emailSubject')"
+            (dragover)="onTemplateDragOver($event)"
+            (drop)="onTemplateDrop($event, 'emailSubject')"
+          />
         </label>
         <label class="field">
           <span>CTA link (optional)</span>
@@ -272,6 +285,13 @@
           [formControl]="emailBodyControl"
           rows="6"
           placeholder="Write your email message using merge fields."
+          data-merge-target="emailBody"
+          (focus)="onTemplateCursorChange($event, 'emailBody')"
+          (click)="onTemplateCursorChange($event, 'emailBody')"
+          (keyup)="onTemplateCursorChange($event, 'emailBody')"
+          (select)="onTemplateCursorChange($event, 'emailBody')"
+          (dragover)="onTemplateDragOver($event)"
+          (drop)="onTemplateDrop($event, 'emailBody')"
         ></textarea>
       </label>
 
@@ -281,6 +301,13 @@
           [formControl]="smsBodyControl"
           rows="3"
           placeholder="Write your SMS message using merge fields."
+          data-merge-target="smsBody"
+          (focus)="onTemplateCursorChange($event, 'smsBody')"
+          (click)="onTemplateCursorChange($event, 'smsBody')"
+          (keyup)="onTemplateCursorChange($event, 'smsBody')"
+          (select)="onTemplateCursorChange($event, 'smsBody')"
+          (dragover)="onTemplateDragOver($event)"
+          (drop)="onTemplateDrop($event, 'smsBody')"
         ></textarea>
       </label>
 
@@ -294,6 +321,13 @@
           [formControl]="internalNoteControl"
           rows="2"
           placeholder="Operator notes for this campaign."
+          data-merge-target="internalNote"
+          (focus)="onTemplateCursorChange($event, 'internalNote')"
+          (click)="onTemplateCursorChange($event, 'internalNote')"
+          (keyup)="onTemplateCursorChange($event, 'internalNote')"
+          (select)="onTemplateCursorChange($event, 'internalNote')"
+          (dragover)="onTemplateDragOver($event)"
+          (drop)="onTemplateDrop($event, 'internalNote')"
         ></textarea>
       </label>
 
@@ -333,15 +367,45 @@
           </p>
           <label class="field">
             <span>Override subject (optional)</span>
-            <input [formControl]="overrideSubjectControl" type="text" />
+            <input
+              [formControl]="overrideSubjectControl"
+              type="text"
+              data-merge-target="overrideSubject"
+              (focus)="onTemplateCursorChange($event, 'overrideSubject')"
+              (click)="onTemplateCursorChange($event, 'overrideSubject')"
+              (keyup)="onTemplateCursorChange($event, 'overrideSubject')"
+              (select)="onTemplateCursorChange($event, 'overrideSubject')"
+              (dragover)="onTemplateDragOver($event)"
+              (drop)="onTemplateDrop($event, 'overrideSubject')"
+            />
           </label>
           <label class="field">
             <span>Override email body (optional)</span>
-            <textarea [formControl]="overrideEmailBodyControl" rows="3"></textarea>
+            <textarea
+              [formControl]="overrideEmailBodyControl"
+              rows="3"
+              data-merge-target="overrideEmailBody"
+              (focus)="onTemplateCursorChange($event, 'overrideEmailBody')"
+              (click)="onTemplateCursorChange($event, 'overrideEmailBody')"
+              (keyup)="onTemplateCursorChange($event, 'overrideEmailBody')"
+              (select)="onTemplateCursorChange($event, 'overrideEmailBody')"
+              (dragover)="onTemplateDragOver($event)"
+              (drop)="onTemplateDrop($event, 'overrideEmailBody')"
+            ></textarea>
           </label>
           <label class="field">
             <span>Override SMS body (optional)</span>
-            <textarea [formControl]="overrideSmsBodyControl" rows="2"></textarea>
+            <textarea
+              [formControl]="overrideSmsBodyControl"
+              rows="2"
+              data-merge-target="overrideSmsBody"
+              (focus)="onTemplateCursorChange($event, 'overrideSmsBody')"
+              (click)="onTemplateCursorChange($event, 'overrideSmsBody')"
+              (keyup)="onTemplateCursorChange($event, 'overrideSmsBody')"
+              (select)="onTemplateCursorChange($event, 'overrideSmsBody')"
+              (dragover)="onTemplateDragOver($event)"
+              (drop)="onTemplateDrop($event, 'overrideSmsBody')"
+            ></textarea>
           </label>
           <div class="override-actions">
             <button type="button" class="refresh-btn" (click)="saveOverrideForPreviewClient()">
