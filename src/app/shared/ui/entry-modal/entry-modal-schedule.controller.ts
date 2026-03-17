@@ -296,10 +296,25 @@ export class EntryModalScheduleController {
 
   handleManualTimeChange(): void {
     this.selectedSlotId.set(null);
-    this.timelineSelection.set(null);
     this.selectionConflict.set(false);
     this.conflictSummary.set(null);
     this.conflictConfirmed.set(false);
+    const { startTime, endTime } = this.deps.calendarGroup.getRawValue();
+    if (!startTime || !endTime) {
+      this.timelineSelection.set(null);
+      return;
+    }
+    const startMinutes = this.toTimelineMinutes(startTime);
+    const endMinutes = this.toTimelineMinutes(endTime);
+    if (endMinutes <= startMinutes) {
+      this.timelineSelection.set(null);
+      this.evaluateConflictForCurrentTimeRange();
+      return;
+    }
+    this.timelineSelection.set({
+      startMinutes,
+      endMinutes,
+    });
     this.evaluateConflictForCurrentTimeRange();
   }
 
@@ -499,8 +514,8 @@ export class EntryModalScheduleController {
   }
 
   private setTimelineSelectionFromTimes(startTime: string, endTime: string): void {
-    const start = this.snapToIncrement(this.timeStringToMinutes(startTime));
-    const end = this.snapToIncrement(this.timeStringToMinutes(endTime));
+    const start = this.toTimelineMinutes(startTime);
+    const end = this.toTimelineMinutes(endTime);
     this.timelineSelection.set({ startMinutes: start, endMinutes: end });
     this.evaluateTimelineConflict(start, end);
   }
@@ -522,8 +537,8 @@ export class EntryModalScheduleController {
       this.conflictConfirmed.set(false);
       return;
     }
-    const start = this.timeStringToMinutes(startTime);
-    const end = this.timeStringToMinutes(endTime);
+    const start = this.toTimelineMinutes(startTime);
+    const end = this.toTimelineMinutes(endTime);
     this.evaluateTimelineConflict(start, end);
   }
 
@@ -848,6 +863,11 @@ export class EntryModalScheduleController {
 
   private snapToIncrement(minutes: number): number {
     return Math.round(minutes / TIMELINE_INCREMENT) * TIMELINE_INCREMENT;
+  }
+
+  private toTimelineMinutes(time: string): number {
+    const minutes = this.snapToIncrement(this.timeStringToMinutes(time));
+    return this.clampTimelineMinutes(minutes + TIMELINE_SELECTION_OFFSET);
   }
 
   applySelectionOffset(startMinutes: number, endMinutes: number): { start: number; end: number } {

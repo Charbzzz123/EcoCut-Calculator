@@ -214,14 +214,30 @@ describe('EntryModalScheduleController', () => {
     expect(deps.calendarService.updateEvent).not.toHaveBeenCalled();
   });
 
-  it('clears slot selections and conflicts when manually editing times', () => {
+  it('syncs timeline selection and clears slot state when manually editing times', () => {
     (deps.controller as unknown as { selectedSlotId: { set(value: string | null): void } }).selectedSlotId.set('slot-10');
     (deps.controller as unknown as { selectionConflict: { set(value: boolean): void } }).selectionConflict.set(true);
+    deps.calendarGroup.controls.startTime.setValue('15:15');
+    deps.calendarGroup.controls.endTime.setValue('15:45');
 
     deps.controller.handleManualTimeChange();
 
     expect(deps.controller.selectedSlotIdSignal()()).toBeNull();
     expect(deps.controller.selectionConflictSignal()()).toBe(false);
+    expect(deps.controller.timelineSelectionSignal()()).toEqual({
+      startMinutes: 930,
+      endMinutes: 960,
+    });
+  });
+
+  it('clears the timeline selection when manual times are incomplete', () => {
+    deps.controller.applyTimelineSelectionMinutes(540, 600);
+    deps.calendarGroup.controls.startTime.setValue('14:00');
+    deps.calendarGroup.controls.endTime.setValue('');
+
+    deps.controller.handleManualTimeChange();
+
+    expect(deps.controller.timelineSelectionSignal()()).toBeNull();
   });
 
   it('refreshes events for a date and preserves the editing reference', async () => {
