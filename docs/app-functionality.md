@@ -261,6 +261,7 @@ Update this document whenever we clarify rules or add new functionality so imple
   - Preview supports selecting a specific client to render the exact final message after merge fields and fallback values are applied (implemented).
   - Preview navigation now includes `Previous` / `Next` controls so operators can scan multiple recipients without reopening dropdowns.
   - Layer stack is now live (implemented): base template + channel variant + segment rule + per-client override, with deterministic priority `override > segment > channel > base` and an active-layer list visible in the UI.
+  - The send panel now includes a live **Estimated cost (CAD)** block showing email recipients, SMS recipients/segments, and total estimated send cost before confirmation.
   - **Send test** is live (implemented): owner/manager can target test email/SMS destinations and confirm before queueing.
   - **Schedule send** is live (implemented): dispatch can be `Send now` or `Schedule for later` via timestamp input.
   - Confirmation modal is live (implemented): shows mode, channel, recipient count, and selected schedule before final action.

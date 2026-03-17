@@ -549,4 +549,31 @@ describe('BroadcastShellComponent', () => {
     const heading = fixture.nativeElement.querySelector('.confirmation-modal h2') as HTMLElement;
     expect(heading.textContent).toContain('Confirm test send');
   });
+
+  it('computes campaign cost estimates per channel', () => {
+    const component = fixture.componentInstance as BroadcastShellComponent;
+
+    facadeMock.channelControl.setValue('email');
+    fixture.detectChanges();
+    expect(component['costEstimate']().emailRecipients).toBe(2);
+    expect(component['costEstimate']().smsRecipients).toBe(0);
+
+    facadeMock.smsMetrics.set({ characters: 350, segments: 3 });
+    facadeMock.channelControl.setValue('sms');
+    fixture.detectChanges();
+    expect(component['costEstimate']().smsRecipients).toBe(2);
+    expect(component['costEstimate']().smsSegmentsTotal).toBe(6);
+
+    facadeMock.channelControl.setValue('both');
+    fixture.detectChanges();
+    expect(component['costEstimate']().emailRecipients).toBe(1);
+    expect(component['costEstimate']().smsRecipients).toBe(1);
+  });
+
+  it('renders the estimated campaign pricing panel', () => {
+    const panel = fixture.nativeElement.querySelector('.cost-estimate') as HTMLElement;
+    expect(panel.textContent).toContain('Estimated cost (CAD)');
+    expect(panel.textContent).toContain('Total estimate');
+    expect(panel.textContent).toContain('Estimate only.');
+  });
 });

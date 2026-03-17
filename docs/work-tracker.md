@@ -60,7 +60,7 @@ Living checklist for in-flight feature work so we never lose track of what€™
 | Broadcast Phase 7D provider webhook adapters + signature validation  | 2026-03-17 | Added provider-specific webhook route (`/communications/webhooks/delivery/:provider`), normalized Quo/Hostinger payload mapping, and HMAC signature checks when webhook secrets are configured.                                       |
 | Broadcast Phase 7E durable communications persistence                | 2026-03-17 | Campaigns, pending approvals, audit timeline, analytics events, and suppression lists now persist to SQLite (`COMMUNICATIONS_DB_PATH`) so state survives restarts.                                                                    |
 | Broadcast Phase 8A rollout gate automation + e2e smoke suite         | 2026-03-17 | Added `npm run check:rollout`, communications e2e coverage (`server/test/communications.e2e-spec.ts`), and a release checklist (`docs/release-checklist.md`) for staging and production sign-off.                                     |
-| Broadcast UX polish (audience + safety workflow)                     | 2026-03-17 | Added recipient eligibility badges, cleaner themed scroll/checkbox controls, preview next/previous navigation, and send-readiness checklist + blocking reasons so operators can validate campaigns faster.                            |
+| Broadcast UX polish (audience + safety workflow)                     | 2026-03-17 | Added recipient eligibility badges, cleaner themed scroll/checkbox controls, preview next/previous navigation, send-readiness checklist + blocking reasons, and a live pre-send cost estimate panel (CAD) for email/SMS campaigns.    |
 
 ## In Progress / Backlog
 

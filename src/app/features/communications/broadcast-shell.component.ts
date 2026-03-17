@@ -5,7 +5,10 @@ import type { ClientSummary } from '@shared/domain/entry/entry-repository.servic
 import { BackChipComponent } from '@shared/ui/back-chip/back-chip.component.js';
 import { BrandBannerComponent } from '@shared/ui/brand-banner/brand-banner.component.js';
 import { BroadcastFacade } from './broadcast.facade.js';
-import type { BroadcastTemplateTarget } from './broadcast.types.js';
+import type { BroadcastCostEstimate, BroadcastTemplateTarget } from './broadcast.types.js';
+
+const EMAIL_ESTIMATE_COST = 0;
+const SMS_ESTIMATE_COST = 0.02;
 
 interface AudiencePreviewRow {
   client: ClientSummary;
@@ -80,6 +83,42 @@ export class BroadcastShellComponent implements OnInit {
       return { client, channelLabel: 'Missing channel', channelClass: 'none' as const };
     }),
   );
+  protected costEstimate(): BroadcastCostEstimate {
+    const counts = this.counts();
+    const channel = this.channelControl.value;
+    const smsSegmentsPerRecipient = Math.max(this.smsMetrics().segments, 1);
+
+    const emailRecipients =
+      channel === 'email'
+        ? counts.emailEligible
+        : channel === 'both'
+          ? counts.bothEligible
+          : 0;
+
+    const smsRecipients =
+      channel === 'sms'
+        ? counts.smsEligible
+        : channel === 'both'
+          ? counts.bothEligible
+          : 0;
+
+    const smsSegmentsTotal = smsRecipients * smsSegmentsPerRecipient;
+    const emailEstimatedCost = emailRecipients * EMAIL_ESTIMATE_COST;
+    const smsEstimatedCost = smsSegmentsTotal * SMS_ESTIMATE_COST;
+    const totalEstimatedCost = emailEstimatedCost + smsEstimatedCost;
+
+    return {
+      emailRecipients,
+      smsRecipients,
+      smsSegmentsPerRecipient,
+      smsSegmentsTotal,
+      emailUnitCost: EMAIL_ESTIMATE_COST,
+      smsUnitCost: SMS_ESTIMATE_COST,
+      emailEstimatedCost,
+      smsEstimatedCost,
+      totalEstimatedCost,
+    };
+  }
   ngOnInit(): void {
     void this.facade.loadRecipients();
   }
@@ -222,6 +261,15 @@ export class BroadcastShellComponent implements OnInit {
 
   protected canGoToNextPreview(): boolean {
     return this.canMovePreview(1);
+  }
+
+  protected formatCurrency(value: number): string {
+    return new Intl.NumberFormat('en-CA', {
+      style: 'currency',
+      currency: 'CAD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
   }
 
   private canMovePreview(offset: -1 | 1): boolean {

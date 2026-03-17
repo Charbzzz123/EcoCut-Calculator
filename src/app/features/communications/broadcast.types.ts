@@ -72,3 +72,15 @@ export interface BroadcastConfirmationPayload {
   recipients: number;
   scheduledAtLabel: string;
 }
+
+export interface BroadcastCostEstimate {
+  emailRecipients: number;
+  smsRecipients: number;
+  smsSegmentsPerRecipient: number;
+  smsSegmentsTotal: number;
+  emailUnitCost: number;
+  smsUnitCost: number;
+  emailEstimatedCost: number;
+  smsEstimatedCost: number;
+  totalEstimatedCost: number;
+}

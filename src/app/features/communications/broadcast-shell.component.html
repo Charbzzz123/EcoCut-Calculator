@@ -331,6 +331,31 @@
             </li>
           }
         </ul>
+        <section class="cost-estimate" aria-label="Estimated campaign pricing">
+          <h4>Estimated cost (CAD)</h4>
+          <ul class="cost-estimate__list">
+            <li>
+              Email recipients: {{ costEstimate().emailRecipients }}
+              <span>{{ formatCurrency(costEstimate().emailEstimatedCost) }}</span>
+            </li>
+            <li>
+              SMS recipients: {{ costEstimate().smsRecipients }}
+              <span>
+                {{ formatCurrency(costEstimate().smsEstimatedCost) }}
+                ({{ costEstimate().smsSegmentsTotal }} seg @
+                {{ formatCurrency(costEstimate().smsUnitCost) }})
+              </span>
+            </li>
+            <li class="cost-estimate__total">
+              Total estimate
+              <span>{{ formatCurrency(costEstimate().totalEstimatedCost) }}</span>
+            </li>
+          </ul>
+          <p class="cost-estimate__note">
+            Estimate only. Final provider billing may vary slightly by carrier routing and message
+            encoding.
+          </p>
+        </section>
         <div class="field-grid composer-grid">
           <label class="field">
             <span>Schedule mode</span>
