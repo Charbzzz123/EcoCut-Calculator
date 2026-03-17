@@ -151,7 +151,7 @@ const createFacadeMock = () => {
   const openTestConfirmation = vi.fn<() => void>();
   const openDispatchConfirmation = vi.fn<() => void>();
   const closeConfirmation = vi.fn<() => void>();
-  const confirmCurrentAction = vi.fn<() => void>();
+  const confirmCurrentAction = vi.fn<() => Promise<void>>().mockResolvedValue();
 
   return {
     queryControl,
@@ -249,7 +249,7 @@ const createFacadeMock = () => {
     openTestConfirmation: ReturnType<typeof vi.fn<() => void>>;
     openDispatchConfirmation: ReturnType<typeof vi.fn<() => void>>;
     closeConfirmation: ReturnType<typeof vi.fn<() => void>>;
-    confirmCurrentAction: ReturnType<typeof vi.fn<() => void>>;
+    confirmCurrentAction: ReturnType<typeof vi.fn<() => Promise<void>>>;
   };
 };
 

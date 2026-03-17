@@ -9,4 +9,3 @@ import { EntriesService } from './entries.service';
   exports: [EntriesService],
 })
 export class EntriesModule {}
-

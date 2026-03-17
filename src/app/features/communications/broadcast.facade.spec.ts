@@ -1,6 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { EntryRepositoryService, type ClientSummary } from '@shared/domain/entry/entry-repository.service.js';
+import {
+  type BroadcastDispatchRequest,
+  BroadcastDeliveryService,
+  type BroadcastDeliveryResult,
+  type BroadcastTestRequest,
+} from '@shared/domain/communications/broadcast-delivery.service.js';
 import { BroadcastFacade } from './broadcast.facade.js';
 
 const daysAgo = (days: number): string => {
@@ -83,10 +89,34 @@ const edgeCaseClientsFixture: ClientSummary[] = [
 
 describe('BroadcastFacade', () => {
   const listClients = vi.fn<() => Promise<ClientSummary[]>>();
+  const sendTest = vi.fn<(payload: BroadcastTestRequest) => Promise<BroadcastDeliveryResult>>();
+  const dispatch = vi.fn<(payload: BroadcastDispatchRequest) => Promise<BroadcastDeliveryResult>>();
 
   beforeEach(() => {
     vi.useFakeTimers();
     listClients.mockReset();
+    sendTest.mockReset();
+    dispatch.mockReset();
+    sendTest.mockResolvedValue({
+      campaignId: 'test-campaign',
+      status: 'completed',
+      stats: {
+        recipients: 1,
+        attempted: 1,
+        sent: 1,
+        failed: 0,
+      },
+    });
+    dispatch.mockImplementation(async (payload: BroadcastDispatchRequest): Promise<BroadcastDeliveryResult> => ({
+      campaignId: 'dispatch-campaign',
+      status: payload.scheduleMode === 'later' ? 'scheduled' : 'completed',
+      stats: {
+        recipients: payload.recipients.length,
+        attempted: payload.recipients.length,
+        sent: payload.recipients.length,
+        failed: 0,
+      },
+    }));
     TestBed.configureTestingModule({
       providers: [
         BroadcastFacade,
@@ -95,6 +125,13 @@ describe('BroadcastFacade', () => {
           useValue: {
             listClients,
           } satisfies Partial<EntryRepositoryService>,
+        },
+        {
+          provide: BroadcastDeliveryService,
+          useValue: {
+            sendTest,
+            dispatch,
+          } satisfies Partial<BroadcastDeliveryService>,
         },
       ],
     });
@@ -516,7 +553,8 @@ describe('BroadcastFacade', () => {
       scheduledAtLabel: '2026-07-01T09:30',
     });
 
-    facade.confirmCurrentAction();
+    await facade.confirmCurrentAction();
+    expect(dispatch).toHaveBeenCalledTimes(1);
     expect(facade.confirmationOpen()).toBe(false);
     expect(facade.confirmationPayload()).toBeNull();
     expect(facade.statusBanner()).toContain('Broadcast scheduled for 3 recipients');
@@ -529,7 +567,8 @@ describe('BroadcastFacade', () => {
 
     facade.scheduleModeControl.setValue('now');
     facade.openDispatchConfirmation();
-    facade.confirmCurrentAction();
+    await facade.confirmCurrentAction();
+    expect(dispatch).toHaveBeenCalledTimes(1);
 
     expect(facade.statusBanner()).toContain('Broadcast queued for 3 recipients');
   });
@@ -568,13 +607,15 @@ describe('BroadcastFacade', () => {
       recipients: 1,
       scheduledAtLabel: 'Send now',
     });
-    facade.confirmCurrentAction();
+    await facade.confirmCurrentAction();
+    expect(sendTest).toHaveBeenCalledTimes(1);
     expect(facade.statusBanner()).toContain('owner@ecocutqc.com');
 
     facade.channelControl.setValue('sms');
     facade.testPhoneControl.setValue('(514) 555-0000');
     facade.openTestConfirmation();
-    facade.confirmCurrentAction();
+    await facade.confirmCurrentAction();
+    expect(sendTest).toHaveBeenCalledTimes(2);
     expect(facade.statusBanner()).toContain('(514) 555-0000');
 
     facade.channelControl.setValue('both');
@@ -595,7 +636,8 @@ describe('BroadcastFacade', () => {
     facade.testEmailControl.setValue('owner@ecocutqc.com');
     facade.testPhoneControl.setValue('(514) 555-0000');
     facade.openTestConfirmation();
-    facade.confirmCurrentAction();
+    await facade.confirmCurrentAction();
+    expect(sendTest).toHaveBeenCalledTimes(1);
 
     expect(facade.statusBanner()).toContain('owner@ecocutqc.com + (514) 555-0000');
   });
@@ -611,8 +653,24 @@ describe('BroadcastFacade', () => {
     expect(facade.confirmationOpen()).toBe(false);
     expect(facade.confirmationPayload()).toBeNull();
 
-    facade.confirmCurrentAction();
+    await facade.confirmCurrentAction();
     expect(facade.statusBanner()).toBeNull();
+  });
+
+  it('surfaces a user-facing error message when delivery API calls fail', async () => {
+    listClients.mockResolvedValue(clientsFixture);
+    dispatch.mockRejectedValue(new Error('network down'));
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const facade = TestBed.inject(BroadcastFacade);
+    await facade.loadRecipients();
+
+    facade.openDispatchConfirmation();
+    await facade.confirmCurrentAction();
+
+    expect(facade.statusBanner()).toBe(
+      'Broadcast action failed. Check provider configuration and retry.',
+    );
+    expect(warnSpy).toHaveBeenCalledWith('Failed to execute broadcast action', expect.any(Error));
   });
 
   it('blocks dispatch confirmation when channel validation is failing', async () => {

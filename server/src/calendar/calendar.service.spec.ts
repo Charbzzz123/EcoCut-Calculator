@@ -146,4 +146,3 @@ describe('CalendarService', () => {
     ).rejects.toThrow('Google Calendar is not configured');
   });
 });
-

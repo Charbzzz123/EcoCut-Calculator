@@ -57,4 +57,3 @@ export interface ClientMatchResult {
   matchedBy: ClientMatchReason;
   descriptor: string;
 }
-

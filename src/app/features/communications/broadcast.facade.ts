@@ -6,6 +6,12 @@ import {
   EntryRepositoryService,
 } from '@shared/domain/entry/entry-repository.service.js';
 import {
+  BroadcastDeliveryService,
+  type BroadcastDispatchRecipient,
+  type BroadcastDispatchRequest,
+  type BroadcastTestRequest,
+} from '@shared/domain/communications/broadcast-delivery.service.js';
+import {
   BroadcastChannel,
   BroadcastConfirmationPayload,
   BroadcastExclusionSummary,
@@ -207,6 +213,7 @@ const segmentRules: SegmentRuleDefinition[] = [
 @Injectable({ providedIn: 'root' })
 export class BroadcastFacade {
   private readonly repository = inject(EntryRepositoryService);
+  private readonly delivery = inject(BroadcastDeliveryService);
 
   readonly queryControl = new FormControl('', { nonNullable: true });
   readonly requireEmailControl = new FormControl(false, { nonNullable: true });
@@ -452,21 +459,35 @@ export class BroadcastFacade {
     this.confirmationPayloadSignal.set(null);
   }
 
-  confirmCurrentAction(): void {
+  async confirmCurrentAction(): Promise<void> {
     const payload = this.confirmationPayloadSignal();
     if (!payload) {
       return;
     }
-    if (payload.mode === 'test') {
+    this.closeConfirmation();
+
+    try {
+      if (payload.mode === 'test') {
+        const request = this.buildTestRequest();
+        const result = await this.delivery.sendTest(request);
+        this.statusBannerSignal.set(
+          `Test message ${result.status === 'scheduled' ? 'scheduled' : 'queued'} for ${this.resolveTestDestinationLabel()} (${payload.channel}).`,
+        );
+        return;
+      }
+
+      const request = this.buildDispatchRequest();
+      const result = await this.delivery.dispatch(request);
+      const state = result.status === 'scheduled' ? 'scheduled' : 'queued';
       this.statusBannerSignal.set(
-        `Test message queued for ${this.resolveTestDestinationLabel()} (${payload.channel}).`,
+        `Broadcast ${state} for ${result.stats.recipients} recipients (${payload.channel}).`,
       );
-    } else {
+    } catch (error) {
+      console.warn('Failed to execute broadcast action', error);
       this.statusBannerSignal.set(
-        `Broadcast ${this.scheduleModeControl.value === 'later' ? 'scheduled' : 'queued'} for ${payload.recipients} recipients (${payload.channel}).`,
+        'Broadcast action failed. Check provider configuration and retry.',
       );
     }
-    this.closeConfirmation();
   }
 
   private updateFilters(partial: Partial<BroadcastFilters>): void {
@@ -517,6 +538,69 @@ export class BroadcastFacade {
       return this.testPhoneControl.value.trim();
     }
     return `${this.testEmailControl.value.trim()} + ${this.testPhoneControl.value.trim()}`;
+  }
+
+  private buildTestRequest(): BroadcastTestRequest {
+    const preview = this.previewPayload();
+    const request: BroadcastTestRequest = {
+      channel: this.selectedChannel(),
+      scheduleMode: this.scheduleModeControl.value,
+      scheduleAt: this.scheduleAtControl.value.trim() || undefined,
+    };
+
+    if (request.channel === 'email' || request.channel === 'both') {
+      request.email = {
+        to: this.testEmailControl.value.trim(),
+        subject: preview.emailSubject,
+        body: preview.emailBody,
+      };
+    }
+    if (request.channel === 'sms' || request.channel === 'both') {
+      request.sms = {
+        to: this.testPhoneControl.value.trim(),
+        body: preview.smsBody,
+      };
+    }
+    return request;
+  }
+
+  private buildDispatchRequest(): BroadcastDispatchRequest {
+    return {
+      channel: this.selectedChannel(),
+      scheduleMode: this.scheduleModeControl.value,
+      scheduleAt: this.scheduleAtControl.value.trim() || undefined,
+      recipients: this.buildDispatchRecipients(),
+    };
+  }
+
+  private buildDispatchRecipients(): BroadcastDispatchRecipient[] {
+    const clients = this.filteredRecipients();
+    const templates = this.templatesSignal();
+    const emailVariant = this.selectedEmailVariantSignal();
+    const smsVariant = this.selectedSmsVariantSignal();
+    const segmentRule = this.selectedSegmentRuleSignal();
+    const overrides = this.overridesSignal();
+
+    return clients.map((client) => {
+      const layered = this.buildLayeredTemplates(
+        templates,
+        client,
+        emailVariant,
+        smsVariant,
+        segmentRule,
+        overrides,
+      );
+
+      return {
+        clientId: client.clientId,
+        clientLabel: client.fullName,
+        email: client.email?.trim() || undefined,
+        phone: hasSmsPhone(client) ? client.phone : undefined,
+        emailSubject: this.applyMergeFields(layered.templates.emailSubject, client),
+        emailBody: this.applyMergeFields(layered.templates.emailBody, client),
+        smsBody: this.applyMergeFields(layered.templates.smsBody, client),
+      };
+    });
   }
 
   private syncPreviewSelection(): void {

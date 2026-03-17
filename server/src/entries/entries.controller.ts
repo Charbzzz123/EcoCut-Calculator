@@ -62,4 +62,3 @@ export class EntriesController {
     return this.entries.findClientMatch(body.form);
   }
 }
-

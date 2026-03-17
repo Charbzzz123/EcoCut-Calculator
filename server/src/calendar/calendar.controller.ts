@@ -48,4 +48,3 @@ export class CalendarController {
     return this.calendarService.updateEvent(eventId, body);
   }
 }
-

@@ -204,4 +204,3 @@ describe('EntriesService', () => {
     expect(result).toBeNull();
   });
 });
-

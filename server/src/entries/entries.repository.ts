@@ -44,7 +44,9 @@ export class EntriesRepository {
       `SELECT payload FROM entries ORDER BY json_extract(payload, '$.createdAt') ASC`,
     );
     this.deleteAllStmt = this.db.prepare('DELETE FROM entries');
-    this.insertStmt = this.db.prepare('INSERT INTO entries (id, payload) VALUES (?, ?)');
+    this.insertStmt = this.db.prepare(
+      'INSERT INTO entries (id, payload) VALUES (?, ?)',
+    );
     this.countStmt = this.db.prepare('SELECT COUNT(*) as total FROM entries');
   }
 
@@ -61,7 +63,7 @@ export class EntriesRepository {
         this.insertStmt.run(entry.id, JSON.stringify(entry));
       }
     });
-    tx(entries);
+    await Promise.resolve(tx(entries));
   }
 
   private async migrateLegacySnapshot(): Promise<void> {

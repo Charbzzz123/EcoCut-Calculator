@@ -262,6 +262,7 @@ Update this document whenever we clarify rules or add new functionality so imple
   - **Schedule send** is live (implemented): dispatch can be `Send now` or `Schedule for later` via timestamp input.
   - Confirmation modal is live (implemented): shows mode, channel, recipient count, and selected schedule before final action.
   - Status banner is live (implemented): success copy confirms whether a test or broadcast was queued/scheduled.
+  - **Backend delivery engine** is live (implemented): confirmation actions now call server endpoints (`POST /communications/test`, `POST /communications/dispatch`) instead of local stubs, and return a campaign status payload used by the UI banner.
 - **Operations history**:
   - List past broadcast jobs with status (`draft`, `scheduled`, `sending`, `sent`, `failed`, `partially sent`), channel, counts, creator, and timestamps.
   - Ability to reopen a draft, duplicate a prior campaign, or cancel a scheduled campaign.
@@ -269,6 +270,7 @@ Update this document whenever we clarify rules or add new functionality so imple
   - Owner can create, schedule, send, cancel, and view analytics.
   - Manager can create drafts and schedule sends but cannot bypass approval if approval mode is enabled.
   - Respect client opt-out flags per channel; suppressed recipients are excluded automatically and shown in summary counts.
+  - Suppression controls are now backed by API endpoints (`POST /communications/suppressions/unsubscribe`, `POST /communications/suppressions/resubscribe`, `GET /communications/suppressions`) so STOP/unsubscribe events can be enforced immediately during dispatch.
   - Persist consent metadata per channel (type, source, timestamp, expiry for implied consent windows) and block recipients whose consent is expired.
   - Every email message includes sender identity and unsubscribe details; one-click unsubscribe headers are required for bulk sends.
   - SMS composer should warn when copy exceeds one segment and clearly show estimated segment/cost impact before send.

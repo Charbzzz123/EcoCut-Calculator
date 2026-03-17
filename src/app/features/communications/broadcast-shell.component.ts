@@ -95,6 +95,6 @@ export class BroadcastShellComponent implements OnInit {
   }
 
   protected confirmCurrentAction(): void {
-    this.facade.confirmCurrentAction();
+    void this.facade.confirmCurrentAction();
   }
 }

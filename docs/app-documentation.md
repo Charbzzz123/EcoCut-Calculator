@@ -52,13 +52,14 @@ root/
 - **Integration**: `HomeShellComponent` imports the modal and toggles it from the floating �Add Entry� CTA. The component emits `EntryModalPayload` with the selected variant, normalized form payload, and hedge configs, which feed the fa�ade/server. Customer submissions automatically create a Google Calendar event via `HomeDataService`, which in turn stores the returned `eventId` back onto the payload so later edits/deletes can call the appropriate proxy endpoint.
 - **Entry persistence client**: `EntryRepositoryService` (`src/app/shared/domain/entry/entry-repository.service.ts`) wraps `/api/entries` and `/api/entries/clients`. `HomeDataService.saveEntry` now awaits this service so every submission is recorded immediately (no more console stub). `listClients()` will power the future CRM dashboard without duplicating HTTP plumbing.
 - **Client roster UI**: `/clients` is backed by `ClientsShellComponent` (standalone) which uses `EntryRepositoryService.listClients()` on init. The view renders summary cards, search/filter controls, and the roster list with dedicated loading/error states. Routes are defined in `app.routes.ts` (lazy loaded via `loadComponent`).
-- **Broadcast UI (Phase 1-5 live)**:
+- **Broadcast UI (Phase 1-6 live)**:
   - `/communications/broadcast` now lazy-loads `BroadcastShellComponent` and reuses the same evergreen shell language as `/clients`.
   - `BroadcastFacade` owns recipient loading, filter controls, channel selection, eligibility counts, exclusion summaries, and dispatch gating (no eligible recipients => dispatch blocked).
   - Phase 3 adds composer controls (`emailSubject`, `emailBody`, `smsBody`, CTA link, internal note), merge-token insertion, per-client preview rendering, and SMS character/segment metrics.
   - Phase 4 adds layered personalization controls: segment-rule selector, channel variant selectors, per-client override editor, and preview trace of active layers with priority `override > segment > channel > base`.
   - Phase 5 adds send controls (`scheduleMode`, `scheduleAt`, `testEmail`, `testPhone`), an accessible confirmation modal (click + keyboard close), and operator status banners for queued/scheduled actions.
-  - Remaining UI slice is broadcast history plus backend-driven delivery state.
+  - Phase 6 wiring is live: confirmation actions call `BroadcastDeliveryService` (`src/app/shared/domain/communications/broadcast-delivery.service.ts`) which posts to `/api/communications/test` and `/api/communications/dispatch`.
+  - Remaining UI slice is broadcast history + compliance/audit controls.
 
 ## Backend Services
 
@@ -73,14 +74,14 @@ root/
   - `GET /entries` � retrieve the append-only job history (same SQLite snapshot) so undo/reporting layers can read the source of truth.
   - `GET /entries/clients` � returns the deduplicated client roster (keyed by email ? phone ? name+address) with `jobsCount`, `lastJobDate`, and `lastCalendarEventId`.
   - Implementation lives in `server/src/entries/` (service, repository, controller, module). The repository handles loading/saving JSON today and can later be swapped for SQLite/Postgres without changing the public API.
-- **Planned broadcast module**:
-  - Expose `/communications/broadcasts` endpoints for draft/create/schedule/send/cancel plus status/history retrieval.
-  - Use provider adapters (`SmsProvider`, `EmailProvider`) so vendor choice stays swappable (Twilio/MessageBird for SMS, SendGrid/Postmark/SES for email).
-  - Queue send jobs server-side (BullMQ or equivalent) for retries, throttling, and deterministic status updates.
-  - Enforce provider limits in workers (Quo API 10 req/s; Hostinger mailbox/day caps) and block jobs that exceed configured daily quotas.
-  - Store consent + suppression state per channel and enforce it before enqueueing each recipient.
-  - Ingest provider/webhook events (delivery, bounce, complaint, STOP/START) to keep status dashboards and suppression data current.
-  - Require idempotency keys on send/schedule operations so retries cannot create duplicate campaigns.
+- **Broadcast module (MVP delivery live)**:
+  - Exposes `POST /communications/test`, `POST /communications/dispatch`, `GET /communications/campaigns`, and `GET /communications/campaigns/:campaignId`.
+  - Phase 7A suppression endpoints are live: `GET /communications/suppressions`, `POST /communications/suppressions/unsubscribe`, `POST /communications/suppressions/resubscribe`.
+  - Uses swappable provider adapters via injection tokens:
+    - `HostingerEmailProvider` (SMTP via Nodemailer)
+    - `QuoSmsProvider` (HTTP API)
+  - `CommunicationsService` applies retry + throttle guards during send loops, skips suppressed recipients by channel, and keeps in-memory campaign status/stats (`recipients`, `attempted`, `sent`, `failed`, `suppressed`) for operator feedback.
+  - Next slices still pending: durable campaign persistence, queue workers, webhook ingestion, consent expiry enforcement, and idempotency keys.
 - **Frontend proxying & dev setup**
   - `npm start` automatically passes `--proxy-config proxy.conf.json`, so `/api/*` traffic goes to `http://localhost:3000/*`. Always run `npm run server` in a second terminal before testing calendar flows locally.
   - When the Nest server or credentials are unavailable the frontend logs the failure (via `console.warn`) and surfaces the inline banner but the form remains usable.
@@ -89,6 +90,8 @@ root/
   | ---- | -------- | ------- |
   | `GOOGLE_CALENDAR_CREDENTIALS_PATH` _or_ `GOOGLE_CALENDAR_CREDENTIALS` | Yes | Points to / contains the service-account JSON for `ecocut-calendar-bot@ecocut-calendar-link.iam.gserviceaccount.com`. JSON files live outside the repo. |
   | `GOOGLE_CALENDAR_ID` | Optional | Overrides the default target calendar (`ecojcut@gmail.com`). |
+  | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` | Required for email sends | Hostinger SMTP credentials used by the communications module. |
+  | `QUO_API_BASE_URL`, `QUO_API_KEY`, `QUO_FROM_NUMBER`, `QUO_FROM_NUMBER_ID`, `QUO_USER_ID` | Required for SMS sends | Quo API configuration used by `QuoSmsProvider`. |
 - Failure to provide credentials disables the calendar module gracefully but the endpoints will throw a clear error�set env vars before local dev or deployments.
 - Use `.env.example` as the template for onboarding; copy it to `.env` (or export variables via your shell profile) and fill in the credential values before running `npm run server`. Never commit the real secrets.
 - Always run backend scripts from `server/` (`npm run start:dev`, `npm run test`, etc.) so node_modules stay isolated.
@@ -129,7 +132,7 @@ All frontend services derive their HTTP targets from `environment.apiBaseUrl`, s
 
 - Replace placeholder Angular template with real calculator components.
 - Extend the `/clients` view into a full CRM (client detail drawer, job history timeline, edit/delete hooks) once backend persistence is durable.
-- Continue `/communications/broadcast` rollout in remaining slices: backend delivery adapters, campaign history, then compliance/audit.
+- Continue `/communications/broadcast` rollout in remaining slices: campaign history UI, compliance/audit, and provider webhook ingestion.
 - Automate documentation publishing (Docs site or wiki) once scope grows.
 
 ## Durable Persistence

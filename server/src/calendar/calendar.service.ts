@@ -152,4 +152,3 @@ export class CalendarService {
     return { calendar, calendarId };
   }
 }
-
