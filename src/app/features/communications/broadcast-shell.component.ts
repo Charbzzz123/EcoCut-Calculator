@@ -31,6 +31,7 @@ interface AudiencePreviewRow {
 export class BroadcastShellComponent implements OnInit {
   private readonly facade = inject(BroadcastFacade);
   private confirmedChannel: BroadcastChannel | null = null;
+  private readonly emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   protected readonly headingId = 'broadcast-heading';
   protected readonly queryControl = this.facade.queryControl;
@@ -227,16 +228,16 @@ export class BroadcastShellComponent implements OnInit {
       return dispatchReason;
     }
     const channel = this.channelControl.value;
-    const hasEmailDestination = this.testEmailControl.value.trim().length > 0;
-    const hasPhoneDestination = this.isSmsCapable(this.testPhoneControl.value);
+    const hasEmailDestination = this.isValidEmailDestination(this.testEmailControl.value);
+    const hasPhoneDestination = this.isValidSmsDestination(this.testPhoneControl.value);
     if (channel === 'email' && !hasEmailDestination) {
-      return 'Add a test email destination.';
+      return 'If you want to send a test, enter a valid test email destination.';
     }
     if (channel === 'sms' && !hasPhoneDestination) {
-      return 'Add a valid test SMS destination.';
+      return 'If you want to send a test, enter a valid test SMS destination.';
     }
     if (channel === 'both' && (!hasEmailDestination || !hasPhoneDestination)) {
-      return 'Add both test email and test SMS destinations.';
+      return 'If you want to send a test, enter valid test email and test SMS destinations.';
     }
     return null;
   }
@@ -278,6 +279,36 @@ export class BroadcastShellComponent implements OnInit {
     return value.replace(/\D/g, '').length >= 10;
   }
 
+  private isValidEmailDestination(value: string): boolean {
+    return this.emailPattern.test(value.trim().toLowerCase());
+  }
+
+  private isValidSmsDestination(value: string): boolean {
+    return this.extractSmsDigits(value).length === 10;
+  }
+
+  private formatPhoneForInput(value: string): string {
+    const digits = this.extractSmsDigits(value);
+    const area = digits.slice(0, 3);
+    const prefix = digits.slice(3, 6);
+    const line = digits.slice(6, 10);
+
+    if (digits.length <= 3) {
+      return area;
+    }
+    if (digits.length <= 6) {
+      return `(${area}) ${prefix}`;
+    }
+    return `(${area}) ${prefix}-${line}`;
+  }
+
+  private extractSmsDigits(value: string): string {
+    const rawDigits = value.replace(/\D/g, '');
+    const withoutCountryCode =
+      rawDigits.length > 10 && rawDigits.startsWith('1') ? rawDigits.slice(1) : rawDigits;
+    return withoutCountryCode.slice(0, 10);
+  }
+
   protected canConfirmDispatch(): boolean {
     return this.dispatchBlockedReason() === null;
   }
@@ -307,6 +338,20 @@ export class BroadcastShellComponent implements OnInit {
 
   protected canGoToNextPreview(): boolean {
     return this.canMovePreview(1);
+  }
+
+  protected onTestEmailInput(): void {
+    const normalized = this.testEmailControl.value.trim().toLowerCase();
+    if (normalized !== this.testEmailControl.value) {
+      this.testEmailControl.setValue(normalized, { emitEvent: false });
+    }
+  }
+
+  protected onTestPhoneInput(): void {
+    const normalized = this.formatPhoneForInput(this.testPhoneControl.value);
+    if (normalized !== this.testPhoneControl.value) {
+      this.testPhoneControl.setValue(normalized, { emitEvent: false });
+    }
   }
 
   protected formatCurrency(value: number): string {

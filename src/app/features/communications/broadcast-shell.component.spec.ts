@@ -444,7 +444,7 @@ describe('BroadcastShellComponent', () => {
     const sendTestButton = actions[0] as HTMLButtonElement;
     expect(sendTestButton.disabled).toBe(true);
     expect(fixture.nativeElement.textContent).toContain(
-      'Add both test email and test SMS destinations.',
+      'If you want to send a test, enter valid test email and test SMS destinations.',
     );
   });
 
@@ -466,19 +466,25 @@ describe('BroadcastShellComponent', () => {
     component['confirmSelectedChannel']();
     facadeMock.emailBodyControl.setValue('Email body');
     facadeMock.testEmailControl.setValue('');
-    expect(component['testBlockedReason']()).toBe('Add a test email destination.');
+    expect(component['testBlockedReason']()).toBe(
+      'If you want to send a test, enter a valid test email destination.',
+    );
 
     facadeMock.channelControl.setValue('sms');
     component['confirmSelectedChannel']();
     facadeMock.smsBodyControl.setValue('SMS body');
     facadeMock.testPhoneControl.setValue('');
-    expect(component['testBlockedReason']()).toBe('Add a valid test SMS destination.');
+    expect(component['testBlockedReason']()).toBe(
+      'If you want to send a test, enter a valid test SMS destination.',
+    );
 
     facadeMock.channelControl.setValue('both');
     component['confirmSelectedChannel']();
     facadeMock.testEmailControl.setValue('owner@ecocutqc.com');
     facadeMock.testPhoneControl.setValue('');
-    expect(component['testBlockedReason']()).toBe('Add both test email and test SMS destinations.');
+    expect(component['testBlockedReason']()).toBe(
+      'If you want to send a test, enter valid test email and test SMS destinations.',
+    );
   });
 
   it('blocks send actions until channel selection is confirmed', () => {
@@ -523,6 +529,26 @@ describe('BroadcastShellComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('Channel confirmed: SMS.');
+  });
+
+  it('normalizes test email and phone inputs to valid format targets', () => {
+    const component = fixture.componentInstance as BroadcastShellComponent;
+
+    facadeMock.testEmailControl.setValue('  OWNER@ecocutqc.com ');
+    component['onTestEmailInput']();
+    expect(facadeMock.testEmailControl.value).toBe('owner@ecocutqc.com');
+
+    facadeMock.testPhoneControl.setValue('+1 (438) 800-7177 ext.99');
+    component['onTestPhoneInput']();
+    expect(facadeMock.testPhoneControl.value).toBe('(438) 800-7177');
+
+    facadeMock.testPhoneControl.setValue('43');
+    component['onTestPhoneInput']();
+    expect(facadeMock.testPhoneControl.value).toBe('43');
+
+    facadeMock.testPhoneControl.setValue('43880');
+    component['onTestPhoneInput']();
+    expect(facadeMock.testPhoneControl.value).toBe('(438) 80');
   });
 
   it('navigates preview recipients with previous/next controls', () => {

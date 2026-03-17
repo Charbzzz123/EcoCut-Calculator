@@ -386,11 +386,25 @@
         <div class="field-grid composer-grid">
           <label class="field">
             <span>Test email destination</span>
-            <input [formControl]="testEmailControl" type="email" placeholder="owner@ecocutqc.com" />
+            <input
+              [formControl]="testEmailControl"
+              type="email"
+              inputmode="email"
+              autocomplete="email"
+              placeholder="owner@ecocutqc.com"
+              (input)="onTestEmailInput()"
+            />
           </label>
           <label class="field">
             <span>Test SMS destination</span>
-            <input [formControl]="testPhoneControl" type="tel" placeholder="(514) 555-0000" />
+            <input
+              [formControl]="testPhoneControl"
+              type="tel"
+              inputmode="tel"
+              autocomplete="tel"
+              placeholder="(514) 555-0000"
+              (input)="onTestPhoneInput()"
+            />
           </label>
         </div>
         <div class="override-actions">
@@ -412,7 +426,9 @@
           </button>
         </div>
         @if (visibleTestBlockedReason()) {
-          <p class="validation-banner">{{ visibleTestBlockedReason() }}</p>
+          <p class="validation-banner validation-banner--advisory">
+            {{ visibleTestBlockedReason() }}
+          </p>
         }
         @if (dispatchBlockedReason()) {
           <p class="validation-banner">{{ dispatchBlockedReason() }}</p>
