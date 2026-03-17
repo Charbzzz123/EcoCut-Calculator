@@ -106,13 +106,14 @@ root/
 
 ## Tooling & Commands
 
-| Purpose      | Frontend Command | Notes                                                |
-| ------------ | ---------------- | ---------------------------------------------------- |
-| Install deps | `npm ci`         | Use `npm.cmd` if execution policy blocks scripts.    |
-| Dev server   | `npm start`      | Opens http://localhost:4200/                         |
-| Build        | `npm run build`  | Outputs to `dist/ecocut-calculator`                  |
-| Unit tests   | `npm run test`   | Launches Angular/Vitest suite (coverage auto-opens). |
-| Lint         | `npm run lint`   | Angular ESLint configuration.                        |
+| Purpose      | Frontend Command        | Notes                                                                |
+| ------------ | ----------------------- | -------------------------------------------------------------------- |
+| Install deps | `npm ci`                | Use `npm.cmd` if execution policy blocks scripts.                    |
+| Dev server   | `npm start`             | Opens http://localhost:4200/                                         |
+| Build        | `npm run build`         | Outputs to `dist/ecocut-calculator`                                  |
+| Unit tests   | `npm run test`          | Launches Angular/Vitest suite (coverage auto-opens).                 |
+| Lint         | `npm run lint`          | Angular ESLint configuration.                                        |
+| Rollout gate | `npm run check:rollout` | Runs frontend lint/test/build plus server lint/unit/e2e in sequence. |
 
 ## Environments
 
@@ -135,6 +136,7 @@ All frontend services derive their HTTP targets from `environment.apiBaseUrl`, s
 2. Update `docs/app-functionality.md` whenever features are added/modified.
 3. Use this file for architectural notes, environment configs, data flows, and onboarding steps.
 4. Reference the README only for the elevator pitch; keep detailed material here.
+5. Use `docs/release-checklist.md` when executing staging dry-runs and production sign-off.
 
 ## Next Steps
 

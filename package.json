@@ -17,6 +17,7 @@
     "lint:fix": "ng lint --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "check:rollout": "npm run lint:workspace && npm run test:ci && npm run build && cd server && npm run lint && npm run test -- --runInBand && npm run test:e2e",
     "clean": "rimraf dist coverage server/dist server/coverage --glob \"server/data/*.json\"",
     "prepare": "husky",
     "ls": "lint-staged --config lint-staged.config.mjs",
