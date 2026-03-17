@@ -7,6 +7,7 @@ import {
   EventEmitter,
   Input,
   OnChanges,
+  ViewEncapsulation,
   Output,
   SimpleChanges,
   ViewChild,
@@ -17,6 +18,16 @@ interface MergeFieldDescriptor {
   label: string;
 }
 
+interface CaretPositionApi {
+  offsetNode: Node;
+  offset: number;
+}
+
+interface CaretDocumentApi {
+  caretPositionFromPoint?: (x: number, y: number) => CaretPositionApi | null;
+  caretRangeFromPoint?: (x: number, y: number) => Range | null;
+}
+
 @Component({
   selector: 'app-merge-token-editor',
   standalone: true,
@@ -24,6 +35,7 @@ interface MergeFieldDescriptor {
   templateUrl: './merge-token-editor.component.html',
   styleUrl: './merge-token-editor.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.None,
 })
 export class MergeTokenEditorComponent implements OnChanges, AfterViewInit {
   @Input({ required: true }) value = '';
@@ -79,6 +91,7 @@ export class MergeTokenEditorComponent implements OnChanges, AfterViewInit {
     if (event.dataTransfer) {
       event.dataTransfer.dropEffect = 'copy';
     }
+    this.placeCaretFromPointer(event);
   }
 
   protected onEditorDrop(event: DragEvent): void {
@@ -93,6 +106,7 @@ export class MergeTokenEditorComponent implements OnChanges, AfterViewInit {
     const label =
       event.dataTransfer?.getData('application/ecocut-merge-label') ??
       this.resolveLabelFromToken(token);
+    this.placeCaretFromPointer(event);
     this.insertToken(token, label);
   }
 
@@ -127,6 +141,45 @@ export class MergeTokenEditorComponent implements OnChanges, AfterViewInit {
       range.collapse(false);
       selection?.removeAllRanges();
       selection?.addRange(range);
+    }
+  }
+
+  private placeCaretFromPointer(event: DragEvent): void {
+    const editor = this.editorRef?.nativeElement;
+    if (!editor) {
+      return;
+    }
+    const x = event.clientX;
+    const y = event.clientY;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      return;
+    }
+    const docWithCaret = document as Document & CaretDocumentApi;
+    const selection = window.getSelection();
+    if (!selection) {
+      return;
+    }
+
+    if (typeof docWithCaret.caretPositionFromPoint === 'function') {
+      const position = docWithCaret.caretPositionFromPoint(x, y);
+      if (!position || !editor.contains(position.offsetNode)) {
+        return;
+      }
+      const range = document.createRange();
+      range.setStart(position.offsetNode, position.offset);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      return;
+    }
+
+    if (typeof docWithCaret.caretRangeFromPoint === 'function') {
+      const range = docWithCaret.caretRangeFromPoint(x, y);
+      if (!range || !editor.contains(range.startContainer)) {
+        return;
+      }
+      selection.removeAllRanges();
+      selection.addRange(range);
     }
   }
 
