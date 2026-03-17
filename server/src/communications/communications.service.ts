@@ -819,10 +819,17 @@ export class CommunicationsService {
       eventType,
       recipient,
       externalMessageId:
-        this.readString(data.messageId) ?? this.readString(data.id),
+        this.readString(data.messageId) ??
+        this.readString(data.id) ??
+        undefined,
       occurredAt:
-        this.readString(data.timestamp) ?? this.readString(source.timestamp),
-      reason: this.readString(data.reason) ?? this.readString(data.error),
+        this.readString(data.timestamp) ??
+        this.readString(source.timestamp) ??
+        undefined,
+      reason:
+        this.readString(data.reason) ??
+        this.readString(data.error) ??
+        undefined,
     };
   }
 
@@ -841,9 +848,9 @@ export class CommunicationsService {
         this.readString(source.recipient) ??
         this.readString(source.email) ??
         '',
-      externalMessageId: this.readString(source.messageId),
-      occurredAt: this.readString(source.timestamp),
-      reason: this.readString(source.reason),
+      externalMessageId: this.readString(source.messageId) ?? undefined,
+      occurredAt: this.readString(source.timestamp) ?? undefined,
+      reason: this.readString(source.reason) ?? undefined,
     };
   }
 
