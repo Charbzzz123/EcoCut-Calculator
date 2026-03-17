@@ -1,9 +1,18 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  ViewChild,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import type { ClientSummary } from '@shared/domain/entry/entry-repository.service.js';
 import { BackChipComponent } from '@shared/ui/back-chip/back-chip.component.js';
 import { BrandBannerComponent } from '@shared/ui/brand-banner/brand-banner.component.js';
+import { MergeTokenEditorComponent } from '@shared/ui/merge-token-editor/merge-token-editor.component.js';
 import { BroadcastFacade } from './broadcast.facade.js';
 import type {
   BroadcastChannel,
@@ -27,7 +36,13 @@ interface AudiencePreviewRow {
   selector: 'app-broadcast-shell',
   templateUrl: './broadcast-shell.component.html',
   styleUrl: './broadcast-shell.component.scss',
-  imports: [CommonModule, ReactiveFormsModule, BrandBannerComponent, BackChipComponent],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    BrandBannerComponent,
+    BackChipComponent,
+    MergeTokenEditorComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BroadcastShellComponent implements OnInit {
@@ -109,6 +124,9 @@ export class BroadcastShellComponent implements OnInit {
     overrideEmailBody: this.overrideEmailBodyControl,
     overrideSmsBody: this.overrideSmsBodyControl,
   };
+  @ViewChild('emailSubjectEditor') private emailSubjectEditor?: MergeTokenEditorComponent;
+  @ViewChild('emailBodyEditor') private emailBodyEditor?: MergeTokenEditorComponent;
+  @ViewChild('smsBodyEditor') private smsBodyEditor?: MergeTokenEditorComponent;
   /* c8 ignore next */
   protected readonly audiencePreviewRows = computed<AudiencePreviewRow[]>(() =>
     this.filteredRecipients().map((client) => {
@@ -246,12 +264,25 @@ export class BroadcastShellComponent implements OnInit {
 
   protected insertMergeField(token: string, explicitTarget?: BroadcastTemplateTarget): void {
     const target = explicitTarget ?? this.lastTemplateTarget;
+    const editor = this.resolveTokenEditor(target);
+    if (editor) {
+      editor.insertToken(token, this.resolveMergeLabel(token));
+      return;
+    }
     const cursor = this.cursorByTarget[target];
     this.insertTokenAtTarget(target, token, cursor.start, cursor.end);
   }
 
   protected mergeFieldEditorToken(label: string): string {
     return `[[${label}]]`;
+  }
+
+  protected onTokenEditorFocus(target: BroadcastTemplateTarget): void {
+    this.lastTemplateTarget = target;
+  }
+
+  protected onTokenEditorValueChange(target: BroadcastTemplateTarget, value: string): void {
+    this.templateControlByTarget[target].setValue(value);
   }
 
   protected onTemplateCursorChange(
@@ -269,9 +300,10 @@ export class BroadcastShellComponent implements OnInit {
     this.cursorByTarget[target] = { start, end };
   }
 
-  protected onMergeChipDragStart(event: DragEvent, token: string): void {
+  protected onMergeChipDragStart(event: DragEvent, token: string, label: string): void {
     event.dataTransfer?.setData('text/plain', token);
     event.dataTransfer?.setData('application/ecocut-merge-token', token);
+    event.dataTransfer?.setData('application/ecocut-merge-label', label);
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = 'copy';
     }
@@ -509,6 +541,33 @@ export class BroadcastShellComponent implements OnInit {
       return 0;
     }
     return Math.trunc(value);
+  }
+
+  private resolveTokenEditor(target: BroadcastTemplateTarget): MergeTokenEditorComponent | null {
+    if (target === 'emailSubject') {
+      return this.emailSubjectEditor ?? null;
+    }
+    if (target === 'emailBody') {
+      return this.emailBodyEditor ?? null;
+    }
+    if (target === 'smsBody') {
+      return this.smsBodyEditor ?? null;
+    }
+    return null;
+  }
+
+  private resolveMergeLabel(token: string): string {
+    const field = this.mergeFields().find(
+      (item) => item.token === token || this.mergeFieldEditorToken(item.label) === token,
+    );
+    if (field) {
+      return field.label;
+    }
+    const match = token.match(/^\[\[(.+)\]\]$/);
+    if (match?.[1]) {
+      return match[1].trim();
+    }
+    return token;
   }
 
   private isCapValueValid(value: number): boolean {

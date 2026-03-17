@@ -1,0 +1,16 @@
+<div class="merge-token-editor" [attr.data-merge-target]="targetId">
+  <div
+    #editor
+    class="merge-token-editor__surface"
+    role="textbox"
+    contenteditable="true"
+    [attr.aria-label]="ariaLabel || placeholder"
+    [attr.aria-multiline]="!singleLine"
+    [attr.data-placeholder]="placeholder"
+    (focus)="onEditorFocus()"
+    (input)="onEditorInput()"
+    (keydown)="onEditorKeydown($event)"
+    (dragover)="onEditorDragOver($event)"
+    (drop)="onEditorDrop($event)"
+  ></div>
+</div>

@@ -221,7 +221,9 @@
             type="button"
             class="merge-chip"
             draggable="true"
-            (dragstart)="onMergeChipDragStart($event, mergeFieldEditorToken(field.label))"
+            (dragstart)="
+              onMergeChipDragStart($event, mergeFieldEditorToken(field.label), field.label)
+            "
             (dragend)="onMergeChipDragEnd()"
             (click)="insertMergeField(mergeFieldEditorToken(field.label))"
             [title]="'Fallback: ' + field.fallbackLabel"
@@ -259,63 +261,61 @@
       </div>
 
       <div class="field-grid composer-grid">
-        <label class="field">
+        <div class="field">
           <span>Email subject</span>
-          <input
-            [formControl]="emailSubjectControl"
-            type="text"
-            placeholder="Subject line"
-            data-merge-target="emailSubject"
+          <app-merge-token-editor
+            #emailSubjectEditor
+            targetId="emailSubject"
+            [value]="emailSubjectControl.value"
+            [placeholder]="'Subject line'"
+            [singleLine]="true"
+            [mergeFields]="mergeFields()"
             [class.merge-drop-target]="isMergeDragTarget('emailSubject')"
-            (focus)="onTemplateCursorChange($event, 'emailSubject')"
-            (click)="onTemplateCursorChange($event, 'emailSubject')"
-            (keyup)="onTemplateCursorChange($event, 'emailSubject')"
-            (select)="onTemplateCursorChange($event, 'emailSubject')"
+            (editorFocused)="onTokenEditorFocus('emailSubject')"
+            (valueChange)="onTokenEditorValueChange('emailSubject', $event)"
             (dragover)="onTemplateDragOver($event, 'emailSubject')"
             (dragleave)="onTemplateDragLeave('emailSubject')"
             (drop)="onTemplateDrop($event, 'emailSubject')"
-          />
-        </label>
+          ></app-merge-token-editor>
+        </div>
         <label class="field">
           <span>CTA link (optional)</span>
           <input [formControl]="ctaLinkControl" type="url" placeholder="https://ecocutqc.com" />
         </label>
       </div>
 
-      <label class="field">
+      <div class="field">
         <span>Email body</span>
-        <textarea
-          [formControl]="emailBodyControl"
-          rows="6"
-          placeholder="Write your email message using merge fields."
-          data-merge-target="emailBody"
+        <app-merge-token-editor
+          #emailBodyEditor
+          targetId="emailBody"
+          [value]="emailBodyControl.value"
+          [placeholder]="'Write your email message using merge fields.'"
+          [mergeFields]="mergeFields()"
           [class.merge-drop-target]="isMergeDragTarget('emailBody')"
-          (focus)="onTemplateCursorChange($event, 'emailBody')"
-          (click)="onTemplateCursorChange($event, 'emailBody')"
-          (keyup)="onTemplateCursorChange($event, 'emailBody')"
-          (select)="onTemplateCursorChange($event, 'emailBody')"
+          (editorFocused)="onTokenEditorFocus('emailBody')"
+          (valueChange)="onTokenEditorValueChange('emailBody', $event)"
           (dragover)="onTemplateDragOver($event, 'emailBody')"
           (dragleave)="onTemplateDragLeave('emailBody')"
           (drop)="onTemplateDrop($event, 'emailBody')"
-        ></textarea>
-      </label>
-      <label class="field">
+        ></app-merge-token-editor>
+      </div>
+      <div class="field">
         <span>SMS body</span>
-        <textarea
-          [formControl]="smsBodyControl"
-          rows="3"
-          placeholder="Write your SMS message using merge fields."
-          data-merge-target="smsBody"
+        <app-merge-token-editor
+          #smsBodyEditor
+          targetId="smsBody"
+          [value]="smsBodyControl.value"
+          [placeholder]="'Write your SMS message using merge fields.'"
+          [mergeFields]="mergeFields()"
           [class.merge-drop-target]="isMergeDragTarget('smsBody')"
-          (focus)="onTemplateCursorChange($event, 'smsBody')"
-          (click)="onTemplateCursorChange($event, 'smsBody')"
-          (keyup)="onTemplateCursorChange($event, 'smsBody')"
-          (select)="onTemplateCursorChange($event, 'smsBody')"
+          (editorFocused)="onTokenEditorFocus('smsBody')"
+          (valueChange)="onTokenEditorValueChange('smsBody', $event)"
           (dragover)="onTemplateDragOver($event, 'smsBody')"
           (dragleave)="onTemplateDragLeave('smsBody')"
           (drop)="onTemplateDrop($event, 'smsBody')"
-        ></textarea>
-      </label>
+        ></app-merge-token-editor>
+      </div>
 
       <p class="sms-counter">
         SMS length: {{ smsMetrics().characters }} chars / {{ smsMetrics().segments }} segment(s)
