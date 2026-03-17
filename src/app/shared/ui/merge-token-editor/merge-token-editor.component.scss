@@ -38,6 +38,10 @@
   vertical-align: baseline;
 }
 
+.merge-token-editor__chip--dragging {
+  opacity: 0.55;
+}
+
 :host(.merge-drop-target) .merge-token-editor__surface {
   border-color: rgba(103, 232, 194, 0.78);
   box-shadow:

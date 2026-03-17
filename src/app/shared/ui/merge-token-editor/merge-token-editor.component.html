@@ -10,6 +10,8 @@
     (focus)="onEditorFocus()"
     (input)="onEditorInput()"
     (keydown)="onEditorKeydown($event)"
+    (dragstart)="onEditorDragStart($event)"
+    (dragend)="onEditorDragEnd()"
     (dragover)="onEditorDragOver($event)"
     (drop)="onEditorDrop($event)"
   ></div>

@@ -53,6 +53,7 @@ export class MergeTokenEditorComponent implements OnChanges, AfterViewInit {
   private internalValue = '';
   private readonly tokenExpression = /(\{\{[^}]+\}\}|\[\[[^\]]+\]\])/g;
   private viewReady = false;
+  private draggedChipNode: HTMLElement | null = null;
 
   ngAfterViewInit(): void {
     this.viewReady = true;
@@ -89,9 +90,36 @@ export class MergeTokenEditorComponent implements OnChanges, AfterViewInit {
   protected onEditorDragOver(event: DragEvent): void {
     event.preventDefault();
     if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = 'copy';
+      event.dataTransfer.dropEffect = this.draggedChipNode ? 'move' : 'copy';
     }
     this.placeCaretFromPointer(event);
+  }
+
+  protected onEditorDragStart(event: DragEvent): void {
+    const chip = this.resolveChipNode(event.target);
+    if (!chip) {
+      return;
+    }
+    const token = chip.dataset['mergeToken'];
+    if (!token) {
+      return;
+    }
+    const label = chip.textContent?.trim() || this.resolveLabelFromToken(token);
+    this.draggedChipNode = chip;
+    chip.classList.add('merge-token-editor__chip--dragging');
+    event.dataTransfer?.setData('text/plain', token);
+    event.dataTransfer?.setData('application/ecocut-merge-token', token);
+    event.dataTransfer?.setData('application/ecocut-merge-label', label);
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+    }
+  }
+
+  protected onEditorDragEnd(): void {
+    if (this.draggedChipNode) {
+      this.draggedChipNode.classList.remove('merge-token-editor__chip--dragging');
+    }
+    this.draggedChipNode = null;
   }
 
   protected onEditorDrop(event: DragEvent): void {
@@ -107,6 +135,10 @@ export class MergeTokenEditorComponent implements OnChanges, AfterViewInit {
       event.dataTransfer?.getData('application/ecocut-merge-label') ??
       this.resolveLabelFromToken(token);
     this.placeCaretFromPointer(event);
+    if (this.draggedChipNode) {
+      this.draggedChipNode.remove();
+      this.draggedChipNode = null;
+    }
     this.insertToken(token, label);
   }
 
@@ -187,6 +219,7 @@ export class MergeTokenEditorComponent implements OnChanges, AfterViewInit {
     const node = document.createElement('span');
     node.className = 'merge-token-editor__chip';
     node.setAttribute('contenteditable', 'false');
+    node.setAttribute('draggable', 'true');
     node.dataset['mergeToken'] = token;
     node.textContent = label;
     return node;
@@ -278,5 +311,15 @@ export class MergeTokenEditorComponent implements OnChanges, AfterViewInit {
         fragment.append(document.createTextNode(segment));
       }
     });
+  }
+
+  private resolveChipNode(value: EventTarget | null): HTMLElement | null {
+    if (!(value instanceof HTMLElement)) {
+      return null;
+    }
+    if (value.classList.contains('merge-token-editor__chip')) {
+      return value;
+    }
+    return value.closest('.merge-token-editor__chip');
   }
 }
