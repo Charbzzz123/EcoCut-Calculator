@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post } from '@nestjs/common';
 import { CommunicationsService } from './communications.service';
 import type {
+  DeliveryProvider,
   DeliveryWebhookDto,
   DispatchBroadcastDto,
   SendBroadcastTestDto,
@@ -60,6 +61,15 @@ export class CommunicationsController {
   @Post('webhooks/delivery')
   ingestDeliveryWebhook(@Body() body: DeliveryWebhookDto) {
     return this.communications.ingestDeliveryWebhook(body);
+  }
+
+  @Post('webhooks/delivery/:provider')
+  ingestProviderWebhook(
+    @Param('provider') provider: DeliveryProvider,
+    @Headers('x-webhook-signature') signature: string | undefined,
+    @Body() body: unknown,
+  ) {
+    return this.communications.ingestProviderWebhook(provider, body, signature);
   }
 
   @Get('suppressions')

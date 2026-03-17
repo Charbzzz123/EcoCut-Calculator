@@ -79,11 +79,13 @@ root/
   - Phase 7A suppression endpoints are live: `GET /communications/suppressions`, `POST /communications/suppressions/unsubscribe`, `POST /communications/suppressions/resubscribe`.
   - Phase 7B approval/audit endpoints are live: `POST /communications/campaigns/:campaignId/approve`, `POST /communications/campaigns/:campaignId/cancel`, and `GET /communications/campaigns/:campaignId/audit`.
   - Phase 7C webhook/analytics endpoints are live: `POST /communications/webhooks/delivery` and `GET /communications/campaigns/:campaignId/analytics`.
+  - Phase 7D provider webhook adapter route is live: `POST /communications/webhooks/delivery/:provider` for provider-native payloads (currently `quo` and `hostinger`).
   - Uses swappable provider adapters via injection tokens:
     - `HostingerEmailProvider` (SMTP via Nodemailer)
     - `QuoSmsProvider` (HTTP API)
   - `CommunicationsService` applies retry + throttle guards during send loops, skips suppressed recipients by channel, supports approval-gated sends (`pending_approval`), ingests provider delivery webhooks (including unsubscribe/resubscribe sync), and keeps in-memory campaign status/stats (`recipients`, `attempted`, `sent`, `failed`, `suppressed`) with append-only audit entries.
-  - Next slices still pending: durable campaign persistence, queue workers, provider signature validation, consent expiry enforcement, and idempotency keys.
+  - Provider webhook signatures are validated via HMAC when `QUO_WEBHOOK_SECRET` or `HOSTINGER_WEBHOOK_SECRET` are configured.
+  - Next slices still pending: durable campaign persistence, queue workers, consent expiry enforcement, and idempotency keys.
 - **Frontend proxying & dev setup**
   - `npm start` automatically passes `--proxy-config proxy.conf.json`, so `/api/*` traffic goes to `http://localhost:3000/*`. Always run `npm run server` in a second terminal before testing calendar flows locally.
   - When the Nest server or credentials are unavailable the frontend logs the failure (via `console.warn`) and surfaces the inline banner but the form remains usable.
@@ -94,6 +96,7 @@ root/
   | `GOOGLE_CALENDAR_ID` | Optional | Overrides the default target calendar (`ecojcut@gmail.com`). |
   | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` | Required for email sends | Hostinger SMTP credentials used by the communications module. |
   | `QUO_API_BASE_URL`, `QUO_API_KEY`, `QUO_FROM_NUMBER`, `QUO_FROM_NUMBER_ID`, `QUO_USER_ID` | Required for SMS sends | Quo API configuration used by `QuoSmsProvider`. |
+  | `QUO_WEBHOOK_SECRET`, `HOSTINGER_WEBHOOK_SECRET` | Optional (recommended for production) | Enables signature validation on provider webhook route (`/communications/webhooks/delivery/:provider`). |
 - Failure to provide credentials disables the calendar module gracefully but the endpoints will throw a clear error�set env vars before local dev or deployments.
 - Use `.env.example` as the template for onboarding; copy it to `.env` (or export variables via your shell profile) and fill in the credential values before running `npm run server`. Never commit the real secrets.
 - Always run backend scripts from `server/` (`npm run start:dev`, `npm run test`, etc.) so node_modules stay isolated.
@@ -134,7 +137,7 @@ All frontend services derive their HTTP targets from `environment.apiBaseUrl`, s
 
 - Replace placeholder Angular template with real calculator components.
 - Extend the `/clients` view into a full CRM (client detail drawer, job history timeline, edit/delete hooks) once backend persistence is durable.
-- Continue `/communications/broadcast` rollout in remaining slices: campaign history UI, provider signature validation, and durable compliance/audit persistence.
+- Continue `/communications/broadcast` rollout in remaining slices: campaign history UI and durable compliance/audit persistence.
 - Automate documentation publishing (Docs site or wiki) once scope grows.
 
 ## Durable Persistence

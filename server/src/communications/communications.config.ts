@@ -15,6 +15,11 @@ interface QuoSmsConfig {
   userId: string;
 }
 
+interface WebhookSignatureConfig {
+  quoSecret: string | null;
+  hostingerSecret: string | null;
+}
+
 const parsePort = (value: string | undefined): number | null => {
   if (!value) {
     return null;
@@ -73,4 +78,15 @@ export const loadQuoSmsConfig = (): QuoSmsConfig | null => {
   };
 };
 
-export type { HostingerSmtpConfig, QuoSmsConfig };
+export const loadWebhookSignatureConfig = (): WebhookSignatureConfig => {
+  return {
+    quoSecret: hasValue(process.env.QUO_WEBHOOK_SECRET)
+      ? process.env.QUO_WEBHOOK_SECRET.trim()
+      : null,
+    hostingerSecret: hasValue(process.env.HOSTINGER_WEBHOOK_SECRET)
+      ? process.env.HOSTINGER_WEBHOOK_SECRET.trim()
+      : null,
+  };
+};
+
+export type { HostingerSmtpConfig, QuoSmsConfig, WebhookSignatureConfig };

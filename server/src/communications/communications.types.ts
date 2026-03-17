@@ -2,6 +2,7 @@ export type BroadcastChannel = 'email' | 'sms' | 'both';
 export type SuppressionChannel = 'email' | 'sms';
 export type OperatorRole = 'owner' | 'manager';
 export type DeliveryChannel = 'email' | 'sms';
+export type DeliveryProvider = 'quo' | 'hostinger';
 
 export type BroadcastScheduleMode = 'now' | 'later';
 
@@ -132,6 +133,13 @@ export interface DeliveryWebhookDto {
   externalMessageId?: string;
   occurredAt?: string;
   reason?: string;
+}
+
+export interface ProviderWebhookResult {
+  accepted: true;
+  provider: DeliveryProvider;
+  campaignId: string;
+  eventType: CampaignDeliveryEventType;
 }
 
 export interface CampaignDeliveryEvent {

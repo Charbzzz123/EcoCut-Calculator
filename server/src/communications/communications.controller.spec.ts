@@ -15,6 +15,7 @@ describe('CommunicationsController', () => {
   const listSuppressions = jest.fn();
   const upsertSuppressions = jest.fn();
   const removeSuppressions = jest.fn();
+  const ingestProviderWebhook = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -36,6 +37,7 @@ describe('CommunicationsController', () => {
             approveCampaign,
             cancelCampaign,
             ingestDeliveryWebhook,
+            ingestProviderWebhook,
             listSuppressions,
             upsertSuppressions,
             removeSuppressions,
@@ -167,5 +169,31 @@ describe('CommunicationsController', () => {
       accepted: true,
     });
     expect(ingestDeliveryWebhook).toHaveBeenCalledWith(payload);
+  });
+
+  it('forwards provider webhook events with signature header', async () => {
+    ingestProviderWebhook.mockReturnValue({
+      accepted: true,
+      provider: 'quo',
+      campaignId: 'c-9',
+      eventType: 'delivered',
+    });
+    const controller = await createController();
+    const payload = {
+      event: 'message.delivered',
+      data: { campaignId: 'c-9', to: '+15145550000' },
+    };
+
+    expect(controller.ingestProviderWebhook('quo', 'abc123', payload)).toEqual({
+      accepted: true,
+      provider: 'quo',
+      campaignId: 'c-9',
+      eventType: 'delivered',
+    });
+    expect(ingestProviderWebhook).toHaveBeenCalledWith(
+      'quo',
+      payload,
+      'abc123',
+    );
   });
 });

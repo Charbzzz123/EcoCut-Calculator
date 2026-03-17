@@ -9,7 +9,10 @@ import {
   CampaignAuditRecord,
   CampaignAnalyticsSummary,
   CampaignDeliveryEvent,
+  CampaignDeliveryEventType,
   CampaignSummary,
+  DeliveryProvider,
+  ProviderWebhookResult,
   DeliveryWebhookDto,
   DispatchBroadcastDto,
   OperatorRole,
@@ -21,6 +24,8 @@ import {
 } from './communications.types';
 import { EMAIL_PROVIDER, type EmailProvider } from './providers/email-provider';
 import { SMS_PROVIDER, type SmsProvider } from './providers/sms-provider';
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import { loadWebhookSignatureConfig } from './communications.config';
 
 const SMS_THROTTLE_MS = 120;
 const EMAIL_THROTTLE_MS = 80;
@@ -40,6 +45,7 @@ export class CommunicationsService {
     email: new Map<string, SuppressionRecord>(),
     sms: new Map<string, SuppressionRecord>(),
   };
+  private readonly webhookConfig = loadWebhookSignatureConfig();
 
   constructor(
     @Inject(EMAIL_PROVIDER) private readonly emailProvider: EmailProvider,
@@ -305,6 +311,22 @@ export class CommunicationsService {
     }
 
     return { accepted: true };
+  }
+
+  ingestProviderWebhook(
+    provider: DeliveryProvider,
+    payload: unknown,
+    signature: string | undefined,
+  ): ProviderWebhookResult {
+    const normalized = this.normalizeProviderWebhook(provider, payload);
+    this.ensureWebhookSignature(provider, payload, signature);
+    this.ingestDeliveryWebhook(normalized);
+    return {
+      accepted: true,
+      provider,
+      campaignId: normalized.campaignId,
+      eventType: normalized.eventType,
+    };
   }
 
   getCampaignAnalytics(campaignId: string): CampaignAnalyticsSummary {
@@ -678,6 +700,177 @@ export class CommunicationsService {
       }
     }
     throw lastError;
+  }
+
+  private normalizeProviderWebhook(
+    provider: DeliveryProvider,
+    payload: unknown,
+  ): DeliveryWebhookDto {
+    if (provider === 'quo') {
+      return this.normalizeQuoWebhook(payload);
+    }
+    return this.normalizeHostingerWebhook(payload);
+  }
+
+  private normalizeQuoWebhook(payload: unknown): DeliveryWebhookDto {
+    const source = this.toRecord(payload);
+    const data = this.toRecord(source.data);
+    const eventName =
+      this.readString(source.event) ?? this.readString(source.type);
+    const status = this.readString(data.status);
+    const eventType = this.mapQuoEventType(eventName, status);
+    const recipient =
+      this.readString(data.to) ??
+      this.readString(data.phoneNumber) ??
+      this.readString(data.recipient) ??
+      '';
+
+    return {
+      campaignId:
+        this.readString(data.campaignId) ??
+        this.readString(source.campaignId) ??
+        '',
+      channel: 'sms',
+      provider: 'quo',
+      eventType,
+      recipient,
+      externalMessageId:
+        this.readString(data.messageId) ?? this.readString(data.id),
+      occurredAt:
+        this.readString(data.timestamp) ?? this.readString(source.timestamp),
+      reason: this.readString(data.reason) ?? this.readString(data.error),
+    };
+  }
+
+  private normalizeHostingerWebhook(payload: unknown): DeliveryWebhookDto {
+    const source = this.toRecord(payload);
+    const eventName =
+      this.readString(source.event) ?? this.readString(source.type);
+    const eventType = this.mapEmailEventType(eventName);
+
+    return {
+      campaignId: this.readString(source.campaignId) ?? '',
+      channel: 'email',
+      provider: 'hostinger',
+      eventType,
+      recipient:
+        this.readString(source.recipient) ??
+        this.readString(source.email) ??
+        '',
+      externalMessageId: this.readString(source.messageId),
+      occurredAt: this.readString(source.timestamp),
+      reason: this.readString(source.reason),
+    };
+  }
+
+  private ensureWebhookSignature(
+    provider: DeliveryProvider,
+    payload: unknown,
+    signature: string | undefined,
+  ): void {
+    const secret =
+      provider === 'quo'
+        ? this.webhookConfig.quoSecret
+        : this.webhookConfig.hostingerSecret;
+    if (!secret) {
+      return;
+    }
+
+    if (!signature) {
+      throw new BadRequestException(
+        `Missing webhook signature for provider ${provider}.`,
+      );
+    }
+
+    const expected = this.createWebhookSignature(secret, payload);
+    const received = signature.trim().toLowerCase();
+    if (!this.constantTimeEqual(expected, received)) {
+      throw new BadRequestException(
+        `Invalid webhook signature for ${provider}.`,
+      );
+    }
+  }
+
+  private createWebhookSignature(secret: string, payload: unknown): string {
+    return createHmac('sha256', secret)
+      .update(JSON.stringify(payload))
+      .digest('hex');
+  }
+
+  private constantTimeEqual(a: string, b: string): boolean {
+    const left = Buffer.from(a);
+    const right = Buffer.from(b);
+    if (left.length !== right.length) {
+      return false;
+    }
+    return timingSafeEqual(left, right);
+  }
+
+  private mapQuoEventType(
+    eventName: string | null,
+    status: string | null,
+  ): CampaignDeliveryEventType {
+    const value = (status ?? eventName ?? '').toLowerCase();
+    if (value.includes('delivered')) {
+      return 'delivered';
+    }
+    if (value.includes('failed') || value.includes('undeliverable')) {
+      return 'failed';
+    }
+    if (value.includes('queued')) {
+      return 'queued';
+    }
+    if (value.includes('sent')) {
+      return 'sent';
+    }
+    if (value.includes('stop') || value.includes('unsubscribe')) {
+      return 'unsubscribed';
+    }
+    if (value.includes('start') || value.includes('resubscribe')) {
+      return 'resubscribed';
+    }
+    return 'sent';
+  }
+
+  private mapEmailEventType(
+    eventName: string | null,
+  ): CampaignDeliveryEventType {
+    const value = (eventName ?? '').toLowerCase();
+    if (value.includes('deliver')) {
+      return 'delivered';
+    }
+    if (value.includes('bounce')) {
+      return 'bounced';
+    }
+    if (value.includes('complaint')) {
+      return 'complained';
+    }
+    if (value.includes('fail')) {
+      return 'failed';
+    }
+    if (value.includes('unsubscribe')) {
+      return 'unsubscribed';
+    }
+    if (value.includes('resubscribe')) {
+      return 'resubscribed';
+    }
+    if (value.includes('queue')) {
+      return 'queued';
+    }
+    return 'sent';
+  }
+
+  private toRecord(value: unknown): Record<string, unknown> {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      return value as Record<string, unknown>;
+    }
+    return {};
+  }
+
+  private readString(value: unknown): string | null {
+    return typeof value === 'string' && value.trim().length > 0
+      ? value.trim()
+      : null;
   }
 
   private mapWebhookEventToAuditAction(

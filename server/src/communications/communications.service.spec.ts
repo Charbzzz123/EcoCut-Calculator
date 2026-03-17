@@ -1,5 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
+import { createHmac } from 'node:crypto';
 import { CommunicationsService } from './communications.service';
 import { EMAIL_PROVIDER } from './providers/email-provider';
 import { SMS_PROVIDER } from './providers/sms-provider';
@@ -10,6 +11,8 @@ describe('CommunicationsService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    delete process.env.QUO_WEBHOOK_SECRET;
+    delete process.env.HOSTINGER_WEBHOOK_SECRET;
   });
 
   const createService = async (): Promise<CommunicationsService> => {
@@ -514,5 +517,85 @@ describe('CommunicationsService', () => {
     expect(() => service.getCampaignAnalytics('missing-id')).toThrow(
       BadRequestException,
     );
+  });
+
+  it('ingests provider-specific webhook payloads when signature is valid', async () => {
+    process.env.QUO_WEBHOOK_SECRET = 'quo-secret';
+    const service = await createService();
+    const dispatchCampaign = await service.dispatch({
+      channel: 'sms',
+      scheduleMode: 'later',
+      recipients: [
+        {
+          clientId: 'alex',
+          clientLabel: 'Alex North',
+          phone: '+15145550000',
+          emailSubject: 'Subj',
+          emailBody: 'Body',
+          smsBody: 'Sms',
+        },
+      ],
+    });
+
+    const providerPayload = {
+      event: 'message.delivered',
+      data: {
+        campaignId: dispatchCampaign.campaignId,
+        to: '+15145550000',
+        messageId: 'msg-1',
+      },
+    };
+    const signature = createHmac('sha256', 'quo-secret')
+      .update(JSON.stringify(providerPayload))
+      .digest('hex');
+
+    const result = service.ingestProviderWebhook(
+      'quo',
+      providerPayload,
+      signature,
+    );
+    expect(result).toEqual({
+      accepted: true,
+      provider: 'quo',
+      campaignId: dispatchCampaign.campaignId,
+      eventType: 'delivered',
+    });
+    expect(
+      service.getCampaignAnalytics(dispatchCampaign.campaignId).totals
+        .delivered,
+    ).toBe(1);
+    delete process.env.QUO_WEBHOOK_SECRET;
+  });
+
+  it('rejects provider webhook payloads with invalid signatures', async () => {
+    process.env.HOSTINGER_WEBHOOK_SECRET = 'hostinger-secret';
+    const service = await createService();
+    const dispatchCampaign = await service.dispatch({
+      channel: 'email',
+      scheduleMode: 'later',
+      recipients: [
+        {
+          clientId: 'alex',
+          clientLabel: 'Alex North',
+          email: 'alex@ecocutqc.com',
+          emailSubject: 'Subj',
+          emailBody: 'Body',
+          smsBody: 'Sms',
+        },
+      ],
+    });
+
+    expect(() =>
+      service.ingestProviderWebhook(
+        'hostinger',
+        {
+          campaignId: dispatchCampaign.campaignId,
+          event: 'delivered',
+          recipient: 'alex@ecocutqc.com',
+        },
+        'invalid',
+      ),
+    ).toThrow(BadRequestException);
+    delete process.env.HOSTINGER_WEBHOOK_SECRET;
   });
 });
