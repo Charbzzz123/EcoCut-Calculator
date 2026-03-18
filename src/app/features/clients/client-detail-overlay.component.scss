@@ -3,7 +3,7 @@
   inset: 0;
   display: flex;
   justify-content: flex-end;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--surface-scrim-soft);
   z-index: 50;
 }
 

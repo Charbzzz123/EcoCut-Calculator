@@ -14,14 +14,14 @@ button {
 }
 
 button.primary {
-  background: var(--gradient-accent, linear-gradient(120deg, #47efc3, #1ca386));
-  color: #04130b;
+  background: var(--gradient-accent);
+  color: var(--text-inverse);
 }
 
 button.ghost {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--surface-card-soft);
   color: inherit;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--border-muted-strong);
 }
 
 button:disabled {

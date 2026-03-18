@@ -2,8 +2,8 @@
   padding: 1rem 1.25rem;
   border-radius: 1rem;
   border: 1px solid var(--border-soft);
-  background: linear-gradient(150deg, rgba(18, 44, 33, 0.85), rgba(9, 22, 16, 0.85));
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.35);
+  background: var(--surface-card-deep);
+  box-shadow: var(--shadow-medium);
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
@@ -38,5 +38,5 @@
 }
 
 [data-trend='down'] .metric-delta {
-  color: #fb7185;
+  color: var(--text-danger-soft);
 }

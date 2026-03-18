@@ -74,7 +74,7 @@
 .summary-card {
   padding: 1rem 1.35rem;
   border-radius: 1.15rem;
-  background: rgba(9, 23, 17, 0.9);
+  background: var(--surface-card-muted);
   border: 1px solid var(--border-soft);
   box-shadow: var(--shadow-medium);
 }
