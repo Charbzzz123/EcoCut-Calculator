@@ -187,6 +187,47 @@ describe('EntryModalComponent', () => {
     expect(component['hedgeSelectionError']()).toContain('Select at least one hedge');
   });
 
+  it('blocks warm-lead submissions when no hedge is selected and additional details are blank', async () => {
+    const savedSpy = vi.fn();
+    component.saved.subscribe(savedSpy);
+    component.variant = 'warm-lead';
+    component.form.patchValue({
+      firstName: 'Lead',
+      lastName: 'NoMap',
+      address: '17 Green',
+      phone: '(438) 222-3333',
+      jobType: 'Hedge Trimming',
+      jobValue: '700',
+      additionalDetails: '',
+    });
+
+    await component['submitEntry']();
+
+    expect(savedSpy).not.toHaveBeenCalled();
+    expect(component['hedgeSelectionError']()).toContain('Select at least one hedge');
+    expect(component['requiredFieldErrors']()).toContain('Hedge map selection (or Additional details)');
+  });
+
+  it('allows saving without map selection when additional details are provided', async () => {
+    const savedSpy = vi.fn();
+    component.saved.subscribe(savedSpy);
+    component.variant = 'warm-lead';
+    component.form.patchValue({
+      firstName: 'Lead',
+      lastName: 'Details',
+      address: '25 River',
+      phone: '(438) 333-4444',
+      jobType: 'Hedge Trimming',
+      jobValue: '840',
+      additionalDetails: 'Back yard hedge does not match the map layout.',
+    });
+
+    await component['submitEntry']();
+
+    expect(savedSpy).toHaveBeenCalledTimes(1);
+    expect(component['hedgeSelectionError']()).toBeNull();
+  });
+
   it('clears hedge selection errors when a customer restores at least one hedge', () => {
     component.variant = 'customer';
     component['hedgeSelectionError'].set('Select at least one hedge before saving this customer entry.');
@@ -835,6 +876,7 @@ describe('EntryModalComponent', () => {
       phone: '438-111-2222',
       jobType: 'Hedge Trimming',
       jobValue: '650',
+      additionalDetails: 'Manual date/time verification.',
     });
     component.form.get('calendar.date')?.setValue('2026-03-06');
     component.form.get('calendar.startTime')?.setValue('11:00');
@@ -2229,6 +2271,7 @@ describe('EntryModalComponent', () => {
       phone: '(438) 111-4444',
       jobType: 'Trim',
       jobValue: '400',
+      additionalDetails: 'Client called with no mapped hedge reference.',
     });
 
     await component['submitEntry']();
@@ -2719,7 +2762,7 @@ describe('EntryModalComponent', () => {
       jobType: 'Hedge Trimming',
       jobValue: '900',
       desiredBudget: '',
-      additionalDetails: '',
+      additionalDetails: 'Manual entry without map selection.',
     });
     fixture.detectChanges();
 

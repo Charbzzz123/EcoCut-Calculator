@@ -15,6 +15,7 @@ import {
   EntryCalendarPayload,
   EntryModalPayload,
   EntryVariant,
+  HedgeConfig,
   HedgeId,
   HedgeState,
   RabattageOption,
@@ -46,6 +47,9 @@ import { EntryModalScheduleController } from './entry-modal-schedule.controller.
 
 @Directive()
 export abstract class EntryModalFacade implements OnDestroy {
+  private static readonly HEDGE_REQUIREMENT_ERROR =
+    'Select at least one hedge on the map or fill Additional details.';
+
   @Input({ required: true }) open = false;
   private _variant: EntryVariant = 'warm-lead';
   private variantPrefillInProgress = false;
@@ -276,6 +280,9 @@ export abstract class EntryModalFacade implements OnDestroy {
       if (this.requiredFieldErrors().length > 0) {
         this.requiredFieldErrors.set(this.collectRequiredFieldErrors());
       }
+      if (this.hedgeSelectionError()) {
+        this.syncHedgeSelectionError();
+      }
     });
     this.syncCalendarValidators();
   }
@@ -346,12 +353,7 @@ export abstract class EntryModalFacade implements OnDestroy {
     event.stopPropagation();
     this.syncCanvasHost();
     this.panelStore.cycleHedge(event, hedgeId);
-    if (this.variant === 'customer' && this.hedgeSelectionError()) {
-      const snapshot = this.panelStore.buildHedgePayload();
-      if (this.validationService.hasSelectedHedge(snapshot)) {
-        this.hedgeSelectionError.set(null);
-      }
-    }
+    this.syncHedgeSelectionError();
   }
 
   protected updateTrimSection(section: 'inside' | 'top' | 'outside', checked: boolean): void {
@@ -372,12 +374,7 @@ export abstract class EntryModalFacade implements OnDestroy {
 
   protected savePanel(): void {
     this.panelStore.savePanel();
-    if (this.variant === 'customer' && this.hedgeSelectionError()) {
-      const snapshot = this.panelStore.buildHedgePayload();
-      if (this.validationService.hasSelectedHedge(snapshot)) {
-        this.hedgeSelectionError.set(null);
-      }
-    }
+    this.syncHedgeSelectionError();
   }
 
   protected cancelPanel(): void {
@@ -400,10 +397,12 @@ export abstract class EntryModalFacade implements OnDestroy {
 
   protected async submitEntry(): Promise<void> {
     this.requiredFieldErrors.set([]);
+    this.hedgeSelectionError.set(null);
     this.syncCalendarValidators();
     const requiredFieldErrors = this.collectRequiredFieldErrors();
     if (this.form.invalid || requiredFieldErrors.length > 0) {
       this.requiredFieldErrors.set(requiredFieldErrors);
+      this.syncHedgeSelectionError();
       this.form.markAllAsTouched();
       return;
     }
@@ -416,8 +415,9 @@ export abstract class EntryModalFacade implements OnDestroy {
     }
 
     const hedgesPayload = this.panelStore.buildHedgePayload();
-    if (this.variant === 'customer' && !this.validationService.hasSelectedHedge(hedgesPayload)) {
-      this.hedgeSelectionError.set('Select at least one hedge before saving this customer entry.');
+    if (!this.hasHedgeSelectionRequirement(hedgesPayload)) {
+      this.hedgeSelectionError.set(EntryModalFacade.HEDGE_REQUIREMENT_ERROR);
+      this.requiredFieldErrors.set(this.collectRequiredFieldErrors());
       return;
     }
     this.hedgeSelectionError.set(null);
@@ -566,7 +566,37 @@ export abstract class EntryModalFacade implements OnDestroy {
       }
     }
 
+    if (!this.hasHedgeSelectionRequirement()) {
+      addError('Hedge map selection (or Additional details)');
+    }
+
     return errors;
+  }
+
+  private shouldEnforceHedgeSelection(): boolean {
+    return this.form.controls.jobType.value.trim().length > 0;
+  }
+
+  private hasHedgeSelectionRequirement(hedges = this.panelStore.buildHedgePayload()): boolean {
+    if (!this.shouldEnforceHedgeSelection()) {
+      return true;
+    }
+    if (this.validationService.hasSelectedHedge(hedges as Record<string, HedgeConfig>)) {
+      return true;
+    }
+    return this.form.controls.additionalDetails.value.trim().length > 0;
+  }
+
+  private syncHedgeSelectionError(): void {
+    if (!this.shouldEnforceHedgeSelection()) {
+      this.hedgeSelectionError.set(null);
+      return;
+    }
+    this.hedgeSelectionError.set(
+      this.hasHedgeSelectionRequirement()
+        ? null
+        : EntryModalFacade.HEDGE_REQUIREMENT_ERROR,
+    );
   }
 
   private prefillFromPayload(payload: EntryModalPayload): void {

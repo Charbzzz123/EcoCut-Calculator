@@ -1,4 +1,4 @@
-# EcoCut Calculator – Functionality Catalog
+﻿# EcoCut Calculator â€“ Functionality Catalog
 
 ## Scope Overview
 
@@ -18,10 +18,10 @@
 
 ## Home Screen UX
 
-- **Primary CTA**: “Add Entry” pill button above the fold plus a floating CTA pinned to the bottom-right. Hover/click reveals quick sub-actions (`+ Warm Lead`, `+ Customer / Closed`) that trigger their respective flows; options auto-hide when focus leaves the button group.
-- **Layout**: hero header with an “Operations snapshot” eyebrow, welcome copy, and hero metrics grid; quick action tiles live immediately below so users can jump to Undo, Manage Employees, or Advanced Options without scrolling.
+- **Primary CTA**: â€œAdd Entryâ€ pill button above the fold plus a floating CTA pinned to the bottom-right. Hover/click reveals quick sub-actions (`+ Warm Lead`, `+ Customer / Closed`) that trigger their respective flows; options auto-hide when focus leaves the button group.
+- **Layout**: hero header with an â€œOperations snapshotâ€ eyebrow, welcome copy, and hero metrics grid; quick action tiles live immediately below so users can jump to Undo, Manage Employees, or Advanced Options without scrolling.
 - **Theme**: dark evergreen palette with EcoCut logo + mascot imagery in the hero to reinforce branding while keeping contrast WCAG-compliant.
-- **Hero Metrics** (card grid): Jobs logged today, Today’s gross pre-tax total, Current PRF balance, Outstanding Charbel owed.
+- **Hero Metrics** (card grid): Jobs logged today, Todayâ€™s gross pre-tax total, Current PRF balance, Outstanding Charbel owed.
 - **Action Shortcuts**: quick links for `Add Job`, `Start Next Job`, `Undo Last Entry`, `Manage Employees`, `Employee List`, `Clients`, `Schedule`, `Finances`, `Upcoming Pay`, `Performance Stats`, `Client Broadcast`, and `Advanced Options`. Icons follow the latest emoji/icon guidance (dollar for Finances, calendar for Schedule, flex arm for Performance, group for Employee List, etc.).
 - **Activity Feed**: recent jobs list showing partner names, gross amount, status, and timestamp with a link to view details.
 - **Alerts Panel**: notifications for configuration changes, commission updates, or payroll anomalies requiring attention.
@@ -30,37 +30,38 @@
 
 ### Warm Lead / Customer Entry Modal
 
-- Launched from the “Add Entry” dropdown (floating CTA). Two variants reuse the same component: **Warm Lead** (default) and **Customer / Closed** (used for future scheduling + client conversion work).
+- Launched from the â€œAdd Entryâ€ dropdown (floating CTA). Two variants reuse the same component: **Warm Lead** (default) and **Customer / Closed** (used for future scheduling + client conversion work).
 - **Required form fields**: first name, last name, home address, phone number, job type (Hedge Trimming, Rabattage, Both), job value. Optional: desired budget, additional details textarea.
-- **Dynamic job-type guard**: the hedge canvas only appears after a job type is picked so we don’t waste rendering cycles for visitors who are just scanning the form.
+- **Dynamic job-type guard**: the hedge canvas only appears after a job type is picked so we donâ€™t waste rendering cycles for visitors who are just scanning the form.
 - **Interactive hedge canvas**:
   - Uses `public/assets/warm-lead/a_bird_s_eye_view_digital_illustration_showcases_a.png` as the background plus eight SVG polygons (`hedge-1`..`hedge-8`).
   - Clicking a polygon cycles `None ? Trim ? Rabattage ? None`, highlights the hedge, and opens an anchored panel near the clicked region (position is clamped within the SVG bounds).
-  - Trim state offers combinable toggles (Inside / Top / Outside) plus mutually exclusive presets (Normal, Total). Rabattage state offers mutually exclusive radio options (Partial, Total, Total w/out roots); choosing Partial forces the “How much to trim off” textarea.
+  - Trim state offers combinable toggles (Inside / Top / Outside) plus mutually exclusive presets (Normal, Total). Rabattage state offers mutually exclusive radio options (Partial, Total, Total w/out roots); choosing Partial forces the â€œHow much to trim offâ€ textarea.
   - Each hedge stores its own config; saving validates partial text, unsaved states remain highlighted, and clearing a hedge resets its saved payload.
+  - **Map-or-details save guard**: saving is blocked unless at least one hedge is mapped or `Additional details` contains text. This applies to both Warm Lead and Customer entries so the crew always gets either a mapped plan or an explicit written note.
 - **Panel UX safeguards**: only one panel open at a time, Cancel resets transient edits, OK persists the config. Inline errors are shown for missing partial text.
 - **Submission flow**: emitting the modal payload returns `variant`, `form` data, and the per-hedge config record for domain services/undo. Successful save resets the modal and closes it; Close/Cancel also reset state without emitting.
 - **Roadmap hooks**: Customer variant will later add calendar scheduling + warm-lead ? customer conversion. Keep the shared component evolutive (theme tokens, signal-driven state, full test coverage).
 - **Customer scheduling requirements**:
-  - Customer variant now surfaces a **Schedule on EcoCut Calendar** block. Date, start time, and end time are mandatory; the Save button remains disabled until they’re valid.
-  - The calendar block displays a live availability feed pulled from EcoCut’s Google Calendar (via the Nest proxy). Users can see existing jobs for the selected date (times shown in the browser’s timezone) and pick an open slot without leaving the modal. Loading and error states are clearly messaged.
+  - Customer variant now surfaces a **Schedule on EcoCut Calendar** block. Date, start time, and end time are mandatory; the Save button remains disabled until theyâ€™re valid.
+  - The calendar block displays a live availability feed pulled from EcoCutâ€™s Google Calendar (via the Nest proxy). Users can see existing jobs for the selected date (times shown in the browserâ€™s timezone) and pick an open slot without leaving the modal. Loading and error states are clearly messaged.
   - Existing events show up with `Edit` and `Delete` controls. Editing pre-fills the timeline/grid so schedulers can tweak the slot in place; deleting issues a `DELETE /calendar/events/:eventId` call via the proxy and refreshes availability immediately.
 - **Interactive day timeline**:
-  - Replaces the static slot-only picker with a Google Calendar-style vertical day view (7?AM?–?8?PM) inside the modal. Users click and drag directly on the column to select any custom window; the controls auto-fill start/end times from the selection.
+  - Replaces the static slot-only picker with a Google Calendar-style vertical day view (7?AM?â€“?8?PM) inside the modal. Users click and drag directly on the column to select any custom window; the controls auto-fill start/end times from the selection.
   - Existing Google events render as stacked blocks with overlap detection. When the chosen window collides with an existing job, a conflict banner appears and Save stays disabled until the user explicitly overrides (so double-bookings are intentional).
-  - A live “current time” line appears when viewing today, giving schedulers real-time context. The view gracefully handles parallel teams by laying blocks side-by-side and labeling them with summary + location.
+  - A live â€œcurrent timeâ€ line appears when viewing today, giving schedulers real-time context. The view gracefully handles parallel teams by laying blocks side-by-side and labeling them with summary + location.
 - **Calendar event auto-generation**:
   - When a customer entry is saved the frontend builds a structured event description (contact info, job value, hedge plan breakdown, additional details) and sends it to the Nest backend (`POST /calendar/events`). Location defaults to the customer address.
   - The response `eventId` is stored alongside the entry payload so future edits can call `PATCH /calendar/events/:eventId` and removals can call `DELETE /calendar/events/:eventId` through the same proxy.
 - **Suggested slot picker**:
-  - Customer entries show an “Suggested time slots” grid once a date is chosen. Slots mirror the standard crew day (08:00–17:00).
+  - Customer entries show an â€œSuggested time slotsâ€ grid once a date is chosen. Slots mirror the standard crew day (08:00â€“17:00).
   - Slots automatically disable when the backend reports a conflicting Google Calendar event. Available slots autofill the start/end controls and highlight the selection; manual edits clear the chip state.
   - Hover/click feedback is instant so schedulers can pick a slot in under a second.
 - **Live availability feed**:
-  - The “Upcoming events” panel now refreshes via the Nest proxy so the list matches Google Calendar in real time. Loading, empty, and error states are rendered inline with helper copy.
-  - When the backend fails (e.g., missing credentials) we keep the modal usable but display a warning banner (“Unable to load Google Calendar availability right now.”).
+  - The â€œUpcoming eventsâ€ panel now refreshes via the Nest proxy so the list matches Google Calendar in real time. Loading, empty, and error states are rendered inline with helper copy.
+  - When the backend fails (e.g., missing credentials) we keep the modal usable but display a warning banner (â€œUnable to load Google Calendar availability right now.â€).
 - **Validation rules**:
-  - Customer variant cannot be saved until date, start, and end times are provided and the range is valid (end after start). Inline helpers (“Required” or “End time must be after the start time”) surface under each field.
+  - Customer variant cannot be saved until date, start, and end times are provided and the range is valid (end after start). Inline helpers (â€œRequiredâ€ or â€œEnd time must be after the start timeâ€) surface under each field.
   - Calendar notes are optional but trimmed; blank values are omitted from the payload.
 
 ## Inputs & Data Sources
@@ -81,7 +82,7 @@
 - Advanced Options panel exposes calculation constants (tax rate, reserve %, labour %, surplus split, commission fallback %) so admins can adjust values with audit trails.
 - Changes propagate instantly to the calculator UI (forms rehydrate from live datasets).
 - Capture who/when updates are made for traceability (user + timestamp fields or an audit log).
-- **Calendar Sync (backend)**: When an entry is logged (job, warm lead, or closed customer), the server can optionally push it to EcoCut’s Google Calendar by calling `/calendar/events`. Event metadata includes summary, description, time window, and attendee list. Updates route through `PATCH /calendar/events/:eventId`, and undo/removals issue the corresponding `DELETE` call so Google Calendar always mirrors the job ledger.
+- **Calendar Sync (backend)**: When an entry is logged (job, warm lead, or closed customer), the server can optionally push it to EcoCutâ€™s Google Calendar by calling `/calendar/events`. Event metadata includes summary, description, time window, and attendee list. Updates route through `PATCH /calendar/events/:eventId`, and undo/removals issue the corresponding `DELETE` call so Google Calendar always mirrors the job ledger.
 
 #### Admin UX Requirements
 
@@ -91,9 +92,9 @@
   - Retain audit logs indefinitely unless retention policy is defined later.
 - **Access Control**
   - Roles:
-    - **Owner** – full control (catalog CRUD, advanced options, funds overrides, undo, future clock-in approvals).
-    - **Manager** – can add employees and adjust their hours/default schedules; can initiate employee clock-ins once that feature ships; read-only for other catalogs/settings.
-    - **Employee** – view-only access to their assignments/summaries.
+    - **Owner** â€“ full control (catalog CRUD, advanced options, funds overrides, undo, future clock-in approvals).
+    - **Manager** â€“ can add employees and adjust their hours/default schedules; can initiate employee clock-ins once that feature ships; read-only for other catalogs/settings.
+    - **Employee** â€“ view-only access to their assignments/summaries.
   - Admin screens gated behind authentication; role-based guards enforce capabilities above.
   - Advanced Options (tax/split tuning) accessible only to Owners with an extra confirmation step.
 - **Partners Manager**
@@ -105,7 +106,7 @@
   - Grid listing Name, Hourly Rate, Default Hours, Active flag.
   - Validation: rate > 0 with two-decimal precision; hours >= 0 (can be fractional); names unique.
   - Supports batch rate updates (e.g., apply % increase) with preview modal.
-  - Prevent deletion if employee appears in current week jobs—require archive (inactive) instead.
+  - Prevent deletion if employee appears in current week jobsâ€”require archive (inactive) instead.
 - **Representatives Manager**
   - List with Name, Commission %, Active flag.
   - Validation: commission between 0 and 100%; decimal precision to 2 places.
@@ -114,11 +115,11 @@
 - **Advanced Options Panel**
   - Form groups by category (Taxation, Splits, Invoice Rules, Safety Nets).
   - Each field shows default + current values and tooltips explaining downstream impact.
-  - Require confirmation modal summarizing changes before saving; include “effective from” timestamp.
+  - Require confirmation modal summarizing changes before saving; include â€œeffective fromâ€ timestamp.
   - Persist changes versioned; show history list with revert option.
 - **General UX**
   - Optimistic updates with toasts on success; rollback on failure.
-  - Autosave disabled—explicit Save button to avoid accidental edits.
+  - Autosave disabledâ€”explicit Save button to avoid accidental edits.
   - All forms must surface validation errors inline plus summary banner.
   - Provide search/filter on each catalog screen for speed with large datasets.
 
@@ -172,14 +173,14 @@ Steps (should live in a pure domain service):
 
 ## Persistence Model
 
-- **Job (History) Record** – single source of truth with fields: date, grossPreTax, withTax flag, partner CSV, employee summary, wageBill, commission, rep, charReimb, partnerPay, employeePot, surplus, owner40, reinv60, prfContribution, invoiceNumber, jobId.
-- **PartnersLog** – one row per partner per job `(date, partner, share, jobId)`.
-- **PartnersTotals** – lifetime totals per partner (increment/decrement on log/undo).
-- **Owners40Totals** – aggregate owner40 running sum.
-- **PayrollLog** – one row per employee per job `(date, employee, hours, rate, wage, jobId)`.
-- **RepLog** – only when commission is used `(date, rep, commission, jobId)`.
-- **Funds Store** – key/value totals for `PRF`, `CharbelOwed`, future reserves.
-- **InvoiceTracker** – {year -> lastSequence}; invoice assigned only when tax flag is true.
+- **Job (History) Record** â€“ single source of truth with fields: date, grossPreTax, withTax flag, partner CSV, employee summary, wageBill, commission, rep, charReimb, partnerPay, employeePot, surplus, owner40, reinv60, prfContribution, invoiceNumber, jobId.
+- **PartnersLog** â€“ one row per partner per job `(date, partner, share, jobId)`.
+- **PartnersTotals** â€“ lifetime totals per partner (increment/decrement on log/undo).
+- **Owners40Totals** â€“ aggregate owner40 running sum.
+- **PayrollLog** â€“ one row per employee per job `(date, employee, hours, rate, wage, jobId)`.
+- **RepLog** â€“ only when commission is used `(date, rep, commission, jobId)`.
+- **Funds Store** â€“ key/value totals for `PRF`, `CharbelOwed`, future reserves.
+- **InvoiceTracker** â€“ {year -> lastSequence}; invoice assigned only when tax flag is true.
 
 ## Undo Semantics
 
@@ -195,17 +196,17 @@ Steps (should live in a pure domain service):
 
 ## Reporting & Summaries
 
-- **Weekly Summary** – bucket PayrollLog rows by week ending Saturday; aggregate hours and wages per employee.
-- **Daily Summary (Current Week)** – aggregate current week entries per day/employee.
-- **This-week Pay Widget** – quick glance of hours + wages per employee for the week starting Saturday.
+- **Weekly Summary** â€“ bucket PayrollLog rows by week ending Saturday; aggregate hours and wages per employee.
+- **Daily Summary (Current Week)** â€“ aggregate current week entries per day/employee.
+- **This-week Pay Widget** â€“ quick glance of hours + wages per employee for the week starting Saturday.
 - Summaries recalc after every Calculate/Undo to stay in sync.
 
 ## Decisions & Open Questions
 
-1. **Commission impact on pools** – legacy behavior _tracked_ commission but did not subtract it from any pool (other than skipping PRF fallback). Decide whether the new system should explicitly deduct commission from available gross distributions.
-2. **Data storage** – confirm final storage tech (Sheets-compatible? SQL? Firestore?) because undo/transactions depend on locking semantics.
-3. **Partner/Employee catalogs** – define ownership (manual admin UI vs. synced data source) and how changes affect historical entries.
-4. **New UX flow** – determine how we expose speed-first interactions (e.g., auto-calculating on change vs. explicit "Calculate" button) without violating logging guarantees.
+1. **Commission impact on pools** â€“ legacy behavior _tracked_ commission but did not subtract it from any pool (other than skipping PRF fallback). Decide whether the new system should explicitly deduct commission from available gross distributions.
+2. **Data storage** â€“ confirm final storage tech (Sheets-compatible? SQL? Firestore?) because undo/transactions depend on locking semantics.
+3. **Partner/Employee catalogs** â€“ define ownership (manual admin UI vs. synced data source) and how changes affect historical entries.
+4. **New UX flow** â€“ determine how we expose speed-first interactions (e.g., auto-calculating on change vs. explicit "Calculate" button) without violating logging guarantees.
 
 Update this document whenever we clarify rules or add new functionality so implementation always mirrors the agreed specification.
 
@@ -215,17 +216,17 @@ Update this document whenever we clarify rules or add new functionality so imple
 - The backend now persists an append-only array of saved entries to a SQLite database (`ENTRIES_DB_PATH`, default `server/data/entries.db`). Each record receives a generated `id` and `createdAt` timestamp for auditing, and the repository automatically migrates any legacy JSON snapshot on first boot.
 - A derived client roster is kept in sync automatically. Deduplication uses email (preferred), otherwise normalized phone number, otherwise `first+last+address`. Each client summary tracks full name, address, phone/email, total jobs logged, last job timestamp, and the most recent calendar event id.
 - New API surface:
-  - `GET /entries` – returns the raw entry history (future undo pipeline will read from here).
-  - `GET /entries/clients` – returns the deduped client roster described above.
-- The frontend’s `HomeDataService.saveEntry` now calls the repository service instead of logging to the console, ensuring every job immediately appears in the roster/history datasets.
+  - `GET /entries` â€“ returns the raw entry history (future undo pipeline will read from here).
+  - `GET /entries/clients` â€“ returns the deduped client roster described above.
+- The frontendâ€™s `HomeDataService.saveEntry` now calls the repository service instead of logging to the console, ensuring every job immediately appears in the roster/history datasets.
 - Future correction flows will mutate job data via this API so calendar edits + CRM updates stay auditable end-to-end.
 
 ### Client book UI (current release)
 
-- **Access**: Quick action “Clients” on the home dashboard navigates to `/clients`, a dedicated view styled like the existing dark hero but optimized for CRM data. A back link returns to the dashboard without refreshing.
+- **Access**: Quick action â€œClientsâ€ on the home dashboard navigates to `/clients`, a dedicated view styled like the existing dark hero but optimized for CRM data. A back link returns to the dashboard without refreshing.
 - **Insights strip**: three cards show total clients, cumulative jobs logged, and the most recent job timestamp (auto-formatted). These values update instantly when the roster refreshes.
 - **Search & refresh**: sticky toolbar with a pill-shaped search field (name, address, phone, email) plus a refresh button that re-queries `/entries/clients`. Typing debounces at 150?ms so the list feels instant.
-- **Roster list**: stacked cards displaying name, job count, contact info, address, and “Last job” timestamp. List is keyboard accessible, announces changes via `aria-live`, and shows informative states (loading, empty, error with retry).
+- **Roster list**: stacked cards displaying name, job count, contact info, address, and â€œLast jobâ€ timestamp. List is keyboard accessible, announces changes via `aria-live`, and shows informative states (loading, empty, error with retry).
 - **Performance expectations**: roster fetch must resolve in <600?ms for average data sets; filtering stays client-side until we add pagination. Coverage includes loading/error paths so the feature remains evolutive.
 
 #### Client detail drawer
@@ -235,7 +236,7 @@ Update this document whenever we clarify rules or add new functionality so imple
 - If calendar info exists on a history item we display the precise time range so schedulers can trace what was booked in Google Calendar for that job.
 - Roster search ignores phone-number punctuation so typing digits only (e.g., 4385551111) still matches entries formatted as (438) 555-1111, and the "Last job" timestamps mirror the scheduled slot instead of the entry creation time.
 - Drawer can be closed via the header button, backdrop click, or Escape. An inline Retry button re-fetches the detail if the initial call fails.
-- The roster remains keyboard-friendly: cards render as buttons so the drawer can be opened without a mouse, and focus is trapped inside the drawer until it’s closed.
+- The roster remains keyboard-friendly: cards render as buttons so the drawer can be opened without a mouse, and focus is trapped inside the drawer until itâ€™s closed.
 - All drawer logic is signal-driven and fully covered by unit tests so future CRM actions (quick actions, edit flows) can be added without refactoring the roster list again.
 
 ### Client broadcast workspace
