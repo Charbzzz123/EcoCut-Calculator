@@ -1,8 +1,8 @@
 .timeline-wrapper {
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-soft);
   border-radius: 0.9rem;
   padding: 0.5rem;
-  background: rgba(2, 5, 4, 0.65);
+  background: var(--surface-timeline-frame);
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -12,8 +12,8 @@
   --timeline-label-width: 76px;
   position: relative;
   border-radius: 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(180deg, rgba(12, 19, 16, 0.85), rgba(8, 14, 11, 0.95));
+  border: 1px solid var(--border-soft);
+  background: var(--surface-timeline-grid);
   min-height: 360px;
   overflow: hidden;
   cursor: crosshair;
@@ -33,7 +33,7 @@
   display: flex;
   align-items: center;
   font-size: 0.75rem;
-  color: var(--text-muted, #90a198);
+  color: var(--text-muted);
   white-space: nowrap;
   padding-right: 0.75rem;
   padding-left: 0.6rem;
@@ -49,7 +49,7 @@
   content: '';
   flex: 1;
   height: 1px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--timeline-hour-line);
 }
 
 .timeline-hour span {
@@ -71,9 +71,9 @@
   position: absolute;
   padding: 0.45rem;
   border-radius: 0.65rem;
-  background: rgba(160, 120, 255, 0.28);
-  border: 1px solid rgba(180, 140, 255, 0.75);
-  color: #f1e8ff;
+  background: var(--timeline-event-bg);
+  border: 1px solid var(--timeline-event-border);
+  color: var(--timeline-event-text);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -84,24 +84,24 @@
 
 .timeline-event-block small {
   font-size: 0.7rem;
-  color: rgba(222, 226, 255, 0.65);
+  color: var(--timeline-event-muted);
 }
 
 .timeline-selection {
   position: absolute;
   inset-inline: 0.75%;
   border-radius: 0.6rem;
-  border: 2px solid rgba(111, 240, 193, 0.95);
-  background: rgba(111, 240, 193, 0.35);
-  box-shadow: 0 0 16px rgba(111, 240, 193, 0.55);
+  border: 2px solid var(--timeline-selection-border);
+  background: var(--timeline-selection-bg);
+  box-shadow: 0 0 16px var(--timeline-selection-glow);
   z-index: 6;
   pointer-events: none;
 }
 
 .timeline-selection--conflict {
-  border-color: rgba(255, 140, 0, 0.85);
-  background: rgba(255, 140, 0, 0.25);
-  box-shadow: 0 0 12px rgba(255, 140, 0, 0.4);
+  border-color: var(--timeline-conflict-border);
+  background: var(--timeline-conflict-bg);
+  box-shadow: 0 0 12px var(--timeline-conflict-glow);
 }
 
 .timeline-now-line {
@@ -109,12 +109,12 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(108, 240, 191, 0.9), transparent);
-  box-shadow: 0 0 12px rgba(108, 240, 191, 0.7);
+  background: linear-gradient(90deg, transparent, var(--timeline-now-line), transparent);
+  box-shadow: 0 0 12px var(--timeline-now-line-glow);
 }
 
 .timeline-helper {
   font-size: 0.78rem;
-  color: var(--text-muted, #90a198);
+  color: var(--text-muted);
   text-align: right;
 }

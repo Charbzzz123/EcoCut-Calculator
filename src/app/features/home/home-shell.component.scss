@@ -87,12 +87,12 @@
   padding: 0.35rem 0;
   border: 1px solid var(--border-soft);
   border-radius: 0.85rem;
-  background: rgba(5, 12, 8, 0.95);
+  background: var(--surface-overlay);
   position: absolute;
   top: 100%;
   left: 0;
   min-width: 180px;
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-elevated);
   opacity: 0;
   pointer-events: none;
   transform: translateY(-6px);
@@ -136,13 +136,13 @@
 }
 
 .dropdown-btn--warm {
-  background: linear-gradient(120deg, rgba(244, 114, 182, 0.15), rgba(248, 113, 113, 0.25));
-  color: #f43f5e;
+  background: var(--gradient-warm);
+  color: var(--text-warm);
 }
 
 .dropdown-btn--customer {
-  background: linear-gradient(120deg, rgba(251, 191, 36, 0.15), rgba(251, 146, 60, 0.3));
-  color: #f97316;
+  background: var(--gradient-customer);
+  color: var(--text-customer);
 }
 
 .hero-cta__hint {
@@ -173,7 +173,7 @@
   border-radius: 1rem;
   padding: 1rem 1.25rem;
   margin-bottom: 1rem;
-  background: rgba(8, 18, 13, 0.65);
+  background: var(--surface-card-deep);
 }
 
 .weekly-hours__header {
@@ -208,7 +208,7 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.4rem 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .weekly-hours__item:last-child {
@@ -240,7 +240,7 @@
 
 .home-actions {
   border: 1px solid var(--border-soft);
-  background: linear-gradient(180deg, rgba(20, 36, 28, 0.9), rgba(14, 25, 19, 0.95));
+  background: var(--surface-card-deep);
 }
 
 .cta-dropdown {
@@ -291,8 +291,8 @@
   padding: 0.35rem 0;
   border-radius: 1rem;
   border: 1px solid var(--border-soft);
-  background: rgba(5, 12, 8, 0.95);
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.45);
+  background: var(--surface-overlay);
+  box-shadow: var(--shadow-elevated);
   min-width: 210px;
   opacity: 1;
   transform-origin: right bottom;

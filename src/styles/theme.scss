@@ -74,6 +74,34 @@
     rgba(134, 239, 214, 0.96) 0%,
     rgba(45, 212, 191, 0.9) 100%
   );
+  --gradient-danger: linear-gradient(120deg, #ff6b6b, #c81e1e);
+  --gradient-warm: linear-gradient(120deg, rgba(244, 114, 182, 0.15), rgba(248, 113, 113, 0.25));
+  --gradient-customer: linear-gradient(120deg, rgba(251, 191, 36, 0.15), rgba(251, 146, 60, 0.3));
+  --text-warm: #f43f5e;
+  --text-customer: #f97316;
+  --text-on-danger: #ffffff;
+  --surface-timeline-frame: rgba(2, 5, 4, 0.65);
+  --surface-timeline-grid: linear-gradient(180deg, rgba(12, 19, 16, 0.85), rgba(8, 14, 11, 0.95));
+  --timeline-hour-line: rgba(255, 255, 255, 0.04);
+  --timeline-event-bg: rgba(160, 120, 255, 0.28);
+  --timeline-event-border: rgba(180, 140, 255, 0.75);
+  --timeline-event-text: #f1e8ff;
+  --timeline-event-muted: rgba(222, 226, 255, 0.65);
+  --timeline-selection-border: rgba(111, 240, 193, 0.95);
+  --timeline-selection-bg: rgba(111, 240, 193, 0.35);
+  --timeline-selection-glow: rgba(111, 240, 193, 0.55);
+  --timeline-conflict-border: rgba(255, 140, 0, 0.85);
+  --timeline-conflict-bg: rgba(255, 140, 0, 0.25);
+  --timeline-conflict-glow: rgba(255, 140, 0, 0.4);
+  --timeline-now-line: rgba(108, 240, 191, 0.9);
+  --timeline-now-line-glow: rgba(108, 240, 191, 0.7);
+  --hedge-trim-fill: rgba(74, 222, 128, 0.22);
+  --hedge-trim-stroke: rgba(74, 222, 128, 0.65);
+  --hedge-rabattage-fill: rgba(252, 211, 77, 0.22);
+  --hedge-rabattage-stroke: rgba(252, 211, 77, 0.65);
+  --hedge-config-glow: rgba(74, 222, 128, 0.35);
+  --shadow-panel: 0 12px 30px rgba(0, 0, 0, 0.45);
+  --shadow-inset-canvas: inset 0 0 20px rgba(0, 0, 0, 0.3);
   --shadow-elevated: 0 25px 55px rgba(3, 10, 7, 0.65);
   --card-radius: 1.25rem;
   --blur-lg: 30px;
