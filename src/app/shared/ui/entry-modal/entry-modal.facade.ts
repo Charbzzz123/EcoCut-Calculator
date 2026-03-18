@@ -143,6 +143,7 @@ export abstract class EntryModalFacade implements OnDestroy {
   protected readonly panelPosition = this.panelStore.panelPosition;
   protected readonly panelError = this.panelStore.panelError;
   protected readonly hedgeSelectionError = signal<string | null>(null);
+  protected readonly requiredFieldErrors = signal<string[]>([]);
   /* c8 ignore next */
   protected readonly floatingPanelEnabled = this.panelStore.floatingPanelEnabled;
   protected readonly hedges = this.panelStore.hedges;
@@ -270,7 +271,12 @@ export abstract class EntryModalFacade implements OnDestroy {
   }
 
   constructor() {
-    this.formChangesSub = this.form.valueChanges.subscribe(() => this.resetDuplicateGuards());
+    this.formChangesSub = this.form.valueChanges.subscribe(() => {
+      this.resetDuplicateGuards();
+      if (this.requiredFieldErrors().length > 0) {
+        this.requiredFieldErrors.set(this.collectRequiredFieldErrors());
+      }
+    });
     this.syncCalendarValidators();
   }
   protected get scheduleViewModel(): EntryScheduleSectionViewModel {
@@ -393,12 +399,16 @@ export abstract class EntryModalFacade implements OnDestroy {
   }
 
   protected async submitEntry(): Promise<void> {
+    this.requiredFieldErrors.set([]);
     this.syncCalendarValidators();
-    if (this.form.invalid) {
+    const requiredFieldErrors = this.collectRequiredFieldErrors();
+    if (this.form.invalid || requiredFieldErrors.length > 0) {
+      this.requiredFieldErrors.set(requiredFieldErrors);
       this.form.markAllAsTouched();
       return;
     }
     if (!this.validationService.validateCalendarRange(this.calendarGroup, this.requiresCalendar())) {
+      this.requiredFieldErrors.set(this.collectRequiredFieldErrors());
       return;
     }
     if (this.selectionConflict() && !this.conflictConfirmed()) {
@@ -513,6 +523,52 @@ export abstract class EntryModalFacade implements OnDestroy {
     });
   }
 
+  private collectRequiredFieldErrors(): string[] {
+    const errors: string[] = [];
+    const addError = (message: string): void => {
+      if (!errors.includes(message)) {
+        errors.push(message);
+      }
+    };
+
+    const requiredFormFields: { control: FormControl<string>; label: string }[] = [
+      { control: this.form.controls.firstName, label: 'First name' },
+      { control: this.form.controls.lastName, label: 'Last name' },
+      { control: this.form.controls.address, label: 'Home address' },
+      { control: this.form.controls.jobType, label: 'Job type' },
+      { control: this.form.controls.jobValue, label: 'Job value' },
+    ];
+
+    requiredFormFields.forEach(({ control, label }) => {
+      if (control.hasError('required')) {
+        addError(label);
+      }
+    });
+
+    if (this.form.controls.phone.hasError('required')) {
+      addError('Phone number');
+    } else if (this.form.controls.phone.hasError('phoneInvalid')) {
+      addError('Phone number (valid 10-digit format)');
+    }
+
+    if (this.requiresCalendar()) {
+      if (this.calendarGroup.controls.date.hasError('required')) {
+        addError('Date');
+      }
+      if (this.calendarGroup.controls.startTime.hasError('required')) {
+        addError('Start time');
+      }
+      if (this.calendarGroup.controls.endTime.hasError('required')) {
+        addError('End time');
+      }
+      if (this.calendarGroup.controls.endTime.hasError('timeOrder')) {
+        addError('End time must be after start time');
+      }
+    }
+
+    return errors;
+  }
+
   private prefillFromPayload(payload: EntryModalPayload): void {
     this.variantPrefillInProgress = true;
     this.variant = payload.variant;
@@ -546,6 +602,7 @@ export abstract class EntryModalFacade implements OnDestroy {
     this.scheduleController.reset();
     this.syncCalendarValidators();
     this.hedgeSelectionError.set(null);
+    this.requiredFieldErrors.set([]);
   }
 
   private syncCanvasHost(): void {

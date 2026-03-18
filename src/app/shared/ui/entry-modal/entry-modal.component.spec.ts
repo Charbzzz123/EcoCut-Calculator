@@ -516,6 +516,50 @@ describe('EntryModalComponent', () => {
     expect(Array.from(errors).some((node) => node.textContent?.trim() === 'Required')).toBe(true);
   });
 
+  it('lists missing required fields when save is attempted for a warm lead', async () => {
+    await component['submitEntry']();
+    fixture.detectChanges();
+
+    const banner = fixture.nativeElement.querySelector('.required-fields-banner') as HTMLElement | null;
+    expect(banner).not.toBeNull();
+    const fields = Array.from(banner?.querySelectorAll('li') ?? []).map((node) =>
+      node.textContent?.trim(),
+    );
+    expect(fields).toContain('First name');
+    expect(fields).toContain('Last name');
+    expect(fields).toContain('Home address');
+    expect(fields).toContain('Phone number');
+    expect(fields).toContain('Job type');
+    expect(fields).toContain('Job value');
+  });
+
+  it('lists missing calendar fields when save is attempted for a customer', async () => {
+    component.variant = 'customer';
+    component.form.patchValue({
+      firstName: 'Kim',
+      lastName: 'Nguyen',
+      address: '10 Maple',
+      phone: '(514) 555-1212',
+      jobType: 'Hedge Trimming',
+      jobValue: '800',
+      calendar: {
+        date: '',
+        startTime: '',
+        endTime: '',
+      },
+    });
+
+    await component['submitEntry']();
+    fixture.detectChanges();
+
+    const fields = Array.from(
+      fixture.nativeElement.querySelectorAll('.required-fields-banner li'),
+    ).map((node) => (node as HTMLElement).textContent?.trim());
+    expect(fields).toContain('Date');
+    expect(fields).toContain('Start time');
+    expect(fields).toContain('End time');
+  });
+
   it('shows phone format guidance when number is incomplete', () => {
     component.form.get('phone')?.setValue('12345');
     component.form.get('phone')?.markAsTouched();

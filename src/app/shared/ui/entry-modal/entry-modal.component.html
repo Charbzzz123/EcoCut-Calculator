@@ -37,6 +37,16 @@
             [handlers]="scheduleHandlers"
           ></app-entry-schedule-section>
         }
+        @if (requiredFieldErrors().length) {
+          <section class="required-fields-banner" role="alert" aria-live="assertive">
+            <strong>Please complete the following before saving:</strong>
+            <ul>
+              @for (field of requiredFieldErrors(); track field) {
+                <li>{{ field }}</li>
+              }
+            </ul>
+          </section>
+        }
         @if (duplicateCheckLoading()) {
           <div class="duplicate-banner duplicate-banner--loading">Checking existing clients…</div>
         } @else if (duplicateMatch(); as match) {
