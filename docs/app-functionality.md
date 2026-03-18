@@ -39,6 +39,7 @@
   - Trim state offers combinable toggles (Inside / Top / Outside) plus mutually exclusive presets (Normal, Total). Rabattage state offers mutually exclusive radio options (Partial, Total, Total w/out roots); choosing Partial forces the â€œHow much to trim offâ€ textarea.
   - Each hedge stores its own config; saving validates partial text, unsaved states remain highlighted, and clearing a hedge resets its saved payload.
   - **Map-or-details save guard**: saving is blocked unless at least one hedge is mapped or `Additional details` contains text. This applies to both Warm Lead and Customer entries so the crew always gets either a mapped plan or an explicit written note.
+  - **Selected-hedge configuration guard**: any selected hedge must be fully configured before save. Trim requires either custom checkboxes (Inside/Top/Outside) or a preset (Normal/Total), and Rabattage partial requires the amount text.
 - **Panel UX safeguards**: only one panel open at a time, Cancel resets transient edits, OK persists the config. Inline errors are shown for missing partial text.
 - **Submission flow**: emitting the modal payload returns `variant`, `form` data, and the per-hedge config record for domain services/undo. Successful save resets the modal and closes it; Close/Cancel also reset state without emitting.
 - **Roadmap hooks**: Customer variant will later add calendar scheduling + warm-lead ? customer conversion. Keep the shared component evolutive (theme tokens, signal-driven state, full test coverage).

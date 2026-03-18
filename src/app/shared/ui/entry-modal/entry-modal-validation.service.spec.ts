@@ -49,4 +49,32 @@ describe('EntryModalValidationService', () => {
     hedges['a'] = { state: 'none' };
     expect(service.hasSelectedHedge(hedges)).toBeFalsy();
   });
+
+  it('reports incomplete hedge configurations', () => {
+    const hedges: Record<string, HedgeConfig> = {
+      'hedge-1': { state: 'trim' },
+      'hedge-2': { state: 'trim', trim: { mode: 'preset', preset: 'normal' } },
+      'hedge-3': { state: 'rabattage', rabattage: { option: 'partial', partialAmountText: '' } },
+      'hedge-4': { state: 'rabattage', rabattage: { option: 'total' } },
+      'hedge-5': { state: 'none' },
+      'hedge-6': { state: 'rabattage', rabattage: {} as unknown as HedgeConfig['rabattage'] },
+    };
+
+    expect(service.listIncompleteHedgeConfigs(hedges)).toEqual([
+      'Hedge 1: select at least one trim option or preset.',
+      'Hedge 3: complete the rabattage option.',
+      'Hedge 6: complete the rabattage option.',
+    ]);
+  });
+
+  it('accepts configured custom trim hedges and labels unknown ids safely', () => {
+    const hedges: Record<string, HedgeConfig> = {
+      north: { state: 'trim', trim: { mode: 'custom', outside: true } },
+      'hedge-8': { state: 'trim', trim: { mode: 'custom', top: false, inside: false, outside: false } },
+    };
+
+    expect(service.listIncompleteHedgeConfigs(hedges)).toEqual([
+      'Hedge 8: select at least one trim option or preset.',
+    ]);
+  });
 });

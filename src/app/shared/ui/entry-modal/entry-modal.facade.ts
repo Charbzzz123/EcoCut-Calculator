@@ -353,7 +353,9 @@ export abstract class EntryModalFacade implements OnDestroy {
     event.stopPropagation();
     this.syncCanvasHost();
     this.panelStore.cycleHedge(event, hedgeId);
-    this.syncHedgeSelectionError();
+    if (this.hedgeSelectionError()) {
+      this.syncHedgeSelectionError();
+    }
   }
 
   protected updateTrimSection(section: 'inside' | 'top' | 'outside', checked: boolean): void {
@@ -374,7 +376,9 @@ export abstract class EntryModalFacade implements OnDestroy {
 
   protected savePanel(): void {
     this.panelStore.savePanel();
-    this.syncHedgeSelectionError();
+    if (this.hedgeSelectionError()) {
+      this.syncHedgeSelectionError();
+    }
   }
 
   protected cancelPanel(): void {
@@ -418,6 +422,12 @@ export abstract class EntryModalFacade implements OnDestroy {
     if (!this.hasHedgeSelectionRequirement(hedgesPayload)) {
       this.hedgeSelectionError.set(EntryModalFacade.HEDGE_REQUIREMENT_ERROR);
       this.requiredFieldErrors.set(this.collectRequiredFieldErrors());
+      return;
+    }
+    const hedgeConfigurationErrors = this.validationService.listIncompleteHedgeConfigs(hedgesPayload);
+    if (hedgeConfigurationErrors.length > 0) {
+      this.hedgeSelectionError.set(hedgeConfigurationErrors[0] ?? null);
+      this.requiredFieldErrors.set(this.collectRequiredFieldErrors(hedgesPayload));
       return;
     }
     this.hedgeSelectionError.set(null);
@@ -523,7 +533,9 @@ export abstract class EntryModalFacade implements OnDestroy {
     });
   }
 
-  private collectRequiredFieldErrors(): string[] {
+  private collectRequiredFieldErrors(
+    hedges = this.panelStore.buildHedgePayload(),
+  ): string[] {
     const errors: string[] = [];
     const addError = (message: string): void => {
       if (!errors.includes(message)) {
@@ -566,8 +578,12 @@ export abstract class EntryModalFacade implements OnDestroy {
       }
     }
 
-    if (!this.hasHedgeSelectionRequirement()) {
+    if (!this.hasHedgeSelectionRequirement(hedges)) {
       addError('Hedge map selection (or Additional details)');
+    } else {
+      this.validationService
+        .listIncompleteHedgeConfigs(hedges)
+        .forEach((message) => addError(message));
     }
 
     return errors;
@@ -592,11 +608,13 @@ export abstract class EntryModalFacade implements OnDestroy {
       this.hedgeSelectionError.set(null);
       return;
     }
-    this.hedgeSelectionError.set(
-      this.hasHedgeSelectionRequirement()
-        ? null
-        : EntryModalFacade.HEDGE_REQUIREMENT_ERROR,
-    );
+    const hedges = this.panelStore.buildHedgePayload();
+    if (!this.hasHedgeSelectionRequirement(hedges)) {
+      this.hedgeSelectionError.set(EntryModalFacade.HEDGE_REQUIREMENT_ERROR);
+      return;
+    }
+    const hedgeConfigurationErrors = this.validationService.listIncompleteHedgeConfigs(hedges);
+    this.hedgeSelectionError.set(hedgeConfigurationErrors[0] ?? null);
   }
 
   private prefillFromPayload(payload: EntryModalPayload): void {

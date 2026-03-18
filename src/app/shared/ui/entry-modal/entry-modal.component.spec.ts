@@ -228,6 +228,31 @@ describe('EntryModalComponent', () => {
     expect(component['hedgeSelectionError']()).toBeNull();
   });
 
+  it('blocks save when a selected trim hedge has no configured option', async () => {
+    const savedSpy = vi.fn();
+    component.saved.subscribe(savedSpy);
+    component.variant = 'warm-lead';
+    component.form.patchValue({
+      firstName: 'Lead',
+      lastName: 'NeedsTrimConfig',
+      address: '91 Birch',
+      phone: '(438) 777-2222',
+      jobType: 'Hedge Trimming',
+      jobValue: '920',
+      additionalDetails: '',
+    });
+    component['hedgeStates'].set({ ...component['hedgeStates'](), 'hedge-1': 'trim' });
+    component['savedConfigs'].set({ ...component['savedConfigs'](), 'hedge-1': { state: 'none' } });
+
+    await component['submitEntry']();
+
+    expect(savedSpy).not.toHaveBeenCalled();
+    expect(component['hedgeSelectionError']()).toContain('Hedge 1');
+    expect(component['requiredFieldErrors']()).toContain(
+      'Hedge 1: select at least one trim option or preset.',
+    );
+  });
+
   it('clears hedge selection errors when a customer restores at least one hedge', () => {
     component.variant = 'customer';
     component['hedgeSelectionError'].set('Select at least one hedge before saving this customer entry.');
@@ -241,7 +266,7 @@ describe('EntryModalComponent', () => {
     expect(component['hedgeSelectionError']()).toBeNull();
   });
 
-  it('includes hedge states in the payload even when configs are not saved explicitly', async () => {
+  it('blocks saving when a selected hedge has no saved configuration', async () => {
     const savedSpy = vi.fn();
     component.saved.subscribe(savedSpy);
     component.form.patchValue({
@@ -259,9 +284,10 @@ describe('EntryModalComponent', () => {
 
     await component['submitEntry']();
 
-    expect(savedSpy).toHaveBeenCalledTimes(1);
-    const payload = savedSpy.mock.calls[0][0] as EntryModalPayload;
-    expect(payload.hedges['hedge-4'].state).toBe('trim');
+    expect(savedSpy).not.toHaveBeenCalled();
+    expect(component['requiredFieldErrors']()).toContain(
+      'Hedge 4: select at least one trim option or preset.',
+    );
   });
 
   it('clears hedge selection errors when the trim panel is saved for customers', () => {
@@ -852,6 +878,10 @@ describe('EntryModalComponent', () => {
       ...component['hedgeStates'](),
       'hedge-1': 'trim',
     });
+    component['savedConfigs'].set({
+      ...component['savedConfigs'](),
+      'hedge-1': { state: 'trim', trim: { mode: 'preset', preset: 'normal' } },
+    });
     component.form.get('calendar.date')?.setValue('2026-03-05');
     component.form.get('calendar.startTime')?.setValue('09:00');
     component.form.get('calendar.endTime')?.setValue('11:00');
@@ -1317,6 +1347,10 @@ describe('EntryModalComponent', () => {
     component['hedgeStates'].set({
       ...component['hedgeStates'](),
       'hedge-2': 'trim',
+    });
+    component['savedConfigs'].set({
+      ...component['savedConfigs'](),
+      'hedge-2': { state: 'trim', trim: { mode: 'preset', preset: 'normal' } },
     });
     component.form.get('calendar.date')?.setValue('2026-03-05');
     component.form.get('calendar.startTime')?.setValue('09:00');
@@ -2293,6 +2327,10 @@ describe('EntryModalComponent', () => {
       jobValue: '900',
     });
     component['hedgeStates'].set({ ...component['hedgeStates'](), 'hedge-1': 'trim' });
+    component['savedConfigs'].set({
+      ...component['savedConfigs'](),
+      'hedge-1': { state: 'trim', trim: { mode: 'preset', preset: 'normal' } },
+    });
     component.form.get('calendar.date')?.setValue('2026-03-05');
     component.form.get('calendar.startTime')?.setValue('09:00');
     component.form.get('calendar.endTime')?.setValue('10:00');
@@ -2330,6 +2368,10 @@ describe('EntryModalComponent', () => {
       jobValue: '900',
     });
     component['hedgeStates'].set({ ...component['hedgeStates'](), 'hedge-1': 'trim' });
+    component['savedConfigs'].set({
+      ...component['savedConfigs'](),
+      'hedge-1': { state: 'trim', trim: { mode: 'preset', preset: 'normal' } },
+    });
     component.form.get('calendar.date')?.setValue('2026-03-05');
     component.form.get('calendar.startTime')?.setValue('09:00');
     component.form.get('calendar.endTime')?.setValue('10:00');
@@ -2367,6 +2409,10 @@ describe('EntryModalComponent', () => {
       jobValue: '900',
     });
     component['hedgeStates'].set({ ...component['hedgeStates'](), 'hedge-1': 'trim' });
+    component['savedConfigs'].set({
+      ...component['savedConfigs'](),
+      'hedge-1': { state: 'trim', trim: { mode: 'preset', preset: 'normal' } },
+    });
     component.form.get('calendar.date')?.setValue('2026-03-05');
     component.form.get('calendar.startTime')?.setValue('09:00');
     component.form.get('calendar.endTime')?.setValue('10:00');
