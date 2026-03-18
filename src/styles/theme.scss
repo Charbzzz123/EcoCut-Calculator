@@ -4,14 +4,57 @@
   --surface-hero: radial-gradient(circle at 20% 20%, rgba(32, 80, 55, 0.55), rgba(5, 15, 11, 0.95));
   --surface-panel: rgba(19, 37, 28, 0.85);
   --surface-glow: rgba(106, 255, 183, 0.15);
+  --surface-overlay: rgba(6, 18, 14, 0.93);
+  --surface-overlay-strong: rgba(6, 18, 14, 0.98);
+  --surface-backdrop: rgba(2, 9, 7, 0.7);
+  --surface-card-soft: rgba(9, 24, 18, 0.88);
+  --surface-card-muted: rgba(9, 23, 17, 0.9);
+  --surface-card-deep: rgba(7, 20, 15, 0.9);
+  --surface-input: rgba(8, 20, 15, 0.9);
+  --surface-input-alt: rgba(8, 22, 16, 0.9);
+  --surface-chip: rgba(13, 35, 27, 0.85);
+  --surface-chip-selected: rgba(12, 34, 26, 0.92);
+  --surface-focus: rgba(11, 28, 21, 0.95);
+  --surface-danger-soft: rgba(80, 24, 24, 0.35);
+  --surface-danger-ghost: rgba(35, 16, 16, 0.6);
+  --surface-warning-soft: rgba(86, 56, 11, 0.35);
+  --surface-status-both: rgba(14, 47, 35, 0.9);
+  --surface-status-email: rgba(17, 40, 56, 0.82);
+  --surface-status-sms: rgba(60, 45, 13, 0.78);
+  --surface-status-none: rgba(76, 24, 24, 0.65);
   --border-soft: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(134, 239, 172, 0.35);
+  --border-muted: rgba(148, 163, 184, 0.35);
+  --border-muted-strong: rgba(148, 163, 184, 0.5);
+  --border-accent-soft: rgba(103, 232, 194, 0.38);
+  --border-accent: rgba(103, 232, 194, 0.45);
+  --border-accent-medium: rgba(103, 232, 194, 0.6);
+  --border-accent-strong: rgba(103, 232, 194, 0.75);
+  --border-danger: rgba(248, 113, 113, 0.45);
+  --border-danger-soft: rgba(248, 113, 113, 0.35);
+  --border-warning: rgba(251, 191, 36, 0.55);
+  --border-status-email: rgba(125, 211, 252, 0.7);
+  --border-status-sms: rgba(251, 191, 36, 0.7);
+  --border-status-none: rgba(248, 113, 113, 0.65);
   --text-primary: #f3fff5;
   --text-muted: #96b5a3;
   --text-inverse: #061209;
+  --text-accent: #d8fff1;
+  --text-accent-soft: #c9ded7;
+  --text-accent-strong: #e9fff7;
+  --text-warning: #ffe7b2;
+  --text-danger: #ffd4d4;
+  --text-danger-soft: #ffb4b4;
+  --text-status-email: #d9f1ff;
+  --text-status-sms: #ffecc4;
+  --text-status-none: #ffcaca;
   --accent-primary: #4ade80;
   --accent-secondary: #22c55e;
   --accent-amber: #fcd34d;
+  --accent-error: #f87171;
+  --focus-ring: rgba(103, 232, 194, 0.45);
+  --focus-ring-glow: rgba(45, 212, 191, 0.2);
+  --focus-ring-inner: rgba(103, 232, 194, 0.35);
   --scrollbar-track: rgba(6, 18, 14, 0.75);
   --scrollbar-thumb-solid: rgba(103, 232, 194, 0.55);
   --scrollbar-thumb: linear-gradient(
@@ -26,6 +69,11 @@
   );
   --scrollbar-thumb-border: rgba(9, 28, 21, 0.9);
   --gradient-accent: linear-gradient(120deg, #4ade80, #22d3ee);
+  --gradient-accent-soft: linear-gradient(
+    135deg,
+    rgba(134, 239, 214, 0.96) 0%,
+    rgba(45, 212, 191, 0.9) 100%
+  );
   --shadow-elevated: 0 25px 55px rgba(3, 10, 7, 0.65);
   --card-radius: 1.25rem;
   --blur-lg: 30px;

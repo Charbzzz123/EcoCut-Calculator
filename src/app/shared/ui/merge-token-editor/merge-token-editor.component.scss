@@ -6,7 +6,7 @@
   min-height: 2.5rem;
   border-radius: 0.8rem;
   border: 1px solid var(--border-soft);
-  background: rgba(8, 20, 15, 0.9);
+  background: var(--surface-input);
   color: var(--text-primary);
   font: inherit;
   padding: 0.6rem 0.75rem;
@@ -15,22 +15,22 @@
 }
 
 .merge-token-editor__surface:focus {
-  outline: 2px solid rgba(103, 232, 194, 0.45);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
 .merge-token-editor__surface:empty::before {
   content: attr(data-placeholder);
-  color: rgba(148, 163, 184, 0.75);
+  color: var(--text-muted);
 }
 
 .merge-token-editor__chip {
   display: inline-flex;
   align-items: center;
-  border: 1px solid rgba(103, 232, 194, 0.45);
+  border: 1px solid var(--border-accent);
   border-radius: 999px;
-  background: rgba(13, 35, 27, 0.85);
-  color: #d8fff1;
+  background: var(--surface-chip);
+  color: var(--text-accent);
   padding: 0.18rem 0.62rem;
   font-size: 0.88rem;
   line-height: 1.2;
@@ -43,9 +43,9 @@
 }
 
 :host(.merge-drop-target) .merge-token-editor__surface {
-  border-color: rgba(103, 232, 194, 0.78);
+  border-color: var(--border-accent-strong);
   box-shadow:
-    0 0 0 2px rgba(45, 212, 191, 0.2),
-    0 0 0 1px rgba(103, 232, 194, 0.35) inset;
-  background: rgba(11, 28, 21, 0.95);
+    0 0 0 2px var(--focus-ring-glow),
+    0 0 0 1px var(--focus-ring-inner) inset;
+  background: var(--surface-focus);
 }
