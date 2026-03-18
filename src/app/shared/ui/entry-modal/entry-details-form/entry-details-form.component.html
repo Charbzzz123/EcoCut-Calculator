@@ -111,7 +111,6 @@
                   <input
                     type="checkbox"
                     [checked]="trim.inside"
-                    [disabled]="trimPresetSelected() !== null"
                     (change)="handlers.updateTrimSection('inside', $any($event.target).checked)"
                   />
                   <span>Inside</span>
@@ -120,7 +119,6 @@
                   <input
                     type="checkbox"
                     [checked]="trim.top"
-                    [disabled]="trimPresetSelected() !== null"
                     (change)="handlers.updateTrimSection('top', $any($event.target).checked)"
                   />
                   <span>Top</span>
@@ -129,7 +127,6 @@
                   <input
                     type="checkbox"
                     [checked]="trim.outside"
-                    [disabled]="trimPresetSelected() !== null"
                     (change)="handlers.updateTrimSection('outside', $any($event.target).checked)"
                   />
                   <span>Outside</span>
@@ -142,7 +139,6 @@
                     name="trimPreset"
                     value="normal"
                     [checked]="trimPresetSelected() === 'normal'"
-                    [disabled]="trimHasCustomSelections()"
                     (change)="handlers.selectTrimPreset('normal')"
                   />
                   <span>Normal</span>
@@ -153,7 +149,6 @@
                     name="trimPreset"
                     value="total"
                     [checked]="trimPresetSelected() === 'total'"
-                    [disabled]="trimHasCustomSelections()"
                     (change)="handlers.selectTrimPreset('total')"
                   />
                   <span>Total</span>
