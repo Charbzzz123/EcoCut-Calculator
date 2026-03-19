@@ -110,24 +110,22 @@
       </div>
 
       <div class="field-grid">
-        <label class="field">
+        <div class="field">
           <span>Last service</span>
-          <select [formControl]="serviceWindowControl">
-            <option value="any">Any</option>
-            <option value="last-90">Last 90 days</option>
-            <option value="last-365">Last 365 days</option>
-            <option value="no-history">No service yet</option>
-          </select>
-        </label>
-        <label class="field">
+          <app-select-dropdown
+            [formControl]="serviceWindowControl"
+            [options]="serviceWindowOptions"
+            ariaLabel="Last service filter"
+          ></app-select-dropdown>
+        </div>
+        <div class="field">
           <span>Upcoming jobs</span>
-          <select [formControl]="upcomingWindowControl">
-            <option value="any">Any</option>
-            <option value="next-30">Next 30 days</option>
-            <option value="next-90">Next 90 days</option>
-            <option value="no-upcoming">None scheduled</option>
-          </select>
-        </label>
+          <app-select-dropdown
+            [formControl]="upcomingWindowControl"
+            [options]="upcomingWindowOptions"
+            ariaLabel="Upcoming jobs filter"
+          ></app-select-dropdown>
+        </div>
       </div>
 
       <button type="button" class="refresh-btn" (click)="reloadRecipients()">
@@ -223,30 +221,30 @@
 
       <section class="composer-editor-zone">
         <div class="field-grid composer-grid">
-          <label class="field">
+          <div class="field">
             <span>Segment rule</span>
-            <select [formControl]="segmentRuleControl">
-              @for (rule of segmentRules(); track rule.id) {
-                <option [value]="rule.id">{{ rule.label }}</option>
-              }
-            </select>
-          </label>
-          <label class="field">
+            <app-select-dropdown
+              [formControl]="segmentRuleControl"
+              [options]="segmentRuleOptions()"
+              ariaLabel="Segment rule selector"
+            ></app-select-dropdown>
+          </div>
+          <div class="field">
             <span>Email variant</span>
-            <select [formControl]="emailVariantControl">
-              @for (variant of emailVariants(); track variant.id) {
-                <option [value]="variant.id">{{ variant.label }}</option>
-              }
-            </select>
-          </label>
-          <label class="field">
+            <app-select-dropdown
+              [formControl]="emailVariantControl"
+              [options]="emailVariantOptions()"
+              ariaLabel="Email variant selector"
+            ></app-select-dropdown>
+          </div>
+          <div class="field">
             <span>SMS variant</span>
-            <select [formControl]="smsVariantControl">
-              @for (variant of smsVariants(); track variant.id) {
-                <option [value]="variant.id">{{ variant.label }}</option>
-              }
-            </select>
-          </label>
+            <app-select-dropdown
+              [formControl]="smsVariantControl"
+              [options]="smsVariantOptions()"
+              ariaLabel="SMS variant selector"
+            ></app-select-dropdown>
+          </div>
         </div>
 
         <div class="merge-field-row merge-field-row--sticky" aria-label="Merge field chips">
@@ -350,43 +348,12 @@
       <div class="preview-shell">
         <div class="field">
           <span>Preview as client</span>
-          <div
-            #previewSelectRoot
-            class="preview-select"
-            [class.preview-select--open]="previewMenuOpen()"
-          >
-            <button
-              type="button"
-              class="preview-select__trigger"
-              (click)="togglePreviewMenu()"
-              [disabled]="previewRecipients().length === 0"
-              [attr.aria-expanded]="previewMenuOpen()"
-              aria-haspopup="listbox"
-              aria-label="Preview client selector"
-            >
-              <span>{{ selectedPreviewClientLabel() }}</span>
-              <span class="preview-select__chevron" aria-hidden="true">⌄</span>
-            </button>
-
-            @if (previewMenuOpen() && previewRecipients().length > 0) {
-              <ul class="preview-select__menu" role="listbox" aria-label="Preview clients">
-                @for (client of previewRecipients(); track client.clientId) {
-                  <li>
-                    <button
-                      type="button"
-                      class="preview-select__option"
-                      [class.preview-select__option--active]="
-                        previewClientIdControl.value === client.clientId
-                      "
-                      (click)="selectPreviewClient(client.clientId)"
-                    >
-                      {{ client.fullName }}
-                    </button>
-                  </li>
-                }
-              </ul>
-            }
-          </div>
+          <app-select-dropdown
+            [formControl]="previewClientIdControl"
+            [options]="previewRecipientOptions()"
+            [emptyLabel]="'No eligible recipients for selected channel'"
+            ariaLabel="Preview client selector"
+          ></app-select-dropdown>
         </div>
         <div class="preview-nav">
           <button
@@ -547,13 +514,14 @@
           </p>
         </section>
         <div class="field-grid composer-grid">
-          <label class="field">
+          <div class="field">
             <span>Schedule mode</span>
-            <select [formControl]="scheduleModeControl">
-              <option value="now">Send now</option>
-              <option value="later">Schedule for later</option>
-            </select>
-          </label>
+            <app-select-dropdown
+              [formControl]="scheduleModeControl"
+              [options]="scheduleModeOptions"
+              ariaLabel="Schedule mode selector"
+            ></app-select-dropdown>
+          </div>
           @if (scheduleModeControl.value === 'later') {
             <label class="field">
               <span>Scheduled timestamp</span>

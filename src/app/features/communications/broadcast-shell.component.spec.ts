@@ -777,12 +777,14 @@ describe('BroadcastShellComponent', () => {
 
   it('opens the preview dropdown and selects a client option', () => {
     const host = fixture.nativeElement as HTMLElement;
-    const trigger = host.querySelector('.preview-select__trigger') as HTMLButtonElement;
+    const trigger = host.querySelector('.preview-shell .select-dropdown__trigger') as HTMLButtonElement;
 
     trigger.click();
     fixture.detectChanges();
 
-    const options = host.querySelectorAll('.preview-select__option') as NodeListOf<HTMLButtonElement>;
+    const options = host.querySelectorAll(
+      '.preview-shell .select-dropdown__option',
+    ) as NodeListOf<HTMLButtonElement>;
     const bellaOption = Array.from(options).find((option) =>
       option.textContent?.includes('Bella Stone'),
     ) as HTMLButtonElement;
@@ -790,24 +792,21 @@ describe('BroadcastShellComponent', () => {
     fixture.detectChanges();
 
     expect(facadeMock.previewClientIdControl.value).toBe('bella');
-    expect(host.querySelector('.preview-select__menu')).toBeNull();
+    expect(host.querySelector('.preview-shell .select-dropdown__menu')).toBeNull();
   });
 
   it('closes preview dropdown when clicking outside the selector', () => {
-    const component = fixture.componentInstance as BroadcastShellComponent;
     const host = fixture.nativeElement as HTMLElement;
-    const trigger = host.querySelector('.preview-select__trigger') as HTMLButtonElement;
+    const trigger = host.querySelector('.preview-shell .select-dropdown__trigger') as HTMLButtonElement;
 
     trigger.click();
     fixture.detectChanges();
-    expect(host.querySelector('.preview-select__menu')).toBeTruthy();
+    expect(host.querySelector('.preview-shell .select-dropdown__menu')).toBeTruthy();
 
-    component['onDocumentClick']({
-      target: document.createElement('div'),
-    } as unknown as MouseEvent);
+    document.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     fixture.detectChanges();
 
-    expect(host.querySelector('.preview-select__menu')).toBeNull();
+    expect(host.querySelector('.preview-shell .select-dropdown__menu')).toBeNull();
   });
 
   it('ignores preview moves when list is too short or out of bounds', () => {
@@ -850,10 +849,13 @@ describe('BroadcastShellComponent', () => {
   });
 
   it('returns fallback preview labels for empty and unknown recipients', () => {
-    const component = fixture.componentInstance as BroadcastShellComponent;
-
     facadeMock.previewRecipients.set([]);
-    expect(component['selectedPreviewClientLabel']()).toBe('No eligible recipients for selected channel');
+    fixture.detectChanges();
+    let trigger = fixture.nativeElement.querySelector(
+      '.preview-shell .select-dropdown__trigger',
+    ) as HTMLButtonElement;
+    expect(trigger.textContent).toContain('No eligible recipients for selected channel');
+    expect(trigger.disabled).toBe(true);
 
     facadeMock.previewRecipients.set([
       {
@@ -869,11 +871,28 @@ describe('BroadcastShellComponent', () => {
       },
     ]);
     facadeMock.previewClientIdControl.setValue('missing-id');
-    expect(component['selectedPreviewClientLabel']()).toBe('Alex North');
+    fixture.detectChanges();
+    trigger = fixture.nativeElement.querySelector(
+      '.preview-shell .select-dropdown__trigger',
+    ) as HTMLButtonElement;
+    expect(trigger.textContent).toContain('Alex North');
+    expect(trigger.disabled).toBe(false);
   });
 
   it('renders later schedule input when mode is later', () => {
-    facadeMock.scheduleModeControl.setValue('later');
+    const trigger = fixture.nativeElement.querySelector(
+      '.send-controls button[aria-label="Schedule mode selector"]',
+    ) as HTMLButtonElement;
+    trigger.click();
+    fixture.detectChanges();
+
+    const options = fixture.nativeElement.querySelectorAll(
+      '.send-controls .select-dropdown__option',
+    ) as NodeListOf<HTMLButtonElement>;
+    const laterOption = Array.from(options).find((option) =>
+      option.textContent?.includes('Schedule for later'),
+    ) as HTMLButtonElement;
+    laterOption.click();
     fixture.detectChanges();
 
     const dateTimeInput = fixture.nativeElement.querySelector(

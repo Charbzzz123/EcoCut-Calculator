@@ -2,8 +2,6 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
-  ElementRef,
-  HostListener,
   OnInit,
   ViewChild,
   computed,
@@ -15,6 +13,10 @@ import type { ClientSummary } from '@shared/domain/entry/entry-repository.servic
 import { BackChipComponent } from '@shared/ui/back-chip/back-chip.component.js';
 import { BrandBannerComponent } from '@shared/ui/brand-banner/brand-banner.component.js';
 import { MergeTokenEditorComponent } from '@shared/ui/merge-token-editor/merge-token-editor.component.js';
+import {
+  SelectDropdownComponent,
+  type SelectDropdownOption,
+} from '@shared/ui/select-dropdown/select-dropdown.component.js';
 import { BroadcastFacade } from './broadcast.facade.js';
 import type {
   BroadcastChannel,
@@ -44,6 +46,7 @@ interface AudiencePreviewRow {
     BrandBannerComponent,
     BackChipComponent,
     MergeTokenEditorComponent,
+    SelectDropdownComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -100,7 +103,46 @@ export class BroadcastShellComponent implements OnInit {
   protected readonly confirmationPayload = this.facade.confirmationPayload;
   protected readonly statusBanner = this.facade.statusBanner;
   protected readonly mergeDragTarget = signal<BroadcastTemplateTarget | null>(null);
-  protected readonly previewMenuOpen = signal(false);
+  protected readonly serviceWindowOptions: SelectDropdownOption[] = [
+    { value: 'any', label: 'Any' },
+    { value: 'last-90', label: 'Last 90 days' },
+    { value: 'last-365', label: 'Last 365 days' },
+    { value: 'no-history', label: 'No service yet' },
+  ];
+  protected readonly upcomingWindowOptions: SelectDropdownOption[] = [
+    { value: 'any', label: 'Any' },
+    { value: 'next-30', label: 'Next 30 days' },
+    { value: 'next-90', label: 'Next 90 days' },
+    { value: 'no-upcoming', label: 'None scheduled' },
+  ];
+  protected readonly scheduleModeOptions: SelectDropdownOption[] = [
+    { value: 'now', label: 'Send now' },
+    { value: 'later', label: 'Schedule for later' },
+  ];
+  protected readonly segmentRuleOptions = computed<SelectDropdownOption[]>(() =>
+    this.segmentRules().map((rule) => ({
+      value: rule.id,
+      label: rule.label,
+    })),
+  );
+  protected readonly emailVariantOptions = computed<SelectDropdownOption[]>(() =>
+    this.emailVariants().map((variant) => ({
+      value: variant.id,
+      label: variant.label,
+    })),
+  );
+  protected readonly smsVariantOptions = computed<SelectDropdownOption[]>(() =>
+    this.smsVariants().map((variant) => ({
+      value: variant.id,
+      label: variant.label,
+    })),
+  );
+  protected readonly previewRecipientOptions = computed<SelectDropdownOption[]>(() =>
+    this.previewRecipients().map((client) => ({
+      value: client.clientId,
+      label: client.fullName,
+    })),
+  );
   private lastTemplateTarget: BroadcastTemplateTarget = 'emailBody';
   private readonly cursorByTarget: Record<BroadcastTemplateTarget, { start: number; end: number }> = {
     emailSubject: { start: this.emailSubjectControl.value.length, end: this.emailSubjectControl.value.length },
@@ -132,7 +174,6 @@ export class BroadcastShellComponent implements OnInit {
   @ViewChild('emailSubjectEditor') private emailSubjectEditor?: MergeTokenEditorComponent;
   @ViewChild('emailBodyEditor') private emailBodyEditor?: MergeTokenEditorComponent;
   @ViewChild('smsBodyEditor') private smsBodyEditor?: MergeTokenEditorComponent;
-  @ViewChild('previewSelectRoot') private previewSelectRoot?: ElementRef<HTMLElement>;
   /* c8 ignore next */
   protected readonly audiencePreviewRows = computed<AudiencePreviewRow[]>(() =>
     this.filteredRecipients().map((client) => {
@@ -189,22 +230,6 @@ export class BroadcastShellComponent implements OnInit {
   }
   ngOnInit(): void {
     void this.facade.loadRecipients();
-  }
-
-  @HostListener('document:click', ['$event'])
-  protected onDocumentClick(event: MouseEvent): void {
-    if (!this.previewMenuOpen()) {
-      return;
-    }
-    const root = this.previewSelectRoot?.nativeElement;
-    if (!root) {
-      this.previewMenuOpen.set(false);
-      return;
-    }
-    const target = event.target;
-    if (!(target instanceof Node) || !root.contains(target)) {
-      this.previewMenuOpen.set(false);
-    }
   }
 
   protected reloadRecipients(): void {
@@ -444,28 +469,6 @@ export class BroadcastShellComponent implements OnInit {
       return;
     }
     this.previewClientIdControl.setValue(recipients[nextIndex].clientId);
-  }
-
-  protected togglePreviewMenu(): void {
-    if (this.previewRecipients().length === 0) {
-      this.previewMenuOpen.set(false);
-      return;
-    }
-    this.previewMenuOpen.update((isOpen) => !isOpen);
-  }
-
-  protected selectPreviewClient(clientId: string): void {
-    this.previewClientIdControl.setValue(clientId);
-    this.previewMenuOpen.set(false);
-  }
-
-  protected selectedPreviewClientLabel(): string {
-    const recipients = this.previewRecipients();
-    if (recipients.length === 0) {
-      return 'No eligible recipients for selected channel';
-    }
-    const current = recipients.find((recipient) => recipient.clientId === this.previewClientIdControl.value);
-    return current?.fullName ?? recipients[0].fullName;
   }
 
   protected dispatchBlockedReason(): string | null {
