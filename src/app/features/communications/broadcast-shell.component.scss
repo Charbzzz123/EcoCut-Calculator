@@ -494,6 +494,12 @@
   color: var(--text-warning);
 }
 
+.validation-banner--info {
+  border-color: var(--border-status-email);
+  background: var(--surface-status-email);
+  color: var(--text-status-email);
+}
+
 .dispatch-status {
   margin: 1rem 0 0;
   color: var(--text-accent);

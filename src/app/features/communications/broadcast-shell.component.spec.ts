@@ -293,6 +293,14 @@ describe('BroadcastShellComponent', () => {
     button.click();
 
     expect(facadeMock.loadRecipients).toHaveBeenCalledTimes(2);
+    expect(fixture.nativeElement.textContent).toContain('Dispatch readiness: Blocked');
+
+    const confirmButton = fixture.nativeElement.querySelector(
+      '.channel-confirmation .refresh-btn',
+    ) as HTMLButtonElement;
+    confirmButton.click();
+    fixture.detectChanges();
+
     expect(fixture.nativeElement.textContent).toContain('Dispatch readiness: Ready');
   });
 
@@ -369,7 +377,7 @@ describe('BroadcastShellComponent', () => {
         host.querySelector('.floating-summary__list li:first-child strong') as HTMLElement
       ).textContent?.trim() ?? '';
 
-    expect(host.textContent).toContain('Channel is valid for 1 recipients.');
+    expect(host.textContent).toContain('Channel is valid for 1 recipient (3 selected).');
     expect(selectedCount()).toBe('1');
 
     const emailChannel = host.querySelector(
@@ -377,7 +385,7 @@ describe('BroadcastShellComponent', () => {
     ) as HTMLInputElement;
     emailChannel.click();
     fixture.detectChanges();
-    expect(host.textContent).toContain('Channel is valid for 2 recipients.');
+    expect(host.textContent).toContain('Channel is valid for 2 recipients (3 selected).');
     expect(selectedCount()).toBe('2');
 
     const smsChannel = host.querySelector(
@@ -385,8 +393,35 @@ describe('BroadcastShellComponent', () => {
     ) as HTMLInputElement;
     smsChannel.click();
     fixture.detectChanges();
-    expect(host.textContent).toContain('Channel is valid for 2 recipients.');
+    expect(host.textContent).toContain('Channel is valid for 2 recipients (3 selected).');
     expect(selectedCount()).toBe('2');
+  });
+
+  it('renders channel status guidance as info before confirmation and warning after channel changes', () => {
+    fixture.detectChanges();
+    const status = fixture.nativeElement.querySelector(
+      '.channel-confirmation .validation-banner',
+    ) as HTMLElement;
+    expect(status.classList.contains('validation-banner--info')).toBe(true);
+    expect(status.textContent).toContain('Current channel: Email + SMS.');
+
+    const confirmButton = fixture.nativeElement.querySelector(
+      '.channel-confirmation .refresh-btn',
+    ) as HTMLButtonElement;
+    confirmButton.click();
+    fixture.detectChanges();
+
+    const emailChannel = fixture.nativeElement.querySelector(
+      '.channel-toggle input[value="email"]',
+    ) as HTMLInputElement;
+    emailChannel.click();
+    fixture.detectChanges();
+
+    const warningStatus = fixture.nativeElement.querySelector(
+      '.channel-confirmation .validation-banner',
+    ) as HTMLElement;
+    expect(warningStatus.classList.contains('validation-banner--advisory')).toBe(true);
+    expect(warningStatus.textContent).toContain('Channel changed to Email.');
   });
 
   it('shows blocked status and loading/error banners when signals change', () => {

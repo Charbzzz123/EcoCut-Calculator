@@ -243,23 +243,30 @@ export class BroadcastShellComponent implements OnInit {
     this.confirmedChannel = this.channelControl.value;
   }
 
-  protected channelSelectionStatus(): { confirmed: boolean; message: string } {
+  protected channelSelectionStatus(): {
+    confirmed: boolean;
+    message: string;
+    tone: 'ok' | 'info' | 'warning';
+  } {
     const selectedChannel = this.channelControl.value;
     if (this.confirmedChannel === selectedChannel) {
       return {
         confirmed: true,
         message: `Channel confirmed: ${this.channelLabel(selectedChannel)}.`,
+        tone: 'ok',
       };
     }
     if (this.confirmedChannel === null) {
       return {
         confirmed: false,
         message: `Current channel: ${this.channelLabel(selectedChannel)}. Click confirm to lock your choice.`,
+        tone: 'info',
       };
     }
     return {
       confirmed: false,
       message: `Channel changed to ${this.channelLabel(selectedChannel)}. Confirm again before moving on.`,
+      tone: 'warning',
     };
   }
 
@@ -277,6 +284,14 @@ export class BroadcastShellComponent implements OnInit {
       return counts.smsEligible;
     }
     return counts.bothEligible;
+  }
+
+  protected selectedRecipientsCount(): number {
+    return this.filteredRecipients().length;
+  }
+
+  protected recipientLabel(count: number): string {
+    return count === 1 ? 'recipient' : 'recipients';
   }
 
   protected insertMergeField(token: string, explicitTarget?: BroadcastTemplateTarget): void {
