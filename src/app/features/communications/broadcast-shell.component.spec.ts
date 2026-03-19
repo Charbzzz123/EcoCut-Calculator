@@ -612,6 +612,7 @@ describe('BroadcastShellComponent', () => {
 
   it('allows removing a recipient from the audience list and restoring it', () => {
     const host = fixture.nativeElement as HTMLElement;
+    const initialRows = host.querySelectorAll('.audience-preview__item').length;
     const removeButton = host.querySelector(
       '.audience-preview__item .refresh-btn--compact',
     ) as HTMLButtonElement;
@@ -620,6 +621,7 @@ describe('BroadcastShellComponent', () => {
 
     expect(facadeMock.excludeRecipient).toHaveBeenCalledTimes(1);
     expect(host.textContent).toContain('Excluded recipients:');
+    expect(host.querySelectorAll('.audience-preview__item').length).toBeLessThan(initialRows);
 
     facadeMock.excludedRecipients.set([
       {
@@ -643,6 +645,38 @@ describe('BroadcastShellComponent', () => {
     fixture.detectChanges();
 
     expect(facadeMock.restoreExcludedRecipient).toHaveBeenCalledTimes(1);
+    expect(host.querySelectorAll('.audience-preview__item').length).toBeGreaterThanOrEqual(initialRows);
+  });
+
+  it('removes manual-only recipients without sending them to excluded recipients', () => {
+    const manualOnly = {
+      clientId: 'manual-only',
+      firstName: 'Manual',
+      lastName: 'Only',
+      fullName: 'Manual Only',
+      address: '88 Test Street',
+      phone: '(555) 111-2222',
+      email: 'manual@ecocutqc.com',
+      jobsCount: 0,
+      lastJobDate: null,
+    } as ClientSummary;
+
+    facadeMock.filteredRecipients.set([facadeMock.filteredRecipients()[0]]);
+    facadeMock.manualRecipients.set([manualOnly]);
+    facadeMock.allRecipients.set([...facadeMock.allRecipients(), manualOnly]);
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const manualRow = Array.from(host.querySelectorAll('.audience-preview__item')).find((row) =>
+      (row as HTMLElement).textContent?.includes('Manual Only'),
+    ) as HTMLElement;
+    const removeButton = manualRow.querySelector('.refresh-btn--compact') as HTMLButtonElement;
+    removeButton.click();
+    fixture.detectChanges();
+
+    expect(facadeMock.removeManualRecipient).toHaveBeenCalledWith('manual-only');
+    expect(facadeMock.excludeRecipient).not.toHaveBeenCalledWith('manual-only');
+    expect(host.textContent).not.toContain('Excluded recipients: 1');
   });
 
   it('shows singular recipient wording when exactly one recipient is visible', () => {

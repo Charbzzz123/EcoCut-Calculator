@@ -891,6 +891,18 @@ export class BroadcastShellComponent implements OnInit {
   }
 
   protected excludeRecipient(clientId: string): void {
+    const isManual = this.manualRecipients().some((client) => client.clientId === clientId);
+    const isInFilters = this.filteredRecipients().some((client) => client.clientId === clientId);
+
+    if (isManual && !isInFilters) {
+      this.facade.removeManualRecipient(clientId);
+      this.manualQueuedClientIds.update((current) =>
+        current.filter((queuedClientId) => queuedClientId !== clientId),
+      );
+      this.manualRecipientNotice.set('Manual recipient removed from this campaign audience.');
+      return;
+    }
+
     this.facade.excludeRecipient(clientId);
     this.manualRecipientNotice.set('Recipient removed from this campaign audience.');
   }
@@ -933,7 +945,8 @@ export class BroadcastShellComponent implements OnInit {
     for (const client of this.manualRecipients()) {
       merged.set(client.clientId, client);
     }
-    return Array.from(merged.values());
+    const excludedIds = new Set(this.excludedRecipients().map((client) => client.clientId));
+    return Array.from(merged.values()).filter((client) => !excludedIds.has(client.clientId));
   }
 
   private channelLabel(channel: BroadcastChannel): string {
