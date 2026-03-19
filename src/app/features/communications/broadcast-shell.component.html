@@ -179,20 +179,15 @@
       </div>
 
       <ul class="summary-list">
-        <li>Missing email: {{ exclusions().missingEmail }}</li>
-        <li>Missing phone: {{ exclusions().missingPhone }}</li>
-        <li>Missing both channels: {{ exclusions().missingBoth }}</li>
-        <li>Excluded for selected channel: {{ exclusions().excludedForSelectedChannel }}</li>
+        @for (row of channelSummaryRows(); track row.label) {
+          <li>{{ row.label }}: {{ row.value }}</li>
+        }
       </ul>
 
       @if (channelValidationMessage()) {
         <p class="validation-banner">{{ channelValidationMessage() }}</p>
       } @else {
-        <p class="validation-banner validation-banner--ok">
-          Channel is valid for {{ selectedChannelEligibleRecipients() }}
-          {{ recipientLabel(selectedChannelEligibleRecipients()) }} ({{ selectedRecipientsCount() }}
-          selected).
-        </p>
+        <p class="validation-banner validation-banner--ok">{{ channelEligibilityMessage() }}</p>
       }
 
       <div class="channel-confirmation">
@@ -218,6 +213,7 @@
 
     <article class="board-card board-card--wide">
       <h2>Step 3 - Template composer, preview, and send</h2>
+      <p class="composer-context">Editing for {{ selectedChannelLabel() }}.</p>
 
       <section class="composer-editor-zone">
         <div class="field-grid composer-grid">
@@ -229,22 +225,26 @@
               ariaLabel="Segment rule selector"
             ></app-select-dropdown>
           </div>
-          <div class="field">
-            <span>Email variant</span>
-            <app-select-dropdown
-              [formControl]="emailVariantControl"
-              [options]="emailVariantOptions()"
-              ariaLabel="Email variant selector"
-            ></app-select-dropdown>
-          </div>
-          <div class="field">
-            <span>SMS variant</span>
-            <app-select-dropdown
-              [formControl]="smsVariantControl"
-              [options]="smsVariantOptions()"
-              ariaLabel="SMS variant selector"
-            ></app-select-dropdown>
-          </div>
+          @if (isEmailChannelActive()) {
+            <div class="field">
+              <span>Email variant</span>
+              <app-select-dropdown
+                [formControl]="emailVariantControl"
+                [options]="emailVariantOptions()"
+                ariaLabel="Email variant selector"
+              ></app-select-dropdown>
+            </div>
+          }
+          @if (isSmsChannelActive()) {
+            <div class="field">
+              <span>SMS variant</span>
+              <app-select-dropdown
+                [formControl]="smsVariantControl"
+                [options]="smsVariantOptions()"
+                ariaLabel="SMS variant selector"
+              ></app-select-dropdown>
+            </div>
+          }
         </div>
 
         <div class="merge-field-row merge-field-row--sticky" aria-label="Merge field chips">
@@ -265,66 +265,70 @@
           }
         </div>
 
-        <div class="field-grid composer-grid">
+        @if (isEmailChannelActive()) {
+          <div class="field-grid composer-grid">
+            <div class="field">
+              <span>Email subject</span>
+              <app-merge-token-editor
+                #emailSubjectEditor
+                targetId="emailSubject"
+                [value]="emailSubjectControl.value"
+                [placeholder]="'Subject line'"
+                [singleLine]="true"
+                [mergeFields]="mergeFields()"
+                [class.merge-drop-target]="isMergeDragTarget('emailSubject')"
+                (editorFocused)="onTokenEditorFocus('emailSubject')"
+                (valueChange)="onTokenEditorValueChange('emailSubject', $event)"
+                (dragover)="onTemplateDragOver($event, 'emailSubject')"
+                (dragleave)="onTemplateDragLeave('emailSubject')"
+                (drop)="onTemplateDrop($event, 'emailSubject')"
+              ></app-merge-token-editor>
+            </div>
+            <label class="field">
+              <span>CTA link (optional)</span>
+              <input [formControl]="ctaLinkControl" type="url" placeholder="https://ecocutqc.com" />
+            </label>
+          </div>
+
           <div class="field">
-            <span>Email subject</span>
+            <span>Email body</span>
             <app-merge-token-editor
-              #emailSubjectEditor
-              targetId="emailSubject"
-              [value]="emailSubjectControl.value"
-              [placeholder]="'Subject line'"
-              [singleLine]="true"
+              #emailBodyEditor
+              targetId="emailBody"
+              [value]="emailBodyControl.value"
+              [placeholder]="'Write your email message using merge fields.'"
               [mergeFields]="mergeFields()"
-              [class.merge-drop-target]="isMergeDragTarget('emailSubject')"
-              (editorFocused)="onTokenEditorFocus('emailSubject')"
-              (valueChange)="onTokenEditorValueChange('emailSubject', $event)"
-              (dragover)="onTemplateDragOver($event, 'emailSubject')"
-              (dragleave)="onTemplateDragLeave('emailSubject')"
-              (drop)="onTemplateDrop($event, 'emailSubject')"
+              [class.merge-drop-target]="isMergeDragTarget('emailBody')"
+              (editorFocused)="onTokenEditorFocus('emailBody')"
+              (valueChange)="onTokenEditorValueChange('emailBody', $event)"
+              (dragover)="onTemplateDragOver($event, 'emailBody')"
+              (dragleave)="onTemplateDragLeave('emailBody')"
+              (drop)="onTemplateDrop($event, 'emailBody')"
             ></app-merge-token-editor>
           </div>
-          <label class="field">
-            <span>CTA link (optional)</span>
-            <input [formControl]="ctaLinkControl" type="url" placeholder="https://ecocutqc.com" />
-          </label>
-        </div>
+        }
+        @if (isSmsChannelActive()) {
+          <div class="field">
+            <span>SMS body</span>
+            <app-merge-token-editor
+              #smsBodyEditor
+              targetId="smsBody"
+              [value]="smsBodyControl.value"
+              [placeholder]="'Write your SMS message using merge fields.'"
+              [mergeFields]="mergeFields()"
+              [class.merge-drop-target]="isMergeDragTarget('smsBody')"
+              (editorFocused)="onTokenEditorFocus('smsBody')"
+              (valueChange)="onTokenEditorValueChange('smsBody', $event)"
+              (dragover)="onTemplateDragOver($event, 'smsBody')"
+              (dragleave)="onTemplateDragLeave('smsBody')"
+              (drop)="onTemplateDrop($event, 'smsBody')"
+            ></app-merge-token-editor>
+          </div>
 
-        <div class="field">
-          <span>Email body</span>
-          <app-merge-token-editor
-            #emailBodyEditor
-            targetId="emailBody"
-            [value]="emailBodyControl.value"
-            [placeholder]="'Write your email message using merge fields.'"
-            [mergeFields]="mergeFields()"
-            [class.merge-drop-target]="isMergeDragTarget('emailBody')"
-            (editorFocused)="onTokenEditorFocus('emailBody')"
-            (valueChange)="onTokenEditorValueChange('emailBody', $event)"
-            (dragover)="onTemplateDragOver($event, 'emailBody')"
-            (dragleave)="onTemplateDragLeave('emailBody')"
-            (drop)="onTemplateDrop($event, 'emailBody')"
-          ></app-merge-token-editor>
-        </div>
-        <div class="field">
-          <span>SMS body</span>
-          <app-merge-token-editor
-            #smsBodyEditor
-            targetId="smsBody"
-            [value]="smsBodyControl.value"
-            [placeholder]="'Write your SMS message using merge fields.'"
-            [mergeFields]="mergeFields()"
-            [class.merge-drop-target]="isMergeDragTarget('smsBody')"
-            (editorFocused)="onTokenEditorFocus('smsBody')"
-            (valueChange)="onTokenEditorValueChange('smsBody', $event)"
-            (dragover)="onTemplateDragOver($event, 'smsBody')"
-            (dragleave)="onTemplateDragLeave('smsBody')"
-            (drop)="onTemplateDrop($event, 'smsBody')"
-          ></app-merge-token-editor>
-        </div>
-
-        <p class="sms-counter">
-          SMS length: {{ smsMetrics().characters }} chars / {{ smsMetrics().segments }} segment(s)
-        </p>
+          <p class="sms-counter">
+            SMS length: {{ smsMetrics().characters }} chars / {{ smsMetrics().segments }} segment(s)
+          </p>
+        }
 
         <label class="field">
           <span>Internal note (not sent)</span>
@@ -393,54 +397,60 @@
               Apply only to {{ previewPayload().clientLabel }}. Overrides win over segment + channel
               layers.
             </p>
-            <label class="field">
-              <span>Override subject (optional)</span>
-              <input
-                [formControl]="overrideSubjectControl"
-                type="text"
-                data-merge-target="overrideSubject"
-                [class.merge-drop-target]="isMergeDragTarget('overrideSubject')"
-                (focus)="onTemplateCursorChange($event, 'overrideSubject')"
-                (click)="onTemplateCursorChange($event, 'overrideSubject')"
-                (keyup)="onTemplateCursorChange($event, 'overrideSubject')"
-                (select)="onTemplateCursorChange($event, 'overrideSubject')"
-                (dragover)="onTemplateDragOver($event, 'overrideSubject')"
-                (dragleave)="onTemplateDragLeave('overrideSubject')"
-                (drop)="onTemplateDrop($event, 'overrideSubject')"
-              />
-            </label>
-            <label class="field">
-              <span>Override email body (optional)</span>
-              <textarea
-                [formControl]="overrideEmailBodyControl"
-                rows="3"
-                data-merge-target="overrideEmailBody"
-                [class.merge-drop-target]="isMergeDragTarget('overrideEmailBody')"
-                (focus)="onTemplateCursorChange($event, 'overrideEmailBody')"
-                (click)="onTemplateCursorChange($event, 'overrideEmailBody')"
-                (keyup)="onTemplateCursorChange($event, 'overrideEmailBody')"
-                (select)="onTemplateCursorChange($event, 'overrideEmailBody')"
-                (dragover)="onTemplateDragOver($event, 'overrideEmailBody')"
-                (dragleave)="onTemplateDragLeave('overrideEmailBody')"
-                (drop)="onTemplateDrop($event, 'overrideEmailBody')"
-              ></textarea>
-            </label>
-            <label class="field">
-              <span>Override SMS body (optional)</span>
-              <textarea
-                [formControl]="overrideSmsBodyControl"
-                rows="2"
-                data-merge-target="overrideSmsBody"
-                [class.merge-drop-target]="isMergeDragTarget('overrideSmsBody')"
-                (focus)="onTemplateCursorChange($event, 'overrideSmsBody')"
-                (click)="onTemplateCursorChange($event, 'overrideSmsBody')"
-                (keyup)="onTemplateCursorChange($event, 'overrideSmsBody')"
-                (select)="onTemplateCursorChange($event, 'overrideSmsBody')"
-                (dragover)="onTemplateDragOver($event, 'overrideSmsBody')"
-                (dragleave)="onTemplateDragLeave('overrideSmsBody')"
-                (drop)="onTemplateDrop($event, 'overrideSmsBody')"
-              ></textarea>
-            </label>
+            @if (isEmailChannelActive()) {
+              <label class="field">
+                <span>Override subject (optional)</span>
+                <input
+                  [formControl]="overrideSubjectControl"
+                  type="text"
+                  data-merge-target="overrideSubject"
+                  [class.merge-drop-target]="isMergeDragTarget('overrideSubject')"
+                  (focus)="onTemplateCursorChange($event, 'overrideSubject')"
+                  (click)="onTemplateCursorChange($event, 'overrideSubject')"
+                  (keyup)="onTemplateCursorChange($event, 'overrideSubject')"
+                  (select)="onTemplateCursorChange($event, 'overrideSubject')"
+                  (dragover)="onTemplateDragOver($event, 'overrideSubject')"
+                  (dragleave)="onTemplateDragLeave('overrideSubject')"
+                  (drop)="onTemplateDrop($event, 'overrideSubject')"
+                />
+              </label>
+            }
+            @if (isEmailChannelActive()) {
+              <label class="field">
+                <span>Override email body (optional)</span>
+                <textarea
+                  [formControl]="overrideEmailBodyControl"
+                  rows="3"
+                  data-merge-target="overrideEmailBody"
+                  [class.merge-drop-target]="isMergeDragTarget('overrideEmailBody')"
+                  (focus)="onTemplateCursorChange($event, 'overrideEmailBody')"
+                  (click)="onTemplateCursorChange($event, 'overrideEmailBody')"
+                  (keyup)="onTemplateCursorChange($event, 'overrideEmailBody')"
+                  (select)="onTemplateCursorChange($event, 'overrideEmailBody')"
+                  (dragover)="onTemplateDragOver($event, 'overrideEmailBody')"
+                  (dragleave)="onTemplateDragLeave('overrideEmailBody')"
+                  (drop)="onTemplateDrop($event, 'overrideEmailBody')"
+                ></textarea>
+              </label>
+            }
+            @if (isSmsChannelActive()) {
+              <label class="field">
+                <span>Override SMS body (optional)</span>
+                <textarea
+                  [formControl]="overrideSmsBodyControl"
+                  rows="2"
+                  data-merge-target="overrideSmsBody"
+                  [class.merge-drop-target]="isMergeDragTarget('overrideSmsBody')"
+                  (focus)="onTemplateCursorChange($event, 'overrideSmsBody')"
+                  (click)="onTemplateCursorChange($event, 'overrideSmsBody')"
+                  (keyup)="onTemplateCursorChange($event, 'overrideSmsBody')"
+                  (select)="onTemplateCursorChange($event, 'overrideSmsBody')"
+                  (dragover)="onTemplateDragOver($event, 'overrideSmsBody')"
+                  (dragleave)="onTemplateDragLeave('overrideSmsBody')"
+                  (drop)="onTemplateDrop($event, 'overrideSmsBody')"
+                ></textarea>
+              </label>
+            }
             <div class="override-actions">
               <button type="button" class="refresh-btn" (click)="saveOverrideForPreviewClient()">
                 Save override
@@ -467,12 +477,16 @@
               }
             </ul>
           }
-          <p class="preview-title">Email subject</p>
-          <p>{{ previewPayload().emailSubject }}</p>
-          <p class="preview-title">Email body</p>
-          <p class="preview-block">{{ previewPayload().emailBody }}</p>
-          <p class="preview-title">SMS</p>
-          <p class="preview-block">{{ previewPayload().smsBody }}</p>
+          @if (isEmailChannelActive()) {
+            <p class="preview-title">Email subject</p>
+            <p>{{ previewPayload().emailSubject }}</p>
+            <p class="preview-title">Email body</p>
+            <p class="preview-block">{{ previewPayload().emailBody }}</p>
+          }
+          @if (isSmsChannelActive()) {
+            <p class="preview-title">SMS</p>
+            <p class="preview-block">{{ previewPayload().smsBody }}</p>
+          }
         </article>
       </div>
 
@@ -530,28 +544,32 @@
           }
         </div>
         <div class="field-grid composer-grid">
-          <label class="field">
-            <span>Test email destination</span>
-            <input
-              [formControl]="testEmailControl"
-              type="email"
-              inputmode="email"
-              autocomplete="email"
-              placeholder="owner@ecocutqc.com"
-              (input)="onTestEmailInput()"
-            />
-          </label>
-          <label class="field">
-            <span>Test SMS destination</span>
-            <input
-              [formControl]="testPhoneControl"
-              type="tel"
-              inputmode="tel"
-              autocomplete="tel"
-              placeholder="(514) 555-0000"
-              (input)="onTestPhoneInput()"
-            />
-          </label>
+          @if (isEmailChannelActive()) {
+            <label class="field">
+              <span>Test email destination</span>
+              <input
+                [formControl]="testEmailControl"
+                type="email"
+                inputmode="email"
+                autocomplete="email"
+                placeholder="owner@ecocutqc.com"
+                (input)="onTestEmailInput()"
+              />
+            </label>
+          }
+          @if (isSmsChannelActive()) {
+            <label class="field">
+              <span>Test SMS destination</span>
+              <input
+                [formControl]="testPhoneControl"
+                type="tel"
+                inputmode="tel"
+                autocomplete="tel"
+                placeholder="(514) 555-0000"
+                (input)="onTestPhoneInput()"
+              />
+            </label>
+          }
         </div>
         <div class="override-actions">
           <button

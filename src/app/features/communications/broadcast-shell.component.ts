@@ -35,6 +35,11 @@ interface AudiencePreviewRow {
   channelClass: 'both' | 'email' | 'sms' | 'none';
 }
 
+interface ChannelSummaryRow {
+  label: string;
+  value: number;
+}
+
 @Component({
   standalone: true,
   selector: 'app-broadcast-shell',
@@ -338,6 +343,55 @@ export class BroadcastShellComponent implements OnInit {
 
   protected recipientLabel(count: number): string {
     return count === 1 ? 'recipient' : 'recipients';
+  }
+
+  protected selectedChannelLabel(): string {
+    return this.channelLabel(this.channelControl.value);
+  }
+
+  protected isEmailChannelActive(): boolean {
+    return this.channelControl.value !== 'sms';
+  }
+
+  protected isSmsChannelActive(): boolean {
+    return this.channelControl.value !== 'email';
+  }
+
+  protected channelSummaryRows(): ChannelSummaryRow[] {
+    const summary = this.exclusions();
+    const channel = this.channelControl.value;
+
+    if (channel === 'email') {
+      return [
+        { label: 'Missing email', value: summary.missingEmail },
+        { label: 'Excluded for selected channel', value: summary.excludedForSelectedChannel },
+      ];
+    }
+    if (channel === 'sms') {
+      return [
+        { label: 'Missing phone', value: summary.missingPhone },
+        { label: 'Excluded for selected channel', value: summary.excludedForSelectedChannel },
+      ];
+    }
+    return [
+      { label: 'Missing email', value: summary.missingEmail },
+      { label: 'Missing phone', value: summary.missingPhone },
+      { label: 'Missing both channels', value: summary.missingBoth },
+      { label: 'Excluded for selected channel', value: summary.excludedForSelectedChannel },
+    ];
+  }
+
+  protected channelEligibilityMessage(): string {
+    const eligible = this.selectedChannelEligibleRecipients();
+    const selected = this.selectedRecipientsCount();
+    const channel = this.channelControl.value;
+    if (channel === 'email') {
+      return `Email is valid for ${eligible} email-eligible ${this.recipientLabel(eligible)} (${selected} selected).`;
+    }
+    if (channel === 'sms') {
+      return `SMS is valid for ${eligible} SMS-eligible ${this.recipientLabel(eligible)} (${selected} selected).`;
+    }
+    return `Both channels are valid for ${eligible} dual-eligible ${this.recipientLabel(eligible)} (${selected} selected).`;
   }
 
   protected insertMergeField(token: string, explicitTarget?: BroadcastTemplateTarget): void {
@@ -674,7 +728,15 @@ export class BroadcastShellComponent implements OnInit {
       { label: 'Recipients selected', isReady: recipientsReady },
       { label: 'Channel eligibility', isReady: channelReady },
       { label: 'Channel confirmation', isReady: channelConfirmed },
-      { label: 'Message content', isReady: messageReady },
+      {
+        label:
+          this.channelControl.value === 'both'
+            ? 'Message content (Email + SMS)'
+            : this.channelControl.value === 'email'
+              ? 'Message content (Email)'
+              : 'Message content (SMS)',
+        isReady: messageReady,
+      },
       { label: 'Schedule', isReady: scheduleReady },
     ];
   }

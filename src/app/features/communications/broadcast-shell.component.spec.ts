@@ -380,7 +380,9 @@ describe('BroadcastShellComponent', () => {
         host.querySelector('.floating-summary__list li:first-child strong') as HTMLElement
       ).textContent?.trim() ?? '';
 
-    expect(host.textContent).toContain('Channel is valid for 1 recipient (3 selected).');
+    expect(host.textContent).toContain(
+      'Both channels are valid for 1 dual-eligible recipient (3 selected).',
+    );
     expect(selectedCount()).toBe('1');
 
     const emailChannel = host.querySelector(
@@ -388,7 +390,9 @@ describe('BroadcastShellComponent', () => {
     ) as HTMLInputElement;
     emailChannel.click();
     fixture.detectChanges();
-    expect(host.textContent).toContain('Channel is valid for 2 recipients (3 selected).');
+    expect(host.textContent).toContain(
+      'Email is valid for 2 email-eligible recipients (3 selected).',
+    );
     expect(selectedCount()).toBe('2');
 
     const smsChannel = host.querySelector(
@@ -396,8 +400,34 @@ describe('BroadcastShellComponent', () => {
     ) as HTMLInputElement;
     smsChannel.click();
     fixture.detectChanges();
-    expect(host.textContent).toContain('Channel is valid for 2 recipients (3 selected).');
+    expect(host.textContent).toContain(
+      'SMS is valid for 2 SMS-eligible recipients (3 selected).',
+    );
     expect(selectedCount()).toBe('2');
+  });
+
+  it('shows channel-specific fields in Step 3 based on selected channel', () => {
+    const host = fixture.nativeElement as HTMLElement;
+
+    const emailChannel = host.querySelector(
+      '.channel-toggle input[value="email"]',
+    ) as HTMLInputElement;
+    emailChannel.click();
+    fixture.detectChanges();
+    expect(host.textContent).toContain('Email subject');
+    expect(host.textContent).toContain('Email body');
+    expect(host.textContent).not.toContain('SMS body');
+    expect(host.textContent).not.toContain('SMS length:');
+
+    const smsChannel = host.querySelector(
+      '.channel-toggle input[value="sms"]',
+    ) as HTMLInputElement;
+    smsChannel.click();
+    fixture.detectChanges();
+    expect(host.textContent).toContain('SMS body');
+    expect(host.textContent).toContain('SMS length:');
+    expect(host.textContent).not.toContain('Email subject');
+    expect(host.textContent).not.toContain('Email body');
   });
 
   it('renders channel status guidance as info before confirmation and warning after channel changes', () => {
