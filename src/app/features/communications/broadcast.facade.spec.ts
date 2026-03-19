@@ -191,6 +191,27 @@ describe('BroadcastFacade', () => {
     expect(facade.selectedRecipientsSnapshot().map((client) => client.clientId)).toEqual(['alex']);
   });
 
+  it('supports excluding and restoring recipients from campaign audience', async () => {
+    listClients.mockResolvedValue(clientsFixture);
+    const facade = TestBed.inject(BroadcastFacade);
+    await facade.loadRecipients();
+
+    facade.excludeRecipient('alex');
+    expect(facade.excludedRecipients().map((client) => client.clientId)).toEqual(['alex']);
+    expect(facade.selectedRecipientsSnapshot().map((client) => client.clientId)).toEqual([
+      'bella',
+      'carter',
+    ]);
+
+    facade.restoreExcludedRecipient('alex');
+    expect(facade.excludedRecipients()).toEqual([]);
+    expect(facade.selectedRecipientsSnapshot().map((client) => client.clientId)).toEqual([
+      'alex',
+      'bella',
+      'carter',
+    ]);
+  });
+
   it('sets error state when loading fails', async () => {
     listClients.mockRejectedValue(new Error('boom'));
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);

@@ -76,6 +76,7 @@ const createFacadeMock = () => {
   const previewRecipients = filteredRecipients;
   const allRecipients = signal<ClientSummary[]>(recipients);
   const manualRecipients = signal<ClientSummary[]>([]);
+  const excludedRecipients = signal<ClientSummary[]>([]);
   const channelControl = new FormControl<BroadcastChannel>('both', {
     nonNullable: true,
   });
@@ -168,6 +169,29 @@ const createFacadeMock = () => {
   const removeManualRecipient = vi.fn<(clientId: string) => void>((clientId) => {
     manualRecipients.update((current) => current.filter((client) => client.clientId !== clientId));
   });
+  const excludeRecipient = vi.fn<(clientId: string) => void>((clientId) => {
+    const selected = filteredRecipients()
+      .concat(manualRecipients())
+      .find((client) => client.clientId === clientId);
+    if (!selected) {
+      return;
+    }
+    filteredRecipients.update((current) => current.filter((client) => client.clientId !== clientId));
+    manualRecipients.update((current) => current.filter((client) => client.clientId !== clientId));
+    excludedRecipients.update((current) =>
+      current.some((client) => client.clientId === clientId) ? current : [...current, selected],
+    );
+  });
+  const restoreExcludedRecipient = vi.fn<(clientId: string) => void>((clientId) => {
+    const restored = excludedRecipients().find((client) => client.clientId === clientId);
+    if (!restored) {
+      return;
+    }
+    excludedRecipients.update((current) => current.filter((client) => client.clientId !== clientId));
+    filteredRecipients.update((current) =>
+      current.some((client) => client.clientId === clientId) ? current : [...current, restored],
+    );
+  });
   const confirmationOpen = signal(false);
   const confirmationPayload = signal<BroadcastConfirmationPayload | null>(null);
   const statusBanner = signal<string | null>(null);
@@ -207,6 +231,7 @@ const createFacadeMock = () => {
     allRecipients,
     filteredRecipients,
     manualRecipients,
+    excludedRecipients,
     previewRecipients,
     mergeFields,
     templates,
@@ -224,6 +249,8 @@ const createFacadeMock = () => {
     clearOverrideForPreviewClient,
     addManualRecipient,
     removeManualRecipient,
+    excludeRecipient,
+    restoreExcludedRecipient,
     openTestConfirmation,
     openDispatchConfirmation,
     closeConfirmation,
@@ -262,6 +289,7 @@ const createFacadeMock = () => {
     allRecipients: ReturnType<typeof signal<ClientSummary[]>>;
     filteredRecipients: ReturnType<typeof signal<ClientSummary[]>>;
     manualRecipients: ReturnType<typeof signal<ClientSummary[]>>;
+    excludedRecipients: ReturnType<typeof signal<ClientSummary[]>>;
     previewRecipients: ReturnType<typeof signal<ClientSummary[]>>;
     mergeFields: ReturnType<typeof signal<BroadcastMergeField[]>>;
     templates: ReturnType<typeof signal<BroadcastTemplates>>;
@@ -281,6 +309,8 @@ const createFacadeMock = () => {
       typeof vi.fn<(clientId: string) => 'added' | 'already-selected' | 'not-found'>
     >;
     removeManualRecipient: ReturnType<typeof vi.fn<(clientId: string) => void>>;
+    excludeRecipient: ReturnType<typeof vi.fn<(clientId: string) => void>>;
+    restoreExcludedRecipient: ReturnType<typeof vi.fn<(clientId: string) => void>>;
     openTestConfirmation: ReturnType<typeof vi.fn<() => void>>;
     openDispatchConfirmation: ReturnType<typeof vi.fn<() => void>>;
     closeConfirmation: ReturnType<typeof vi.fn<() => void>>;
@@ -578,6 +608,41 @@ describe('BroadcastShellComponent', () => {
     expect(host.textContent).toContain('Select at least one existing client to add manually.');
 
     expect(facadeMock.addManualRecipient).toHaveBeenCalledTimes(0);
+  });
+
+  it('allows removing a recipient from the audience list and restoring it', () => {
+    const host = fixture.nativeElement as HTMLElement;
+    const removeButton = host.querySelector(
+      '.audience-preview__item .refresh-btn--compact',
+    ) as HTMLButtonElement;
+    removeButton.click();
+    fixture.detectChanges();
+
+    expect(facadeMock.excludeRecipient).toHaveBeenCalledTimes(1);
+    expect(host.textContent).toContain('Excluded recipients:');
+
+    facadeMock.excludedRecipients.set([
+      {
+        clientId: 'alex',
+        firstName: 'Alex',
+        lastName: 'North',
+        fullName: 'Alex North',
+        address: '1 Maple Street',
+        phone: '(514) 555-1111',
+        email: 'alex@ecocutqc.com',
+        jobsCount: 3,
+        lastJobDate: null,
+      },
+    ]);
+    fixture.detectChanges();
+
+    const restoreButton = Array.from(host.querySelectorAll('.manual-audience .refresh-btn')).find((button) =>
+      (button as HTMLButtonElement).textContent?.includes('Restore'),
+    ) as HTMLButtonElement;
+    restoreButton.click();
+    fixture.detectChanges();
+
+    expect(facadeMock.restoreExcludedRecipient).toHaveBeenCalledTimes(1);
   });
 
   it('shows singular recipient wording when exactly one recipient is visible', () => {

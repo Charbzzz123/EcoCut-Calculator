@@ -96,6 +96,7 @@ export class BroadcastShellComponent implements OnInit {
   protected readonly allRecipients = this.facade.allRecipients;
   protected readonly filteredRecipients = this.facade.filteredRecipients;
   protected readonly manualRecipients = this.facade.manualRecipients;
+  protected readonly excludedRecipients = this.facade.excludedRecipients;
   protected readonly previewRecipients = this.facade.previewRecipients;
   protected readonly mergeFields = this.facade.mergeFields;
   protected readonly emailSubjectControl = this.facade.emailSubjectControl;
@@ -196,7 +197,7 @@ export class BroadcastShellComponent implements OnInit {
   @ViewChild('smsBodyEditor') private smsBodyEditor?: MergeTokenEditorComponent;
   /* c8 ignore next */
   protected readonly audiencePreviewRows = computed<AudiencePreviewRow[]>(() =>
-    this.filteredRecipients().map((client) => {
+    this.mergeAudienceRecipients().map((client) => {
       const hasEmail =
         typeof client.email === 'string' && client.email.trim().length > 0;
       const hasPhone = this.isSmsCapable(client.phone);
@@ -889,6 +890,16 @@ export class BroadcastShellComponent implements OnInit {
     this.manualRecipientNotice.set('Manual roster selection removed.');
   }
 
+  protected excludeRecipient(clientId: string): void {
+    this.facade.excludeRecipient(clientId);
+    this.manualRecipientNotice.set('Recipient removed from this campaign audience.');
+  }
+
+  protected restoreExcludedRecipient(clientId: string): void {
+    this.facade.restoreExcludedRecipient(clientId);
+    this.manualRecipientNotice.set('Recipient restored to the audience.');
+  }
+
   protected formatCurrency(value: number): string {
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
@@ -912,6 +923,17 @@ export class BroadcastShellComponent implements OnInit {
 
   private isChannelConfirmed(): boolean {
     return this.confirmedChannel === this.channelControl.value;
+  }
+
+  private mergeAudienceRecipients(): ClientSummary[] {
+    const merged = new Map<string, ClientSummary>();
+    for (const client of this.filteredRecipients()) {
+      merged.set(client.clientId, client);
+    }
+    for (const client of this.manualRecipients()) {
+      merged.set(client.clientId, client);
+    }
+    return Array.from(merged.values());
   }
 
   private channelLabel(channel: BroadcastChannel): string {

@@ -134,8 +134,8 @@
 
       <section class="audience-preview" aria-label="Audience preview list">
         <p class="audience-preview__label">
-          Showing {{ filteredRecipients().length }} recipient{{
-            filteredRecipients().length === 1 ? '' : 's'
+          Showing {{ selectedRecipientsCount() }} recipient{{
+            selectedRecipientsCount() === 1 ? '' : 's'
           }}
         </p>
         <ul class="audience-preview__list">
@@ -143,12 +143,21 @@
             <li class="audience-preview__item">
               <div class="audience-preview__row">
                 <p class="audience-preview__name">{{ row.client.fullName }}</p>
-                <span
-                  class="audience-preview__badge"
-                  [ngClass]="'audience-preview__badge--' + row.channelClass"
-                >
-                  {{ row.channelLabel }}
-                </span>
+                <div class="audience-preview__row-actions">
+                  <span
+                    class="audience-preview__badge"
+                    [ngClass]="'audience-preview__badge--' + row.channelClass"
+                  >
+                    {{ row.channelLabel }}
+                  </span>
+                  <button
+                    type="button"
+                    class="refresh-btn refresh-btn--ghost refresh-btn--compact"
+                    (click)="excludeRecipient(row.client.clientId)"
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
               <p class="audience-preview__meta">
                 {{ row.client.email || 'No email' }} | {{ row.client.phone || 'No phone' }}
@@ -159,6 +168,37 @@
           }
         </ul>
       </section>
+
+      @if (excludedRecipients().length > 0) {
+        <section class="manual-audience" aria-label="Excluded recipients">
+          <div class="manual-audience__header">
+            <p>
+              Excluded recipients:
+              <strong>{{ excludedRecipients().length }}</strong>
+            </p>
+          </div>
+          <ul class="manual-audience__list">
+            @for (recipient of excludedRecipients(); track recipient.clientId) {
+              <li class="manual-audience__item">
+                <div>
+                  <p class="manual-audience__name">{{ recipient.fullName }}</p>
+                  <p class="manual-audience__meta">
+                    {{ recipient.email || 'No email' }} |
+                    {{ recipient.phone || 'No phone' }}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  class="refresh-btn refresh-btn--secondary refresh-btn--compact"
+                  (click)="restoreExcludedRecipient(recipient.clientId)"
+                >
+                  Restore
+                </button>
+              </li>
+            }
+          </ul>
+        </section>
+      }
 
       <section class="manual-audience" aria-label="Manual audience additions">
         <div class="manual-audience__header">

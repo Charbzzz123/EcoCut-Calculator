@@ -246,6 +246,7 @@ export class BroadcastFacade {
 
   private readonly clientsSignal = this.createClientsSignal();
   private readonly manualRecipientIdsSignal = this.createManualRecipientIdsSignal();
+  private readonly excludedRecipientIdsSignal = this.createExcludedRecipientIdsSignal();
   private readonly loadStateSignal = this.createLoadStateSignal();
   private readonly filtersSignal = this.createFiltersSignal();
   private readonly selectedChannelSignal = this.createSelectedChannelSignal();
@@ -264,6 +265,12 @@ export class BroadcastFacade {
   readonly manualRecipients: Signal<ClientSummary[]> = computed(() => {
     const clientsById = new Map(this.clientsSignal().map((client) => [client.clientId, client]));
     return this.manualRecipientIdsSignal()
+      .map((clientId) => clientsById.get(clientId))
+      .filter((client): client is ClientSummary => Boolean(client));
+  });
+  readonly excludedRecipients: Signal<ClientSummary[]> = computed(() => {
+    const clientsById = new Map(this.clientsSignal().map((client) => [client.clientId, client]));
+    return this.excludedRecipientIdsSignal()
       .map((clientId) => clientsById.get(clientId))
       .filter((client): client is ClientSummary => Boolean(client));
   });
@@ -288,7 +295,8 @@ export class BroadcastFacade {
     for (const recipient of this.manualRecipients()) {
       merged.set(recipient.clientId, recipient);
     }
-    return Array.from(merged.values());
+    const excluded = new Set(this.excludedRecipientIdsSignal());
+    return Array.from(merged.values()).filter((recipient) => !excluded.has(recipient.clientId));
   });
   /* c8 ignore next */
   readonly counts: Signal<BroadcastRecipientCounts> = computed(() =>
@@ -391,6 +399,7 @@ export class BroadcastFacade {
     try {
       this.clientsSignal.set(await this.repository.listClients());
       this.pruneManualRecipientIds();
+      this.pruneExcludedRecipientIds();
       this.syncPreviewSelection();
       this.loadStateSignal.set('ready');
     } catch (error) {
@@ -412,6 +421,9 @@ export class BroadcastFacade {
       return 'already-selected';
     }
     this.manualRecipientIdsSignal.update((current) => [...current, normalizedId]);
+    this.excludedRecipientIdsSignal.update((current) =>
+      current.filter((recipientId) => recipientId !== normalizedId),
+    );
     this.syncPreviewSelection();
     return 'added';
   }
@@ -423,6 +435,31 @@ export class BroadcastFacade {
       current.filter((recipientId) => recipientId !== normalizedId),
     );
     if (before !== this.manualRecipientIdsSignal().length) {
+      this.syncPreviewSelection();
+    }
+  }
+
+  excludeRecipient(clientId: string): void {
+    const normalizedId = clientId.trim();
+    if (!normalizedId || !this.clientsSignal().some((client) => client.clientId === normalizedId)) {
+      return;
+    }
+    this.manualRecipientIdsSignal.update((current) =>
+      current.filter((recipientId) => recipientId !== normalizedId),
+    );
+    this.excludedRecipientIdsSignal.update((current) =>
+      current.includes(normalizedId) ? current : [...current, normalizedId],
+    );
+    this.syncPreviewSelection();
+  }
+
+  restoreExcludedRecipient(clientId: string): void {
+    const normalizedId = clientId.trim();
+    const before = this.excludedRecipientIdsSignal().length;
+    this.excludedRecipientIdsSignal.update((current) =>
+      current.filter((recipientId) => recipientId !== normalizedId),
+    );
+    if (before !== this.excludedRecipientIdsSignal().length) {
       this.syncPreviewSelection();
     }
   }
@@ -852,6 +889,13 @@ export class BroadcastFacade {
     );
   }
 
+  private pruneExcludedRecipientIds(): void {
+    const rosterIds = new Set(this.clientsSignal().map((client) => client.clientId));
+    this.excludedRecipientIdsSignal.update((current) =>
+      current.filter((recipientId) => rosterIds.has(recipientId)),
+    );
+  }
+
   private matchesServiceWindow(
     lastJobDate: string | null,
     window: ServiceWindow,
@@ -969,6 +1013,10 @@ export class BroadcastFacade {
   }
 
   private createManualRecipientIdsSignal(): WritableSignal<string[]> {
+    return signal<string[]>([]);
+  }
+
+  private createExcludedRecipientIdsSignal(): WritableSignal<string[]> {
     return signal<string[]>([]);
   }
 

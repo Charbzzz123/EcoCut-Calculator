@@ -391,6 +391,12 @@
   justify-content: space-between;
 }
 
+.audience-preview__row-actions {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
 .audience-preview__name {
   margin: 0;
   font-size: 0.9rem;
