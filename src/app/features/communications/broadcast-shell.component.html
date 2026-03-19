@@ -348,18 +348,46 @@
       </section>
 
       <div class="preview-shell">
-        <label class="field">
+        <div class="field">
           <span>Preview as client</span>
-          <select [formControl]="previewClientIdControl">
-            @if (previewRecipients().length === 0) {
-              <option value="">No eligible recipients for selected channel</option>
-            } @else {
-              @for (client of previewRecipients(); track client.clientId) {
-                <option [value]="client.clientId">{{ client.fullName }}</option>
-              }
+          <div
+            #previewSelectRoot
+            class="preview-select"
+            [class.preview-select--open]="previewMenuOpen()"
+          >
+            <button
+              type="button"
+              class="preview-select__trigger"
+              (click)="togglePreviewMenu()"
+              [disabled]="previewRecipients().length === 0"
+              [attr.aria-expanded]="previewMenuOpen()"
+              aria-haspopup="listbox"
+              aria-label="Preview client selector"
+            >
+              <span>{{ selectedPreviewClientLabel() }}</span>
+              <span class="preview-select__chevron" aria-hidden="true">⌄</span>
+            </button>
+
+            @if (previewMenuOpen() && previewRecipients().length > 0) {
+              <ul class="preview-select__menu" role="listbox" aria-label="Preview clients">
+                @for (client of previewRecipients(); track client.clientId) {
+                  <li>
+                    <button
+                      type="button"
+                      class="preview-select__option"
+                      [class.preview-select__option--active]="
+                        previewClientIdControl.value === client.clientId
+                      "
+                      (click)="selectPreviewClient(client.clientId)"
+                    >
+                      {{ client.fullName }}
+                    </button>
+                  </li>
+                }
+              </ul>
             }
-          </select>
-        </label>
+          </div>
+        </div>
         <div class="preview-nav">
           <button
             type="button"

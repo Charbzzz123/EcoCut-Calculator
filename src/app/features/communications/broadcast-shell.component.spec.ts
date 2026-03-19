@@ -775,6 +775,41 @@ describe('BroadcastShellComponent', () => {
     expect(facadeMock.previewClientIdControl.value).toBe('alex');
   });
 
+  it('opens the preview dropdown and selects a client option', () => {
+    const host = fixture.nativeElement as HTMLElement;
+    const trigger = host.querySelector('.preview-select__trigger') as HTMLButtonElement;
+
+    trigger.click();
+    fixture.detectChanges();
+
+    const options = host.querySelectorAll('.preview-select__option') as NodeListOf<HTMLButtonElement>;
+    const bellaOption = Array.from(options).find((option) =>
+      option.textContent?.includes('Bella Stone'),
+    ) as HTMLButtonElement;
+    bellaOption.click();
+    fixture.detectChanges();
+
+    expect(facadeMock.previewClientIdControl.value).toBe('bella');
+    expect(host.querySelector('.preview-select__menu')).toBeNull();
+  });
+
+  it('closes preview dropdown when clicking outside the selector', () => {
+    const component = fixture.componentInstance as BroadcastShellComponent;
+    const host = fixture.nativeElement as HTMLElement;
+    const trigger = host.querySelector('.preview-select__trigger') as HTMLButtonElement;
+
+    trigger.click();
+    fixture.detectChanges();
+    expect(host.querySelector('.preview-select__menu')).toBeTruthy();
+
+    component['onDocumentClick']({
+      target: document.createElement('div'),
+    } as unknown as MouseEvent);
+    fixture.detectChanges();
+
+    expect(host.querySelector('.preview-select__menu')).toBeNull();
+  });
+
   it('ignores preview moves when list is too short or out of bounds', () => {
     const component = fixture.componentInstance as BroadcastShellComponent;
     facadeMock.filteredRecipients.set([facadeMock.filteredRecipients()[0]]);
@@ -812,6 +847,29 @@ describe('BroadcastShellComponent', () => {
   it('treats nullish SMS values as not capable', () => {
     const component = fixture.componentInstance as BroadcastShellComponent;
     expect(component['isSmsCapable'](null)).toBe(false);
+  });
+
+  it('returns fallback preview labels for empty and unknown recipients', () => {
+    const component = fixture.componentInstance as BroadcastShellComponent;
+
+    facadeMock.previewRecipients.set([]);
+    expect(component['selectedPreviewClientLabel']()).toBe('No eligible recipients for selected channel');
+
+    facadeMock.previewRecipients.set([
+      {
+        clientId: 'alex',
+        firstName: 'Alex',
+        lastName: 'North',
+        fullName: 'Alex North',
+        address: '1 Maple Street',
+        phone: '(514) 555-1111',
+        email: 'alex@ecocutqc.com',
+        jobsCount: 3,
+        lastJobDate: null,
+      },
+    ]);
+    facadeMock.previewClientIdControl.setValue('missing-id');
+    expect(component['selectedPreviewClientLabel']()).toBe('Alex North');
   });
 
   it('renders later schedule input when mode is later', () => {

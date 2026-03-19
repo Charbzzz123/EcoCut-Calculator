@@ -2,6 +2,8 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
+  HostListener,
   OnInit,
   ViewChild,
   computed,
@@ -98,6 +100,7 @@ export class BroadcastShellComponent implements OnInit {
   protected readonly confirmationPayload = this.facade.confirmationPayload;
   protected readonly statusBanner = this.facade.statusBanner;
   protected readonly mergeDragTarget = signal<BroadcastTemplateTarget | null>(null);
+  protected readonly previewMenuOpen = signal(false);
   private lastTemplateTarget: BroadcastTemplateTarget = 'emailBody';
   private readonly cursorByTarget: Record<BroadcastTemplateTarget, { start: number; end: number }> = {
     emailSubject: { start: this.emailSubjectControl.value.length, end: this.emailSubjectControl.value.length },
@@ -129,6 +132,7 @@ export class BroadcastShellComponent implements OnInit {
   @ViewChild('emailSubjectEditor') private emailSubjectEditor?: MergeTokenEditorComponent;
   @ViewChild('emailBodyEditor') private emailBodyEditor?: MergeTokenEditorComponent;
   @ViewChild('smsBodyEditor') private smsBodyEditor?: MergeTokenEditorComponent;
+  @ViewChild('previewSelectRoot') private previewSelectRoot?: ElementRef<HTMLElement>;
   /* c8 ignore next */
   protected readonly audiencePreviewRows = computed<AudiencePreviewRow[]>(() =>
     this.filteredRecipients().map((client) => {
@@ -185,6 +189,22 @@ export class BroadcastShellComponent implements OnInit {
   }
   ngOnInit(): void {
     void this.facade.loadRecipients();
+  }
+
+  @HostListener('document:click', ['$event'])
+  protected onDocumentClick(event: MouseEvent): void {
+    if (!this.previewMenuOpen()) {
+      return;
+    }
+    const root = this.previewSelectRoot?.nativeElement;
+    if (!root) {
+      this.previewMenuOpen.set(false);
+      return;
+    }
+    const target = event.target;
+    if (!(target instanceof Node) || !root.contains(target)) {
+      this.previewMenuOpen.set(false);
+    }
   }
 
   protected reloadRecipients(): void {
@@ -424,6 +444,28 @@ export class BroadcastShellComponent implements OnInit {
       return;
     }
     this.previewClientIdControl.setValue(recipients[nextIndex].clientId);
+  }
+
+  protected togglePreviewMenu(): void {
+    if (this.previewRecipients().length === 0) {
+      this.previewMenuOpen.set(false);
+      return;
+    }
+    this.previewMenuOpen.update((isOpen) => !isOpen);
+  }
+
+  protected selectPreviewClient(clientId: string): void {
+    this.previewClientIdControl.setValue(clientId);
+    this.previewMenuOpen.set(false);
+  }
+
+  protected selectedPreviewClientLabel(): string {
+    const recipients = this.previewRecipients();
+    if (recipients.length === 0) {
+      return 'No eligible recipients for selected channel';
+    }
+    const current = recipients.find((recipient) => recipient.clientId === this.previewClientIdControl.value);
+    return current?.fullName ?? recipients[0].fullName;
   }
 
   protected dispatchBlockedReason(): string | null {
