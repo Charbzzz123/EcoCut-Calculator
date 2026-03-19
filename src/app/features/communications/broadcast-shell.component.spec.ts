@@ -73,6 +73,7 @@ const createFacadeMock = () => {
   const channelValidationMessage = signal<string | null>(null);
   const canDispatch = signal(true);
   const filteredRecipients = signal<ClientSummary[]>(recipients);
+  const previewRecipients = filteredRecipients;
   const channelControl = new FormControl<BroadcastChannel>('both', {
     nonNullable: true,
   });
@@ -183,6 +184,7 @@ const createFacadeMock = () => {
     channelValidationMessage,
     canDispatch,
     filteredRecipients,
+    previewRecipients,
     mergeFields,
     templates,
     previewPayload,
@@ -233,6 +235,7 @@ const createFacadeMock = () => {
     channelValidationMessage: ReturnType<typeof signal<string | null>>;
     canDispatch: ReturnType<typeof signal<boolean>>;
     filteredRecipients: ReturnType<typeof signal<ClientSummary[]>>;
+    previewRecipients: ReturnType<typeof signal<ClientSummary[]>>;
     mergeFields: ReturnType<typeof signal<BroadcastMergeField[]>>;
     templates: ReturnType<typeof signal<BroadcastTemplates>>;
     previewPayload: ReturnType<typeof signal<BroadcastPreviewPayload>>;

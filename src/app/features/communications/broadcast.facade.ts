@@ -284,6 +284,9 @@ export class BroadcastFacade {
   );
   /* c8 ignore next */
   readonly canDispatch: Signal<boolean> = computed(() => this.channelValidationMessage() === null);
+  readonly previewRecipients: Signal<ClientSummary[]> = computed(() =>
+    this.computePreviewRecipients(this.filteredRecipients(), this.selectedChannelSignal()),
+  );
   readonly templates: Signal<BroadcastTemplates> = this.templatesSignal.asReadonly();
   /* c8 ignore next */
   readonly previewPayload: Signal<BroadcastPreviewPayload> = computed(() =>
@@ -320,7 +323,10 @@ export class BroadcastFacade {
       .subscribe((upcomingWindow) => this.updateFilters({ upcomingWindow }));
     this.channelControl.valueChanges
       .pipe(startWith(this.channelControl.value), distinctUntilChanged())
-      .subscribe((channel) => this.selectedChannelSignal.set(channel));
+      .subscribe((channel) => {
+        this.selectedChannelSignal.set(channel);
+        this.syncPreviewSelection();
+      });
     this.emailSubjectControl.valueChanges
       .pipe(startWith(this.emailSubjectControl.value), distinctUntilChanged())
       .subscribe((emailSubject) => this.updateTemplates({ emailSubject }));
@@ -606,7 +612,7 @@ export class BroadcastFacade {
   }
 
   private syncPreviewSelection(): void {
-    const filteredRecipients = this.filteredRecipients();
+    const filteredRecipients = this.previewRecipients();
     const currentPreviewId = this.previewClientIdSignal();
     if (filteredRecipients.length === 0) {
       this.previewClientIdSignal.set('');
@@ -884,6 +890,19 @@ export class BroadcastFacade {
       return 'No recipients can receive both email and SMS for the selected filters.';
     }
     return null;
+  }
+
+  private computePreviewRecipients(
+    filteredRecipients: ClientSummary[],
+    channel: BroadcastChannel,
+  ): ClientSummary[] {
+    if (channel === 'email') {
+      return filteredRecipients.filter((client) => hasEmail(client));
+    }
+    if (channel === 'sms') {
+      return filteredRecipients.filter((client) => hasSmsPhone(client));
+    }
+    return filteredRecipients.filter((client) => hasEmail(client) && hasSmsPhone(client));
   }
 
   private createClientsSignal(): WritableSignal<ClientSummary[]> {

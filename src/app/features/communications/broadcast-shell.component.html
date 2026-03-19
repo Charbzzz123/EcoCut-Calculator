@@ -351,8 +351,12 @@
         <label class="field">
           <span>Preview as client</span>
           <select [formControl]="previewClientIdControl">
-            @for (client of filteredRecipients(); track client.clientId) {
-              <option [value]="client.clientId">{{ client.fullName }}</option>
+            @if (previewRecipients().length === 0) {
+              <option value="">No eligible recipients for selected channel</option>
+            } @else {
+              @for (client of previewRecipients(); track client.clientId) {
+                <option [value]="client.clientId">{{ client.fullName }}</option>
+              }
             }
           </select>
         </label>

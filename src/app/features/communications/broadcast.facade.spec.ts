@@ -276,6 +276,25 @@ describe('BroadcastFacade', () => {
     );
   });
 
+  it('filters preview recipients by selected channel and resyncs preview selection', async () => {
+    listClients.mockResolvedValue(clientsFixture);
+    const facade = TestBed.inject(BroadcastFacade);
+    await facade.loadRecipients();
+
+    expect(facade.previewRecipients().map((client) => client.clientId)).toEqual(['alex']);
+    expect(facade.previewClientIdControl.value).toBe('alex');
+
+    facade.channelControl.setValue('email');
+    expect(facade.previewRecipients().map((client) => client.clientId)).toEqual(['alex', 'carter']);
+
+    facade.previewClientIdControl.setValue('carter');
+    expect(facade.previewClientIdControl.value).toBe('carter');
+
+    facade.channelControl.setValue('both');
+    expect(facade.previewRecipients().map((client) => client.clientId)).toEqual(['alex']);
+    expect(facade.previewClientIdControl.value).toBe('alex');
+  });
+
   it('updates templates and renders merged preview with selected client', async () => {
     listClients.mockResolvedValue(clientsFixture);
     const facade = TestBed.inject(BroadcastFacade);

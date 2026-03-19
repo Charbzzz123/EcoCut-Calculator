@@ -71,6 +71,7 @@ export class BroadcastShellComponent implements OnInit {
   protected readonly channelValidationMessage = this.facade.channelValidationMessage;
   protected readonly canDispatch = this.facade.canDispatch;
   protected readonly filteredRecipients = this.facade.filteredRecipients;
+  protected readonly previewRecipients = this.facade.previewRecipients;
   protected readonly mergeFields = this.facade.mergeFields;
   protected readonly emailSubjectControl = this.facade.emailSubjectControl;
   protected readonly emailBodyControl = this.facade.emailBodyControl;
@@ -411,7 +412,7 @@ export class BroadcastShellComponent implements OnInit {
   }
 
   protected movePreview(offset: -1 | 1): void {
-    const recipients = this.filteredRecipients();
+    const recipients = this.previewRecipients();
     if (recipients.length <= 1) {
       return;
     }
@@ -665,7 +666,7 @@ export class BroadcastShellComponent implements OnInit {
   }
 
   private canMovePreview(offset: -1 | 1): boolean {
-    const recipients = this.filteredRecipients();
+    const recipients = this.previewRecipients();
     if (recipients.length <= 1) {
       return false;
     }
