@@ -157,6 +157,40 @@ describe('BroadcastFacade', () => {
     });
   });
 
+  it('adds manual recipients from existing roster ids and blocks duplicates', async () => {
+    listClients.mockResolvedValue(clientsFixture);
+    const facade = TestBed.inject(BroadcastFacade);
+    await facade.loadRecipients();
+
+    expect(facade.addManualRecipient('bella')).toBe('already-selected');
+    expect(facade.manualRecipients().length).toBe(0);
+
+    facade.queryControl.setValue('alex');
+    vi.advanceTimersByTime(151);
+    expect(facade.selectedRecipientsSnapshot().map((client) => client.clientId)).toEqual(['alex']);
+
+    expect(facade.addManualRecipient('bella')).toBe('added');
+    expect(facade.manualRecipients().length).toBe(1);
+    expect(facade.selectedRecipientsSnapshot().map((client) => client.clientId)).toEqual([
+      'alex',
+      'bella',
+    ]);
+    expect(facade.countsSnapshot()).toEqual({
+      total: 2,
+      emailEligible: 1,
+      smsEligible: 2,
+      bothEligible: 1,
+    });
+
+    expect(facade.addManualRecipient('bella')).toBe('already-selected');
+    expect(facade.addManualRecipient('missing-client')).toBe('not-found');
+    expect(facade.manualRecipients().length).toBe(1);
+
+    facade.removeManualRecipient('bella');
+    expect(facade.manualRecipients().length).toBe(0);
+    expect(facade.selectedRecipientsSnapshot().map((client) => client.clientId)).toEqual(['alex']);
+  });
+
   it('sets error state when loading fails', async () => {
     listClients.mockRejectedValue(new Error('boom'));
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);

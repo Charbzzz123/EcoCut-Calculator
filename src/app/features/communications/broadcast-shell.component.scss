@@ -319,6 +319,16 @@
   border-color: var(--border-status-none);
 }
 
+.refresh-btn--secondary {
+  background: var(--surface-input-alt);
+}
+
+.refresh-btn--compact {
+  margin-top: 0;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.78rem;
+}
+
 .refresh-btn--timeline {
   background: var(--timeline-event-bg);
   border-color: var(--timeline-event-border);
@@ -434,6 +444,111 @@
   border-radius: 0.75rem;
   color: var(--text-muted);
   padding: 0.6rem;
+}
+
+.manual-audience {
+  margin-top: 0.9rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.9rem;
+  background: var(--surface-card-soft);
+  padding: 0.75rem;
+}
+
+.manual-audience__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.manual-audience__header p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+}
+
+.manual-audience__header strong {
+  color: var(--text-accent-strong);
+}
+
+.manual-audience__panel {
+  margin-top: 0.75rem;
+}
+
+.manual-audience__hint {
+  margin: 0.55rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.manual-picker__list {
+  list-style: none;
+  margin: 0.7rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+  max-height: 12rem;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.manual-picker__item {
+  border: 1px solid var(--border-muted);
+  border-radius: 0.75rem;
+  background: var(--surface-card-deep);
+  padding: 0.5rem 0.6rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.manual-picker__check {
+  width: fit-content;
+}
+
+.manual-picker__meta {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  word-break: break-word;
+}
+
+.manual-picker__empty {
+  border: 1px dashed var(--border-muted);
+  border-radius: 0.75rem;
+  color: var(--text-muted);
+  padding: 0.6rem;
+}
+
+.manual-audience__list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.manual-audience__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.7rem;
+  border: 1px solid var(--border-muted);
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.6rem;
+  background: var(--surface-card-deep);
+}
+
+.manual-audience__name {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+}
+
+.manual-audience__meta {
+  margin: 0.18rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.76rem;
 }
 
 .channel-toggle {

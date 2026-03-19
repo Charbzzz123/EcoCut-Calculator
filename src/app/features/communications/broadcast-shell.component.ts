@@ -40,6 +40,14 @@ interface ChannelSummaryRow {
   value: number;
 }
 
+interface ManualPickerRow {
+  client: ClientSummary;
+  isInFilters: boolean;
+  isAddedManually: boolean;
+  isQueued: boolean;
+  canQueue: boolean;
+}
+
 @Component({
   standalone: true,
   selector: 'app-broadcast-shell',
@@ -67,8 +75,13 @@ export class BroadcastShellComponent implements OnInit {
   protected readonly capEditorOpen = signal(false);
   protected readonly capConfirmationOpen = signal(false);
   protected readonly capEditorNotice = signal<string | null>(null);
+  protected readonly manualPanelOpen = signal(false);
+  protected readonly manualRecipientNotice = signal<string | null>(null);
+  protected readonly manualQueuedClientIds = signal<string[]>([]);
+  protected readonly manualSearchQuery = signal('');
   protected readonly emailCapDraftControl = new FormControl(80, { nonNullable: true });
   protected readonly smsCapDraftControl = new FormControl(200, { nonNullable: true });
+  protected readonly manualSearchControl = new FormControl('', { nonNullable: true });
   protected readonly queryControl = this.facade.queryControl;
   protected readonly requireEmailControl = this.facade.requireEmailControl;
   protected readonly requirePhoneControl = this.facade.requirePhoneControl;
@@ -80,7 +93,9 @@ export class BroadcastShellComponent implements OnInit {
   protected readonly exclusions = this.facade.exclusionSummary;
   protected readonly channelValidationMessage = this.facade.channelValidationMessage;
   protected readonly canDispatch = this.facade.canDispatch;
+  protected readonly allRecipients = this.facade.allRecipients;
   protected readonly filteredRecipients = this.facade.filteredRecipients;
+  protected readonly manualRecipients = this.facade.manualRecipients;
   protected readonly previewRecipients = this.facade.previewRecipients;
   protected readonly mergeFields = this.facade.mergeFields;
   protected readonly emailSubjectControl = this.facade.emailSubjectControl;
@@ -338,7 +353,7 @@ export class BroadcastShellComponent implements OnInit {
   }
 
   protected selectedRecipientsCount(): number {
-    return this.filteredRecipients().length;
+    return this.counts().total;
   }
 
   protected recipientLabel(count: number): string {
@@ -761,6 +776,117 @@ export class BroadcastShellComponent implements OnInit {
     if (normalized !== this.testPhoneControl.value) {
       this.testPhoneControl.setValue(normalized, { emitEvent: false });
     }
+  }
+
+  protected toggleManualPanel(): void {
+    this.manualPanelOpen.update((open) => !open);
+    if (this.manualPanelOpen()) {
+      this.manualRecipientNotice.set(null);
+      this.manualQueuedClientIds.set([]);
+      this.manualSearchControl.setValue('', { emitEvent: false });
+      this.manualSearchQuery.set('');
+    }
+  }
+
+  protected closeManualPanel(): void {
+    this.manualPanelOpen.set(false);
+    this.manualRecipientNotice.set(null);
+    this.manualQueuedClientIds.set([]);
+    this.manualSearchControl.setValue('', { emitEvent: false });
+    this.manualSearchQuery.set('');
+  }
+
+  protected manualPickerRows(): ManualPickerRow[] {
+    const query = this.manualSearchQuery().trim().toLowerCase();
+    const filteredRecipientIds = new Set(this.filteredRecipients().map((client) => client.clientId));
+    const manualRecipientIds = new Set(this.manualRecipients().map((client) => client.clientId));
+    const queuedIds = new Set(this.manualQueuedClientIds());
+    return this.allRecipients()
+      .filter((client) => {
+        if (!query) {
+          return true;
+        }
+        return (
+          client.fullName.toLowerCase().includes(query) ||
+          client.address.toLowerCase().includes(query) ||
+          client.phone.toLowerCase().includes(query) ||
+          (client.email?.toLowerCase().includes(query) ?? false)
+        );
+      })
+      .map((client) => {
+        const isInFilters = filteredRecipientIds.has(client.clientId);
+        const isAddedManually = manualRecipientIds.has(client.clientId);
+        const canQueue = !isInFilters && !isAddedManually;
+        return {
+          client,
+          isInFilters,
+          isAddedManually,
+          isQueued: queuedIds.has(client.clientId),
+          canQueue,
+        };
+      });
+  }
+
+  protected onManualSearchInput(): void {
+    this.manualSearchQuery.set(this.manualSearchControl.value.trim().toLowerCase());
+  }
+
+  protected onManualCandidateToggle(clientId: string, event: Event): void {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) {
+      return;
+    }
+    if (target.checked) {
+      this.manualQueuedClientIds.update((current) =>
+        current.includes(clientId) ? current : [...current, clientId],
+      );
+      return;
+    }
+    this.manualQueuedClientIds.update((current) =>
+      current.filter((queuedClientId) => queuedClientId !== clientId),
+    );
+  }
+
+  protected addSelectedManualRecipients(): void {
+    const queuedIds = this.manualQueuedClientIds();
+    if (queuedIds.length === 0) {
+      this.manualRecipientNotice.set('Select at least one existing client to add manually.');
+      return;
+    }
+
+    let addedCount = 0;
+    let skippedCount = 0;
+    for (const clientId of queuedIds) {
+      const result = this.facade.addManualRecipient(clientId);
+      if (result === 'added') {
+        addedCount += 1;
+      } else {
+        skippedCount += 1;
+      }
+    }
+
+    this.manualQueuedClientIds.set([]);
+    if (addedCount > 0 && skippedCount === 0) {
+      this.manualRecipientNotice.set(
+        `Added ${addedCount} client${addedCount === 1 ? '' : 's'} from your roster.`,
+      );
+      return;
+    }
+    if (addedCount > 0 && skippedCount > 0) {
+      this.manualRecipientNotice.set(
+        `Added ${addedCount} client${addedCount === 1 ? '' : 's'}; ${skippedCount} already in audience.`,
+      );
+      return;
+    }
+    this.manualRecipientNotice.set('Selected clients are already included by filters or manual picks.');
+  }
+
+  protected removeManualRecipient(clientId: string): void {
+    this.facade.removeManualRecipient(clientId);
+    this.manualQueuedClientIds.update((current) =>
+      current.filter((queuedClientId) => queuedClientId !== clientId),
+    );
+    this.manualRecipientNotice.set('Manual roster selection removed.');
   }
 
   protected formatCurrency(value: number): string {

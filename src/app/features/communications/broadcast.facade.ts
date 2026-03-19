@@ -97,6 +97,8 @@ interface ChannelVariantDefinition extends BroadcastLayerOption {
   layer: BroadcastTemplateLayer;
 }
 
+export type ManualRecipientAddResult = 'added' | 'already-selected' | 'not-found';
+
 const channelEmailVariants: ChannelVariantDefinition[] = [
   { id: 'default', label: 'Default email copy', layer: {} },
   {
@@ -243,6 +245,7 @@ export class BroadcastFacade {
   readonly testPhoneControl = new FormControl('', { nonNullable: true });
 
   private readonly clientsSignal = this.createClientsSignal();
+  private readonly manualRecipientIdsSignal = this.createManualRecipientIdsSignal();
   private readonly loadStateSignal = this.createLoadStateSignal();
   private readonly filtersSignal = this.createFiltersSignal();
   private readonly selectedChannelSignal = this.createSelectedChannelSignal();
@@ -257,6 +260,13 @@ export class BroadcastFacade {
   private readonly statusBannerSignal = this.createStatusBannerSignal();
 
   readonly loadState: Signal<BroadcastLoadState> = this.loadStateSignal.asReadonly();
+  readonly allRecipients: Signal<ClientSummary[]> = this.clientsSignal.asReadonly();
+  readonly manualRecipients: Signal<ClientSummary[]> = computed(() => {
+    const clientsById = new Map(this.clientsSignal().map((client) => [client.clientId, client]));
+    return this.manualRecipientIdsSignal()
+      .map((clientId) => clientsById.get(clientId))
+      .filter((client): client is ClientSummary => Boolean(client));
+  });
   readonly selectedChannel: Signal<BroadcastChannel> = this.selectedChannelSignal.asReadonly();
   readonly mergeFields: Signal<BroadcastMergeField[]> = signal(mergeFields).asReadonly();
   readonly emailVariants: Signal<BroadcastLayerOption[]> = signal(channelEmailVariants).asReadonly();
@@ -270,13 +280,23 @@ export class BroadcastFacade {
   readonly filteredRecipients: Signal<ClientSummary[]> = computed(() =>
     this.applyFilters(this.clientsSignal(), this.filtersSignal()),
   );
+  readonly selectedRecipients: Signal<ClientSummary[]> = computed(() => {
+    const merged = new Map<string, ClientSummary>();
+    for (const recipient of this.filteredRecipients()) {
+      merged.set(recipient.clientId, recipient);
+    }
+    for (const recipient of this.manualRecipients()) {
+      merged.set(recipient.clientId, recipient);
+    }
+    return Array.from(merged.values());
+  });
   /* c8 ignore next */
   readonly counts: Signal<BroadcastRecipientCounts> = computed(() =>
-    this.computeCounts(this.filteredRecipients()),
+    this.computeCounts(this.selectedRecipients()),
   );
   /* c8 ignore next */
   readonly exclusionSummary: Signal<BroadcastExclusionSummary> = computed(() =>
-    this.computeExclusions(this.filteredRecipients(), this.counts(), this.selectedChannelSignal()),
+    this.computeExclusions(this.selectedRecipients(), this.counts(), this.selectedChannelSignal()),
   );
   /* c8 ignore next */
   readonly channelValidationMessage: Signal<string | null> = computed(() =>
@@ -285,13 +305,13 @@ export class BroadcastFacade {
   /* c8 ignore next */
   readonly canDispatch: Signal<boolean> = computed(() => this.channelValidationMessage() === null);
   readonly previewRecipients: Signal<ClientSummary[]> = computed(() =>
-    this.computePreviewRecipients(this.filteredRecipients(), this.selectedChannelSignal()),
+    this.computePreviewRecipients(this.selectedRecipients(), this.selectedChannelSignal()),
   );
   readonly templates: Signal<BroadcastTemplates> = this.templatesSignal.asReadonly();
   /* c8 ignore next */
   readonly previewPayload: Signal<BroadcastPreviewPayload> = computed(() =>
-    this.buildPreviewPayload(
-      this.filteredRecipients(),
+      this.buildPreviewPayload(
+      this.selectedRecipients(),
       this.previewClientIdSignal(),
       this.templatesSignal(),
       this.selectedEmailVariantSignal(),
@@ -370,6 +390,7 @@ export class BroadcastFacade {
     this.loadStateSignal.set('loading');
     try {
       this.clientsSignal.set(await this.repository.listClients());
+      this.pruneManualRecipientIds();
       this.syncPreviewSelection();
       this.loadStateSignal.set('ready');
     } catch (error) {
@@ -379,8 +400,39 @@ export class BroadcastFacade {
     }
   }
 
+  addManualRecipient(clientId: string): ManualRecipientAddResult {
+    const normalizedId = clientId.trim();
+    if (!normalizedId || !this.clientsSignal().some((client) => client.clientId === normalizedId)) {
+      return 'not-found';
+    }
+    const alreadySelected =
+      this.manualRecipientIdsSignal().includes(normalizedId) ||
+      this.filteredRecipients().some((client) => client.clientId === normalizedId);
+    if (alreadySelected) {
+      return 'already-selected';
+    }
+    this.manualRecipientIdsSignal.update((current) => [...current, normalizedId]);
+    this.syncPreviewSelection();
+    return 'added';
+  }
+
+  removeManualRecipient(clientId: string): void {
+    const normalizedId = clientId.trim();
+    const before = this.manualRecipientIdsSignal().length;
+    this.manualRecipientIdsSignal.update((current) =>
+      current.filter((recipientId) => recipientId !== normalizedId),
+    );
+    if (before !== this.manualRecipientIdsSignal().length) {
+      this.syncPreviewSelection();
+    }
+  }
+
   filteredRecipientsSnapshot(): ClientSummary[] {
     return this.filteredRecipients();
+  }
+
+  selectedRecipientsSnapshot(): ClientSummary[] {
+    return this.selectedRecipients();
   }
 
   countsSnapshot(): BroadcastRecipientCounts {
@@ -441,7 +493,7 @@ export class BroadcastFacade {
     this.confirmationPayloadSignal.set({
       mode: 'dispatch',
       channel: this.selectedChannel(),
-      recipients: this.filteredRecipients().length,
+      recipients: this.selectedRecipients().length,
       scheduledAtLabel: this.resolveScheduledLabel(),
     });
     this.statusBannerSignal.set(null);
@@ -582,7 +634,7 @@ export class BroadcastFacade {
   }
 
   private buildDispatchRecipients(): BroadcastDispatchRecipient[] {
-    const clients = this.filteredRecipients();
+    const clients = this.selectedRecipients();
     const templates = this.templatesSignal();
     const emailVariant = this.selectedEmailVariantSignal();
     const smsVariant = this.selectedSmsVariantSignal();
@@ -793,6 +845,13 @@ export class BroadcastFacade {
     });
   }
 
+  private pruneManualRecipientIds(): void {
+    const rosterIds = new Set(this.clientsSignal().map((client) => client.clientId));
+    this.manualRecipientIdsSignal.update((current) =>
+      current.filter((recipientId) => rosterIds.has(recipientId)),
+    );
+  }
+
   private matchesServiceWindow(
     lastJobDate: string | null,
     window: ServiceWindow,
@@ -909,6 +968,10 @@ export class BroadcastFacade {
     return signal<ClientSummary[]>([]);
   }
 
+  private createManualRecipientIdsSignal(): WritableSignal<string[]> {
+    return signal<string[]>([]);
+  }
+
   private createLoadStateSignal(): WritableSignal<BroadcastLoadState> {
     return signal<BroadcastLoadState>('loading');
   }
@@ -963,3 +1026,5 @@ export class BroadcastFacade {
     return signal<string | null>(null);
   }
 }
+
+

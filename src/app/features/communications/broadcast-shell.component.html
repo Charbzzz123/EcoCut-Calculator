@@ -159,6 +159,110 @@
           }
         </ul>
       </section>
+
+      <section class="manual-audience" aria-label="Manual audience additions">
+        <div class="manual-audience__header">
+          <p>
+            Manual additions:
+            <strong>{{ manualRecipients().length }}</strong>
+          </p>
+          <button
+            type="button"
+            class="refresh-btn refresh-btn--secondary"
+            (click)="toggleManualPanel()"
+          >
+            {{ manualPanelOpen() ? 'Hide manual add' : 'Add manually' }}
+          </button>
+        </div>
+
+        @if (manualPanelOpen()) {
+          <div class="manual-audience__panel">
+            <label class="field">
+              <span>Find existing client</span>
+              <input
+                [formControl]="manualSearchControl"
+                type="search"
+                placeholder="Search full roster by name, address, email, or phone"
+                (input)="onManualSearchInput()"
+              />
+            </label>
+
+            <p class="manual-audience__hint">
+              Select clients from your saved roster. Clients already in current filters are marked
+              as already included.
+            </p>
+
+            <ul class="manual-picker__list">
+              @for (row of manualPickerRows(); track row.client.clientId) {
+                <li class="manual-picker__item">
+                  <label class="check manual-picker__check">
+                    <input
+                      type="checkbox"
+                      [checked]="row.isQueued"
+                      [disabled]="!row.canQueue"
+                      (change)="onManualCandidateToggle(row.client.clientId, $event)"
+                    />
+                    <span>{{ row.client.fullName }}</span>
+                  </label>
+                  <p class="manual-picker__meta">
+                    {{ row.client.email || 'No email' }} |
+                    {{ row.client.phone || 'No phone' }}
+                  </p>
+                  @if (row.isInFilters) {
+                    <span class="audience-preview__badge audience-preview__badge--both"
+                      >In filters</span
+                    >
+                  } @else if (row.isAddedManually) {
+                    <span class="audience-preview__badge audience-preview__badge--email"
+                      >Added manually</span
+                    >
+                  }
+                </li>
+              } @empty {
+                <li class="manual-picker__empty">No roster clients match this search.</li>
+              }
+            </ul>
+            <div class="override-actions">
+              <button type="button" class="refresh-btn" (click)="addSelectedManualRecipients()">
+                Add selected ({{ manualQueuedClientIds().length }})
+              </button>
+              <button
+                type="button"
+                class="refresh-btn refresh-btn--ghost"
+                (click)="closeManualPanel()"
+              >
+                Done
+              </button>
+            </div>
+            @if (manualRecipientNotice()) {
+              <p class="validation-banner validation-banner--info">{{ manualRecipientNotice() }}</p>
+            }
+          </div>
+        }
+
+        @if (manualRecipients().length > 0) {
+          <ul class="manual-audience__list">
+            @for (recipient of manualRecipients(); track recipient.clientId) {
+              <li class="manual-audience__item">
+                <div>
+                  <p class="manual-audience__name">{{ recipient.fullName }}</p>
+                  <p class="manual-audience__meta">
+                    {{ recipient.email || 'No email' }} |
+                    {{ recipient.phone || 'No phone' }}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  class="refresh-btn refresh-btn--ghost refresh-btn--compact"
+                  (click)="removeManualRecipient(recipient.clientId)"
+                >
+                  Remove
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      </section>
     </article>
 
     <article class="board-card">

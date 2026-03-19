@@ -74,6 +74,8 @@ const createFacadeMock = () => {
   const canDispatch = signal(true);
   const filteredRecipients = signal<ClientSummary[]>(recipients);
   const previewRecipients = filteredRecipients;
+  const allRecipients = signal<ClientSummary[]>(recipients);
+  const manualRecipients = signal<ClientSummary[]>([]);
   const channelControl = new FormControl<BroadcastChannel>('both', {
     nonNullable: true,
   });
@@ -147,6 +149,25 @@ const createFacadeMock = () => {
   const insertMergeField = vi.fn<(target: BroadcastTemplateTarget, token: string) => void>();
   const saveOverrideForPreviewClient = vi.fn<() => void>();
   const clearOverrideForPreviewClient = vi.fn<() => void>();
+  const addManualRecipient = vi.fn<(clientId: string) => 'added' | 'already-selected' | 'not-found'>(
+    (clientId) => {
+      const existing = allRecipients().find((client) => client.clientId === clientId);
+      if (!existing) {
+        return 'not-found';
+      }
+      const alreadySelected =
+        filteredRecipients().some((client) => client.clientId === clientId) ||
+        manualRecipients().some((client) => client.clientId === clientId);
+      if (alreadySelected) {
+        return 'already-selected';
+      }
+      manualRecipients.update((current) => [...current, existing]);
+      return 'added';
+    },
+  );
+  const removeManualRecipient = vi.fn<(clientId: string) => void>((clientId) => {
+    manualRecipients.update((current) => current.filter((client) => client.clientId !== clientId));
+  });
   const confirmationOpen = signal(false);
   const confirmationPayload = signal<BroadcastConfirmationPayload | null>(null);
   const statusBanner = signal<string | null>(null);
@@ -183,7 +204,9 @@ const createFacadeMock = () => {
     exclusionSummary: exclusions,
     channelValidationMessage,
     canDispatch,
+    allRecipients,
     filteredRecipients,
+    manualRecipients,
     previewRecipients,
     mergeFields,
     templates,
@@ -199,6 +222,8 @@ const createFacadeMock = () => {
     insertMergeField,
     saveOverrideForPreviewClient,
     clearOverrideForPreviewClient,
+    addManualRecipient,
+    removeManualRecipient,
     openTestConfirmation,
     openDispatchConfirmation,
     closeConfirmation,
@@ -234,7 +259,9 @@ const createFacadeMock = () => {
     exclusionSummary: ReturnType<typeof signal<BroadcastExclusionSummary>>;
     channelValidationMessage: ReturnType<typeof signal<string | null>>;
     canDispatch: ReturnType<typeof signal<boolean>>;
+    allRecipients: ReturnType<typeof signal<ClientSummary[]>>;
     filteredRecipients: ReturnType<typeof signal<ClientSummary[]>>;
+    manualRecipients: ReturnType<typeof signal<ClientSummary[]>>;
     previewRecipients: ReturnType<typeof signal<ClientSummary[]>>;
     mergeFields: ReturnType<typeof signal<BroadcastMergeField[]>>;
     templates: ReturnType<typeof signal<BroadcastTemplates>>;
@@ -250,6 +277,10 @@ const createFacadeMock = () => {
     insertMergeField: ReturnType<typeof vi.fn<(target: BroadcastTemplateTarget, token: string) => void>>;
     saveOverrideForPreviewClient: ReturnType<typeof vi.fn<() => void>>;
     clearOverrideForPreviewClient: ReturnType<typeof vi.fn<() => void>>;
+    addManualRecipient: ReturnType<
+      typeof vi.fn<(clientId: string) => 'added' | 'already-selected' | 'not-found'>
+    >;
+    removeManualRecipient: ReturnType<typeof vi.fn<(clientId: string) => void>>;
     openTestConfirmation: ReturnType<typeof vi.fn<() => void>>;
     openDispatchConfirmation: ReturnType<typeof vi.fn<() => void>>;
     closeConfirmation: ReturnType<typeof vi.fn<() => void>>;
@@ -480,6 +511,73 @@ describe('BroadcastShellComponent', () => {
     const emptyState = fixture.nativeElement.querySelector('.audience-preview__empty') as HTMLElement;
     expect(emptyState.textContent).toContain('No recipients match these filters yet.');
     expect(fixture.nativeElement.textContent).toContain('Showing 0 recipients');
+  });
+
+  it('adds existing roster clients manually from Step 1 and allows removing them', () => {
+    facadeMock.filteredRecipients.set([facadeMock.filteredRecipients()[0]]);
+    facadeMock.counts.set({ total: 1, emailEligible: 1, smsEligible: 1, bothEligible: 1 });
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const toggleButton = host.querySelector(
+      '.manual-audience .refresh-btn--secondary',
+    ) as HTMLButtonElement;
+    toggleButton.click();
+    fixture.detectChanges();
+
+    const searchInput = host.querySelector(
+      'input[placeholder="Search full roster by name, address, email, or phone"]',
+    ) as HTMLInputElement;
+    searchInput.value = 'Carter';
+    searchInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    const candidateCheckbox = host.querySelector(
+      '.manual-picker__item input[type="checkbox"]',
+    ) as HTMLInputElement;
+    candidateCheckbox.click();
+    fixture.detectChanges();
+
+    const addButton = Array.from(host.querySelectorAll('.manual-audience .refresh-btn')).find((button) =>
+      (button as HTMLButtonElement).textContent?.includes('Add selected'),
+    ) as HTMLButtonElement;
+    addButton.click();
+    fixture.detectChanges();
+
+    expect(facadeMock.addManualRecipient).toHaveBeenCalledTimes(1);
+    expect(host.textContent).toContain('Added 1 client from your roster.');
+    expect(host.textContent).toContain('Carter West');
+
+    const removeButton = host.querySelector(
+      '.manual-audience__item .refresh-btn--compact',
+    ) as HTMLButtonElement;
+    removeButton.click();
+    fixture.detectChanges();
+
+    expect(facadeMock.removeManualRecipient).toHaveBeenCalledTimes(1);
+    expect(host.textContent).toContain('Manual roster selection removed.');
+  });
+
+  it('shows validation guidance when no manual roster clients are selected', () => {
+    facadeMock.filteredRecipients.set([facadeMock.filteredRecipients()[0]]);
+    facadeMock.counts.set({ total: 1, emailEligible: 1, smsEligible: 1, bothEligible: 1 });
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const toggleButton = host.querySelector(
+      '.manual-audience .refresh-btn--secondary',
+    ) as HTMLButtonElement;
+    toggleButton.click();
+    fixture.detectChanges();
+
+    const addButton = Array.from(host.querySelectorAll('.manual-audience .refresh-btn')).find((button) =>
+      (button as HTMLButtonElement).textContent?.includes('Add selected'),
+    ) as HTMLButtonElement;
+    addButton.click();
+    fixture.detectChanges();
+    expect(host.textContent).toContain('Select at least one existing client to add manually.');
+
+    expect(facadeMock.addManualRecipient).toHaveBeenCalledTimes(0);
   });
 
   it('shows singular recipient wording when exactly one recipient is visible', () => {
