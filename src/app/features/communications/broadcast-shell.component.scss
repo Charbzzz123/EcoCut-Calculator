@@ -313,6 +313,28 @@
   border-color: var(--border-status-none);
 }
 
+.refresh-btn--timeline {
+  background: var(--timeline-event-bg);
+  border-color: var(--timeline-event-border);
+  color: var(--timeline-event-text);
+}
+
+.refresh-btn--timeline:hover {
+  border-color: var(--timeline-selection-border);
+  box-shadow: 0 0 0 2px var(--timeline-selection-glow);
+}
+
+.refresh-btn--warning {
+  background: var(--surface-warning-soft);
+  border-color: var(--border-warning);
+  color: var(--text-warning);
+}
+
+.refresh-btn--warning:hover {
+  border-color: var(--border-warning);
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.25);
+}
+
 .audience-preview {
   margin-top: 1rem;
   border: 1px solid var(--border-soft);
@@ -545,6 +567,10 @@
   margin-top: 1rem;
   display: grid;
   gap: 0.9rem;
+}
+
+.override-toggle .refresh-btn {
+  margin-top: 0;
 }
 
 .override-card {

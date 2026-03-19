@@ -53,6 +53,7 @@ export class BroadcastShellComponent implements OnInit {
   protected readonly headingId = 'broadcast-heading';
   protected readonly emailCap = signal(80);
   protected readonly smsCap = signal(200);
+  protected readonly overridePanelOpen = signal(false);
   protected readonly capEditorOpen = signal(false);
   protected readonly capConfirmationOpen = signal(false);
   protected readonly capEditorNotice = signal<string | null>(null);
@@ -366,6 +367,10 @@ export class BroadcastShellComponent implements OnInit {
 
   protected clearOverrideForPreviewClient(): void {
     this.facade.clearOverrideForPreviewClient();
+  }
+
+  protected toggleOverridePanel(): void {
+    this.overridePanelOpen.update((isOpen) => !isOpen);
   }
 
   protected openTestConfirmation(): void {

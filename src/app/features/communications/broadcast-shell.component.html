@@ -371,73 +371,87 @@
           </button>
         </div>
 
-        <div class="override-card">
-          <h3>Per-client override</h3>
-          <p class="preview-client">
-            Apply only to {{ previewPayload().clientLabel }}. Overrides win over segment + channel
-            layers.
-          </p>
-          <label class="field">
-            <span>Override subject (optional)</span>
-            <input
-              [formControl]="overrideSubjectControl"
-              type="text"
-              data-merge-target="overrideSubject"
-              [class.merge-drop-target]="isMergeDragTarget('overrideSubject')"
-              (focus)="onTemplateCursorChange($event, 'overrideSubject')"
-              (click)="onTemplateCursorChange($event, 'overrideSubject')"
-              (keyup)="onTemplateCursorChange($event, 'overrideSubject')"
-              (select)="onTemplateCursorChange($event, 'overrideSubject')"
-              (dragover)="onTemplateDragOver($event, 'overrideSubject')"
-              (dragleave)="onTemplateDragLeave('overrideSubject')"
-              (drop)="onTemplateDrop($event, 'overrideSubject')"
-            />
-          </label>
-          <label class="field">
-            <span>Override email body (optional)</span>
-            <textarea
-              [formControl]="overrideEmailBodyControl"
-              rows="3"
-              data-merge-target="overrideEmailBody"
-              [class.merge-drop-target]="isMergeDragTarget('overrideEmailBody')"
-              (focus)="onTemplateCursorChange($event, 'overrideEmailBody')"
-              (click)="onTemplateCursorChange($event, 'overrideEmailBody')"
-              (keyup)="onTemplateCursorChange($event, 'overrideEmailBody')"
-              (select)="onTemplateCursorChange($event, 'overrideEmailBody')"
-              (dragover)="onTemplateDragOver($event, 'overrideEmailBody')"
-              (dragleave)="onTemplateDragLeave('overrideEmailBody')"
-              (drop)="onTemplateDrop($event, 'overrideEmailBody')"
-            ></textarea>
-          </label>
-          <label class="field">
-            <span>Override SMS body (optional)</span>
-            <textarea
-              [formControl]="overrideSmsBodyControl"
-              rows="2"
-              data-merge-target="overrideSmsBody"
-              [class.merge-drop-target]="isMergeDragTarget('overrideSmsBody')"
-              (focus)="onTemplateCursorChange($event, 'overrideSmsBody')"
-              (click)="onTemplateCursorChange($event, 'overrideSmsBody')"
-              (keyup)="onTemplateCursorChange($event, 'overrideSmsBody')"
-              (select)="onTemplateCursorChange($event, 'overrideSmsBody')"
-              (dragover)="onTemplateDragOver($event, 'overrideSmsBody')"
-              (dragleave)="onTemplateDragLeave('overrideSmsBody')"
-              (drop)="onTemplateDrop($event, 'overrideSmsBody')"
-            ></textarea>
-          </label>
-          <div class="override-actions">
-            <button type="button" class="refresh-btn" (click)="saveOverrideForPreviewClient()">
-              Save override
-            </button>
-            <button
-              type="button"
-              class="refresh-btn refresh-btn--ghost"
-              (click)="clearOverrideForPreviewClient()"
-            >
-              Clear override
-            </button>
-          </div>
+        <div class="override-toggle">
+          <button
+            type="button"
+            class="refresh-btn refresh-btn--timeline"
+            [class.refresh-btn--warning]="overridePanelOpen()"
+            (click)="toggleOverridePanel()"
+            [attr.aria-expanded]="overridePanelOpen()"
+          >
+            {{ overridePanelOpen() ? 'Hide per-client override' : 'Show per-client override' }}
+          </button>
         </div>
+
+        @if (overridePanelOpen()) {
+          <div class="override-card">
+            <h3>Per-client override</h3>
+            <p class="preview-client">
+              Apply only to {{ previewPayload().clientLabel }}. Overrides win over segment + channel
+              layers.
+            </p>
+            <label class="field">
+              <span>Override subject (optional)</span>
+              <input
+                [formControl]="overrideSubjectControl"
+                type="text"
+                data-merge-target="overrideSubject"
+                [class.merge-drop-target]="isMergeDragTarget('overrideSubject')"
+                (focus)="onTemplateCursorChange($event, 'overrideSubject')"
+                (click)="onTemplateCursorChange($event, 'overrideSubject')"
+                (keyup)="onTemplateCursorChange($event, 'overrideSubject')"
+                (select)="onTemplateCursorChange($event, 'overrideSubject')"
+                (dragover)="onTemplateDragOver($event, 'overrideSubject')"
+                (dragleave)="onTemplateDragLeave('overrideSubject')"
+                (drop)="onTemplateDrop($event, 'overrideSubject')"
+              />
+            </label>
+            <label class="field">
+              <span>Override email body (optional)</span>
+              <textarea
+                [formControl]="overrideEmailBodyControl"
+                rows="3"
+                data-merge-target="overrideEmailBody"
+                [class.merge-drop-target]="isMergeDragTarget('overrideEmailBody')"
+                (focus)="onTemplateCursorChange($event, 'overrideEmailBody')"
+                (click)="onTemplateCursorChange($event, 'overrideEmailBody')"
+                (keyup)="onTemplateCursorChange($event, 'overrideEmailBody')"
+                (select)="onTemplateCursorChange($event, 'overrideEmailBody')"
+                (dragover)="onTemplateDragOver($event, 'overrideEmailBody')"
+                (dragleave)="onTemplateDragLeave('overrideEmailBody')"
+                (drop)="onTemplateDrop($event, 'overrideEmailBody')"
+              ></textarea>
+            </label>
+            <label class="field">
+              <span>Override SMS body (optional)</span>
+              <textarea
+                [formControl]="overrideSmsBodyControl"
+                rows="2"
+                data-merge-target="overrideSmsBody"
+                [class.merge-drop-target]="isMergeDragTarget('overrideSmsBody')"
+                (focus)="onTemplateCursorChange($event, 'overrideSmsBody')"
+                (click)="onTemplateCursorChange($event, 'overrideSmsBody')"
+                (keyup)="onTemplateCursorChange($event, 'overrideSmsBody')"
+                (select)="onTemplateCursorChange($event, 'overrideSmsBody')"
+                (dragover)="onTemplateDragOver($event, 'overrideSmsBody')"
+                (dragleave)="onTemplateDragLeave('overrideSmsBody')"
+                (drop)="onTemplateDrop($event, 'overrideSmsBody')"
+              ></textarea>
+            </label>
+            <div class="override-actions">
+              <button type="button" class="refresh-btn" (click)="saveOverrideForPreviewClient()">
+                Save override
+              </button>
+              <button
+                type="button"
+                class="refresh-btn refresh-btn--ghost"
+                (click)="clearOverrideForPreviewClient()"
+              >
+                Clear override
+              </button>
+            </div>
+          </div>
+        }
 
         <article class="preview-card" aria-label="Rendered preview">
           <h3>Rendered preview</h3>
