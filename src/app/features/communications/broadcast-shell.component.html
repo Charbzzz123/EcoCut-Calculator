@@ -69,7 +69,7 @@
     <ul class="floating-summary__list">
       <li>
         <span>Recipients selected</span>
-        <strong>{{ counts().total }}</strong>
+        <strong>{{ selectedChannelEligibleRecipients() }}</strong>
       </li>
       <li>
         <span>Email-eligible</span>
@@ -191,14 +191,16 @@
         <p class="validation-banner">{{ channelValidationMessage() }}</p>
       } @else {
         <p class="validation-banner validation-banner--ok">
-          Channel is valid for {{ filteredRecipients().length }} recipients.
+          Channel is valid for {{ selectedChannelEligibleRecipients() }} recipients.
         </p>
       }
 
       <div class="channel-confirmation">
-        <button type="button" class="refresh-btn" (click)="confirmSelectedChannel()">
-          Confirm channel selection
-        </button>
+        @if (showChannelConfirmButton()) {
+          <button type="button" class="refresh-btn" (click)="confirmSelectedChannel()">
+            Confirm channel selection
+          </button>
+        }
         <p
           class="validation-banner"
           [class.validation-banner--ok]="channelSelectionStatus().confirmed"

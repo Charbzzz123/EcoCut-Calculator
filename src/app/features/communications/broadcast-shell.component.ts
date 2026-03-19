@@ -262,6 +262,22 @@ export class BroadcastShellComponent implements OnInit {
     };
   }
 
+  protected showChannelConfirmButton(): boolean {
+    return !this.channelSelectionStatus().confirmed;
+  }
+
+  protected selectedChannelEligibleRecipients(): number {
+    const counts = this.counts();
+    const channel = this.channelControl.value;
+    if (channel === 'email') {
+      return counts.emailEligible;
+    }
+    if (channel === 'sms') {
+      return counts.smsEligible;
+    }
+    return counts.bothEligible;
+  }
+
   protected insertMergeField(token: string, explicitTarget?: BroadcastTemplateTarget): void {
     const target = explicitTarget ?? this.lastTemplateTarget;
     const editor = this.resolveTokenEditor(target);

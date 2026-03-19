@@ -340,12 +340,13 @@ describe('BroadcastShellComponent', () => {
   it('confirms channel selection and asks for reconfirmation when changed', () => {
     expect(fixture.nativeElement.textContent).toContain('Current channel: Email + SMS');
 
-    const confirmButton = fixture.nativeElement.querySelector(
+    let confirmButton = fixture.nativeElement.querySelector(
       '.channel-confirmation .refresh-btn',
     ) as HTMLButtonElement;
     confirmButton.click();
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Channel confirmed: Email + SMS.');
+    expect(fixture.nativeElement.querySelector('.channel-confirmation .refresh-btn')).toBeNull();
 
     const emailChannel = fixture.nativeElement.querySelector(
       '.channel-toggle input[value="email"]',
@@ -355,6 +356,37 @@ describe('BroadcastShellComponent', () => {
     expect(fixture.nativeElement.textContent).toContain(
       'Channel changed to Email. Confirm again before moving on.',
     );
+    confirmButton = fixture.nativeElement.querySelector(
+      '.channel-confirmation .refresh-btn',
+    ) as HTMLButtonElement;
+    expect(confirmButton).toBeTruthy();
+  });
+
+  it('updates eligible recipient totals when Step 2 channel changes', () => {
+    const host = fixture.nativeElement as HTMLElement;
+    const selectedCount = (): string =>
+      (
+        host.querySelector('.floating-summary__list li:first-child strong') as HTMLElement
+      ).textContent?.trim() ?? '';
+
+    expect(host.textContent).toContain('Channel is valid for 1 recipients.');
+    expect(selectedCount()).toBe('1');
+
+    const emailChannel = host.querySelector(
+      '.channel-toggle input[value="email"]',
+    ) as HTMLInputElement;
+    emailChannel.click();
+    fixture.detectChanges();
+    expect(host.textContent).toContain('Channel is valid for 2 recipients.');
+    expect(selectedCount()).toBe('2');
+
+    const smsChannel = host.querySelector(
+      '.channel-toggle input[value="sms"]',
+    ) as HTMLInputElement;
+    smsChannel.click();
+    fixture.detectChanges();
+    expect(host.textContent).toContain('Channel is valid for 2 recipients.');
+    expect(selectedCount()).toBe('2');
   });
 
   it('shows blocked status and loading/error banners when signals change', () => {
