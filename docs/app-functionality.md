@@ -148,7 +148,7 @@
   - Owner: full control.
   - Manager: add employee + edit hours.
   - Employee: view-only.
-  - Current release enforces these guards in the UI/facade layer; backend enforcement will be added when the employees API module is introduced.
+  - Current release enforces these guards in both frontend facade/UI and backend `/employees` API endpoints (via operator-role checks), so unauthorized profile/archive writes are blocked server-side too.
 - **Validation and safeguards**
   - Required contact/rate fields with strict phone/email formatting.
   - Prevent duplicate employee creation using normalized name + phone/email checks.

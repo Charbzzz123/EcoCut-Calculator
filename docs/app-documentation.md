@@ -52,7 +52,7 @@ root/
 - **Integration**: `HomeShellComponent` imports the modal and toggles it from the floating �Add Entry� CTA. The component emits `EntryModalPayload` with the selected variant, normalized form payload, and hedge configs, which feed the fa�ade/server. Customer submissions automatically create a Google Calendar event via `HomeDataService`, which in turn stores the returned `eventId` back onto the payload so later edits/deletes can call the appropriate proxy endpoint.
 - **Entry persistence client**: `EntryRepositoryService` (`src/app/shared/domain/entry/entry-repository.service.ts`) wraps `/api/entries` and `/api/entries/clients`. `HomeDataService.saveEntry` now awaits this service so every submission is recorded immediately (no more console stub). `listClients()` will power the future CRM dashboard without duplicating HTTP plumbing.
 - **Client roster UI**: `/clients` is backed by `ClientsShellComponent` (standalone) which uses `EntryRepositoryService.listClients()` on init. The view renders summary cards, search/filter controls, and the roster list with dedicated loading/error states. Routes are defined in `app.routes.ts` (lazy loaded via `loadComponent`).
-- **Manage Employees workspace (ME-1 to ME-6 UI)**: `/employees/manage` lazy-loads `ManageEmployeesShellComponent` with `EmployeesFacade` + `EmployeesDataService`. Current release includes roster retrieval/filtering, owner-safe profile create/edit/archive, operator role mode (owner vs manager), per-employee hours editing with capability guards, employee timeline rollups, and a Start Next Job readiness contract panel (availability state, upcoming windows, next available time, conflict flag). Remaining slice is backend role enforcement once the employees API module lands.
+- **Manage Employees workspace (ME-1 to ME-6 UI)**: `/employees/manage` lazy-loads `ManageEmployeesShellComponent` with `EmployeesFacade` + `EmployeesDataService`. Current release includes roster retrieval/filtering, owner-safe profile create/edit/archive, operator role mode (owner vs manager), per-employee hours editing with capability guards, employee timeline rollups, and a Start Next Job readiness contract panel (availability state, upcoming windows, next available time, conflict flag). Backend employees permission enforcement is now live; remaining slice is frontend wiring from seeded service data to the new `/employees` API.
 - **Broadcast UI (Phase 1-6 live)**:
   - `/communications/broadcast` now lazy-loads `BroadcastShellComponent` and reuses the same evergreen shell language as `/clients`.
   - `BroadcastFacade` owns recipient loading, filter controls, channel selection, eligibility counts, exclusion summaries, and dispatch gating (no eligible recipients => dispatch blocked).
@@ -75,6 +75,15 @@ root/
   - `GET /entries` � retrieve the append-only job history (same SQLite snapshot) so undo/reporting layers can read the source of truth.
   - `GET /entries/clients` � returns the deduplicated client roster (keyed by email ? phone ? name+address) with `jobsCount`, `lastJobDate`, and `lastCalendarEventId`.
   - Implementation lives in `server/src/entries/` (service, repository, controller, module). The repository persists to SQLite today (`ENTRIES_DB_PATH`) and can later be swapped for Postgres without changing the public API.
+- **Employees module**:
+  - `GET /employees/roster` - list employee profiles used by the Manage Employees roster.
+  - `GET /employees/hours` - list per-employee hours entries.
+  - `GET /employees/history` - list employee job-history timeline entries.
+  - `GET /employees/readiness` - list Start Next Job readiness contract data (availability state, upcoming windows, conflict flags, totals).
+  - `POST /employees/roster`, `PATCH /employees/roster/:employeeId`, `POST /employees/roster/:employeeId/archive` - profile writes with role guardrails (`owner` required for update/archive; `owner` or `manager` for create).
+  - `POST /employees/hours`, `PATCH /employees/hours/:entryId`, `DELETE /employees/hours/:entryId` - hours mutations allowed for `owner` and `manager`.
+  - Role is supplied through `x-operator-role` request header (`owner` default, `manager` optional). Unauthorized operations are rejected server-side with `403`.
+  - Snapshot persistence is stored in SQLite at `EMPLOYEES_DB_PATH` (default `server/data/employees.db`).
 - **Broadcast module (MVP delivery live)**:
   - Exposes `POST /communications/test`, `POST /communications/dispatch`, `GET /communications/campaigns`, and `GET /communications/campaigns/:campaignId`.
   - Phase 7A suppression endpoints are live: `GET /communications/suppressions`, `POST /communications/suppressions/unsubscribe`, `POST /communications/suppressions/resubscribe`.
@@ -98,6 +107,7 @@ root/
   | `GOOGLE_CALENDAR_ID` | Optional | Overrides the default target calendar (`ecojcut@gmail.com`). |
   | `ENTRIES_DB_PATH` | Optional | SQLite file path for persisted job/CRM entry history (`server/data/entries.db` by default). |
   | `COMMUNICATIONS_DB_PATH` | Optional | SQLite file path for broadcast campaigns/audit/analytics/suppressions (`server/data/communications.db` by default). |
+  | `EMPLOYEES_DB_PATH` | Optional | SQLite file path for persisted employees roster/hours/history snapshot (`server/data/employees.db` by default). |
   | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` | Required for email sends | Hostinger SMTP credentials used by the communications module. |
   | `QUO_API_BASE_URL`, `QUO_API_KEY`, `QUO_FROM_NUMBER`, `QUO_FROM_NUMBER_ID`, `QUO_USER_ID` | Required for SMS sends | Quo API configuration used by `QuoSmsProvider`. |
   | `QUO_WEBHOOK_SECRET`, `HOSTINGER_WEBHOOK_SECRET` | Optional (recommended for production) | Enables signature validation on provider webhook route (`/communications/webhooks/delivery/:provider`). |
