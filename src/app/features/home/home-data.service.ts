@@ -40,13 +40,6 @@ export class HomeDataService {
   getQuickActions(): QuickAction[] {
     return [
       {
-        id: 'new-job',
-        label: 'Add Job',
-        description: 'Log a new job',
-        icon: '\u2795',
-        command: 'new-job',
-      },
-      {
         id: 'start-next-job',
         label: 'Start Next Job',
         description: 'Resume the next queued job',
@@ -54,25 +47,11 @@ export class HomeDataService {
         command: 'start-next-job',
       },
       {
-        id: 'undo-job',
-        label: 'Undo Last',
-        description: 'Reverse previous log',
-        icon: '\u21A9\uFE0F',
-        command: 'undo-job',
-      },
-      {
         id: 'manage-employees',
         label: 'Manage Employees',
         description: 'Update availability & rates',
-        icon: '\u{1F527}',
-        command: 'manage-employees',
-      },
-      {
-        id: 'employee-directory',
-        label: 'Employee List',
-        description: 'View roster & contacts',
         icon: '\u{1F465}',
-        command: 'view-employee-directory',
+        command: 'manage-employees',
       },
       {
         id: 'clients',
@@ -94,13 +73,6 @@ export class HomeDataService {
         description: 'Check cashflow & funds',
         icon: '\u{1F4B2}',
         command: 'view-finances',
-      },
-      {
-        id: 'upcoming-pay',
-        label: 'Upcoming Pay',
-        description: 'Preview payroll obligations',
-        icon: '\u{1F4B8}',
-        command: 'view-upcoming-pay',
       },
       {
         id: 'performance',

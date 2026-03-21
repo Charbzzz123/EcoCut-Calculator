@@ -55,9 +55,14 @@ describe('HomeDataService', () => {
 
   it('lists all quick actions and commands', () => {
     const quickActions = service.getQuickActions();
-    expect(quickActions).toHaveLength(12);
+    expect(quickActions).toHaveLength(8);
     const commands = quickActions.map((action) => action.command);
     expect(commands).toContain('view-finances');
+    expect(commands).toContain('manage-employees');
+    expect(commands).not.toContain('new-job');
+    expect(commands).not.toContain('undo-job');
+    expect(commands).not.toContain('view-employee-directory');
+    expect(commands).not.toContain('view-upcoming-pay');
   });
 
   it('summarizes weekly hours for every teammate', () => {
