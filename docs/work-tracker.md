@@ -65,9 +65,15 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 ## In Progress / Backlog
 
-| Step | Task | Owner | Notes |
-| ---- | ---- | ----- | ----- |
-| —    | —    | —     | —     |
+| Step | Task                                    | Owner | Notes                                                                                                                        |
+| ---- | --------------------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------- |
+| ME-1 | Manage Employees route + shell scaffold | —     | Add `/employees/manage` feature shell matching Home/Clients/Broadcast styling and shared layout tokens.                      |
+| ME-2 | Employee roster + search/filter         | —     | Build active/inactive roster list, fast search, and empty/loading/error states with facade-driven state.                     |
+| ME-3 | Employee profile create/edit/archive    | —     | Add owner-safe create/update flows, archive instead of hard delete, strict phone/email/rate validation, duplicate detection. |
+| ME-4 | Hours editor + role permissions         | —     | Managers can add employees and edit hours only; owners keep full control. Enforce capability guards in UI + backend.         |
+| ME-5 | Per-employee job history timeline       | —     | Show site/address, scheduled slot, and hours per job; include totals and recent-job summary for operational review.          |
+| ME-6 | Start Next Job readiness wiring         | —     | Expose employee history/availability data contract so future `Start Next Job` assignment UI can reuse it directly.           |
+| ME-7 | Tests, docs, and rollout checklist      | —     | Keep >=99% per-file coverage target (100% preferred), update docs + tracker after each slice, and run lint/test/build gates. |
 
 ### Broadcast Requirements (locked for implementation)
 

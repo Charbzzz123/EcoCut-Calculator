@@ -22,7 +22,7 @@
 - **Layout**: hero header with an â€œOperations snapshotâ€ eyebrow, welcome copy, and hero metrics grid; quick action tiles live immediately below so users can jump to Undo, Manage Employees, or Advanced Options without scrolling.
 - **Theme**: dark evergreen palette with EcoCut logo + mascot imagery in the hero to reinforce branding while keeping contrast WCAG-compliant.
 - **Hero Metrics** (card grid): Jobs logged today, Todayâ€™s gross pre-tax total, Current PRF balance, Outstanding Charbel owed.
-- **Action Shortcuts**: quick links for `Add Job`, `Start Next Job`, `Undo Last Entry`, `Manage Employees`, `Employee List`, `Clients`, `Schedule`, `Finances`, `Upcoming Pay`, `Performance Stats`, `Client Broadcast`, and `Advanced Options`. Icons follow the latest emoji/icon guidance (dollar for Finances, calendar for Schedule, flex arm for Performance, group for Employee List, etc.).
+- **Action Shortcuts**: quick links for `Start Next Job`, `Manage Employees`, `Clients`, `Schedule`, `Finances`, `Performance Stats`, `Client Broadcast`, and `Advanced Options`.
 - **Activity Feed**: recent jobs list showing partner names, gross amount, status, and timestamp with a link to view details.
 - **Alerts Panel**: notifications for configuration changes, commission updates, or payroll anomalies requiring attention.
 - **Insights Widgets**: weekly payroll snapshot (hours + wages per employee) and PRF trend mini-chart.
@@ -123,6 +123,31 @@
   - Autosave disabledâ€”explicit Save button to avoid accidental edits.
   - All forms must surface validation errors inline plus summary banner.
   - Provide search/filter on each catalog screen for speed with large datasets.
+
+### Manage Employees Workspace (Planned)
+
+- **Primary goal**: give Owners/Managers one place to manage staff, track hours, and review employee job history before we enable full `Start Next Job` assignment flows.
+- **Roster view**
+  - Search + status filters (active/inactive) with a compact, fast list.
+  - Core columns: Name, Role, Hourly rate, Availability status, Last activity.
+- **Employee profile panel**
+  - Editable fields: first/last name, phone, email, role, hourly rate, notes.
+  - Archive action (soft delete) only; no hard delete from UI.
+- **Hours management**
+  - Managers can update hours entries; Owners can edit all staffing/compensation fields.
+  - Every hours edit records actor, timestamp, previous value, and new value.
+- **Employee job history**
+  - Per-employee timeline of assigned jobs showing site/address, date, scheduled window, and hours worked on that job.
+  - Totals rollups: jobs completed, total hours, recent locations.
+  - This history becomes the data source for future assignment suggestions in `Start Next Job`.
+- **Permissions**
+  - Owner: full control.
+  - Manager: add employee + edit hours.
+  - Employee: view-only.
+- **Validation and safeguards**
+  - Required contact/rate fields with strict phone/email formatting.
+  - Prevent duplicate employee creation using normalized name + phone/email checks.
+  - Block save with a clear missing-field summary when required inputs are incomplete.
 
 ## Calculation & Business Rules
 
