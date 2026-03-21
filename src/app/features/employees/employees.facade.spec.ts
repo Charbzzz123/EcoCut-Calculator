@@ -364,6 +364,16 @@ describe('EmployeesFacade', () => {
     expect(facade.workspaceNotice()).toContain('cannot archive employees');
   });
 
+  it('archives an employee in owner mode and refreshes roster state', async () => {
+    await facade.loadRoster();
+    await facade.archiveEmployee('active-1');
+
+    expect(facade.rosterSnapshot().find((employee) => employee.id === 'active-1')?.status).toBe(
+      'inactive',
+    );
+    expect(facade.workspaceNotice()).toBeNull();
+  });
+
   it('creates profiles and validates required/format constraints', async () => {
     await facade.loadRoster();
     facade.openCreateProfile();
@@ -583,6 +593,7 @@ describe('EmployeesFacade', () => {
 
   it('opens and closes the history panel', async () => {
     await facade.loadRoster();
+    expect(facade.activeEmployee()).toBeNull();
     facade.openJobHistory('active-1');
     expect(facade.historyPanelOpen()).toBe(true);
     expect(facade.selectedHistoryEmployee()?.id).toBe('active-1');

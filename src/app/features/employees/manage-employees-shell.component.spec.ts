@@ -271,6 +271,17 @@ const historyEntry: EmployeeJobHistoryRecord = {
   status: 'completed',
 };
 
+const scheduledHistoryEntry: EmployeeJobHistoryRecord = {
+  id: 'history-2',
+  employeeId: 'emp-1',
+  siteLabel: 'NDG Maple Court',
+  address: '2331 Sherbrooke St W',
+  scheduledStart: '2026-03-24T12:00:00Z',
+  scheduledEnd: '2026-03-24T15:00:00Z',
+  hoursWorked: 3,
+  status: 'scheduled',
+};
+
 const readinessRecord: EmployeeStartNextJobReadiness = {
   employeeId: 'emp-1',
   fullName: 'Alex Karam',
@@ -448,6 +459,24 @@ describe('ManageEmployeesShellComponent', () => {
     expect(facade.saveProfile).toHaveBeenCalled();
   });
 
+  it('renders open profile form without error summary when no validation errors exist', () => {
+    facade.setViewModel({
+      loadState: 'ready',
+      profileEditorOpen: true,
+      profileEditorMode: 'create',
+      profileErrors: [],
+      roster: [activeRecord],
+      filteredRoster: [activeRecord],
+    });
+
+    const fixture = TestBed.createComponent(ManageEmployeesShellComponent);
+    fixture.detectChanges();
+
+    const native = fixture.nativeElement as HTMLElement;
+    expect(native.querySelector('.profile-form')).toBeTruthy();
+    expect(native.querySelector('.error-summary')).toBeNull();
+  });
+
   it('renders hours editor states and forwards hours actions', () => {
     facade.setViewModel({
       loadState: 'ready',
@@ -530,6 +559,22 @@ describe('ManageEmployeesShellComponent', () => {
     ) as HTMLButtonElement;
     closeButton.click();
     expect(facade.closeJobHistory).toHaveBeenCalled();
+  });
+
+  it('renders scheduled history status chip branch', () => {
+    facade.setViewModel({
+      loadState: 'ready',
+      roster: [activeRecord],
+      filteredRoster: [activeRecord],
+      selectedHistoryEmployeeId: activeRecord.id,
+      historyEntries: [scheduledHistoryEntry],
+    });
+
+    const fixture = TestBed.createComponent(ManageEmployeesShellComponent);
+    fixture.detectChanges();
+    const native = fixture.nativeElement as HTMLElement;
+
+    expect(native.querySelector('.history-card .status-chip')?.textContent).toContain('Scheduled');
   });
 
   it('shows empty history state when selected employee has no timeline entries', () => {

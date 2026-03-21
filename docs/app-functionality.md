@@ -143,7 +143,7 @@
   - This history becomes the data source for future assignment suggestions in `Start Next Job`.
 - **Start Next Job readiness contract**
   - For each employee we now expose: readiness state (`available`, `scheduled`, `inactive`), upcoming scheduled windows, next scheduled slot, next available time, completed/scheduled job counts, completed/scheduled hours, last completed site/date, and overlap/conflict flag.
-  - The contract is computed in the Employees facade so future assignment screens can consume one normalized source instead of recomputing availability rules in multiple places.
+  - The contract is now produced by the backend `/employees/readiness` endpoint and consumed by the Employees facade, so future assignment screens can consume one normalized source without recomputing availability rules in multiple places.
 - **Permissions**
   - Owner: full control.
   - Manager: add employee + edit hours.
