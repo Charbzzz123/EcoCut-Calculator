@@ -30,6 +30,16 @@ export interface EmployeeProfileDraft {
   notes: string;
 }
 
+export interface EmployeeProfileMutationPayload {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email?: string;
+  role: string;
+  hourlyRate: number;
+  notes?: string;
+}
+
 export type EmployeeOperatorRole = 'owner' | 'manager';
 
 export interface EmployeeHoursRecord {
@@ -46,6 +56,13 @@ export interface EmployeeHoursDraft {
   workDate: string;
   siteLabel: string;
   hours: string;
+}
+
+export interface EmployeeHoursMutationPayload {
+  employeeId: string;
+  workDate: string;
+  siteLabel: string;
+  hours: number;
 }
 
 export type EmployeeJobStatus = 'scheduled' | 'completed';

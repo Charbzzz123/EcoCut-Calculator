@@ -3,13 +3,14 @@ import { FormControl, FormGroup } from '@angular/forms';
 import { debounceTime, distinctUntilChanged, startWith } from 'rxjs';
 import { EmployeesDataService } from './employees-data.service.js';
 import type {
-  EmployeeAvailabilityWindow,
   EmployeeEditorMode,
+  EmployeeHoursMutationPayload,
   EmployeeHoursDraft,
   EmployeeHoursRecord,
   EmployeeJobHistoryRecord,
   EmployeeLoadState,
   EmployeeOperatorRole,
+  EmployeeProfileMutationPayload,
   EmployeeProfileDraft,
   EmployeeStartNextJobReadiness,
   EmployeeRosterRecord,
@@ -20,8 +21,6 @@ const digitsOnly = (value: string): string => value.replace(/\D/g, '');
 const normalizeText = (value: string): string => value.trim().toLowerCase();
 const normalizeName = (firstName: string, lastName: string): string =>
   `${normalizeText(firstName)}|${normalizeText(lastName)}`;
-const formatFullName = (firstName: string, lastName: string): string =>
-  `${firstName.trim()} ${lastName.trim()}`.trim();
 const toIsoDate = (value: Date): string => value.toISOString().slice(0, 10);
 const formatHours = (hours: number): string =>
   Number.isInteger(hours) ? `${hours}` : hours.toFixed(2).replace(/\.?0+$/, '');
@@ -35,18 +34,6 @@ const sortHistoryByStartDesc = (
   left: EmployeeJobHistoryRecord,
   right: EmployeeJobHistoryRecord,
 ): number => right.scheduledStart.localeCompare(left.scheduledStart);
-const toTimestamp = (value: string): number => {
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? 0 : parsed;
-};
-const sortHistoryByStartAsc = (
-  left: EmployeeJobHistoryRecord,
-  right: EmployeeJobHistoryRecord,
-): number => toTimestamp(left.scheduledStart) - toTimestamp(right.scheduledStart);
-const formatIsoOrNull = (value: Date): string | null => {
-  const timestamp = value.getTime();
-  return Number.isNaN(timestamp) ? null : value.toISOString();
-};
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phonePattern = /^\(\d{3}\)\s\d{3}-\d{4}$/;
@@ -95,6 +82,8 @@ export class EmployeesFacade {
     signal<EmployeeHoursRecord[]>([]);
   private readonly jobHistoryEntriesSignal: WritableSignal<EmployeeJobHistoryRecord[]> =
     signal<EmployeeJobHistoryRecord[]>([]);
+  private readonly startNextJobReadinessSignal: WritableSignal<EmployeeStartNextJobReadiness[]> =
+    signal<EmployeeStartNextJobReadiness[]>([]);
   private readonly selectedHoursEmployeeIdSignal: WritableSignal<string | null> = signal<
     string | null
   >(null);
@@ -209,9 +198,8 @@ export class EmployeesFacade {
       recentSite,
       };
     });
-  readonly startNextJobReadiness: Signal<EmployeeStartNextJobReadiness[]> = computed(() =>
-    this.computeStartNextJobReadiness(this.rosterSignal(), this.jobHistoryEntriesSignal()),
-  );
+  readonly startNextJobReadiness: Signal<EmployeeStartNextJobReadiness[]> =
+    this.startNextJobReadinessSignal.asReadonly();
 
   constructor() {
     this.queryControl.valueChanges
@@ -315,7 +303,7 @@ export class EmployeesFacade {
     this.profileErrorsSignal.set([]);
   }
 
-  saveProfile(): boolean {
+  async saveProfile(): Promise<boolean> {
     this.clearWorkspaceNotice();
     if (this.profileEditorModeSignal() === 'edit' && !this.canEditExistingProfiles()) {
       this.profileErrorsSignal.set([
@@ -331,29 +319,29 @@ export class EmployeesFacade {
       return false;
     }
 
-    const nextRecord = this.buildRecordFromDraft(draft);
-    if (this.profileEditorModeSignal() === 'create') {
-      this.rosterSignal.update((roster) => [nextRecord, ...roster]);
-    } else {
-      this.rosterSignal.update((roster) =>
-        roster.map((employee) =>
-          employee.id === nextRecord.id
-            ? {
-                ...employee,
-                ...nextRecord,
-                status: employee.status,
-                lastActivityAt: employee.lastActivityAt,
-              }
-            : employee,
-        ),
-      );
-    }
+    const payload = this.toProfileMutationPayload(draft);
+    try {
+      if (this.profileEditorModeSignal() === 'create') {
+        await this.data.createEmployeeProfile(payload, this.roleSignal());
+      } else {
+        const editingId = this.editingEmployeeIdSignal();
+        if (!editingId) {
+          this.profileErrorsSignal.set(['Unable to resolve the employee profile being edited.']);
+          return false;
+        }
+        await this.data.updateEmployeeProfile(editingId, payload, this.roleSignal());
+      }
 
-    this.cancelProfileEditor();
-    return true;
+      this.cancelProfileEditor();
+      await this.loadRoster();
+      return true;
+    } catch (error) {
+      this.profileErrorsSignal.set([this.readApiErrorMessage(error, 'Unable to save employee profile.')]);
+      return false;
+    }
   }
 
-  archiveEmployee(employeeId: string): void {
+  async archiveEmployee(employeeId: string): Promise<void> {
     this.clearWorkspaceNotice();
     if (!this.canArchiveProfiles()) {
       this.workspaceNoticeSignal.set(
@@ -361,12 +349,12 @@ export class EmployeesFacade {
       );
       return;
     }
-
-    this.rosterSignal.update((roster) =>
-      roster.map((employee) =>
-        employee.id === employeeId ? { ...employee, status: 'inactive' } : employee,
-      ),
-    );
+    try {
+      await this.data.archiveEmployee(employeeId, this.roleSignal());
+      await this.loadRoster();
+    } catch (error) {
+      this.workspaceNoticeSignal.set(this.readApiErrorMessage(error, 'Unable to archive employee.'));
+    }
   }
 
   openHoursEditor(employeeId: string): void {
@@ -420,16 +408,21 @@ export class EmployeesFacade {
     });
   }
 
-  removeHoursEntry(entryId: string): void {
+  async removeHoursEntry(entryId: string): Promise<void> {
     this.clearWorkspaceNotice();
-    this.hoursEntriesSignal.update((entries) => entries.filter((entry) => entry.id !== entryId));
-    if (this.editingHoursEntryIdSignal() === entryId) {
-      this.editingHoursEntryIdSignal.set(null);
-      this.hoursForm.patchValue({ siteLabel: '', hours: '' });
+    try {
+      await this.data.removeHoursEntry(entryId, this.roleSignal());
+      if (this.editingHoursEntryIdSignal() === entryId) {
+        this.editingHoursEntryIdSignal.set(null);
+        this.hoursForm.patchValue({ siteLabel: '', hours: '' });
+      }
+      await this.loadRoster();
+    } catch (error) {
+      this.hoursErrorsSignal.set([this.readApiErrorMessage(error, 'Unable to remove hours entry.')]);
     }
   }
 
-  saveHoursEntry(): boolean {
+  async saveHoursEntry(): Promise<boolean> {
     this.clearWorkspaceNotice();
     const selectedEmployee = this.selectedHoursEmployee();
     if (!selectedEmployee) {
@@ -444,43 +437,32 @@ export class EmployeesFacade {
       return false;
     }
 
-    const now = new Date().toISOString();
-    const parsedHours = Number.parseFloat(draft.hours.trim());
-    const editingId = this.editingHoursEntryIdSignal();
-    if (editingId) {
-      this.hoursEntriesSignal.update((entries) =>
-        entries.map((entry) =>
-          entry.id === editingId
-            ? {
-                ...entry,
-                workDate: draft.workDate.trim(),
-                siteLabel: draft.siteLabel.trim(),
-                hours: parsedHours,
-                updatedByRole: this.roleSignal(),
-                updatedAt: now,
-              }
-            : entry,
-        ),
-      );
-    } else {
-      this.hoursEntriesSignal.update((entries) => [
-        {
-          id: this.createHoursId(selectedEmployee.id),
-          employeeId: selectedEmployee.id,
-          workDate: draft.workDate.trim(),
-          siteLabel: draft.siteLabel.trim(),
-          hours: parsedHours,
-          updatedByRole: this.roleSignal(),
-          updatedAt: now,
-        },
-        ...entries,
-      ]);
-    }
+    const payload = this.toHoursMutationPayload(selectedEmployee.id, draft);
+    try {
+      const editingId = this.editingHoursEntryIdSignal();
+      if (editingId) {
+        await this.data.updateHoursEntry(
+          editingId,
+          {
+            workDate: payload.workDate,
+            siteLabel: payload.siteLabel,
+            hours: payload.hours,
+          },
+          this.roleSignal(),
+        );
+      } else {
+        await this.data.createHoursEntry(payload, this.roleSignal());
+      }
 
-    this.editingHoursEntryIdSignal.set(null);
-    this.hoursErrorsSignal.set([]);
-    this.hoursForm.patchValue({ siteLabel: '', hours: '' });
-    return true;
+      this.editingHoursEntryIdSignal.set(null);
+      this.hoursErrorsSignal.set([]);
+      this.hoursForm.patchValue({ siteLabel: '', hours: '' });
+      await this.loadRoster();
+      return true;
+    } catch (error) {
+      this.hoursErrorsSignal.set([this.readApiErrorMessage(error, 'Unable to save hours entry.')]);
+      return false;
+    }
   }
 
   trackByEmployeeId = (_: number, employee: EmployeeRosterRecord): string => employee.id;
@@ -495,17 +477,20 @@ export class EmployeesFacade {
   async loadRoster(): Promise<void> {
     this.loadStateSignal.set('loading');
     try {
-      const [roster, hours, history] = await Promise.all([
+      const [roster, hours, history, readiness] = await Promise.all([
         this.data.listEmployees(),
         this.data.listHoursEntries(),
         this.data.listJobHistoryEntries(),
+        this.data.listStartNextJobReadiness(),
       ]);
       this.rosterSignal.set(roster);
       this.hoursEntriesSignal.set(hours);
       this.jobHistoryEntriesSignal.set(history);
+      this.startNextJobReadinessSignal.set(readiness);
       this.loadStateSignal.set('ready');
     } catch (error) {
       console.warn('Failed to load employee roster', error);
+      this.startNextJobReadinessSignal.set([]);
       this.loadStateSignal.set('error');
     }
   }
@@ -550,119 +535,6 @@ export class EmployeesFacade {
       active,
       inactive,
     };
-  }
-
-  private computeStartNextJobReadiness(
-    roster: EmployeeRosterRecord[],
-    historyEntries: EmployeeJobHistoryRecord[],
-  ): EmployeeStartNextJobReadiness[] {
-    const now = new Date();
-    const nowTimestamp = now.getTime();
-    const nowIso = now.toISOString();
-    const readiness = roster.map((employee) =>
-      this.buildReadinessRecord(employee, historyEntries, nowTimestamp, nowIso),
-    );
-    return readiness.sort((left, right) => left.fullName.localeCompare(right.fullName));
-  }
-
-  private buildReadinessRecord(
-    employee: EmployeeRosterRecord,
-    historyEntries: EmployeeJobHistoryRecord[],
-    nowTimestamp: number,
-    nowIso: string,
-  ): EmployeeStartNextJobReadiness {
-    const employeeHistory = historyEntries.filter((entry) => entry.employeeId === employee.id);
-    const completedEntries = employeeHistory
-      .filter((entry) => entry.status === 'completed')
-      .sort(sortHistoryByStartDesc);
-    const scheduledEntries = employeeHistory
-      .filter((entry) => entry.status === 'scheduled')
-      .sort(sortHistoryByStartAsc);
-    const upcomingEntries = scheduledEntries.filter((entry) => toTimestamp(entry.scheduledEnd) > nowTimestamp);
-    const activeEntries = upcomingEntries.filter((entry) => toTimestamp(entry.scheduledStart) <= nowTimestamp);
-    const nextScheduledEntry = upcomingEntries[0] ?? null;
-
-    const availabilityWindows = upcomingEntries.map((entry) => this.mapToAvailabilityWindow(entry));
-    const nextAvailableAt =
-      employee.status === 'inactive'
-        ? null
-        : this.computeNextAvailableAt(upcomingEntries, activeEntries, nowIso);
-    const hasScheduleConflict = this.detectScheduleConflict(upcomingEntries);
-    const readinessState =
-      employee.status === 'inactive'
-        ? 'inactive'
-        : activeEntries.length
-          ? 'scheduled'
-          : 'available';
-
-    return {
-      employeeId: employee.id,
-      fullName: employee.fullName,
-      status: employee.status,
-      readinessState,
-      scheduledJobsCount: upcomingEntries.length,
-      completedJobsCount: completedEntries.length,
-      scheduledHours: upcomingEntries.reduce((sum, entry) => sum + entry.hoursWorked, 0),
-      completedHours: completedEntries.reduce((sum, entry) => sum + entry.hoursWorked, 0),
-      nextScheduledStart: nextScheduledEntry?.scheduledStart ?? null,
-      nextScheduledEnd: nextScheduledEntry?.scheduledEnd ?? null,
-      nextAvailableAt,
-      lastCompletedAt: completedEntries[0]?.scheduledEnd ?? null,
-      lastCompletedSite: completedEntries[0]?.siteLabel ?? null,
-      hasScheduleConflict,
-      upcomingWindows: availabilityWindows,
-    };
-  }
-
-  private mapToAvailabilityWindow(entry: EmployeeJobHistoryRecord): EmployeeAvailabilityWindow {
-    return {
-      jobId: entry.id,
-      siteLabel: entry.siteLabel,
-      address: entry.address,
-      startAt: entry.scheduledStart,
-      endAt: entry.scheduledEnd,
-    };
-  }
-
-  private computeNextAvailableAt(
-    upcomingEntries: EmployeeJobHistoryRecord[],
-    activeEntries: EmployeeJobHistoryRecord[],
-    nowIso: string,
-  ): string | null {
-    if (!upcomingEntries.length) {
-      return nowIso;
-    }
-    if (!activeEntries.length) {
-      return nowIso;
-    }
-
-    let availabilityTimestamp = Math.max(...activeEntries.map((entry) => toTimestamp(entry.scheduledEnd)));
-    for (const entry of upcomingEntries) {
-      const start = toTimestamp(entry.scheduledStart);
-      if (start > availabilityTimestamp) {
-        break;
-      }
-      availabilityTimestamp = Math.max(availabilityTimestamp, toTimestamp(entry.scheduledEnd));
-    }
-    return formatIsoOrNull(new Date(availabilityTimestamp));
-  }
-
-  private detectScheduleConflict(upcomingEntries: EmployeeJobHistoryRecord[]): boolean {
-    if (upcomingEntries.length <= 1) {
-      return false;
-    }
-
-    for (let index = 1; index < upcomingEntries.length; index += 1) {
-      const previous = upcomingEntries[index - 1];
-      const current = upcomingEntries[index];
-      if (!previous || !current) {
-        continue;
-      }
-      if (toTimestamp(current.scheduledStart) < toTimestamp(previous.scheduledEnd)) {
-        return true;
-      }
-    }
-    return false;
   }
 
   private readDraftFromForm(): EmployeeProfileDraft {
@@ -750,31 +622,16 @@ export class EmployeesFacade {
     return null;
   }
 
-  private buildRecordFromDraft(draft: EmployeeProfileDraft): EmployeeRosterRecord {
-    const editingId = this.editingEmployeeIdSignal();
-    const parsedRate = Number.parseFloat(draft.hourlyRate.trim());
-    const existing = editingId
-      ? this.rosterSignal().find((employee) => employee.id === editingId) ?? null
-      : null;
+  private toProfileMutationPayload(draft: EmployeeProfileDraft): EmployeeProfileMutationPayload {
     return {
-      id: editingId ?? this.createEmployeeId(draft),
       firstName: draft.firstName.trim(),
       lastName: draft.lastName.trim(),
-      fullName: formatFullName(draft.firstName, draft.lastName),
       phone: draft.phone.trim(),
-      email: draft.email.trim() ? draft.email.trim() : null,
+      email: draft.email.trim() || undefined,
       role: draft.role.trim(),
-      hourlyRate: Number.isFinite(parsedRate) ? parsedRate : 0,
-      notes: draft.notes.trim(),
-      status: existing?.status ?? 'active',
-      lastActivityAt: existing?.lastActivityAt ?? null,
+      hourlyRate: Number.parseFloat(draft.hourlyRate.trim()),
+      notes: draft.notes.trim() || undefined,
     };
-  }
-
-  private createEmployeeId(draft: EmployeeProfileDraft): string {
-    const slug =
-      `${draft.firstName.trim()}-${draft.lastName.trim()}`.toLowerCase().replace(/\s+/g, '-');
-    return `emp-${slug}-${Date.now()}`;
   }
 
   private readHoursDraftFromForm(): EmployeeHoursDraft {
@@ -809,8 +666,53 @@ export class EmployeesFacade {
     return errors;
   }
 
-  private createHoursId(employeeId: string): string {
-    return `hours-${employeeId}-${Date.now()}`;
+  private toHoursMutationPayload(
+    employeeId: string,
+    draft: EmployeeHoursDraft,
+  ): EmployeeHoursMutationPayload {
+    return {
+      employeeId,
+      workDate: draft.workDate.trim(),
+      siteLabel: draft.siteLabel.trim(),
+      hours: Number.parseFloat(draft.hours.trim()),
+    };
+  }
+
+  private readApiErrorMessage(error: unknown, fallback: string): string {
+    const message = this.readErrorPayloadMessage(error);
+    return message ?? fallback;
+  }
+
+  private readErrorPayloadMessage(error: unknown): string | null {
+    if (!error || typeof error !== 'object') {
+      return null;
+    }
+    const payload = error as { error?: unknown; message?: unknown };
+    const nestedMessage = this.readNestedMessage(payload.error);
+    if (nestedMessage) {
+      return nestedMessage;
+    }
+    if (typeof payload.message === 'string' && payload.message.trim()) {
+      return payload.message;
+    }
+    return null;
+  }
+
+  private readNestedMessage(payload: unknown): string | null {
+    if (!payload || typeof payload !== 'object') {
+      return null;
+    }
+    const message = (payload as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim()) {
+      return message;
+    }
+    if (Array.isArray(message)) {
+      const joined = message
+        .filter((entry): entry is string => typeof entry === 'string')
+        .join(' ');
+      return joined.trim() || null;
+    }
+    return null;
   }
 
   private clearWorkspaceNotice(): void {

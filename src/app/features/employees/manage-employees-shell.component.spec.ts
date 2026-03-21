@@ -49,7 +49,7 @@ class EmployeesFacadeStub {
     this.profileEditorModeSignal.set('edit');
   });
   readonly archiveEmployee = vi.fn();
-  readonly saveProfile = vi.fn(() => true);
+  readonly saveProfile = vi.fn(async () => true);
   readonly cancelProfileEditor = vi.fn(() => this.profileEditorOpenSignal.set(false));
   readonly openHoursEditor = vi.fn((employeeId: string) => {
     this.selectedHoursEmployeeIdSignal.set(employeeId);
@@ -59,7 +59,7 @@ class EmployeesFacadeStub {
   });
   readonly closeHoursEditor = vi.fn(() => this.selectedHoursEmployeeIdSignal.set(null));
   readonly closeJobHistory = vi.fn(() => this.selectedHistoryEmployeeIdSignal.set(null));
-  readonly saveHoursEntry = vi.fn(() => true);
+  readonly saveHoursEntry = vi.fn(async () => true);
   readonly editHoursEntry = vi.fn();
   readonly removeHoursEntry = vi.fn();
   readonly trackByEmployeeId = vi.fn((_: number, employee: EmployeeRosterRecord) => employee.id);
@@ -532,6 +532,24 @@ describe('ManageEmployeesShellComponent', () => {
     expect(facade.closeJobHistory).toHaveBeenCalled();
   });
 
+  it('shows empty history state when selected employee has no timeline entries', () => {
+    facade.setViewModel({
+      loadState: 'ready',
+      roster: [activeRecord],
+      filteredRoster: [activeRecord],
+      selectedHistoryEmployeeId: activeRecord.id,
+      historyEntries: [],
+    });
+
+    const fixture = TestBed.createComponent(ManageEmployeesShellComponent);
+    fixture.detectChanges();
+    const native = fixture.nativeElement as HTMLElement;
+
+    expect(native.querySelector('.roster-state')?.textContent).toContain(
+      'No job history found for this employee yet.',
+    );
+  });
+
   it('renders readiness contract cards and uses readiness trackBy', () => {
     facade.setViewModel({
       loadState: 'ready',
@@ -550,5 +568,46 @@ describe('ManageEmployeesShellComponent', () => {
     expect(native.querySelector('.readiness-card__header h3')?.textContent).toContain('Alex Karam');
     expect(native.querySelector('.readiness-card__meta')?.textContent).toContain('Scheduled jobs: 1');
     expect(facade.trackByReadinessEmployeeId).toHaveBeenCalled();
+  });
+
+  it('renders scheduled/inactive readiness fallbacks and conflict notice', () => {
+    facade.setViewModel({
+      loadState: 'ready',
+      roster: [activeRecord],
+      filteredRoster: [activeRecord],
+      readiness: [
+        {
+          ...readinessRecord,
+          readinessState: 'scheduled',
+          nextAvailableAt: null,
+          lastCompletedSite: null,
+          hasScheduleConflict: true,
+        },
+        {
+          ...readinessRecord,
+          employeeId: 'emp-2',
+          fullName: 'Nora Bitar',
+          readinessState: 'inactive',
+          nextScheduledStart: null,
+          nextAvailableAt: null,
+          lastCompletedSite: null,
+          hasScheduleConflict: false,
+        },
+      ],
+    });
+
+    const fixture = TestBed.createComponent(ManageEmployeesShellComponent);
+    fixture.detectChanges();
+    const native = fixture.nativeElement as HTMLElement;
+
+    const readinessCards = native.querySelectorAll('.readiness-card');
+    expect(readinessCards.length).toBe(2);
+    expect(readinessCards[0]?.textContent).toContain('On scheduled work');
+    expect(readinessCards[0]?.textContent).toContain('Next available:');
+    expect(readinessCards[0]?.textContent).toContain('Last completed site:');
+    expect(readinessCards[0]?.querySelector('.readiness-card__conflict')?.textContent).toContain(
+      'Schedule conflict detected',
+    );
+    expect(readinessCards[1]?.textContent).toContain('Inactive');
   });
 });

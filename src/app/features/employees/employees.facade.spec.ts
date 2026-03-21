@@ -5,6 +5,7 @@ import { EmployeesDataService } from './employees-data.service.js';
 import type {
   EmployeeHoursRecord,
   EmployeeJobHistoryRecord,
+  EmployeeStartNextJobReadiness,
   EmployeeRosterRecord,
 } from './employees.types.js';
 
@@ -93,25 +94,198 @@ class EmployeesDataServiceStub {
     },
   ];
 
+  readonly readinessRecords: EmployeeStartNextJobReadiness[] = [
+    {
+      employeeId: 'active-1',
+      fullName: 'Alex Nassif',
+      status: 'active',
+      readinessState: 'available',
+      scheduledJobsCount: 2,
+      completedJobsCount: 1,
+      scheduledHours: 5,
+      completedHours: 8,
+      nextScheduledStart: '2099-03-24T12:00:00Z',
+      nextScheduledEnd: '2099-03-24T15:00:00Z',
+      nextAvailableAt: '2099-03-24T16:00:00Z',
+      lastCompletedAt: '2026-03-20T17:00:00Z',
+      lastCompletedSite: 'Westmount Cedar Hedge',
+      hasScheduleConflict: true,
+      upcomingWindows: [
+        {
+          jobId: 'job-active-2',
+          siteLabel: 'NDG Maple Court',
+          address: '2331 Sherbrooke St W',
+          startAt: '2099-03-24T12:00:00Z',
+          endAt: '2099-03-24T15:00:00Z',
+        },
+      ],
+    },
+    {
+      employeeId: 'inactive-1',
+      fullName: 'Nora Bitar',
+      status: 'inactive',
+      readinessState: 'inactive',
+      scheduledJobsCount: 0,
+      completedJobsCount: 0,
+      scheduledHours: 0,
+      completedHours: 0,
+      nextScheduledStart: null,
+      nextScheduledEnd: null,
+      nextAvailableAt: null,
+      lastCompletedAt: null,
+      lastCompletedSite: null,
+      hasScheduleConflict: false,
+      upcomingWindows: [],
+    },
+  ];
+
   async listEmployees(): Promise<EmployeeRosterRecord[]> {
     if (this.shouldFail) {
       throw new Error('boom');
     }
-    return this.records;
+    return this.records.map((record) => ({ ...record }));
   }
 
   async listHoursEntries(): Promise<EmployeeHoursRecord[]> {
     if (this.shouldFail) {
       throw new Error('boom');
     }
-    return this.hoursRecords;
+    return this.hoursRecords.map((record) => ({ ...record }));
   }
 
   async listJobHistoryEntries(): Promise<EmployeeJobHistoryRecord[]> {
     if (this.shouldFail) {
       throw new Error('boom');
     }
-    return this.jobHistoryRecords;
+    return this.jobHistoryRecords.map((record) => ({ ...record }));
+  }
+
+  async listStartNextJobReadiness() {
+    if (this.shouldFail) {
+      throw new Error('boom');
+    }
+    const now = Date.now();
+    const activeNow = this.jobHistoryRecords.find(
+      (entry) =>
+        entry.employeeId === 'active-1' &&
+        entry.status === 'scheduled' &&
+        Date.parse(entry.scheduledStart) <= now &&
+        Date.parse(entry.scheduledEnd) > now,
+    );
+    return this.readinessRecords.map((entry) =>
+      entry.employeeId === 'active-1' && activeNow
+        ? {
+          ...entry,
+          readinessState: 'scheduled',
+          nextAvailableAt: activeNow.scheduledEnd,
+        }
+        : { ...entry },
+    );
+  }
+
+  async createEmployeeProfile(payload: {
+    firstName: string;
+    lastName: string;
+    phone: string;
+    email?: string;
+    role: string;
+    hourlyRate: number;
+    notes?: string;
+  }) {
+    const created = {
+      id: 'new-employee',
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      fullName: `${payload.firstName} ${payload.lastName}`,
+      phone: payload.phone,
+      email: payload.email ?? null,
+      role: payload.role,
+      hourlyRate: payload.hourlyRate,
+      notes: payload.notes ?? '',
+      status: 'active',
+      lastActivityAt: null,
+    } satisfies EmployeeRosterRecord;
+    this.records.unshift(created);
+    return created;
+  }
+
+  async updateEmployeeProfile(
+    employeeId: string,
+    payload: {
+      firstName: string;
+      lastName: string;
+      phone: string;
+      email?: string;
+      role: string;
+      hourlyRate: number;
+      notes?: string;
+    },
+  ) {
+    const current = this.records.find((entry) => entry.id === employeeId);
+    if (!current) {
+      throw new Error('missing');
+    }
+    Object.assign(current, {
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      fullName: `${payload.firstName} ${payload.lastName}`,
+      phone: payload.phone,
+      email: payload.email ?? null,
+      role: payload.role,
+      hourlyRate: payload.hourlyRate,
+      notes: payload.notes ?? '',
+    });
+    return current;
+  }
+
+  async archiveEmployee(employeeId: string) {
+    const current = this.records.find((entry) => entry.id === employeeId);
+    if (!current) {
+      throw new Error('missing');
+    }
+    current.status = 'inactive';
+    return current;
+  }
+
+  async createHoursEntry(payload: {
+    employeeId: string;
+    workDate: string;
+    siteLabel: string;
+    hours: number;
+  }) {
+    const created = {
+      id: 'hours-created',
+      employeeId: payload.employeeId,
+      workDate: payload.workDate,
+      siteLabel: payload.siteLabel,
+      hours: payload.hours,
+      updatedByRole: 'manager',
+      updatedAt: '2026-03-21T12:00:00Z',
+    } satisfies EmployeeHoursRecord;
+    this.hoursRecords.unshift(created);
+    return created;
+  }
+
+  async updateHoursEntry(
+    entryId: string,
+    payload: { workDate: string; siteLabel: string; hours: number },
+  ) {
+    const current = this.hoursRecords.find((entry) => entry.id === entryId);
+    if (!current) {
+      throw new Error('missing');
+    }
+    Object.assign(current, payload, {
+      updatedByRole: 'manager',
+      updatedAt: '2026-03-21T12:30:00Z',
+    });
+    return current;
+  }
+
+  async removeHoursEntry(entryId: string) {
+    const index = this.hoursRecords.findIndex((entry) => entry.id === entryId);
+    if (index >= 0) {
+      this.hoursRecords.splice(index, 1);
+    }
   }
 }
 
@@ -194,7 +368,7 @@ describe('EmployeesFacade', () => {
     await facade.loadRoster();
     facade.openCreateProfile();
 
-    expect(facade.saveProfile()).toBe(false);
+    await expect(facade.saveProfile()).resolves.toBe(false);
     expect(facade.profileErrorsSnapshot()[0]).toContain(
       'Required fields missing: First name, Last name, Phone, Role, Hourly rate.',
     );
@@ -208,7 +382,7 @@ describe('EmployeesFacade', () => {
       hourlyRate: '-1',
       notes: '',
     });
-    expect(facade.saveProfile()).toBe(false);
+    await expect(facade.saveProfile()).resolves.toBe(false);
     expect(facade.profileErrorsSnapshot()).toContain('Phone must use format (###) ###-####.');
     expect(facade.profileErrorsSnapshot()).toContain('Email must be a valid address.');
     expect(facade.profileErrorsSnapshot()).toContain('Hourly rate must be greater than 0.');
@@ -224,7 +398,7 @@ describe('EmployeesFacade', () => {
       notes: 'Handles customer follow-ups.',
     });
 
-    expect(facade.saveProfile()).toBe(true);
+    await expect(facade.saveProfile()).resolves.toBe(true);
     expect(facade.profileEditorOpen()).toBe(false);
     expect(facade.rosterSnapshot().some((employee) => employee.fullName === 'Maya Sarkis')).toBe(
       true,
@@ -236,14 +410,14 @@ describe('EmployeesFacade', () => {
     facade.openEditProfile('active-1');
     facade.profileForm.controls.role.setValue('Operations lead');
 
-    expect(facade.saveProfile()).toBe(true);
+    await expect(facade.saveProfile()).resolves.toBe(true);
     expect(facade.rosterSnapshot().find((employee) => employee.id === 'active-1')?.role).toBe(
       'Operations lead',
     );
 
     facade.openEditProfile('active-1');
     facade.roleControl.setValue('manager');
-    expect(facade.saveProfile()).toBe(false);
+    await expect(facade.saveProfile()).resolves.toBe(false);
     expect(facade.profileErrorsSnapshot()[0]).toContain('cannot update existing profiles');
   });
 
@@ -252,19 +426,23 @@ describe('EmployeesFacade', () => {
     facade.openHoursEditor('active-1');
 
     facade.hoursForm.setValue({ workDate: '', siteLabel: '', hours: '' });
-    expect(facade.saveHoursEntry()).toBe(false);
+    await expect(facade.saveHoursEntry()).resolves.toBe(false);
     expect(facade.hoursErrorsSnapshot()[0]).toContain(
       'Required fields missing: Work date, Site / address, Hours.',
     );
 
     facade.hoursForm.setValue({ workDate: '2026-03-21', siteLabel: 'Laval', hours: '26' });
-    expect(facade.saveHoursEntry()).toBe(false);
+    await expect(facade.saveHoursEntry()).resolves.toBe(false);
     expect(facade.hoursErrorsSnapshot()[0]).toContain('Hours must be a number greater than 0');
 
     facade.roleControl.setValue('manager');
     facade.hoursForm.setValue({ workDate: '2026-03-21', siteLabel: 'Laval', hours: '7.25' });
-    expect(facade.saveHoursEntry()).toBe(true);
-    expect(facade.selectedHoursEntriesSnapshot()[0]?.updatedByRole).toBe('manager');
+    await expect(facade.saveHoursEntry()).resolves.toBe(true);
+    expect(
+      facade
+        .selectedHoursEntriesSnapshot()
+        .find((entry) => entry.id === 'hours-created')?.updatedByRole,
+    ).toBe('manager');
   });
 
   it('supports editing and removing existing hours entries', async () => {
@@ -275,12 +453,12 @@ describe('EmployeesFacade', () => {
 
     facade.hoursForm.controls.siteLabel.setValue('NDG - Updated');
     facade.hoursForm.controls.hours.setValue('7');
-    expect(facade.saveHoursEntry()).toBe(true);
+    await expect(facade.saveHoursEntry()).resolves.toBe(true);
     expect(
       facade.selectedHoursEntriesSnapshot().find((entry) => entry.id === 'hours-active-2')?.siteLabel,
     ).toBe('NDG - Updated');
 
-    facade.removeHoursEntry('hours-active-2');
+    await facade.removeHoursEntry('hours-active-2');
     expect(
       facade.selectedHoursEntriesSnapshot().some((entry) => entry.id === 'hours-active-2'),
     ).toBe(false);
@@ -292,10 +470,95 @@ describe('EmployeesFacade', () => {
     expect(facade.hoursEditorOpen()).toBe(false);
   });
 
+  it('covers fallback branches for non-happy-path editor interactions', async () => {
+    // Same-day entries should sort by latest update first.
+    service.hoursRecords.push({
+      id: 'hours-active-same-day',
+      employeeId: 'active-1',
+      workDate: '2026-03-20',
+      siteLabel: 'Westmount - late update',
+      hours: 1,
+      updatedByRole: 'owner',
+      updatedAt: '2026-03-20T19:00:00Z',
+    });
+    await facade.loadRoster();
+    facade.openHoursEditor('active-1');
+    expect(facade.selectedHoursEntriesSnapshot()[0]?.id).toBe('hours-active-same-day');
+    facade.closeHoursEditor();
+
+    // Branches where ids are missing / unresolved.
+    facade.openEditProfile('missing-id');
+    facade.openHoursEditor('missing-id');
+    expect(facade.selectedHoursEmployee()).toBeNull();
+
+    facade.openJobHistory('missing-id');
+    expect(facade.selectedHistoryEmployee()).toBeNull();
+    expect(facade.selectedEmployeeJobHistorySnapshot()).toEqual([]);
+
+    facade.editHoursEntry('missing-entry');
+    expect(facade.editingHoursEntry()).toBeNull();
+
+    // Save in edit mode without an editing id to trigger validation branch.
+    facade.openEditProfile('active-1');
+    (
+      facade as unknown as { editingEmployeeIdSignal: { set: (value: string | null) => void } }
+    ).editingEmployeeIdSignal.set(null);
+    facade.profileForm.patchValue({
+      firstName: 'Unique',
+      lastName: 'Operator',
+      phone: '(438) 555-7777',
+      email: 'unique@ecocutqc.com',
+      role: 'Crew lead',
+      hourlyRate: '30',
+    });
+    await expect(facade.saveProfile()).resolves.toBe(false);
+    expect(facade.profileErrorsSnapshot()[0]).toContain(
+      'Unable to resolve the employee profile being edited.',
+    );
+
+    // Remove while currently editing to clear form and editing state.
+    facade.openHoursEditor('active-1');
+    facade.editHoursEntry('hours-active-1');
+    await facade.removeHoursEntry('hours-active-1');
+    expect(facade.editingHoursEntry()).toBeNull();
+    expect(facade.hoursForm.controls.siteLabel.value).toBe('');
+    expect(facade.hoursForm.controls.hours.value).toBe('');
+
+    // Error branch with nested string message.
+    vi.spyOn(service, 'removeHoursEntry').mockRejectedValueOnce({
+      error: { message: 'Cannot remove locked entry.' },
+    });
+    await facade.removeHoursEntry('hours-active-2');
+    expect(facade.hoursErrorsSnapshot()[0]).toBe('Cannot remove locked entry.');
+
+    // Active employee signal fallback when id has no match.
+    facade.openEditProfile('active-1');
+    (
+      facade as unknown as { editingEmployeeIdSignal: { set: (value: string | null) => void } }
+    ).editingEmployeeIdSignal.set('missing-id');
+    expect(facade.activeEmployee()).toBeNull();
+  });
+
+  it('surfaces API error messages for hours mutations and falls back when missing', async () => {
+    await facade.loadRoster();
+    facade.openHoursEditor('active-1');
+    facade.hoursForm.setValue({ workDate: '2026-03-21', siteLabel: 'Laval', hours: '7.25' });
+
+    vi.spyOn(service, 'createHoursEntry').mockRejectedValueOnce({
+      error: { message: ['Hours conflict.', 'Try another slot.'] },
+    });
+    await expect(facade.saveHoursEntry()).resolves.toBe(false);
+    expect(facade.hoursErrorsSnapshot()[0]).toBe('Hours conflict. Try another slot.');
+
+    vi.spyOn(service, 'createHoursEntry').mockRejectedValueOnce({ error: { message: 12 } });
+    await expect(facade.saveHoursEntry()).resolves.toBe(false);
+    expect(facade.hoursErrorsSnapshot()[0]).toBe('Unable to save hours entry.');
+  });
+
   it('blocks hours save when no employee is selected', async () => {
     await facade.loadRoster();
     facade.closeHoursEditor();
-    expect(facade.saveHoursEntry()).toBe(false);
+    await expect(facade.saveHoursEntry()).resolves.toBe(false);
     expect(facade.hoursErrorsSnapshot()[0]).toContain('Select an employee before editing hours.');
   });
 
@@ -327,6 +590,31 @@ describe('EmployeesFacade', () => {
     facade.closeJobHistory();
     expect(facade.historyPanelOpen()).toBe(false);
     expect(facade.selectedHistoryEmployee()).toBeNull();
+  });
+
+  it('surfaces nested and top-level API messages for profile/archive failures', async () => {
+    await facade.loadRoster();
+    facade.openCreateProfile();
+    facade.profileForm.setValue({
+      firstName: 'Maya',
+      lastName: 'Sarkis',
+      phone: '(438) 555-3131',
+      email: 'maya@ecocutqc.com',
+      role: 'Estimator',
+      hourlyRate: '28.5',
+      notes: 'Handles customer follow-ups.',
+    });
+
+    vi.spyOn(service, 'createEmployeeProfile').mockRejectedValueOnce({
+      error: 'ignored',
+      message: 'Profile API unavailable.',
+    });
+    await expect(facade.saveProfile()).resolves.toBe(false);
+    expect(facade.profileErrorsSnapshot()[0]).toBe('Profile API unavailable.');
+
+    vi.spyOn(service, 'archiveEmployee').mockRejectedValueOnce('boom');
+    await facade.archiveEmployee('active-1');
+    expect(facade.workspaceNotice()).toBe('Unable to archive employee.');
   });
 
   it('marks employees as scheduled when an active booking overlaps now', async () => {

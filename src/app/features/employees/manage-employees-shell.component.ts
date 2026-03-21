@@ -76,7 +76,7 @@ export class ManageEmployeesShellComponent implements OnInit {
   }
 
   protected archiveEmployee(employeeId: string): void {
-    this.facade.archiveEmployee(employeeId);
+    void this.facade.archiveEmployee(employeeId);
   }
 
   protected openHoursEditor(employeeId: string): void {
@@ -100,15 +100,15 @@ export class ManageEmployeesShellComponent implements OnInit {
   }
 
   protected removeHoursEntry(entryId: string): void {
-    this.facade.removeHoursEntry(entryId);
+    void this.facade.removeHoursEntry(entryId);
   }
 
   protected saveProfile(): void {
-    this.facade.saveProfile();
+    void this.facade.saveProfile();
   }
 
   protected saveHoursEntry(): void {
-    this.facade.saveHoursEntry();
+    void this.facade.saveHoursEntry();
   }
 
   protected cancelProfileEditor(): void {
