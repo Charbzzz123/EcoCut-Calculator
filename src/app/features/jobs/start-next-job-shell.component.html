@@ -215,6 +215,16 @@
               {{ item.scheduledEnd | date: 'h:mm a' }}
             </p>
             <p class="history-card__meta">{{ item.status }} | {{ item.hoursWorked }}h</p>
+            @if (item.status === 'scheduled') {
+              <button
+                type="button"
+                class="history-card__action"
+                [disabled]="facade.saveState() === 'saving'"
+                (click)="facade.completeHistoryEntry(item.id)"
+              >
+                Mark completed
+              </button>
+            }
           </li>
         }
       </ul>

@@ -133,6 +133,17 @@ export class EmployeesController {
     );
   }
 
+  @Post('history/:entryId/complete')
+  completeJobHistoryEntry(
+    @Param('entryId') entryId: string,
+    @Headers('x-operator-role') operatorRole?: string,
+  ) {
+    return this.employees.completeJobHistoryEntry(
+      entryId,
+      this.parseOperatorRole(operatorRole),
+    );
+  }
+
   private parseOperatorRole(rawRole: string | undefined): EmployeeOperatorRole {
     return rawRole?.toLowerCase() === 'manager' ? 'manager' : 'owner';
   }

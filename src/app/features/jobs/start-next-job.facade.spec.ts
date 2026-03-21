@@ -11,6 +11,8 @@ class EmployeesDataServiceStub {
   history: EmployeeJobHistoryRecord[] = [];
   shouldFail = false;
   shouldFailCreate = false;
+  shouldFailComplete = false;
+  completeCalls: string[] = [];
 
   async listStartNextJobReadiness(): Promise<EmployeeStartNextJobReadiness[]> {
     if (this.shouldFail) {
@@ -45,6 +47,23 @@ class EmployeesDataServiceStub {
         },
       ],
       createdHours: [],
+    };
+  }
+
+  async completeJobHistoryEntry(entryId: string) {
+    this.completeCalls.push(entryId);
+    if (this.shouldFailComplete) {
+      throw new Error('complete-failure');
+    }
+    return {
+      id: entryId,
+      employeeId: 'emp-b',
+      siteLabel: 'Downtown',
+      address: '2 Main St',
+      scheduledStart: '2026-03-21T14:00:00.000Z',
+      scheduledEnd: '2026-03-21T17:00:00.000Z',
+      hoursWorked: 3,
+      status: 'completed' as const,
     };
   }
 }
@@ -313,5 +332,23 @@ describe('StartNextJobFacade', () => {
     await expect(facade.submitAssignment()).resolves.toBe(false);
     expect(facade.saveState()).toBe('error');
     expect(facade.saveMessage()).toBe('Unable to save assignment right now.');
+  });
+
+  it('marks scheduled history entries as completed and refreshes board', async () => {
+    await facade.loadBoard();
+
+    await expect(facade.completeHistoryEntry('hist-2', 'manager')).resolves.toBe(true);
+    expect(dataService.completeCalls).toEqual(['hist-2']);
+    expect(facade.saveState()).toBe('success');
+    expect(facade.saveMessage()).toBe('Assignment marked as completed.');
+  });
+
+  it('surfaces complete-action API failures', async () => {
+    await facade.loadBoard();
+    dataService.shouldFailComplete = true;
+
+    await expect(facade.completeHistoryEntry('hist-2')).resolves.toBe(false);
+    expect(facade.saveState()).toBe('error');
+    expect(facade.saveMessage()).toBe('Unable to mark assignment as completed right now.');
   });
 });

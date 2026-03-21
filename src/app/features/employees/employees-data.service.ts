@@ -53,6 +53,21 @@ export class EmployeesDataService {
     );
   }
 
+  async completeJobHistoryEntry(
+    entryId: string,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeJobHistoryRecord> {
+    return firstValueFrom(
+      this.http.post<EmployeeJobHistoryRecord>(
+        `${this.baseUrl}/history/${entryId}/complete`,
+        null,
+        {
+          headers: this.operatorHeaders(actorRole),
+        },
+      ),
+    );
+  }
+
   async createEmployeeProfile(
     payload: EmployeeProfileMutationPayload,
     actorRole: EmployeeOperatorRole,

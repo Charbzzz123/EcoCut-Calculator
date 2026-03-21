@@ -15,6 +15,7 @@ describe('EmployeesController', () => {
   const updateHoursEntry = jest.fn();
   const removeHoursEntry = jest.fn();
   const createStartNextJobAssignment = jest.fn();
+  const completeJobHistoryEntry = jest.fn();
 
   const createController = async (): Promise<EmployeesController> => {
     const moduleRef = await Test.createTestingModule({
@@ -35,6 +36,7 @@ describe('EmployeesController', () => {
             updateHoursEntry,
             removeHoursEntry,
             createStartNextJobAssignment,
+            completeJobHistoryEntry,
           },
         },
       ],
@@ -74,6 +76,7 @@ describe('EmployeesController', () => {
     createStartNextJobAssignment.mockResolvedValue({
       assignmentId: 'assign-1',
     });
+    completeJobHistoryEntry.mockResolvedValue({ id: 'job-1' });
 
     await controller.createEmployeeProfile(
       {
@@ -119,6 +122,7 @@ describe('EmployeesController', () => {
       },
       'manager',
     );
+    await controller.completeJobHistoryEntry('job-1', 'manager');
 
     expect(createEmployeeProfile).toHaveBeenCalledWith(
       expect.any(Object),
@@ -157,6 +161,7 @@ describe('EmployeesController', () => {
       },
       'manager',
     );
+    expect(completeJobHistoryEntry).toHaveBeenCalledWith('job-1', 'manager');
   });
 
   it('defaults unknown role headers to owner', async () => {

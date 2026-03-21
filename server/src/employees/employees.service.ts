@@ -253,6 +253,44 @@ export class EmployeesService implements OnModuleInit {
     };
   }
 
+  async completeJobHistoryEntry(
+    entryId: string,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeJobHistoryRecord> {
+    this.assertOwnerOrManager(actorRole);
+    const existing = this.snapshot.history.find(
+      (entry) => entry.id === entryId,
+    );
+    if (!existing) {
+      throw new NotFoundException(`Job history entry "${entryId}" not found.`);
+    }
+    if (existing.status === 'completed') {
+      throw new ConflictException(
+        `Job history entry "${entryId}" is already completed.`,
+      );
+    }
+
+    const now = new Date().toISOString();
+    const completed: EmployeeJobHistoryRecord = {
+      ...existing,
+      status: 'completed',
+    };
+
+    this.snapshot = {
+      ...this.snapshot,
+      history: this.snapshot.history.map((entry) =>
+        entry.id === entryId ? completed : entry,
+      ),
+      roster: this.snapshot.roster.map((employee) =>
+        employee.id === existing.employeeId
+          ? { ...employee, lastActivityAt: now }
+          : employee,
+      ),
+    };
+    await this.persistSnapshot();
+    return completed;
+  }
+
   async createEmployeeProfile(
     payload: CreateEmployeeDto,
     actorRole: EmployeeOperatorRole,

@@ -337,4 +337,33 @@ describe('EmployeesService', () => {
       ),
     ).rejects.toBeInstanceOf(ConflictException);
   });
+
+  it('marks scheduled history entries as completed and refreshes readiness totals', async () => {
+    const completed = await service.completeJobHistoryEntry(
+      'job-future-1',
+      'manager',
+    );
+
+    expect(completed.status).toBe('completed');
+    const updatedHistory = service
+      .listJobHistoryEntries()
+      .find((entry) => entry.id === 'job-future-1');
+    expect(updatedHistory?.status).toBe('completed');
+
+    const readiness = service
+      .listStartNextJobReadiness()
+      .find((entry) => entry.employeeId === 'emp-owner');
+    expect(readiness?.scheduledJobsCount).toBe(1);
+    expect(readiness?.completedJobsCount).toBe(2);
+  });
+
+  it('rejects complete action for missing or already completed history entries', async () => {
+    await expect(
+      service.completeJobHistoryEntry('missing-entry', 'owner'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    await expect(
+      service.completeJobHistoryEntry('job-completed', 'owner'),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
 });

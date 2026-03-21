@@ -65,6 +65,7 @@ const createFacadeStub = () => ({
   selectedCrewHistory: signal<SelectedCrewHistoryItem[]>([]),
   loadBoard: vi.fn().mockResolvedValue(undefined),
   submitAssignment: vi.fn().mockResolvedValue(true),
+  completeHistoryEntry: vi.fn().mockResolvedValue(true),
   clearCrewSelection: vi.fn(),
   toggleEmployeeSelection: vi.fn(),
   isEmployeeSelected: vi.fn().mockReturnValue(false),
@@ -136,6 +137,12 @@ describe('StartNextJobShellComponent', () => {
     const select = fixture.nativeElement.querySelector('.crew-select-btn') as HTMLButtonElement;
     select.click();
     expect(facade.toggleEmployeeSelection).toHaveBeenCalledWith('emp-1');
+
+    const complete = fixture.nativeElement.querySelector(
+      '.history-card__action',
+    ) as HTMLButtonElement;
+    complete.click();
+    expect(facade.completeHistoryEntry).toHaveBeenCalledWith('job-1');
   });
 
   it('renders draft-ready branch and clear crew action', () => {

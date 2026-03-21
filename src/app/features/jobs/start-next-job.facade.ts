@@ -199,6 +199,25 @@ export class StartNextJobFacade {
     }
   }
 
+  async completeHistoryEntry(
+    entryId: string,
+    actorRole: EmployeeOperatorRole = 'owner',
+  ): Promise<boolean> {
+    this.saveState.set('saving');
+    this.saveMessage.set('Marking assignment as completed...');
+    try {
+      await this.employeesData.completeJobHistoryEntry(entryId, actorRole);
+      this.saveState.set('success');
+      this.saveMessage.set('Assignment marked as completed.');
+      await this.loadBoard();
+      return true;
+    } catch {
+      this.saveState.set('error');
+      this.saveMessage.set('Unable to mark assignment as completed right now.');
+      return false;
+    }
+  }
+
   getReadinessPill(readiness: EmployeeStartNextJobReadiness): ReadinessPill {
     if (readiness.readinessState === 'available') {
       return { text: 'Available', state: 'available' };
