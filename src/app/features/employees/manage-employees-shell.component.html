@@ -1,0 +1,27 @@
+<section class="employees-shell" aria-labelledby="{{ headingId }}">
+  <article class="employees-hero">
+    <app-brand-banner></app-brand-banner>
+
+    <header class="employees-shell__header">
+      <div class="hero-copy">
+        <p class="eyebrow">Workforce Operations</p>
+        <h1 id="{{ headingId }}">Manage employees</h1>
+        <p class="subtitle">
+          Configure staffing records, edit tracked hours, and prepare assignment history for
+          upcoming job dispatch workflows.
+        </p>
+      </div>
+      <app-back-chip routerLink="/home" label="Back to dashboard"></app-back-chip>
+    </header>
+  </article>
+
+  <article class="employees-placeholder" aria-label="Manage employees roadmap">
+    <p class="employees-placeholder__eyebrow">Phase scaffold</p>
+    <h2>Feature slices queued</h2>
+    <ul class="slice-list">
+      @for (slice of plannedSlices; track slice) {
+        <li class="slice-card">{{ slice }}</li>
+      }
+    </ul>
+  </article>
+</section>

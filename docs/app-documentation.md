@@ -52,6 +52,7 @@ root/
 - **Integration**: `HomeShellComponent` imports the modal and toggles it from the floating �Add Entry� CTA. The component emits `EntryModalPayload` with the selected variant, normalized form payload, and hedge configs, which feed the fa�ade/server. Customer submissions automatically create a Google Calendar event via `HomeDataService`, which in turn stores the returned `eventId` back onto the payload so later edits/deletes can call the appropriate proxy endpoint.
 - **Entry persistence client**: `EntryRepositoryService` (`src/app/shared/domain/entry/entry-repository.service.ts`) wraps `/api/entries` and `/api/entries/clients`. `HomeDataService.saveEntry` now awaits this service so every submission is recorded immediately (no more console stub). `listClients()` will power the future CRM dashboard without duplicating HTTP plumbing.
 - **Client roster UI**: `/clients` is backed by `ClientsShellComponent` (standalone) which uses `EntryRepositoryService.listClients()` on init. The view renders summary cards, search/filter controls, and the roster list with dedicated loading/error states. Routes are defined in `app.routes.ts` (lazy loaded via `loadComponent`).
+- **Manage Employees shell (ME-1)**: `/employees/manage` now lazy-loads `ManageEmployeesShellComponent` as the staffing workspace entry point. Current slice is scaffold-only (hero + phased placeholders) and intentionally keeps route/style contracts stable for upcoming roster/profile/hours/history slices.
 - **Broadcast UI (Phase 1-6 live)**:
   - `/communications/broadcast` now lazy-loads `BroadcastShellComponent` and reuses the same evergreen shell language as `/clients`.
   - `BroadcastFacade` owns recipient loading, filter controls, channel selection, eligibility counts, exclusion summaries, and dispatch gating (no eligible recipients => dispatch blocked).
@@ -143,7 +144,7 @@ All frontend services derive their HTTP targets from `environment.apiBaseUrl`, s
 - Replace placeholder Angular template with real calculator components.
 - Extend the `/clients` view into a full CRM (client detail drawer, job history timeline, edit/delete hooks) once backend persistence is durable.
 - Continue `/communications/broadcast` rollout in remaining slices: campaign history UI and final rollout checklist/integration hardening.
-- Build `/employees/manage` as the next operational workspace (roster, profile editor, permissions-aware hours workflow, and per-employee job history timeline).
+- Continue `/employees/manage` implementation beyond the scaffold (roster, profile editor, permissions-aware hours workflow, and per-employee job history timeline).
 - Reuse employee history + availability contracts inside the upcoming `Start Next Job` flow so assignment logic stays centralized.
 - Automate documentation publishing (Docs site or wiki) once scope grows.
 

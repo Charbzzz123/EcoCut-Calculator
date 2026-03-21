@@ -1,0 +1,78 @@
+.employees-shell {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.employees-hero,
+.employees-placeholder {
+  position: relative;
+  border-radius: 1.5rem;
+  border: 1px solid var(--surface-border);
+  background: linear-gradient(145deg, rgba(1, 24, 18, 0.95), rgba(2, 18, 12, 0.88));
+  box-shadow: var(--surface-shadow);
+  padding: clamp(1rem, 2vw, 1.5rem);
+}
+
+.employees-shell__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.hero-copy {
+  display: grid;
+  gap: 0.55rem;
+  max-width: 52rem;
+}
+
+.eyebrow {
+  margin: 0;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(1.45rem, 2.1vw, 2rem);
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--text-muted);
+  max-width: 46rem;
+}
+
+.employees-placeholder__eyebrow {
+  margin: 0 0 0.55rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-soft);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.slice-list {
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.slice-card {
+  border-radius: 1rem;
+  border: 1px solid var(--surface-border);
+  background: rgba(4, 32, 23, 0.68);
+  padding: 0.85rem 0.95rem;
+  color: var(--text-secondary);
+}

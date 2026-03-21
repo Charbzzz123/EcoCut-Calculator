@@ -22,5 +22,13 @@ export const routes: Routes = [
       ),
     title: 'EcoCut | Broadcast',
   },
+  {
+    path: 'employees/manage',
+    loadComponent: () =>
+      import('../features/employees/manage-employees-shell.component.js').then(
+        (m) => m.ManageEmployeesShellComponent,
+      ),
+    title: 'EcoCut | Manage Employees',
+  },
   { path: '**', redirectTo: 'home' },
 ];

@@ -38,7 +38,7 @@ export class HomeFacade {
   }
 
   openManageEmployees(): void {
-    this.navigateWhenReady('/admin/employees');
+    this.navigateWhenReady('/employees/manage');
   }
 
   openEmployeeDirectory(): void {

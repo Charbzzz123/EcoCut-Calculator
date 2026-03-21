@@ -44,7 +44,7 @@ describe('HomeFacade', () => {
       { command: 'start-next-job', url: '/jobs/next' },
       { command: 'view-clients', url: '/clients' },
       { command: 'view-schedule', url: '/schedule' },
-      { command: 'manage-employees', url: '/admin/employees' },
+      { command: 'manage-employees', url: '/employees/manage' },
       { command: 'view-employee-directory', url: '/admin/employees/directory' },
       { command: 'view-finances', url: '/finances' },
       { command: 'view-upcoming-pay', url: '/payroll/upcoming' },

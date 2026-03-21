@@ -19,7 +19,7 @@
 ## Home Screen UX
 
 - **Primary CTA**: â€œAdd Entryâ€ pill button above the fold plus a floating CTA pinned to the bottom-right. Hover/click reveals quick sub-actions (`+ Warm Lead`, `+ Customer / Closed`) that trigger their respective flows; options auto-hide when focus leaves the button group.
-- **Layout**: hero header with an â€œOperations snapshotâ€ eyebrow, welcome copy, and hero metrics grid; quick action tiles live immediately below so users can jump to Undo, Manage Employees, or Advanced Options without scrolling.
+- **Layout**: hero header with an â€œOperations snapshotâ€ eyebrow, welcome copy, and hero metrics grid; quick action tiles live immediately below so users can jump to core operations without scrolling.
 - **Theme**: dark evergreen palette with EcoCut logo + mascot imagery in the hero to reinforce branding while keeping contrast WCAG-compliant.
 - **Hero Metrics** (card grid): Jobs logged today, Todayâ€™s gross pre-tax total, Current PRF balance, Outstanding Charbel owed.
 - **Action Shortcuts**: quick links for `Start Next Job`, `Manage Employees`, `Clients`, `Schedule`, `Finances`, `Performance Stats`, `Client Broadcast`, and `Advanced Options`.
@@ -126,6 +126,7 @@
 
 ### Manage Employees Workspace (Planned)
 
+- **Current status**: route + shell scaffold live (`/employees/manage`) with phased placeholders; functional roster/hours/history behavior ships in ME-2 onward.
 - **Primary goal**: give Owners/Managers one place to manage staff, track hours, and review employee job history before we enable full `Start Next Job` assignment flows.
 - **Roster view**
   - Search + status filters (active/inactive) with a compact, fast list.
