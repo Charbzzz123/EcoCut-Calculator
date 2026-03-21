@@ -126,7 +126,7 @@
 
 ### Manage Employees Workspace (Planned)
 
-- **Current status**: route + shell scaffold live (`/employees/manage`) with phased placeholders; functional roster/hours/history behavior ships in ME-2 onward.
+- **Current status**: route + shell live with roster search/filter, active/inactive status filtering, summary metrics, and loading/error/empty states. Profile editing, hours workflows, and job-history timeline remain in upcoming slices.
 - **Primary goal**: give Owners/Managers one place to manage staff, track hours, and review employee job history before we enable full `Start Next Job` assignment flows.
 - **Roster view**
   - Search + status filters (active/inactive) with a compact, fast list.

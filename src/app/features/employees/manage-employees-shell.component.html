@@ -7,19 +7,127 @@
         <p class="eyebrow">Workforce Operations</p>
         <h1 id="{{ headingId }}">Manage employees</h1>
         <p class="subtitle">
-          Configure staffing records, edit tracked hours, and prepare assignment history for
-          upcoming job dispatch workflows.
+          Monitor your roster, filter by availability status, and keep workforce operations clean
+          before deeper profile/hour/history workflows.
         </p>
       </div>
       <app-back-chip routerLink="/home" label="Back to dashboard"></app-back-chip>
     </header>
   </article>
 
-  <article class="employees-placeholder" aria-label="Manage employees roadmap">
-    <p class="employees-placeholder__eyebrow">Phase scaffold</p>
-    <h2>Feature slices queued</h2>
+  <article class="employees-toolbar" aria-label="Employee filters">
+    <div class="employees-toolbar__row">
+      <label class="field">
+        <span class="field__label">Search roster</span>
+        <input
+          class="field__input"
+          type="search"
+          placeholder="Name, role, email, or phone"
+          [formControl]="queryControl"
+        />
+      </label>
+
+      <button type="button" class="refresh-btn" (click)="refreshRoster()">Refresh roster</button>
+    </div>
+
+    <div class="status-filters" role="group" aria-label="Status filters">
+      <button
+        type="button"
+        class="status-pill"
+        [class.status-pill--active]="statusFilter() === 'all'"
+        (click)="setStatusFilter('all')"
+      >
+        All
+      </button>
+      <button
+        type="button"
+        class="status-pill"
+        [class.status-pill--active]="statusFilter() === 'active'"
+        (click)="setStatusFilter('active')"
+      >
+        Active
+      </button>
+      <button
+        type="button"
+        class="status-pill"
+        [class.status-pill--active]="statusFilter() === 'inactive'"
+        (click)="setStatusFilter('inactive')"
+      >
+        Inactive
+      </button>
+    </div>
+  </article>
+
+  <section class="employees-summary" aria-label="Employee metrics">
+    <article class="summary-card">
+      <p class="summary-card__label">Total employees</p>
+      <p class="summary-card__value">{{ statsSnapshot().total }}</p>
+    </article>
+    <article class="summary-card">
+      <p class="summary-card__label">Active</p>
+      <p class="summary-card__value">{{ statsSnapshot().active }}</p>
+    </article>
+    <article class="summary-card">
+      <p class="summary-card__label">Inactive</p>
+      <p class="summary-card__value">{{ statsSnapshot().inactive }}</p>
+    </article>
+  </section>
+
+  <article class="employees-roster" aria-live="polite">
+    <header class="employees-roster__header">
+      <h2>Showing {{ filteredRosterSnapshot().length }} employee(s)</h2>
+      <p>Total in roster: {{ rosterSnapshot().length }}</p>
+    </header>
+
+    @if (loadState() === 'loading') {
+      <p class="roster-state">Loading employee roster…</p>
+    } @else if (loadState() === 'error') {
+      <div class="roster-state roster-state--error">
+        <p>Unable to load employee roster right now.</p>
+        <button type="button" class="retry-btn" (click)="refreshRoster()">Retry</button>
+      </div>
+    } @else if (!filteredRosterSnapshot().length) {
+      <p class="roster-state">No employees match this filter.</p>
+    } @else {
+      <ul class="roster-list">
+        @for (employee of filteredRosterSnapshot(); track trackByEmployeeId($index, employee)) {
+          <li class="employee-card">
+            <header class="employee-card__header">
+              <h3>{{ employee.fullName }}</h3>
+              <span
+                class="status-chip"
+                [class.status-chip--inactive]="employee.status === 'inactive'"
+              >
+                {{ employee.status === 'active' ? 'Active' : 'Inactive' }}
+              </span>
+            </header>
+            <p class="employee-card__meta">{{ employee.role }} • ${{ employee.hourlyRate }}/hr</p>
+            <p class="employee-card__contact">
+              {{ employee.phone }}
+              @if (employee.email) {
+                | {{ employee.email }}
+              } @else {
+                | No email
+              }
+            </p>
+            <p class="employee-card__activity">
+              @if (employee.lastActivityAt) {
+                Last activity: {{ employee.lastActivityAt | date: 'MMM d, y, h:mm a' }}
+              } @else {
+                Last activity: —
+              }
+            </p>
+          </li>
+        }
+      </ul>
+    }
+  </article>
+
+  <article class="employees-placeholder" aria-label="Upcoming slices">
+    <p class="employees-placeholder__eyebrow">Next slices</p>
+    <h2>Queued after roster foundation</h2>
     <ul class="slice-list">
-      @for (slice of plannedSlices; track slice) {
+      @for (slice of nextSlices; track slice) {
         <li class="slice-card">{{ slice }}</li>
       }
     </ul>
