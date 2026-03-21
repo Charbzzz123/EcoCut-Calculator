@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import type {
+  EmployeeClockActionPayload,
   EmployeeHoursMutationPayload,
   EmployeeHoursRecord,
   EmployeeJobHistoryRecord,
@@ -75,6 +76,17 @@ export class EmployeesDataService {
   ): Promise<EmployeeHoursRecord> {
     return firstValueFrom(
       this.http.post<EmployeeHoursRecord>(`${this.baseUrl}/hours`, payload, {
+        headers: this.operatorHeaders(actorRole),
+      }),
+    );
+  }
+
+  async recordClockAction(
+    payload: EmployeeClockActionPayload,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeHoursRecord> {
+    return firstValueFrom(
+      this.http.post<EmployeeHoursRecord>(`${this.baseUrl}/hours/clock`, payload, {
         headers: this.operatorHeaders(actorRole),
       }),
     );

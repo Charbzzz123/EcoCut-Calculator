@@ -6,6 +6,8 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 | Task                                                                 | Done       | Notes                                                                                                                                                                                                                                                                     |
 | -------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Manage Employees Phase ME-9 clock-in / clock-out workflow            | 2026-03-21 | Added role-guarded clock cards in `/employees/manage` and backend `POST /employees/hours/clock`; sessions persist into hours with `source=clock`, `clockInAt`, `clockOutAt`, actor role, and timestamp so payroll reconciliation has a durable audit trail.               |
+| Manage Employees Phase ME-8 Start Next Job assignment board          | 2026-03-21 | Added `/jobs/start` board with crew picker, readiness-based status badges, assignment draft validation, and conflict checks powered by `/employees/readiness` + `/employees/history` before draft confirmation.                                                           |
 | Manage Employees Phase ME-7 tests/docs/rollout checklist             | 2026-03-21 | Re-ran quality gates after backend employee typing fixes (`npm run lint:workspace`, `npm run test:ci`, `npm run build`, and `cd server && npm run check`) and synced functional/technical docs so the employee workspace status reflects the shipped backend wiring.      |
 | Manage Employees coverage hardening for API wiring edge cases        | 2026-03-21 | Added facade/shell regression specs for backend mutation failures, fallback API message parsing, readiness fallback rendering, empty-history + scheduled-history UI states, and optional payload normalization branches so backend-wired behavior stays stable.           |
 | Manage Employees frontend wiring to backend employees API            | 2026-03-21 | Replaced seeded `EmployeesDataService` data with `/api/employees/*` HTTP calls (roster/hours/history/readiness plus profile/hours mutations) and forwarded operator-role headers so backend permission rules apply to live UI actions.                                    |
@@ -74,9 +76,9 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 ## In Progress / Backlog
 
-| Step | Task             | Owner | Notes                                                                                                                     |
-| ---- | ---------------- | ----- | ------------------------------------------------------------------------------------------------------------------------- |
-| —    | _None right now_ | —     | Manage Employees ME-1 through ME-7 and Broadcast rollout phases are completed; add new items here when next slice starts. |
+| Step  | Task                              | Owner | Notes                                                                                                                 |
+| ----- | --------------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------- |
+| ME-10 | Job assignment persistence wiring | —     | Save selected crew assignments into history + hours records so Start Next Job feeds reporting and employee timelines. |
 
 ### Broadcast Requirements (locked for implementation)
 

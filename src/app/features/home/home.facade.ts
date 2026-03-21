@@ -22,7 +22,7 @@ export class HomeFacade {
   }
 
   startNextJob(): void {
-    this.navigateWhenReady('/jobs/next');
+    this.navigateWhenReady('/jobs/start');
   }
 
   startWarmLead(): void {

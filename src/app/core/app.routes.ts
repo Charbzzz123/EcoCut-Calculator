@@ -30,5 +30,13 @@ export const routes: Routes = [
       ),
     title: 'EcoCut | Manage Employees',
   },
+  {
+    path: 'jobs/start',
+    loadComponent: () =>
+      import('../features/jobs/start-next-job-shell.component.js').then(
+        (m) => m.StartNextJobShellComponent,
+      ),
+    title: 'EcoCut | Start Next Job',
+  },
   { path: '**', redirectTo: 'home' },
 ];

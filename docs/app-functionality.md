@@ -126,7 +126,7 @@
 
 ### Manage Employees Workspace (Current Release)
 
-- **Current status**: route + shell live with roster search/filter, active/inactive status filtering, summary metrics, owner-safe profile create/edit/archive, a dedicated hours editor (per-employee logs + totals), a per-employee history timeline (site/address + scheduled windows + status + rollups), and a Start Next Job readiness contract preview panel, all backed by `/employees` API data instead of static seed-only frontend state.
+- **Current status**: route + shell live with roster search/filter, active/inactive status filtering, summary metrics, owner-safe profile create/edit/archive, a dedicated hours editor (per-employee logs + totals), clock in/out cards with role-guarded actions, a per-employee history timeline (site/address + scheduled windows + status + rollups), and a Start Next Job readiness contract preview panel, all backed by `/employees` API data instead of static seed-only frontend state.
 - **Primary goal**: give Owners/Managers one place to manage staff, track hours, and review employee job history before we enable full `Start Next Job` assignment flows.
 - **Roster view**
   - Search + status filters (active/inactive) with a compact, fast list.
@@ -137,6 +137,10 @@
 - **Hours management**
   - Managers can update hours entries; Owners can edit all staffing/compensation fields.
   - Every hours edit records actor, timestamp, previous value, and new value.
+- **Clock in / Clock out**
+  - Managers and Owners can clock active employees in/out directly from the workspace.
+  - Clock sessions persist into `/employees/hours` with `source=clock`, `clockInAt`, `clockOutAt`, `updatedByRole`, and `updatedAt` audit fields.
+  - Guards prevent invalid transitions (double clock-in, clock-out without an open session, or clocking inactive employees).
 - **Employee job history**
   - Per-employee timeline of assigned jobs showing site/address, date, scheduled window, status, and hours worked on that job.
   - Totals rollups: jobs tracked, completed vs scheduled counts, total hours, and recent site summary.
@@ -153,6 +157,17 @@
   - Required contact/rate fields with strict phone/email formatting.
   - Prevent duplicate employee creation using normalized name + phone/email checks.
   - Block save with a clear missing-field summary when required inputs are incomplete.
+- **Queued next slices**
+  - `ME-10`: Persist crew assignment into history + hours so reporting and timelines stay in sync.
+
+### Start Next Job Assignment Board (Current Release)
+
+- **Route**: `/jobs/start` (triggered by the home quick action `Start Next Job`).
+- **Inputs**: job label, site/address, scheduled start/end, crew search filter.
+- **Crew picker**: operators can select/deselect employees from live readiness records (`/employees/readiness`) with status badges (`Available`, `Scheduled`, `Inactive`).
+- **Conflict checks**: selection validates inactive members, existing readiness conflicts, next-available constraints, and overlap against upcoming windows before draft can proceed.
+- **Draft readiness**: panel shows blocking reasons until required fields + crew are valid and conflict-free.
+- **Crew history context**: selected crew history list is sourced from `/employees/history` so schedulers can verify recent assignments before confirming.
 
 ## Calculation & Business Rules
 

@@ -41,7 +41,7 @@ describe('HomeFacade', () => {
   it('handles navigation quick actions', () => {
     const expectations: { command: Parameters<HomeFacade['handleQuickAction']>[0]; url: string }[] = [
       { command: 'new-job', url: '/jobs/new' },
-      { command: 'start-next-job', url: '/jobs/next' },
+      { command: 'start-next-job', url: '/jobs/start' },
       { command: 'view-clients', url: '/clients' },
       { command: 'view-schedule', url: '/schedule' },
       { command: 'manage-employees', url: '/employees/manage' },

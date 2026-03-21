@@ -1,0 +1,203 @@
+<section class="start-next-shell" aria-labelledby="{{ facade.headingId }}">
+  <article class="start-next-hero">
+    <app-brand-banner></app-brand-banner>
+    <header class="start-next-header">
+      <div class="hero-copy">
+        <p class="eyebrow">Crew Scheduling</p>
+        <h1 id="{{ facade.headingId }}">Start Next Job</h1>
+        <p class="subtitle">
+          Build the next crew assignment from live readiness data, validate conflicts, and lock a
+          clean draft before dispatch.
+        </p>
+      </div>
+      <app-back-chip routerLink="/home" label="Back to dashboard"></app-back-chip>
+    </header>
+  </article>
+
+  <article class="draft-panel" aria-label="Assignment draft">
+    <div class="draft-grid">
+      <label class="field field--wide">
+        <span class="field__label">Search crew</span>
+        <input
+          class="field__input"
+          type="search"
+          [formControl]="facade.queryControl"
+          placeholder="Filter by employee, last site, or upcoming slot"
+        />
+      </label>
+      <label class="field">
+        <span class="field__label">Job label *</span>
+        <input class="field__input" type="text" [formControl]="facade.jobLabelControl" />
+      </label>
+      <label class="field">
+        <span class="field__label">Site / address *</span>
+        <input class="field__input" type="text" [formControl]="facade.addressControl" />
+      </label>
+      <label class="field">
+        <span class="field__label">Scheduled start *</span>
+        <input
+          class="field__input"
+          type="datetime-local"
+          [formControl]="facade.scheduledStartControl"
+        />
+      </label>
+      <label class="field">
+        <span class="field__label">Scheduled end *</span>
+        <input
+          class="field__input"
+          type="datetime-local"
+          [formControl]="facade.scheduledEndControl"
+        />
+      </label>
+    </div>
+
+    <div class="draft-actions">
+      <button type="button" class="ghost-btn" (click)="facade.clearCrewSelection()">
+        Clear crew selection
+      </button>
+      <button type="button" class="primary-btn" [disabled]="!facade.draftValidation().isReady">
+        Save draft (next slice)
+      </button>
+    </div>
+  </article>
+
+  <article class="board-grid">
+    <section class="crew-pool" aria-live="polite">
+      <header class="panel-header">
+        <h2>Crew pool</h2>
+        <p>{{ facade.filteredReadiness().length }} employee(s)</p>
+      </header>
+
+      @if (facade.loadState() === 'loading') {
+        <p class="state">Loading readiness data…</p>
+      } @else if (facade.loadState() === 'error') {
+        <div class="state state--error">
+          <p>{{ facade.errorMessage() }}</p>
+          <button type="button" class="ghost-btn" (click)="facade.loadBoard()">Retry</button>
+        </div>
+      } @else if (!facade.filteredReadiness().length) {
+        <p class="state">No employees match this filter.</p>
+      } @else {
+        <ul class="crew-list">
+          @for (
+            employee of facade.filteredReadiness();
+            track facade.trackByEmployeeId($index, employee)
+          ) {
+            <li class="crew-card">
+              <header class="crew-card__header">
+                <h3>{{ employee.fullName }}</h3>
+                <span
+                  class="readiness-pill readiness-pill--{{
+                    facade.getReadinessPill(employee).state
+                  }}"
+                >
+                  {{ facade.getReadinessPill(employee).text }}
+                </span>
+              </header>
+              <p class="crew-card__meta">
+                Scheduled: {{ employee.scheduledJobsCount }} jobs ({{ employee.scheduledHours }}h)
+              </p>
+              <p class="crew-card__meta">
+                Completed: {{ employee.completedJobsCount }} jobs ({{ employee.completedHours }}h)
+              </p>
+              <p class="crew-card__meta">
+                Next available:
+                @if (employee.nextAvailableAt) {
+                  {{ employee.nextAvailableAt | date: 'MMM d, y, h:mm a' }}
+                } @else {
+                  —
+                }
+              </p>
+              @if (employee.hasScheduleConflict) {
+                <p class="crew-card__warning">Conflict in upcoming windows.</p>
+              }
+              <button
+                type="button"
+                class="crew-select-btn"
+                [class.crew-select-btn--selected]="facade.isEmployeeSelected(employee.employeeId)"
+                (click)="facade.toggleEmployeeSelection(employee.employeeId)"
+              >
+                {{ facade.isEmployeeSelected(employee.employeeId) ? 'Selected' : 'Select' }}
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    <section class="assignment-summary">
+      <header class="panel-header">
+        <h2>Assignment summary</h2>
+        <p>{{ facade.selectedCrew().length }} selected</p>
+      </header>
+
+      @if (!facade.selectedCrew().length) {
+        <p class="state">Select employees from the crew pool to build the assignment draft.</p>
+      } @else {
+        <ul class="selected-list">
+          @for (
+            employee of facade.selectedCrew();
+            track facade.trackByEmployeeId($index, employee)
+          ) {
+            <li>{{ employee.fullName }}</li>
+          }
+        </ul>
+      }
+
+      @if (facade.selectedCrewConflicts().length) {
+        <div class="conflict-box" role="alert">
+          <p>Resolve the following conflicts:</p>
+          <ul>
+            @for (
+              conflict of facade.selectedCrewConflicts();
+              track facade.trackByCrewConflict($index, conflict)
+            ) {
+              <li>
+                <strong>{{ conflict.employeeName }}:</strong> {{ conflict.reason }}
+              </li>
+            }
+          </ul>
+        </div>
+      }
+
+      @if (!facade.draftValidation().isReady) {
+        <div class="validation-box" role="alert">
+          <p>Draft is blocked until these are fixed:</p>
+          <ul>
+            @for (reason of facade.draftValidation().blockingReasons; track reason) {
+              <li>{{ reason }}</li>
+            }
+          </ul>
+        </div>
+      }
+    </section>
+  </article>
+
+  <article class="history-panel" aria-label="Selected crew history">
+    <header class="panel-header">
+      <h2>Selected crew job history</h2>
+      <p>{{ facade.selectedCrewHistory().length }} recent entries</p>
+    </header>
+
+    @if (!facade.selectedCrewHistory().length) {
+      <p class="state">Select crew members to inspect their recent job windows and sites.</p>
+    } @else {
+      <ul class="history-list">
+        @for (
+          item of facade.selectedCrewHistory();
+          track facade.trackByHistoryEntry($index, item)
+        ) {
+          <li class="history-card">
+            <p class="history-card__employee">{{ item.employeeName }}</p>
+            <p class="history-card__site">{{ item.siteLabel }} | {{ item.address }}</p>
+            <p class="history-card__window">
+              {{ item.scheduledStart | date: 'MMM d, y, h:mm a' }} -
+              {{ item.scheduledEnd | date: 'h:mm a' }}
+            </p>
+            <p class="history-card__meta">{{ item.status }} | {{ item.hoursWorked }}h</p>
+          </li>
+        }
+      </ul>
+    }
+  </article>
+</section>

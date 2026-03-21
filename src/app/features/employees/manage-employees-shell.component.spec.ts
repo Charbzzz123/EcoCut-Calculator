@@ -14,6 +14,7 @@ import type {
   EmployeeStatusFilter,
 } from './employees.types.js';
 import { EmployeesFacade } from './employees.facade.js';
+import type { EmployeeClockSummary } from './employees.facade.js';
 import { ManageEmployeesShellComponent } from './manage-employees-shell.component.js';
 
 class EmployeesFacadeStub {
@@ -62,12 +63,15 @@ class EmployeesFacadeStub {
   readonly saveHoursEntry = vi.fn(async () => true);
   readonly editHoursEntry = vi.fn();
   readonly removeHoursEntry = vi.fn();
+  readonly clockIn = vi.fn();
+  readonly clockOut = vi.fn();
   readonly trackByEmployeeId = vi.fn((_: number, employee: EmployeeRosterRecord) => employee.id);
   readonly trackByHoursEntryId = vi.fn((_: number, entry: EmployeeHoursRecord) => entry.id);
   readonly trackByHistoryEntryId = vi.fn((_: number, entry: EmployeeJobHistoryRecord) => entry.id);
   readonly trackByReadinessEmployeeId = vi.fn(
     (_: number, entry: EmployeeStartNextJobReadiness) => entry.employeeId,
   );
+  readonly trackByClockEmployeeId = vi.fn((_: number, entry: EmployeeClockSummary) => entry.employeeId);
 
   private readonly loadStateSignal = signal<EmployeeLoadState>('loading');
   readonly loadState = this.loadStateSignal.asReadonly();
@@ -102,6 +106,7 @@ class EmployeesFacadeStub {
   private readonly selectedHistoryEmployeeIdSignal = signal<string | null>(null);
   private readonly historyEntriesSignal = signal<EmployeeJobHistoryRecord[]>([]);
   private readonly readinessSignal = signal<EmployeeStartNextJobReadiness[]>([]);
+  private readonly clockSignal = signal<EmployeeClockSummary[]>([]);
   private readonly editingHoursEntryIdSignal = signal<string | null>(null);
   private readonly hoursErrorsSignal = signal<string[]>([]);
   private stats = { total: 0, active: 0, inactive: 0 };
@@ -143,6 +148,7 @@ class EmployeesFacadeStub {
     };
   };
   readonly startNextJobReadiness = this.readinessSignal.asReadonly();
+  readonly clockSummaries = this.clockSignal.asReadonly();
 
   setViewModel(options: {
     loadState?: EmployeeLoadState;
@@ -161,6 +167,7 @@ class EmployeesFacadeStub {
     selectedHistoryEmployeeId?: string | null;
     historyEntries?: EmployeeJobHistoryRecord[];
     readiness?: EmployeeStartNextJobReadiness[];
+    clockSummaries?: EmployeeClockSummary[];
     editingHoursEntryId?: string | null;
     hoursErrors?: string[];
   }): void {
@@ -213,6 +220,9 @@ class EmployeesFacadeStub {
     if (options.readiness) {
       this.readinessSignal.set(options.readiness);
     }
+    if (options.clockSummaries) {
+      this.clockSignal.set(options.clockSummaries);
+    }
     if (options.editingHoursEntryId !== undefined) {
       this.editingHoursEntryIdSignal.set(options.editingHoursEntryId);
     }
@@ -256,6 +266,9 @@ const hoursEntry: EmployeeHoursRecord = {
   workDate: '2026-03-20',
   siteLabel: 'Westmount',
   hours: 8,
+  source: 'manual',
+  clockInAt: null,
+  clockOutAt: null,
   updatedByRole: 'owner',
   updatedAt: '2026-03-20T17:30:00Z',
 };
@@ -308,6 +321,16 @@ const readinessRecord: EmployeeStartNextJobReadiness = {
   ],
 };
 
+const clockSummaryRecord: EmployeeClockSummary = {
+  employeeId: 'emp-1',
+  fullName: 'Alex Karam',
+  state: 'clocked_out',
+  currentSiteLabel: 'Westmount',
+  clockInAt: null,
+  clockOutAt: '2026-03-21T12:00:00Z',
+  lastDurationHours: '2',
+};
+
 describe('ManageEmployeesShellComponent', () => {
   let facade: EmployeesFacadeStub;
 
@@ -326,14 +349,14 @@ describe('ManageEmployeesShellComponent', () => {
     const native = fixture.nativeElement as HTMLElement;
     expect(facade.loadRoster).toHaveBeenCalledTimes(1);
     expect(native.querySelector('h1')?.textContent).toContain('Manage employees');
-    expect(native.querySelectorAll('.slice-card')).toHaveLength(3);
+    expect(native.querySelectorAll('.slice-card')).toHaveLength(1);
   });
 
   it('renders loading, error, and empty states', () => {
     facade.setViewModel({ loadState: 'loading' });
     let fixture = TestBed.createComponent(ManageEmployeesShellComponent);
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.roster-state')?.textContent).toContain(
+    expect(fixture.nativeElement.querySelector('.employees-roster .roster-state')?.textContent).toContain(
       'Loading employee roster',
     );
 
@@ -350,7 +373,7 @@ describe('ManageEmployeesShellComponent', () => {
     facade.setViewModel({ loadState: 'ready', roster: [], filteredRoster: [] });
     fixture = TestBed.createComponent(ManageEmployeesShellComponent);
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.roster-state')?.textContent).toContain(
+    expect(fixture.nativeElement.querySelector('.employees-roster .roster-state')?.textContent).toContain(
       'No employees match this filter.',
     );
   });
@@ -362,6 +385,18 @@ describe('ManageEmployeesShellComponent', () => {
       roster: [activeRecord],
       filteredRoster: [activeRecord],
       stats: { total: 1, active: 1, inactive: 0 },
+      clockSummaries: [
+        clockSummaryRecord,
+        {
+          ...clockSummaryRecord,
+          employeeId: 'emp-2',
+          fullName: 'Nora Bitar',
+          state: 'clocked_in',
+          clockInAt: '2026-03-21T13:00:00Z',
+          clockOutAt: null,
+          lastDurationHours: null,
+        },
+      ],
     });
     const fixture = TestBed.createComponent(ManageEmployeesShellComponent);
     fixture.detectChanges();
@@ -374,7 +409,9 @@ describe('ManageEmployeesShellComponent', () => {
     (roleButtons[1] as HTMLButtonElement).click();
     expect(facade.roleControl.value).toBe('manager');
 
-    const employeeActions = native.querySelectorAll('.employee-card__actions .employee-action');
+    const employeeActions = native.querySelectorAll(
+      '.employees-roster .employee-card__actions .employee-action',
+    );
     (employeeActions[0] as HTMLButtonElement).click();
     (employeeActions[1] as HTMLButtonElement).click();
     (employeeActions[2] as HTMLButtonElement).click();
@@ -391,6 +428,12 @@ describe('ManageEmployeesShellComponent', () => {
     expect(facade.setStatusFilter).toHaveBeenCalledWith('all');
     expect(facade.setStatusFilter).toHaveBeenCalledWith('active');
     expect(facade.setStatusFilter).toHaveBeenCalledWith('inactive');
+
+    const clockButtons = native.querySelectorAll('.clock-card .employee-action');
+    (clockButtons[0] as HTMLButtonElement).click();
+    (clockButtons[3] as HTMLButtonElement).click();
+    expect(facade.clockIn).toHaveBeenCalledWith('emp-1');
+    expect(facade.clockOut).toHaveBeenCalledWith('emp-2');
   });
 
   it('disables owner-only actions in manager mode', () => {
@@ -590,7 +633,7 @@ describe('ManageEmployeesShellComponent', () => {
     fixture.detectChanges();
     const native = fixture.nativeElement as HTMLElement;
 
-    expect(native.querySelector('.roster-state')?.textContent).toContain(
+    expect(native.querySelector('.employees-history .roster-state')?.textContent).toContain(
       'No job history found for this employee yet.',
     );
   });

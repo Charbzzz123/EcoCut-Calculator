@@ -42,6 +42,7 @@ export class ManageEmployeesShellComponent implements OnInit {
   readonly selectedEmployeeJobHistory = this.facade.selectedEmployeeJobHistory;
   readonly selectedHistorySummary = this.facade.selectedHistorySummary;
   readonly startNextJobReadiness = this.facade.startNextJobReadiness;
+  readonly clockSummaries = this.facade.clockSummaries;
   readonly statsSnapshot = () => this.facade.statsSnapshot();
   readonly rosterSnapshot = () => this.facade.rosterSnapshot();
   readonly filteredRosterSnapshot = () => this.facade.filteredRosterSnapshot();
@@ -49,10 +50,9 @@ export class ManageEmployeesShellComponent implements OnInit {
   readonly trackByHoursEntryId = this.facade.trackByHoursEntryId;
   readonly trackByHistoryEntryId = this.facade.trackByHistoryEntryId;
   readonly trackByReadinessEmployeeId = this.facade.trackByReadinessEmployeeId;
+  readonly trackByClockEmployeeId = this.facade.trackByClockEmployeeId;
   readonly nextSlices = [
-    'History totals by site and rolling 7-day/30-day views',
-    'Start Next Job assignment board (crew picker + conflict checks)',
-    'Backend role enforcement for owner/manager permissions',
+    'Persist crew assignment into history and payroll hours records',
   ] as const;
 
   ngOnInit(): void {
@@ -93,6 +93,14 @@ export class ManageEmployeesShellComponent implements OnInit {
 
   protected closeJobHistory(): void {
     this.facade.closeJobHistory();
+  }
+
+  protected clockIn(employeeId: string): void {
+    void this.facade.clockIn(employeeId);
+  }
+
+  protected clockOut(employeeId: string): void {
+    void this.facade.clockOut(employeeId);
   }
 
   protected editHoursEntry(entryId: string): void {

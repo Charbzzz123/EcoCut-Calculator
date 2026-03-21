@@ -7,6 +7,7 @@ import type {
   EmployeeHoursMutationPayload,
   EmployeeHoursDraft,
   EmployeeHoursRecord,
+  EmployeeHoursSource,
   EmployeeJobHistoryRecord,
   EmployeeLoadState,
   EmployeeOperatorRole,
@@ -30,6 +31,8 @@ const sortHoursByDateDesc = (left: EmployeeHoursRecord, right: EmployeeHoursReco
   }
   return right.workDate.localeCompare(left.workDate);
 };
+const sortByUpdatedAtDesc = (left: EmployeeHoursRecord, right: EmployeeHoursRecord): number =>
+  right.updatedAt.localeCompare(left.updatedAt);
 const sortHistoryByStartDesc = (
   left: EmployeeJobHistoryRecord,
   right: EmployeeJobHistoryRecord,
@@ -37,6 +40,18 @@ const sortHistoryByStartDesc = (
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phonePattern = /^\(\d{3}\)\s\d{3}-\d{4}$/;
+
+type EmployeeClockState = 'clocked_in' | 'clocked_out' | 'inactive';
+
+export interface EmployeeClockSummary {
+  employeeId: string;
+  fullName: string;
+  state: EmployeeClockState;
+  currentSiteLabel: string | null;
+  clockInAt: string | null;
+  clockOutAt: string | null;
+  lastDurationHours: string | null;
+}
 
 @Injectable({ providedIn: 'root' })
 export class EmployeesFacade {
@@ -200,6 +215,9 @@ export class EmployeesFacade {
     });
   readonly startNextJobReadiness: Signal<EmployeeStartNextJobReadiness[]> =
     this.startNextJobReadinessSignal.asReadonly();
+  readonly clockSummaries: Signal<EmployeeClockSummary[]> = computed(() =>
+    this.computeClockSummaries(this.rosterSignal(), this.hoursEntriesSignal()),
+  );
 
   constructor() {
     this.queryControl.valueChanges
@@ -245,6 +263,10 @@ export class EmployeesFacade {
 
   startNextJobReadinessSnapshot(): EmployeeStartNextJobReadiness[] {
     return this.startNextJobReadiness();
+  }
+
+  clockSummariesSnapshot(): EmployeeClockSummary[] {
+    return this.clockSummaries();
   }
 
   openCreateProfile(): void {
@@ -465,6 +487,42 @@ export class EmployeesFacade {
     }
   }
 
+  async clockIn(employeeId: string): Promise<boolean> {
+    this.clearWorkspaceNotice();
+    try {
+      await this.data.recordClockAction(
+        {
+          employeeId,
+          action: 'clock_in',
+        },
+        this.roleSignal(),
+      );
+      await this.loadRoster();
+      return true;
+    } catch (error) {
+      this.workspaceNoticeSignal.set(this.readApiErrorMessage(error, 'Unable to clock in employee.'));
+      return false;
+    }
+  }
+
+  async clockOut(employeeId: string): Promise<boolean> {
+    this.clearWorkspaceNotice();
+    try {
+      await this.data.recordClockAction(
+        {
+          employeeId,
+          action: 'clock_out',
+        },
+        this.roleSignal(),
+      );
+      await this.loadRoster();
+      return true;
+    } catch (error) {
+      this.workspaceNoticeSignal.set(this.readApiErrorMessage(error, 'Unable to clock out employee.'));
+      return false;
+    }
+  }
+
   trackByEmployeeId = (_: number, employee: EmployeeRosterRecord): string => employee.id;
 
   trackByHoursEntryId = (_: number, entry: EmployeeHoursRecord): string => entry.id;
@@ -473,6 +531,7 @@ export class EmployeesFacade {
 
   trackByReadinessEmployeeId = (_: number, entry: EmployeeStartNextJobReadiness): string =>
     entry.employeeId;
+  trackByClockEmployeeId = (_: number, entry: EmployeeClockSummary): string => entry.employeeId;
 
   async loadRoster(): Promise<void> {
     this.loadStateSignal.set('loading');
@@ -535,6 +594,44 @@ export class EmployeesFacade {
       active,
       inactive,
     };
+  }
+
+  private computeClockSummaries(
+    roster: EmployeeRosterRecord[],
+    hoursEntries: EmployeeHoursRecord[],
+  ): EmployeeClockSummary[] {
+    return roster
+      .map((employee) => {
+        const employeeClockEntries = hoursEntries
+          .filter((entry) => entry.employeeId === employee.id && this.isClockSource(entry.source))
+          .sort(sortByUpdatedAtDesc);
+        const openClockSession =
+          employeeClockEntries.find((entry) => Boolean(entry.clockInAt) && !entry.clockOutAt) ?? null;
+        const latestClockSession = employeeClockEntries[0] ?? null;
+
+        const state: EmployeeClockState =
+          employee.status === 'inactive'
+            ? 'inactive'
+            : openClockSession
+              ? 'clocked_in'
+              : 'clocked_out';
+
+        const durationHours =
+          latestClockSession && latestClockSession.clockOutAt
+            ? formatHours(latestClockSession.hours)
+            : null;
+
+        return {
+          employeeId: employee.id,
+          fullName: employee.fullName,
+          state,
+          currentSiteLabel: openClockSession?.siteLabel ?? latestClockSession?.siteLabel ?? null,
+          clockInAt: openClockSession?.clockInAt ?? null,
+          clockOutAt: latestClockSession?.clockOutAt ?? null,
+          lastDurationHours: durationHours,
+        } satisfies EmployeeClockSummary;
+      })
+      .sort((left, right) => left.fullName.localeCompare(right.fullName));
   }
 
   private readDraftFromForm(): EmployeeProfileDraft {
@@ -717,5 +814,9 @@ export class EmployeesFacade {
 
   private clearWorkspaceNotice(): void {
     this.workspaceNoticeSignal.set(null);
+  }
+
+  private isClockSource(source: EmployeeHoursSource): boolean {
+    return source === 'clock';
   }
 }

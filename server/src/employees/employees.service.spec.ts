@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   NotFoundException,
@@ -44,6 +45,9 @@ class FakeEmployeesRepository {
         workDate: '2026-03-20',
         siteLabel: 'Westmount',
         hours: 8,
+        source: 'manual',
+        clockInAt: null,
+        clockOutAt: null,
         updatedByRole: 'owner',
         updatedAt: '2026-03-20T18:00:00Z',
       },
@@ -152,6 +156,7 @@ describe('EmployeesService', () => {
       'manager',
     );
     expect(hours.updatedByRole).toBe('manager');
+    expect(hours.source).toBe('manual');
     expect(
       service.listHoursEntries().some((entry) => entry.id === hours.id),
     ).toBe(true);
@@ -209,5 +214,57 @@ describe('EmployeesService', () => {
 
     await service.removeHoursEntry('hours-1', 'manager');
     expect(service.listHoursEntries()).toHaveLength(0);
+  });
+
+  it('records clock-in and clock-out sessions with audit metadata', async () => {
+    const clockIn = await service.recordClockAction(
+      {
+        employeeId: 'emp-owner',
+        action: 'clock_in',
+        siteLabel: 'Morning shift',
+      },
+      'manager',
+    );
+
+    expect(clockIn.source).toBe('clock');
+    expect(clockIn.siteLabel).toBe('Morning shift');
+    expect(clockIn.clockInAt).toBeTruthy();
+    expect(clockIn.clockOutAt).toBeNull();
+    expect(clockIn.hours).toBe(0);
+
+    const clockOut = await service.recordClockAction(
+      {
+        employeeId: 'emp-owner',
+        action: 'clock_out',
+      },
+      'owner',
+    );
+
+    expect(clockOut.source).toBe('clock');
+    expect(clockOut.clockOutAt).toBeTruthy();
+    expect(clockOut.hours).toBeGreaterThan(0);
+    expect(clockOut.updatedByRole).toBe('owner');
+  });
+
+  it('validates clock action edge cases', async () => {
+    await expect(
+      service.recordClockAction(
+        {
+          employeeId: 'emp-owner',
+          action: 'clock_out',
+        },
+        'manager',
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    await expect(
+      service.recordClockAction(
+        {
+          employeeId: 'emp-inactive',
+          action: 'clock_in',
+        },
+        'owner',
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });

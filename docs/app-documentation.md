@@ -52,7 +52,8 @@ root/
 - **Integration**: `HomeShellComponent` imports the modal and toggles it from the floating �Add Entry� CTA. The component emits `EntryModalPayload` with the selected variant, normalized form payload, and hedge configs, which feed the fa�ade/server. Customer submissions automatically create a Google Calendar event via `HomeDataService`, which in turn stores the returned `eventId` back onto the payload so later edits/deletes can call the appropriate proxy endpoint.
 - **Entry persistence client**: `EntryRepositoryService` (`src/app/shared/domain/entry/entry-repository.service.ts`) wraps `/api/entries` and `/api/entries/clients`. `HomeDataService.saveEntry` now awaits this service so every submission is recorded immediately (no more console stub). `listClients()` will power the future CRM dashboard without duplicating HTTP plumbing.
 - **Client roster UI**: `/clients` is backed by `ClientsShellComponent` (standalone) which uses `EntryRepositoryService.listClients()` on init. The view renders summary cards, search/filter controls, and the roster list with dedicated loading/error states. Routes are defined in `app.routes.ts` (lazy loaded via `loadComponent`).
-- **Manage Employees workspace (ME-1 to ME-6 UI)**: `/employees/manage` lazy-loads `ManageEmployeesShellComponent` with `EmployeesFacade` + `EmployeesDataService`. Current release includes roster retrieval/filtering, owner-safe profile create/edit/archive, operator role mode (owner vs manager), per-employee hours editing with capability guards, employee timeline rollups, and a Start Next Job readiness contract panel (availability state, upcoming windows, next available time, conflict flag). Both reads and writes are now wired to `/api/employees/*`, with operator-role headers applied on mutating requests so backend permissions remain authoritative.
+- **Manage Employees workspace (ME-1 to ME-9 UI)**: `/employees/manage` lazy-loads `ManageEmployeesShellComponent` with `EmployeesFacade` + `EmployeesDataService`. Current release includes roster retrieval/filtering, owner-safe profile create/edit/archive, operator role mode (owner vs manager), per-employee hours editing with capability guards, manager/owner clock in/out cards, employee timeline rollups, and a Start Next Job readiness contract panel (availability state, upcoming windows, next available time, conflict flag). Both reads and writes are now wired to `/api/employees/*`, with operator-role headers applied on mutating requests so backend permissions remain authoritative.
+- **Start Next Job board (ME-8)**: `/jobs/start` lazy-loads `StartNextJobShellComponent` with `StartNextJobFacade`. It consumes `/api/employees/readiness` + `/api/employees/history`, supports crew selection, validates scheduling conflicts against upcoming windows, and keeps an assignment draft/readiness checklist in one place.
 - **Broadcast UI (Phase 1-6 live)**:
   - `/communications/broadcast` now lazy-loads `BroadcastShellComponent` and reuses the same evergreen shell language as `/clients`.
   - `BroadcastFacade` owns recipient loading, filter controls, channel selection, eligibility counts, exclusion summaries, and dispatch gating (no eligible recipients => dispatch blocked).
@@ -82,6 +83,7 @@ root/
   - `GET /employees/readiness` - list Start Next Job readiness contract data (availability state, upcoming windows, conflict flags, totals).
   - `POST /employees/roster`, `PATCH /employees/roster/:employeeId`, `POST /employees/roster/:employeeId/archive` - profile writes with role guardrails (`owner` required for update/archive; `owner` or `manager` for create).
   - `POST /employees/hours`, `PATCH /employees/hours/:entryId`, `DELETE /employees/hours/:entryId` - hours mutations allowed for `owner` and `manager`.
+  - `POST /employees/hours/clock` - role-guarded clock in/out action that writes audit-ready clock sessions into the hours stream (`source=clock`, `clockInAt`, `clockOutAt`, actor/timestamp).
   - Role is supplied through `x-operator-role` request header (`owner` default, `manager` optional). Unauthorized operations are rejected server-side with `403`.
   - Snapshot persistence is stored in SQLite at `EMPLOYEES_DB_PATH` (default `server/data/employees.db`).
 - **Broadcast module (MVP delivery live)**:
@@ -154,8 +156,7 @@ All frontend services derive their HTTP targets from `environment.apiBaseUrl`, s
 - Replace placeholder Angular template with real calculator components.
 - Extend the `/clients` view into a full CRM (client detail drawer, job history timeline, edit/delete hooks) once backend persistence is durable.
 - Continue `/communications/broadcast` rollout in remaining slices: campaign history UI and final rollout checklist/integration hardening.
-- Build the `Start Next Job` assignment board on top of `/employees/readiness` + `/employees/history` so crew selection, conflict checks, and availability windows stay centralized.
-- Add employee clock-in/clock-out write flows that feed `/employees/hours` and eventually annotate history entries per site/job for payroll reconciliation.
+- Persist Start Next Job crew assignments into employee history + payroll hours so board decisions become reportable records.
 - Automate documentation publishing (Docs site or wiki) once scope grows.
 
 ## Durable Persistence

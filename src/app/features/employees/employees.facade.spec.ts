@@ -47,6 +47,9 @@ class EmployeesDataServiceStub {
       workDate: '2026-03-20',
       siteLabel: 'Westmount',
       hours: 8,
+      source: 'manual',
+      clockInAt: null,
+      clockOutAt: null,
       updatedByRole: 'owner',
       updatedAt: '2026-03-20T18:00:00Z',
     },
@@ -56,6 +59,9 @@ class EmployeesDataServiceStub {
       workDate: '2026-03-18',
       siteLabel: 'NDG',
       hours: 6.5,
+      source: 'manual',
+      clockInAt: null,
+      clockOutAt: null,
       updatedByRole: 'manager',
       updatedAt: '2026-03-18T19:00:00Z',
     },
@@ -259,6 +265,9 @@ class EmployeesDataServiceStub {
       workDate: payload.workDate,
       siteLabel: payload.siteLabel,
       hours: payload.hours,
+      source: 'manual',
+      clockInAt: null,
+      clockOutAt: null,
       updatedByRole: 'manager',
       updatedAt: '2026-03-21T12:00:00Z',
     } satisfies EmployeeHoursRecord;
@@ -275,6 +284,9 @@ class EmployeesDataServiceStub {
       throw new Error('missing');
     }
     Object.assign(current, payload, {
+      source: current.source,
+      clockInAt: current.clockInAt,
+      clockOutAt: current.clockOutAt,
       updatedByRole: 'manager',
       updatedAt: '2026-03-21T12:30:00Z',
     });
@@ -286,6 +298,39 @@ class EmployeesDataServiceStub {
     if (index >= 0) {
       this.hoursRecords.splice(index, 1);
     }
+  }
+
+  async recordClockAction(payload: { employeeId: string; action: 'clock_in' | 'clock_out' }) {
+    const now = '2026-03-21T14:00:00Z';
+    if (payload.action === 'clock_in') {
+      const created = {
+        id: `clock-${payload.employeeId}`,
+        employeeId: payload.employeeId,
+        workDate: '2026-03-21',
+        siteLabel: 'Field shift',
+        hours: 0,
+        source: 'clock',
+        clockInAt: now,
+        clockOutAt: null,
+        updatedByRole: 'manager',
+        updatedAt: now,
+      } satisfies EmployeeHoursRecord;
+      this.hoursRecords.unshift(created);
+      return created;
+    }
+
+    const openSession = this.hoursRecords.find(
+      (entry) => entry.employeeId === payload.employeeId && entry.source === 'clock' && !entry.clockOutAt,
+    );
+    if (!openSession) {
+      throw new Error('No open session');
+    }
+    Object.assign(openSession, {
+      hours: 2,
+      clockOutAt: now,
+      updatedAt: now,
+    });
+    return openSession;
   }
 }
 
@@ -508,6 +553,9 @@ describe('EmployeesFacade', () => {
       workDate: '2026-03-20',
       siteLabel: 'Westmount - late update',
       hours: 1,
+      source: 'manual',
+      clockInAt: null,
+      clockOutAt: null,
       updatedByRole: 'owner',
       updatedAt: '2026-03-20T19:00:00Z',
     });
@@ -673,5 +721,33 @@ describe('EmployeesFacade', () => {
     const readiness = facade.startNextJobReadinessSnapshot().find((entry) => entry.employeeId === 'active-1');
     expect(readiness?.readinessState).toBe('scheduled');
     expect(readiness?.nextAvailableAt).toBe(endsAt);
+  });
+
+  it('builds clock summaries and supports clock in/out actions', async () => {
+    await facade.loadRoster();
+
+    const initial = facade.clockSummariesSnapshot().find((entry) => entry.employeeId === 'active-1');
+    expect(initial?.state).toBe('clocked_out');
+
+    await expect(facade.clockIn('active-1')).resolves.toBe(true);
+    const afterClockIn = facade.clockSummariesSnapshot().find((entry) => entry.employeeId === 'active-1');
+    expect(afterClockIn?.state).toBe('clocked_in');
+    expect(afterClockIn?.clockInAt).toBeTruthy();
+
+    await expect(facade.clockOut('active-1')).resolves.toBe(true);
+    const afterClockOut = facade.clockSummariesSnapshot().find(
+      (entry) => entry.employeeId === 'active-1',
+    );
+    expect(afterClockOut?.state).toBe('clocked_out');
+    expect(afterClockOut?.lastDurationHours).toBe('2');
+  });
+
+  it('surfaces API failures for clock actions', async () => {
+    await facade.loadRoster();
+    vi.spyOn(service, 'recordClockAction').mockRejectedValueOnce({
+      error: { message: 'Already clocked in.' },
+    });
+    await expect(facade.clockIn('active-1')).resolves.toBe(false);
+    expect(facade.workspaceNotice()).toBe('Already clocked in.');
   });
 });

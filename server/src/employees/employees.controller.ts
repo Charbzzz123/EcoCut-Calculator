@@ -9,6 +9,7 @@ import {
   Post,
 } from '@nestjs/common';
 import type { CreateEmployeeDto } from './dto/create-employee.dto';
+import type { CreateClockActionDto } from './dto/create-clock-action.dto';
 import type { CreateHoursEntryDto } from './dto/create-hours-entry.dto';
 import type { UpdateEmployeeDto } from './dto/update-employee.dto';
 import type { UpdateHoursEntryDto } from './dto/update-hours-entry.dto';
@@ -80,6 +81,17 @@ export class EmployeesController {
     @Headers('x-operator-role') operatorRole?: string,
   ) {
     return this.employees.createHoursEntry(
+      body,
+      this.parseOperatorRole(operatorRole),
+    );
+  }
+
+  @Post('hours/clock')
+  recordClockAction(
+    @Body() body: CreateClockActionDto,
+    @Headers('x-operator-role') operatorRole?: string,
+  ) {
+    return this.employees.recordClockAction(
       body,
       this.parseOperatorRole(operatorRole),
     );

@@ -11,6 +11,7 @@ describe('EmployeesController', () => {
   const updateEmployeeProfile = jest.fn();
   const archiveEmployee = jest.fn();
   const createHoursEntry = jest.fn();
+  const recordClockAction = jest.fn();
   const updateHoursEntry = jest.fn();
   const removeHoursEntry = jest.fn();
 
@@ -29,6 +30,7 @@ describe('EmployeesController', () => {
             updateEmployeeProfile,
             archiveEmployee,
             createHoursEntry,
+            recordClockAction,
             updateHoursEntry,
             removeHoursEntry,
           },
@@ -64,6 +66,7 @@ describe('EmployeesController', () => {
     updateEmployeeProfile.mockResolvedValue({ id: 'emp-1' });
     archiveEmployee.mockResolvedValue({ id: 'emp-1', status: 'inactive' });
     createHoursEntry.mockResolvedValue({ id: 'hours-new' });
+    recordClockAction.mockResolvedValue({ id: 'clock-new' });
     updateHoursEntry.mockResolvedValue({ id: 'hours-1' });
     removeHoursEntry.mockResolvedValue(undefined);
 
@@ -93,6 +96,13 @@ describe('EmployeesController', () => {
       'manager',
     );
     await controller.updateHoursEntry('hours-1', { hours: 8 }, 'manager');
+    await controller.recordClockAction(
+      {
+        employeeId: 'emp-1',
+        action: 'clock_in',
+      },
+      'manager',
+    );
     await controller.removeHoursEntry('hours-1', 'manager');
 
     expect(createEmployeeProfile).toHaveBeenCalledWith(
@@ -112,6 +122,13 @@ describe('EmployeesController', () => {
     expect(updateHoursEntry).toHaveBeenCalledWith(
       'hours-1',
       { hours: 8 },
+      'manager',
+    );
+    expect(recordClockAction).toHaveBeenCalledWith(
+      {
+        employeeId: 'emp-1',
+        action: 'clock_in',
+      },
       'manager',
     );
     expect(removeHoursEntry).toHaveBeenCalledWith('hours-1', 'manager');

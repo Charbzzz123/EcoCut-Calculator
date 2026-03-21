@@ -6,6 +6,10 @@ export type EmployeeJobStatus = 'scheduled' | 'completed';
 
 export type EmployeeReadinessState = 'available' | 'scheduled' | 'inactive';
 
+export type EmployeeHoursSource = 'manual' | 'clock';
+
+export type EmployeeClockAction = 'clock_in' | 'clock_out';
+
 export interface EmployeeProfileRecord {
   id: string;
   firstName: string;
@@ -26,6 +30,9 @@ export interface EmployeeHoursRecord {
   workDate: string;
   siteLabel: string;
   hours: number;
+  source: EmployeeHoursSource;
+  clockInAt: string | null;
+  clockOutAt: string | null;
   updatedByRole: EmployeeOperatorRole;
   updatedAt: string;
 }

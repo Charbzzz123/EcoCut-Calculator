@@ -91,12 +91,21 @@ describe('EmployeesDataService', () => {
       },
       'owner',
     );
+    const clockInPromise = service.recordClockAction(
+      {
+        employeeId: 'emp-1',
+        action: 'clock_in',
+        siteLabel: 'Shift A',
+      },
+      'manager',
+    );
     const removeHoursPromise = service.removeHoursEntry('hours-1', 'manager');
 
     const createProfileReq = httpMock.expectOne(`${baseUrl}/roster`);
     const updateProfileReq = httpMock.expectOne(`${baseUrl}/roster/emp-1`);
     const archiveReq = httpMock.expectOne(`${baseUrl}/roster/emp-1/archive`);
     const createHoursReq = httpMock.expectOne(`${baseUrl}/hours`);
+    const clockReq = httpMock.expectOne(`${baseUrl}/hours/clock`);
     const hoursByIdReqs = httpMock.match(`${baseUrl}/hours/hours-1`);
     expect(hoursByIdReqs).toHaveLength(2);
     const updateHoursReq = hoursByIdReqs.find((req) => req.request.method === 'PATCH');
@@ -106,6 +115,7 @@ describe('EmployeesDataService', () => {
     expect(updateProfileReq.request.method).toBe('PATCH');
     expect(archiveReq.request.method).toBe('POST');
     expect(createHoursReq.request.method).toBe('POST');
+    expect(clockReq.request.method).toBe('POST');
     expect(updateHoursReq?.request.method).toBe('PATCH');
     expect(removeHoursReq?.request.method).toBe('DELETE');
 
@@ -113,6 +123,7 @@ describe('EmployeesDataService', () => {
     expect(updateProfileReq.request.headers.get('x-operator-role')).toBe('owner');
     expect(archiveReq.request.headers.get('x-operator-role')).toBe('owner');
     expect(createHoursReq.request.headers.get('x-operator-role')).toBe('manager');
+    expect(clockReq.request.headers.get('x-operator-role')).toBe('manager');
     expect(updateHoursReq?.request.headers.get('x-operator-role')).toBe('owner');
     expect(removeHoursReq?.request.headers.get('x-operator-role')).toBe('manager');
 
@@ -120,6 +131,7 @@ describe('EmployeesDataService', () => {
     updateProfileReq.flush({ id: 'emp-1' });
     archiveReq.flush({ id: 'emp-1', status: 'inactive' });
     createHoursReq.flush({ id: 'hours-1' });
+    clockReq.flush({ id: 'clock-1' });
     updateHoursReq?.flush({ id: 'hours-1' });
     removeHoursReq?.flush(null);
 
@@ -127,6 +139,7 @@ describe('EmployeesDataService', () => {
     await expect(updateProfilePromise).resolves.toMatchObject({ id: 'emp-1' });
     await expect(archivePromise).resolves.toMatchObject({ id: 'emp-1' });
     await expect(createHoursPromise).resolves.toMatchObject({ id: 'hours-1' });
+    await expect(clockInPromise).resolves.toMatchObject({ id: 'clock-1' });
     await expect(updateHoursPromise).resolves.toMatchObject({ id: 'hours-1' });
     await expect(removeHoursPromise).resolves.toBeUndefined();
   });

@@ -41,6 +41,8 @@ export interface EmployeeProfileMutationPayload {
 }
 
 export type EmployeeOperatorRole = 'owner' | 'manager';
+export type EmployeeHoursSource = 'manual' | 'clock';
+export type EmployeeClockAction = 'clock_in' | 'clock_out';
 
 export interface EmployeeHoursRecord {
   id: string;
@@ -48,8 +50,17 @@ export interface EmployeeHoursRecord {
   workDate: string;
   siteLabel: string;
   hours: number;
+  source: EmployeeHoursSource;
+  clockInAt: string | null;
+  clockOutAt: string | null;
   updatedByRole: EmployeeOperatorRole;
   updatedAt: string;
+}
+
+export interface EmployeeClockActionPayload {
+  employeeId: string;
+  action: EmployeeClockAction;
+  siteLabel?: string;
 }
 
 export interface EmployeeHoursDraft {

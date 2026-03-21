@@ -107,6 +107,93 @@
     <p class="workspace-notice" role="status">{{ workspaceNotice() }}</p>
   }
 
+  <article class="employees-clock" aria-label="Clock in and clock out">
+    <header class="employees-clock__header">
+      <div>
+        <p class="employees-clock__eyebrow">Payroll reconciliation</p>
+        <h2>Employee clock in/out</h2>
+      </div>
+    </header>
+
+    @if (!clockSummaries().length) {
+      <p class="roster-state">No employees available for clock actions.</p>
+    } @else {
+      <ul class="clock-list">
+        @for (summary of clockSummaries(); track trackByClockEmployeeId($index, summary)) {
+          <li class="clock-card">
+            <header class="clock-card__header">
+              <h3>{{ summary.fullName }}</h3>
+              <span
+                class="status-chip"
+                [class.status-chip--inactive]="summary.state !== 'clocked_in'"
+              >
+                @if (summary.state === 'clocked_in') {
+                  Clocked in
+                } @else if (summary.state === 'inactive') {
+                  Inactive
+                } @else {
+                  Clocked out
+                }
+              </span>
+            </header>
+
+            <p class="clock-card__meta">
+              Site:
+              @if (summary.currentSiteLabel) {
+                {{ summary.currentSiteLabel }}
+              } @else {
+                —
+              }
+            </p>
+            <p class="clock-card__meta">
+              Clock-in:
+              @if (summary.clockInAt) {
+                {{ summary.clockInAt | date: 'MMM d, y, h:mm a' }}
+              } @else {
+                —
+              }
+            </p>
+            <p class="clock-card__meta">
+              Last clock-out:
+              @if (summary.clockOutAt) {
+                {{ summary.clockOutAt | date: 'MMM d, y, h:mm a' }}
+              } @else {
+                —
+              }
+            </p>
+            <p class="clock-card__meta">
+              Last duration:
+              @if (summary.lastDurationHours) {
+                {{ summary.lastDurationHours }}h
+              } @else {
+                —
+              }
+            </p>
+
+            <div class="employee-card__actions">
+              <button
+                type="button"
+                class="employee-action employee-action--primary"
+                [disabled]="summary.state === 'clocked_in' || summary.state === 'inactive'"
+                (click)="clockIn(summary.employeeId)"
+              >
+                Clock in
+              </button>
+              <button
+                type="button"
+                class="employee-action"
+                [disabled]="summary.state !== 'clocked_in'"
+                (click)="clockOut(summary.employeeId)"
+              >
+                Clock out
+              </button>
+            </div>
+          </li>
+        }
+      </ul>
+    }
+  </article>
+
   <article class="employees-roster" aria-live="polite">
     <header class="employees-roster__header">
       <h2>Showing {{ filteredRosterSnapshot().length }} employee(s)</h2>

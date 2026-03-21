@@ -7,12 +7,14 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import type { CreateEmployeeDto } from './dto/create-employee.dto';
+import type { CreateClockActionDto } from './dto/create-clock-action.dto';
 import type { CreateHoursEntryDto } from './dto/create-hours-entry.dto';
 import type { UpdateEmployeeDto } from './dto/update-employee.dto';
 import type { UpdateHoursEntryDto } from './dto/update-hours-entry.dto';
 import { EmployeesRepository } from './employees.repository';
 import type {
   EmployeeAvailabilityWindow,
+  EmployeeClockAction,
   EmployeeHoursRecord,
   EmployeeJobHistoryRecord,
   EmployeeOperatorRole,
@@ -54,7 +56,9 @@ export class EmployeesService implements OnModuleInit {
   constructor(private readonly repository: EmployeesRepository) {}
 
   async onModuleInit(): Promise<void> {
-    this.snapshot = await this.repository.loadSnapshot();
+    this.snapshot = this.normalizeSnapshot(
+      await this.repository.loadSnapshot(),
+    );
   }
 
   listRoster(): EmployeeProfileRecord[] {
@@ -63,6 +67,103 @@ export class EmployeesService implements OnModuleInit {
 
   listHoursEntries(): EmployeeHoursRecord[] {
     return this.snapshot.hours;
+  }
+
+  async recordClockAction(
+    payload: CreateClockActionDto,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeHoursRecord> {
+    this.assertOwnerOrManager(actorRole);
+    const employee = this.requireEmployee(payload.employeeId);
+    if (employee.status === 'inactive') {
+      throw new BadRequestException(
+        `Employee "${employee.fullName}" is inactive and cannot be clocked in/out.`,
+      );
+    }
+
+    const action = this.normalizeClockAction(payload.action);
+    const now = new Date();
+    const nowIso = now.toISOString();
+
+    if (action === 'clock_in') {
+      const existingOpenSession = this.findOpenClockSession(employee.id);
+      if (existingOpenSession) {
+        throw new ConflictException(
+          `Employee "${employee.fullName}" is already clocked in.`,
+        );
+      }
+
+      const created: EmployeeHoursRecord = {
+        id: this.createHoursEntryId(employee.id),
+        employeeId: employee.id,
+        workDate: nowIso.slice(0, 10),
+        siteLabel: this.normalizeClockSiteLabel(payload.siteLabel),
+        hours: 0,
+        source: 'clock',
+        clockInAt: nowIso,
+        clockOutAt: null,
+        updatedByRole: actorRole,
+        updatedAt: nowIso,
+      };
+
+      this.snapshot = {
+        ...this.snapshot,
+        hours: [created, ...this.snapshot.hours],
+        roster: this.snapshot.roster.map((record) =>
+          record.id === employee.id
+            ? { ...record, lastActivityAt: nowIso }
+            : record,
+        ),
+      };
+      await this.persistSnapshot();
+      return created;
+    }
+
+    const openSession = this.findOpenClockSession(employee.id);
+    if (!openSession) {
+      throw new ConflictException(
+        `Employee "${employee.fullName}" is not currently clocked in.`,
+      );
+    }
+    if (!openSession.clockInAt) {
+      throw new ConflictException(
+        `Employee "${employee.fullName}" has an invalid open clock session.`,
+      );
+    }
+
+    const clockInTimestamp = toTimestamp(openSession.clockInAt);
+    if (clockInTimestamp <= 0) {
+      throw new ConflictException(
+        `Employee "${employee.fullName}" has an invalid open clock session.`,
+      );
+    }
+    const nowTimestamp = now.getTime();
+    const elapsedHours = Math.max(
+      0.25,
+      (nowTimestamp - clockInTimestamp) / 3_600_000,
+    );
+    const roundedElapsedHours = Math.round(elapsedHours * 4) / 4;
+    const updated: EmployeeHoursRecord = {
+      ...openSession,
+      hours: roundedElapsedHours,
+      clockOutAt: nowIso,
+      updatedByRole: actorRole,
+      updatedAt: nowIso,
+    };
+
+    this.snapshot = {
+      ...this.snapshot,
+      hours: this.snapshot.hours.map((entry) =>
+        entry.id === openSession.id ? updated : entry,
+      ),
+      roster: this.snapshot.roster.map((record) =>
+        record.id === employee.id
+          ? { ...record, lastActivityAt: nowIso }
+          : record,
+      ),
+    };
+    await this.persistSnapshot();
+    return updated;
   }
 
   listJobHistoryEntries(): EmployeeJobHistoryRecord[] {
@@ -184,6 +285,9 @@ export class EmployeesService implements OnModuleInit {
       workDate: draft.workDate,
       siteLabel: draft.siteLabel,
       hours: draft.hours,
+      source: 'manual',
+      clockInAt: null,
+      clockOutAt: null,
       updatedByRole: actorRole,
       updatedAt: now,
     };
@@ -221,6 +325,9 @@ export class EmployeesService implements OnModuleInit {
       workDate: draft.workDate,
       siteLabel: draft.siteLabel,
       hours: draft.hours,
+      source: existing.source ?? 'manual',
+      clockInAt: existing.clockInAt ?? null,
+      clockOutAt: existing.clockOutAt ?? null,
       updatedByRole: actorRole,
       updatedAt: now,
     };
@@ -399,6 +506,46 @@ export class EmployeesService implements OnModuleInit {
 
   private createHoursEntryId(employeeId: string): string {
     return `hours-${employeeId}-${Date.now()}`;
+  }
+
+  private normalizeClockAction(value: string): EmployeeClockAction {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'clock_in' || normalized === 'clock_out') {
+      return normalized;
+    }
+    throw new BadRequestException(
+      'Clock action must be either "clock_in" or "clock_out".',
+    );
+  }
+
+  private normalizeClockSiteLabel(value: string | undefined): string {
+    const trimmed = value?.trim() ?? '';
+    return trimmed || 'Field shift';
+  }
+
+  private findOpenClockSession(employeeId: string): EmployeeHoursRecord | null {
+    const openSessions = this.snapshot.hours
+      .filter(
+        (entry) =>
+          entry.employeeId === employeeId &&
+          entry.source === 'clock' &&
+          Boolean(entry.clockInAt) &&
+          !entry.clockOutAt,
+      )
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+    return openSessions[0] ?? null;
+  }
+
+  private normalizeSnapshot(snapshot: EmployeesSnapshot): EmployeesSnapshot {
+    return {
+      ...snapshot,
+      hours: snapshot.hours.map((entry) => ({
+        ...entry,
+        source: entry.source ?? 'manual',
+        clockInAt: entry.clockInAt ?? null,
+        clockOutAt: entry.clockOutAt ?? null,
+      })),
+    };
   }
 
   private computeReadiness(
