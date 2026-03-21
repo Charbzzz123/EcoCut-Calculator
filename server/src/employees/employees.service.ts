@@ -88,10 +88,10 @@ export class EmployeesService implements OnModuleInit {
       lastName: draft.lastName,
       fullName: formatFullName(draft.firstName, draft.lastName),
       phone: draft.phone,
-      email: draft.email,
+      email: draft.email ?? null,
       role: draft.role,
       hourlyRate: draft.hourlyRate,
-      notes: draft.notes,
+      notes: draft.notes ?? '',
       status: 'active',
       lastActivityAt: null,
     };
@@ -130,10 +130,10 @@ export class EmployeesService implements OnModuleInit {
       lastName: draft.lastName,
       fullName: formatFullName(draft.firstName, draft.lastName),
       phone: draft.phone,
-      email: draft.email,
+      email: draft.email ?? null,
       role: draft.role,
       hourlyRate: draft.hourlyRate,
-      notes: draft.notes,
+      notes: draft.notes ?? '',
     };
 
     this.snapshot = {
