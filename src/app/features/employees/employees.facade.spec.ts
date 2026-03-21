@@ -2,7 +2,11 @@ import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { EmployeesFacade } from './employees.facade.js';
 import { EmployeesDataService } from './employees-data.service.js';
-import type { EmployeeHoursRecord, EmployeeRosterRecord } from './employees.types.js';
+import type {
+  EmployeeHoursRecord,
+  EmployeeJobHistoryRecord,
+  EmployeeRosterRecord,
+} from './employees.types.js';
 
 class EmployeesDataServiceStub {
   shouldFail = false;
@@ -56,6 +60,39 @@ class EmployeesDataServiceStub {
     },
   ];
 
+  readonly jobHistoryRecords: EmployeeJobHistoryRecord[] = [
+    {
+      id: 'job-active-1',
+      employeeId: 'active-1',
+      siteLabel: 'Westmount Cedar Hedge',
+      address: '1450 Pine Ave W',
+      scheduledStart: '2026-03-20T13:00:00Z',
+      scheduledEnd: '2026-03-20T17:00:00Z',
+      hoursWorked: 8,
+      status: 'completed',
+    },
+    {
+      id: 'job-active-2',
+      employeeId: 'active-1',
+      siteLabel: 'NDG Maple Court',
+      address: '2331 Sherbrooke St W',
+      scheduledStart: '2099-03-24T12:00:00Z',
+      scheduledEnd: '2099-03-24T15:00:00Z',
+      hoursWorked: 3,
+      status: 'scheduled',
+    },
+    {
+      id: 'job-active-3',
+      employeeId: 'active-1',
+      siteLabel: 'NDG Upper Court',
+      address: '2340 Sherbrooke St W',
+      scheduledStart: '2099-03-24T14:00:00Z',
+      scheduledEnd: '2099-03-24T16:00:00Z',
+      hoursWorked: 2,
+      status: 'scheduled',
+    },
+  ];
+
   async listEmployees(): Promise<EmployeeRosterRecord[]> {
     if (this.shouldFail) {
       throw new Error('boom');
@@ -68,6 +105,13 @@ class EmployeesDataServiceStub {
       throw new Error('boom');
     }
     return this.hoursRecords;
+  }
+
+  async listJobHistoryEntries(): Promise<EmployeeJobHistoryRecord[]> {
+    if (this.shouldFail) {
+      throw new Error('boom');
+    }
+    return this.jobHistoryRecords;
   }
 }
 
@@ -94,6 +138,25 @@ describe('EmployeesFacade', () => {
     facade.openHoursEditor('active-1');
     expect(facade.selectedHoursEntriesSnapshot()).toHaveLength(2);
     expect(facade.selectedHoursTotals().totalHours).toBe('14.5');
+
+    facade.openJobHistory('active-1');
+    expect(facade.selectedEmployeeJobHistorySnapshot()).toHaveLength(3);
+    expect(facade.selectedHistorySummary()).toEqual({
+      jobsCount: 3,
+      completedCount: 1,
+      scheduledCount: 2,
+      totalHours: '13',
+      recentSite: 'NDG Upper Court',
+    });
+
+    const readiness = facade.startNextJobReadinessSnapshot();
+    expect(readiness).toHaveLength(2);
+    expect(readiness[0]?.employeeId).toBe('active-1');
+    expect(readiness[0]?.hasScheduleConflict).toBe(true);
+    expect(readiness[0]?.scheduledJobsCount).toBe(2);
+    expect(readiness[0]?.nextScheduledStart).toBe('2099-03-24T12:00:00Z');
+    expect(readiness[1]?.readinessState).toBe('inactive');
+    expect(readiness[1]?.nextAvailableAt).toBeNull();
   });
 
   it('filters roster by status and query', async () => {
@@ -237,10 +300,15 @@ describe('EmployeesFacade', () => {
   });
 
   it('exposes trackBy helpers and handles load errors', async () => {
+    await facade.loadRoster();
     const roster = service.records[0]!;
     const hours = service.hoursRecords[0]!;
+    const history = service.jobHistoryRecords[0]!;
+    const readiness = facade.startNextJobReadinessSnapshot()[0];
     expect(facade.trackByEmployeeId(0, roster)).toBe('active-1');
     expect(facade.trackByHoursEntryId(0, hours)).toBe('hours-active-1');
+    expect(facade.trackByHistoryEntryId(0, history)).toBe('job-active-1');
+    expect(facade.trackByReadinessEmployeeId(0, readiness!)).toBe('active-1');
 
     service.shouldFail = true;
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
@@ -248,5 +316,37 @@ describe('EmployeesFacade', () => {
     expect(facade.loadState()).toBe('error');
     expect(warnSpy).toHaveBeenCalledWith('Failed to load employee roster', expect.any(Error));
     warnSpy.mockRestore();
+  });
+
+  it('opens and closes the history panel', async () => {
+    await facade.loadRoster();
+    facade.openJobHistory('active-1');
+    expect(facade.historyPanelOpen()).toBe(true);
+    expect(facade.selectedHistoryEmployee()?.id).toBe('active-1');
+
+    facade.closeJobHistory();
+    expect(facade.historyPanelOpen()).toBe(false);
+    expect(facade.selectedHistoryEmployee()).toBeNull();
+  });
+
+  it('marks employees as scheduled when an active booking overlaps now', async () => {
+    const now = Date.now();
+    const startedAt = new Date(now - 15 * 60 * 1000).toISOString();
+    const endsAt = new Date(now + 45 * 60 * 1000).toISOString();
+    service.jobHistoryRecords.push({
+      id: 'job-active-now',
+      employeeId: 'active-1',
+      siteLabel: 'Live schedule',
+      address: '123 Current Ave',
+      scheduledStart: startedAt,
+      scheduledEnd: endsAt,
+      hoursWorked: 1,
+      status: 'scheduled',
+    });
+
+    await facade.loadRoster();
+    const readiness = facade.startNextJobReadinessSnapshot().find((entry) => entry.employeeId === 'active-1');
+    expect(readiness?.readinessState).toBe('scheduled');
+    expect(readiness?.nextAvailableAt).toBe(endsAt);
   });
 });

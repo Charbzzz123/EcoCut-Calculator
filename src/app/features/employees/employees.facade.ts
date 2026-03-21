@@ -3,12 +3,15 @@ import { FormControl, FormGroup } from '@angular/forms';
 import { debounceTime, distinctUntilChanged, startWith } from 'rxjs';
 import { EmployeesDataService } from './employees-data.service.js';
 import type {
+  EmployeeAvailabilityWindow,
   EmployeeEditorMode,
   EmployeeHoursDraft,
   EmployeeHoursRecord,
+  EmployeeJobHistoryRecord,
   EmployeeLoadState,
   EmployeeOperatorRole,
   EmployeeProfileDraft,
+  EmployeeStartNextJobReadiness,
   EmployeeRosterRecord,
   EmployeeStatusFilter,
 } from './employees.types.js';
@@ -27,6 +30,22 @@ const sortHoursByDateDesc = (left: EmployeeHoursRecord, right: EmployeeHoursReco
     return right.updatedAt.localeCompare(left.updatedAt);
   }
   return right.workDate.localeCompare(left.workDate);
+};
+const sortHistoryByStartDesc = (
+  left: EmployeeJobHistoryRecord,
+  right: EmployeeJobHistoryRecord,
+): number => right.scheduledStart.localeCompare(left.scheduledStart);
+const toTimestamp = (value: string): number => {
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+const sortHistoryByStartAsc = (
+  left: EmployeeJobHistoryRecord,
+  right: EmployeeJobHistoryRecord,
+): number => toTimestamp(left.scheduledStart) - toTimestamp(right.scheduledStart);
+const formatIsoOrNull = (value: Date): string | null => {
+  const timestamp = value.getTime();
+  return Number.isNaN(timestamp) ? null : value.toISOString();
 };
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -74,7 +93,12 @@ export class EmployeesFacade {
   private readonly profileErrorsSignal: WritableSignal<string[]> = signal<string[]>([]);
   private readonly hoursEntriesSignal: WritableSignal<EmployeeHoursRecord[]> =
     signal<EmployeeHoursRecord[]>([]);
+  private readonly jobHistoryEntriesSignal: WritableSignal<EmployeeJobHistoryRecord[]> =
+    signal<EmployeeJobHistoryRecord[]>([]);
   private readonly selectedHoursEmployeeIdSignal: WritableSignal<string | null> = signal<
+    string | null
+  >(null);
+  private readonly selectedHistoryEmployeeIdSignal: WritableSignal<string | null> = signal<
     string | null
   >(null);
   private readonly editingHoursEntryIdSignal: WritableSignal<string | null> = signal<string | null>(
@@ -146,6 +170,48 @@ export class EmployeesFacade {
     return this.selectedHoursEntries().find((entry) => entry.id === editingId) ?? null;
   });
   readonly hoursErrors: Signal<string[]> = this.hoursErrorsSignal.asReadonly();
+  readonly historyPanelOpen: Signal<boolean> = computed(
+    () => this.selectedHistoryEmployeeIdSignal() !== null,
+  );
+  readonly selectedHistoryEmployee: Signal<EmployeeRosterRecord | null> = computed(() => {
+    const selectedId = this.selectedHistoryEmployeeIdSignal();
+    if (!selectedId) {
+      return null;
+    }
+    return this.rosterSignal().find((employee) => employee.id === selectedId) ?? null;
+  });
+  readonly selectedEmployeeJobHistory: Signal<EmployeeJobHistoryRecord[]> = computed(() => {
+    const selectedId = this.selectedHistoryEmployeeIdSignal();
+    if (!selectedId) {
+      return [];
+    }
+    const entries = this.jobHistoryEntriesSignal().filter((entry) => entry.employeeId === selectedId);
+    entries.sort(sortHistoryByStartDesc);
+    return entries;
+  });
+  readonly selectedHistorySummary: Signal<{
+    jobsCount: number;
+    completedCount: number;
+    scheduledCount: number;
+    totalHours: string;
+    recentSite: string;
+  }> = computed(() => {
+    const entries = this.selectedEmployeeJobHistory();
+    const completedCount = entries.filter((entry) => entry.status === 'completed').length;
+    const scheduledCount = entries.length - completedCount;
+    const recentSite = entries[0]?.siteLabel ?? '--';
+    const totalHours = entries.reduce((sum, entry) => sum + entry.hoursWorked, 0);
+    return {
+      jobsCount: entries.length,
+      completedCount,
+      scheduledCount,
+      totalHours: formatHours(totalHours),
+      recentSite,
+      };
+    });
+  readonly startNextJobReadiness: Signal<EmployeeStartNextJobReadiness[]> = computed(() =>
+    this.computeStartNextJobReadiness(this.rosterSignal(), this.jobHistoryEntriesSignal()),
+  );
 
   constructor() {
     this.queryControl.valueChanges
@@ -183,6 +249,14 @@ export class EmployeesFacade {
 
   hoursErrorsSnapshot(): string[] {
     return this.hoursErrors();
+  }
+
+  selectedEmployeeJobHistorySnapshot(): EmployeeJobHistoryRecord[] {
+    return this.selectedEmployeeJobHistory();
+  }
+
+  startNextJobReadinessSnapshot(): EmployeeStartNextJobReadiness[] {
+    return this.startNextJobReadiness();
   }
 
   openCreateProfile(): void {
@@ -312,6 +386,19 @@ export class EmployeesFacade {
     });
   }
 
+  openJobHistory(employeeId: string): void {
+    this.clearWorkspaceNotice();
+    const employee = this.rosterSignal().find((record) => record.id === employeeId);
+    if (!employee) {
+      return;
+    }
+    this.selectedHistoryEmployeeIdSignal.set(employee.id);
+  }
+
+  closeJobHistory(): void {
+    this.selectedHistoryEmployeeIdSignal.set(null);
+  }
+
   closeHoursEditor(): void {
     this.selectedHoursEmployeeIdSignal.set(null);
     this.editingHoursEntryIdSignal.set(null);
@@ -400,15 +487,22 @@ export class EmployeesFacade {
 
   trackByHoursEntryId = (_: number, entry: EmployeeHoursRecord): string => entry.id;
 
+  trackByHistoryEntryId = (_: number, entry: EmployeeJobHistoryRecord): string => entry.id;
+
+  trackByReadinessEmployeeId = (_: number, entry: EmployeeStartNextJobReadiness): string =>
+    entry.employeeId;
+
   async loadRoster(): Promise<void> {
     this.loadStateSignal.set('loading');
     try {
-      const [roster, hours] = await Promise.all([
+      const [roster, hours, history] = await Promise.all([
         this.data.listEmployees(),
         this.data.listHoursEntries(),
+        this.data.listJobHistoryEntries(),
       ]);
       this.rosterSignal.set(roster);
       this.hoursEntriesSignal.set(hours);
+      this.jobHistoryEntriesSignal.set(history);
       this.loadStateSignal.set('ready');
     } catch (error) {
       console.warn('Failed to load employee roster', error);
@@ -456,6 +550,119 @@ export class EmployeesFacade {
       active,
       inactive,
     };
+  }
+
+  private computeStartNextJobReadiness(
+    roster: EmployeeRosterRecord[],
+    historyEntries: EmployeeJobHistoryRecord[],
+  ): EmployeeStartNextJobReadiness[] {
+    const now = new Date();
+    const nowTimestamp = now.getTime();
+    const nowIso = now.toISOString();
+    const readiness = roster.map((employee) =>
+      this.buildReadinessRecord(employee, historyEntries, nowTimestamp, nowIso),
+    );
+    return readiness.sort((left, right) => left.fullName.localeCompare(right.fullName));
+  }
+
+  private buildReadinessRecord(
+    employee: EmployeeRosterRecord,
+    historyEntries: EmployeeJobHistoryRecord[],
+    nowTimestamp: number,
+    nowIso: string,
+  ): EmployeeStartNextJobReadiness {
+    const employeeHistory = historyEntries.filter((entry) => entry.employeeId === employee.id);
+    const completedEntries = employeeHistory
+      .filter((entry) => entry.status === 'completed')
+      .sort(sortHistoryByStartDesc);
+    const scheduledEntries = employeeHistory
+      .filter((entry) => entry.status === 'scheduled')
+      .sort(sortHistoryByStartAsc);
+    const upcomingEntries = scheduledEntries.filter((entry) => toTimestamp(entry.scheduledEnd) > nowTimestamp);
+    const activeEntries = upcomingEntries.filter((entry) => toTimestamp(entry.scheduledStart) <= nowTimestamp);
+    const nextScheduledEntry = upcomingEntries[0] ?? null;
+
+    const availabilityWindows = upcomingEntries.map((entry) => this.mapToAvailabilityWindow(entry));
+    const nextAvailableAt =
+      employee.status === 'inactive'
+        ? null
+        : this.computeNextAvailableAt(upcomingEntries, activeEntries, nowIso);
+    const hasScheduleConflict = this.detectScheduleConflict(upcomingEntries);
+    const readinessState =
+      employee.status === 'inactive'
+        ? 'inactive'
+        : activeEntries.length
+          ? 'scheduled'
+          : 'available';
+
+    return {
+      employeeId: employee.id,
+      fullName: employee.fullName,
+      status: employee.status,
+      readinessState,
+      scheduledJobsCount: upcomingEntries.length,
+      completedJobsCount: completedEntries.length,
+      scheduledHours: upcomingEntries.reduce((sum, entry) => sum + entry.hoursWorked, 0),
+      completedHours: completedEntries.reduce((sum, entry) => sum + entry.hoursWorked, 0),
+      nextScheduledStart: nextScheduledEntry?.scheduledStart ?? null,
+      nextScheduledEnd: nextScheduledEntry?.scheduledEnd ?? null,
+      nextAvailableAt,
+      lastCompletedAt: completedEntries[0]?.scheduledEnd ?? null,
+      lastCompletedSite: completedEntries[0]?.siteLabel ?? null,
+      hasScheduleConflict,
+      upcomingWindows: availabilityWindows,
+    };
+  }
+
+  private mapToAvailabilityWindow(entry: EmployeeJobHistoryRecord): EmployeeAvailabilityWindow {
+    return {
+      jobId: entry.id,
+      siteLabel: entry.siteLabel,
+      address: entry.address,
+      startAt: entry.scheduledStart,
+      endAt: entry.scheduledEnd,
+    };
+  }
+
+  private computeNextAvailableAt(
+    upcomingEntries: EmployeeJobHistoryRecord[],
+    activeEntries: EmployeeJobHistoryRecord[],
+    nowIso: string,
+  ): string | null {
+    if (!upcomingEntries.length) {
+      return nowIso;
+    }
+    if (!activeEntries.length) {
+      return nowIso;
+    }
+
+    let availabilityTimestamp = Math.max(...activeEntries.map((entry) => toTimestamp(entry.scheduledEnd)));
+    for (const entry of upcomingEntries) {
+      const start = toTimestamp(entry.scheduledStart);
+      if (start > availabilityTimestamp) {
+        break;
+      }
+      availabilityTimestamp = Math.max(availabilityTimestamp, toTimestamp(entry.scheduledEnd));
+    }
+    return formatIsoOrNull(new Date(availabilityTimestamp));
+  }
+
+  private detectScheduleConflict(upcomingEntries: EmployeeJobHistoryRecord[]): boolean {
+    if (upcomingEntries.length <= 1) {
+      return false;
+    }
+
+    for (let index = 1; index < upcomingEntries.length; index += 1) {
+      const previous = upcomingEntries[index - 1];
+      const current = upcomingEntries[index];
+      if (!previous || !current) {
+        continue;
+      }
+      if (toTimestamp(current.scheduledStart) < toTimestamp(previous.scheduledEnd)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private readDraftFromForm(): EmployeeProfileDraft {

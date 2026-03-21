@@ -6,8 +6,10 @@ import { vi } from 'vitest';
 import type {
   EmployeeEditorMode,
   EmployeeHoursRecord,
+  EmployeeJobHistoryRecord,
   EmployeeLoadState,
   EmployeeOperatorRole,
+  EmployeeStartNextJobReadiness,
   EmployeeRosterRecord,
   EmployeeStatusFilter,
 } from './employees.types.js';
@@ -52,12 +54,20 @@ class EmployeesFacadeStub {
   readonly openHoursEditor = vi.fn((employeeId: string) => {
     this.selectedHoursEmployeeIdSignal.set(employeeId);
   });
+  readonly openJobHistory = vi.fn((employeeId: string) => {
+    this.selectedHistoryEmployeeIdSignal.set(employeeId);
+  });
   readonly closeHoursEditor = vi.fn(() => this.selectedHoursEmployeeIdSignal.set(null));
+  readonly closeJobHistory = vi.fn(() => this.selectedHistoryEmployeeIdSignal.set(null));
   readonly saveHoursEntry = vi.fn(() => true);
   readonly editHoursEntry = vi.fn();
   readonly removeHoursEntry = vi.fn();
   readonly trackByEmployeeId = vi.fn((_: number, employee: EmployeeRosterRecord) => employee.id);
   readonly trackByHoursEntryId = vi.fn((_: number, entry: EmployeeHoursRecord) => entry.id);
+  readonly trackByHistoryEntryId = vi.fn((_: number, entry: EmployeeJobHistoryRecord) => entry.id);
+  readonly trackByReadinessEmployeeId = vi.fn(
+    (_: number, entry: EmployeeStartNextJobReadiness) => entry.employeeId,
+  );
 
   private readonly loadStateSignal = signal<EmployeeLoadState>('loading');
   readonly loadState = this.loadStateSignal.asReadonly();
@@ -89,6 +99,9 @@ class EmployeesFacadeStub {
   private readonly filteredRosterSignal = signal<EmployeeRosterRecord[]>([]);
   private readonly selectedHoursEmployeeIdSignal = signal<string | null>(null);
   private readonly hoursEntriesSignal = signal<EmployeeHoursRecord[]>([]);
+  private readonly selectedHistoryEmployeeIdSignal = signal<string | null>(null);
+  private readonly historyEntriesSignal = signal<EmployeeJobHistoryRecord[]>([]);
+  private readonly readinessSignal = signal<EmployeeStartNextJobReadiness[]>([]);
   private readonly editingHoursEntryIdSignal = signal<string | null>(null);
   private readonly hoursErrorsSignal = signal<string[]>([]);
   private stats = { total: 0, active: 0, inactive: 0 };
@@ -111,6 +124,25 @@ class EmployeesFacadeStub {
   readonly editingHoursEntry = () =>
     this.selectedHoursEntries().find((entry) => entry.id === this.editingHoursEntryIdSignal()) ?? null;
   readonly hoursErrors = this.hoursErrorsSignal.asReadonly();
+  readonly historyPanelOpen = () => this.selectedHistoryEmployeeIdSignal() !== null;
+  readonly selectedHistoryEmployee = () =>
+    this.rosterSignal().find((employee) => employee.id === this.selectedHistoryEmployeeIdSignal()) ?? null;
+  readonly selectedEmployeeJobHistory = () =>
+    this.historyEntriesSignal().filter(
+      (entry) => entry.employeeId === this.selectedHistoryEmployeeIdSignal(),
+    );
+  readonly selectedHistorySummary = () => {
+    const entries = this.selectedEmployeeJobHistory();
+    const completedCount = entries.filter((entry) => entry.status === 'completed').length;
+    return {
+      jobsCount: entries.length,
+      completedCount,
+      scheduledCount: entries.length - completedCount,
+      totalHours: `${entries.reduce((sum, entry) => sum + entry.hoursWorked, 0)}`,
+      recentSite: entries[0]?.siteLabel ?? '--',
+    };
+  };
+  readonly startNextJobReadiness = this.readinessSignal.asReadonly();
 
   setViewModel(options: {
     loadState?: EmployeeLoadState;
@@ -126,6 +158,9 @@ class EmployeesFacadeStub {
     stats?: { total: number; active: number; inactive: number };
     selectedHoursEmployeeId?: string | null;
     hoursEntries?: EmployeeHoursRecord[];
+    selectedHistoryEmployeeId?: string | null;
+    historyEntries?: EmployeeJobHistoryRecord[];
+    readiness?: EmployeeStartNextJobReadiness[];
     editingHoursEntryId?: string | null;
     hoursErrors?: string[];
   }): void {
@@ -168,6 +203,15 @@ class EmployeesFacadeStub {
     }
     if (options.hoursEntries) {
       this.hoursEntriesSignal.set(options.hoursEntries);
+    }
+    if (options.selectedHistoryEmployeeId !== undefined) {
+      this.selectedHistoryEmployeeIdSignal.set(options.selectedHistoryEmployeeId);
+    }
+    if (options.historyEntries) {
+      this.historyEntriesSignal.set(options.historyEntries);
+    }
+    if (options.readiness) {
+      this.readinessSignal.set(options.readiness);
     }
     if (options.editingHoursEntryId !== undefined) {
       this.editingHoursEntryIdSignal.set(options.editingHoursEntryId);
@@ -214,6 +258,43 @@ const hoursEntry: EmployeeHoursRecord = {
   hours: 8,
   updatedByRole: 'owner',
   updatedAt: '2026-03-20T17:30:00Z',
+};
+
+const historyEntry: EmployeeJobHistoryRecord = {
+  id: 'history-1',
+  employeeId: 'emp-1',
+  siteLabel: 'Westmount Cedar Hedge',
+  address: '1450 Pine Ave W',
+  scheduledStart: '2026-03-20T13:00:00Z',
+  scheduledEnd: '2026-03-20T17:00:00Z',
+  hoursWorked: 8,
+  status: 'completed',
+};
+
+const readinessRecord: EmployeeStartNextJobReadiness = {
+  employeeId: 'emp-1',
+  fullName: 'Alex Karam',
+  status: 'active',
+  readinessState: 'available',
+  scheduledJobsCount: 1,
+  completedJobsCount: 1,
+  scheduledHours: 3,
+  completedHours: 8,
+  nextScheduledStart: '2026-03-24T12:00:00Z',
+  nextScheduledEnd: '2026-03-24T15:00:00Z',
+  nextAvailableAt: '2026-03-21T10:00:00Z',
+  lastCompletedAt: '2026-03-20T17:00:00Z',
+  lastCompletedSite: 'Westmount Cedar Hedge',
+  hasScheduleConflict: false,
+  upcomingWindows: [
+    {
+      jobId: 'history-upcoming-1',
+      siteLabel: 'NDG Maple Court',
+      address: '2331 Sherbrooke St W',
+      startAt: '2026-03-24T12:00:00Z',
+      endAt: '2026-03-24T15:00:00Z',
+    },
+  ],
 };
 
 describe('ManageEmployeesShellComponent', () => {
@@ -286,6 +367,8 @@ describe('ManageEmployeesShellComponent', () => {
     (employeeActions[0] as HTMLButtonElement).click();
     (employeeActions[1] as HTMLButtonElement).click();
     (employeeActions[2] as HTMLButtonElement).click();
+    (employeeActions[3] as HTMLButtonElement).click();
+    expect(facade.openJobHistory).toHaveBeenCalledWith('emp-1');
     expect(facade.openHoursEditor).toHaveBeenCalledWith('emp-1');
     expect(facade.openEditProfile).toHaveBeenCalledWith('emp-1');
     expect(facade.archiveEmployee).toHaveBeenCalledWith('emp-1');
@@ -315,8 +398,8 @@ describe('ManageEmployeesShellComponent', () => {
     expect(native.querySelector('.workspace-notice')?.textContent).toContain('Manager mode');
 
     const cardActions = native.querySelectorAll('.employee-card__actions');
-    const firstEdit = cardActions[0]?.querySelectorAll('.employee-action')[1] as HTMLButtonElement;
-    const firstArchive = cardActions[0]?.querySelectorAll('.employee-action')[2] as HTMLButtonElement;
+    const firstEdit = cardActions[0]?.querySelectorAll('.employee-action')[2] as HTMLButtonElement;
+    const firstArchive = cardActions[0]?.querySelectorAll('.employee-action')[3] as HTMLButtonElement;
     expect(firstEdit.disabled).toBe(true);
     expect(firstArchive.disabled).toBe(true);
   });
@@ -423,5 +506,49 @@ describe('ManageEmployeesShellComponent', () => {
     expect(native.querySelector('.hours-form button[type="submit"]')?.textContent).toContain(
       'Save hours',
     );
+  });
+
+  it('renders history timeline and forwards close action', () => {
+    facade.setViewModel({
+      loadState: 'ready',
+      roster: [activeRecord],
+      filteredRoster: [activeRecord],
+      selectedHistoryEmployeeId: activeRecord.id,
+      historyEntries: [historyEntry],
+    });
+
+    const fixture = TestBed.createComponent(ManageEmployeesShellComponent);
+    fixture.detectChanges();
+    const native = fixture.nativeElement as HTMLElement;
+
+    expect(native.querySelector('.history-context__employee')?.textContent).toContain('Alex Karam');
+    expect(native.querySelector('.history-list .history-card')).toBeTruthy();
+    expect(native.querySelector('.history-summary')).toBeTruthy();
+
+    const closeButton = native.querySelector(
+      '.employees-history__header .employee-action',
+    ) as HTMLButtonElement;
+    closeButton.click();
+    expect(facade.closeJobHistory).toHaveBeenCalled();
+  });
+
+  it('renders readiness contract cards and uses readiness trackBy', () => {
+    facade.setViewModel({
+      loadState: 'ready',
+      roster: [activeRecord],
+      filteredRoster: [activeRecord],
+      readiness: [readinessRecord],
+    });
+
+    const fixture = TestBed.createComponent(ManageEmployeesShellComponent);
+    fixture.detectChanges();
+    const native = fixture.nativeElement as HTMLElement;
+
+    expect(native.querySelector('.employees-readiness h2')?.textContent).toContain(
+      'Assignment data contract preview',
+    );
+    expect(native.querySelector('.readiness-card__header h3')?.textContent).toContain('Alex Karam');
+    expect(native.querySelector('.readiness-card__meta')?.textContent).toContain('Scheduled jobs: 1');
+    expect(facade.trackByReadinessEmployeeId).toHaveBeenCalled();
   });
 });

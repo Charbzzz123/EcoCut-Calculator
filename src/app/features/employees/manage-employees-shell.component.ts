@@ -37,15 +37,22 @@ export class ManageEmployeesShellComponent implements OnInit {
   readonly selectedHoursTotals = this.facade.selectedHoursTotals;
   readonly editingHoursEntry = this.facade.editingHoursEntry;
   readonly hoursErrors = this.facade.hoursErrors;
+  readonly historyPanelOpen = this.facade.historyPanelOpen;
+  readonly selectedHistoryEmployee = this.facade.selectedHistoryEmployee;
+  readonly selectedEmployeeJobHistory = this.facade.selectedEmployeeJobHistory;
+  readonly selectedHistorySummary = this.facade.selectedHistorySummary;
+  readonly startNextJobReadiness = this.facade.startNextJobReadiness;
   readonly statsSnapshot = () => this.facade.statsSnapshot();
   readonly rosterSnapshot = () => this.facade.rosterSnapshot();
   readonly filteredRosterSnapshot = () => this.facade.filteredRosterSnapshot();
   readonly trackByEmployeeId = this.facade.trackByEmployeeId;
   readonly trackByHoursEntryId = this.facade.trackByHoursEntryId;
+  readonly trackByHistoryEntryId = this.facade.trackByHistoryEntryId;
+  readonly trackByReadinessEmployeeId = this.facade.trackByReadinessEmployeeId;
   readonly nextSlices = [
-    'Per-employee job history timeline for Start Next Job',
     'History totals by site and rolling 7-day/30-day views',
-    'Start Next Job readiness data contract',
+    'Start Next Job assignment board (crew picker + conflict checks)',
+    'Backend role enforcement for owner/manager permissions',
   ] as const;
 
   ngOnInit(): void {
@@ -76,8 +83,16 @@ export class ManageEmployeesShellComponent implements OnInit {
     this.facade.openHoursEditor(employeeId);
   }
 
+  protected openJobHistory(employeeId: string): void {
+    this.facade.openJobHistory(employeeId);
+  }
+
   protected closeHoursEditor(): void {
     this.facade.closeHoursEditor();
+  }
+
+  protected closeJobHistory(): void {
+    this.facade.closeJobHistory();
   }
 
   protected editHoursEntry(entryId: string): void {

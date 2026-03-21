@@ -47,3 +47,44 @@ export interface EmployeeHoursDraft {
   siteLabel: string;
   hours: string;
 }
+
+export type EmployeeJobStatus = 'scheduled' | 'completed';
+
+export interface EmployeeJobHistoryRecord {
+  id: string;
+  employeeId: string;
+  siteLabel: string;
+  address: string;
+  scheduledStart: string;
+  scheduledEnd: string;
+  hoursWorked: number;
+  status: EmployeeJobStatus;
+}
+
+export type EmployeeReadinessState = 'available' | 'scheduled' | 'inactive';
+
+export interface EmployeeAvailabilityWindow {
+  jobId: string;
+  siteLabel: string;
+  address: string;
+  startAt: string;
+  endAt: string;
+}
+
+export interface EmployeeStartNextJobReadiness {
+  employeeId: string;
+  fullName: string;
+  status: EmployeeRosterStatus;
+  readinessState: EmployeeReadinessState;
+  scheduledJobsCount: number;
+  completedJobsCount: number;
+  scheduledHours: number;
+  completedHours: number;
+  nextScheduledStart: string | null;
+  nextScheduledEnd: string | null;
+  nextAvailableAt: string | null;
+  lastCompletedAt: string | null;
+  lastCompletedSite: string | null;
+  hasScheduleConflict: boolean;
+  upcomingWindows: EmployeeAvailabilityWindow[];
+}

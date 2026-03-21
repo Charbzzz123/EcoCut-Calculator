@@ -1,5 +1,9 @@
 import { Injectable } from '@angular/core';
-import type { EmployeeHoursRecord, EmployeeRosterRecord } from './employees.types.js';
+import type {
+  EmployeeHoursRecord,
+  EmployeeJobHistoryRecord,
+  EmployeeRosterRecord,
+} from './employees.types.js';
 
 @Injectable({ providedIn: 'root' })
 export class EmployeesDataService {
@@ -88,6 +92,51 @@ export class EmployeesDataService {
         hours: 6,
         updatedByRole: 'owner',
         updatedAt: '2026-03-18T16:03:00Z',
+      },
+    ]);
+  }
+
+  async listJobHistoryEntries(): Promise<EmployeeJobHistoryRecord[]> {
+    return Promise.resolve([
+      {
+        id: 'job-karam-001',
+        employeeId: 'emp-karam',
+        siteLabel: 'Westmount Cedar Hedge',
+        address: '1450 Pine Ave W, Westmount',
+        scheduledStart: '2026-03-20T13:00:00Z',
+        scheduledEnd: '2026-03-20T17:00:00Z',
+        hoursWorked: 8,
+        status: 'completed',
+      },
+      {
+        id: 'job-karam-002',
+        employeeId: 'emp-karam',
+        siteLabel: 'NDG Maple Court',
+        address: '2331 Sherbrooke St W, Montreal',
+        scheduledStart: '2026-03-24T12:00:00Z',
+        scheduledEnd: '2026-03-24T15:00:00Z',
+        hoursWorked: 3,
+        status: 'scheduled',
+      },
+      {
+        id: 'job-maryam-001',
+        employeeId: 'emp-maryam',
+        siteLabel: 'Outremont Terrace',
+        address: '620 Av. Bloomfield, Montreal',
+        scheduledStart: '2026-03-19T12:30:00Z',
+        scheduledEnd: '2026-03-19T16:00:00Z',
+        hoursWorked: 7.5,
+        status: 'completed',
+      },
+      {
+        id: 'job-nora-001',
+        employeeId: 'emp-nora',
+        siteLabel: 'Laval Riverbend',
+        address: '4100 Boul. Daniel-Johnson, Laval',
+        scheduledStart: '2026-03-26T13:30:00Z',
+        scheduledEnd: '2026-03-26T16:30:00Z',
+        hoursWorked: 3,
+        status: 'scheduled',
       },
     ]);
   }

@@ -8,11 +8,14 @@ describe('EmployeesDataService', () => {
 
     const employees = await service.listEmployees();
     const hoursEntries = await service.listHoursEntries();
+    const jobHistory = await service.listJobHistoryEntries();
 
     expect(employees.length).toBeGreaterThan(1);
     expect(employees.some((employee) => employee.status === 'active')).toBe(true);
     expect(employees.some((employee) => employee.status === 'inactive')).toBe(true);
     expect(hoursEntries.length).toBeGreaterThan(1);
     expect(hoursEntries.every((entry) => entry.hours > 0)).toBe(true);
+    expect(jobHistory.length).toBeGreaterThan(1);
+    expect(jobHistory.some((entry) => entry.status === 'completed')).toBe(true);
   });
 });

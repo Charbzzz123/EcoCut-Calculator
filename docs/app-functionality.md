@@ -126,7 +126,7 @@
 
 ### Manage Employees Workspace (Planned)
 
-- **Current status**: route + shell live with roster search/filter, active/inactive status filtering, summary metrics, owner-safe profile create/edit/archive, and a dedicated hours editor (per-employee logs + totals).
+- **Current status**: route + shell live with roster search/filter, active/inactive status filtering, summary metrics, owner-safe profile create/edit/archive, a dedicated hours editor (per-employee logs + totals), a per-employee history timeline (site/address + scheduled windows + status + rollups), and a Start Next Job readiness contract preview panel.
 - **Primary goal**: give Owners/Managers one place to manage staff, track hours, and review employee job history before we enable full `Start Next Job` assignment flows.
 - **Roster view**
   - Search + status filters (active/inactive) with a compact, fast list.
@@ -138,9 +138,12 @@
   - Managers can update hours entries; Owners can edit all staffing/compensation fields.
   - Every hours edit records actor, timestamp, previous value, and new value.
 - **Employee job history**
-  - Per-employee timeline of assigned jobs showing site/address, date, scheduled window, and hours worked on that job.
-  - Totals rollups: jobs completed, total hours, recent locations.
+  - Per-employee timeline of assigned jobs showing site/address, date, scheduled window, status, and hours worked on that job.
+  - Totals rollups: jobs tracked, completed vs scheduled counts, total hours, and recent site summary.
   - This history becomes the data source for future assignment suggestions in `Start Next Job`.
+- **Start Next Job readiness contract**
+  - For each employee we now expose: readiness state (`available`, `scheduled`, `inactive`), upcoming scheduled windows, next scheduled slot, next available time, completed/scheduled job counts, completed/scheduled hours, last completed site/date, and overlap/conflict flag.
+  - The contract is computed in the Employees facade so future assignment screens can consume one normalized source instead of recomputing availability rules in multiple places.
 - **Permissions**
   - Owner: full control.
   - Manager: add employee + edit hours.

@@ -152,6 +152,9 @@
               }
             </p>
             <div class="employee-card__actions">
+              <button type="button" class="employee-action" (click)="openJobHistory(employee.id)">
+                History
+              </button>
               <button
                 type="button"
                 class="employee-action employee-action--primary"
@@ -362,6 +365,155 @@
                 Remove
               </button>
             </div>
+          </li>
+        }
+      </ul>
+    }
+  </article>
+
+  <article class="employees-history" aria-label="Employee job history timeline">
+    <header class="employees-history__header">
+      <div>
+        <p class="employees-history__eyebrow">Operations timeline</p>
+        <h2>Per-employee job history</h2>
+      </div>
+      @if (historyPanelOpen()) {
+        <button type="button" class="employee-action" (click)="closeJobHistory()">Close</button>
+      }
+    </header>
+
+    @if (!historyPanelOpen()) {
+      <p class="editor-placeholder">
+        Click <strong>History</strong> on an employee card to review sites, scheduled slots, and
+        job-by-job hours.
+      </p>
+    } @else {
+      <div class="history-context">
+        <p class="history-context__employee">{{ selectedHistoryEmployee()!.fullName }}</p>
+        <p class="history-context__meta">Recent site: {{ selectedHistorySummary().recentSite }}</p>
+      </div>
+
+      <section class="history-summary" aria-label="History totals">
+        <article class="summary-card">
+          <p class="summary-card__label">Jobs tracked</p>
+          <p class="summary-card__value">{{ selectedHistorySummary().jobsCount }}</p>
+        </article>
+        <article class="summary-card">
+          <p class="summary-card__label">Completed</p>
+          <p class="summary-card__value">{{ selectedHistorySummary().completedCount }}</p>
+        </article>
+        <article class="summary-card">
+          <p class="summary-card__label">Scheduled</p>
+          <p class="summary-card__value">{{ selectedHistorySummary().scheduledCount }}</p>
+        </article>
+        <article class="summary-card">
+          <p class="summary-card__label">Total hours</p>
+          <p class="summary-card__value">{{ selectedHistorySummary().totalHours }}</p>
+        </article>
+      </section>
+
+      @if (!selectedEmployeeJobHistory().length) {
+        <p class="roster-state">No job history found for this employee yet.</p>
+      } @else {
+        <ol class="history-list">
+          @for (
+            historyEntry of selectedEmployeeJobHistory();
+            track trackByHistoryEntryId($index, historyEntry)
+          ) {
+            <li class="history-card">
+              <header class="history-card__header">
+                <p class="history-card__site">{{ historyEntry.siteLabel }}</p>
+                <span
+                  class="status-chip"
+                  [class.status-chip--inactive]="historyEntry.status === 'scheduled'"
+                >
+                  {{ historyEntry.status === 'completed' ? 'Completed' : 'Scheduled' }}
+                </span>
+              </header>
+              <p class="history-card__address">{{ historyEntry.address }}</p>
+              <p class="history-card__window">
+                {{ historyEntry.scheduledStart | date: 'MMM d, y, h:mm a' }} -
+                {{ historyEntry.scheduledEnd | date: 'h:mm a' }}
+              </p>
+              <p class="history-card__hours">Hours on job: {{ historyEntry.hoursWorked }}</p>
+            </li>
+          }
+        </ol>
+      }
+    }
+  </article>
+
+  <article class="employees-readiness" aria-label="Start Next Job readiness contract">
+    <header class="employees-readiness__header">
+      <div>
+        <p class="employees-readiness__eyebrow">Start Next Job readiness</p>
+        <h2>Assignment data contract preview</h2>
+      </div>
+    </header>
+
+    @if (!startNextJobReadiness().length) {
+      <p class="roster-state">No readiness data available yet.</p>
+    } @else {
+      <ul class="readiness-list">
+        @for (
+          readiness of startNextJobReadiness();
+          track trackByReadinessEmployeeId($index, readiness)
+        ) {
+          <li class="readiness-card">
+            <header class="readiness-card__header">
+              <h3>{{ readiness.fullName }}</h3>
+              <span
+                class="status-chip"
+                [class.status-chip--inactive]="readiness.readinessState !== 'available'"
+              >
+                @if (readiness.readinessState === 'available') {
+                  Available now
+                } @else if (readiness.readinessState === 'scheduled') {
+                  On scheduled work
+                } @else {
+                  Inactive
+                }
+              </span>
+            </header>
+
+            <p class="readiness-card__meta">
+              Scheduled jobs: {{ readiness.scheduledJobsCount }} | Completed jobs:
+              {{ readiness.completedJobsCount }}
+            </p>
+            <p class="readiness-card__meta">
+              Scheduled hours: {{ readiness.scheduledHours }} | Completed hours:
+              {{ readiness.completedHours }}
+            </p>
+            <p class="readiness-card__meta">
+              Next scheduled:
+              @if (readiness.nextScheduledStart) {
+                {{ readiness.nextScheduledStart | date: 'MMM d, y, h:mm a' }}
+              } @else {
+                —
+              }
+            </p>
+            <p class="readiness-card__meta">
+              Next available:
+              @if (readiness.nextAvailableAt) {
+                {{ readiness.nextAvailableAt | date: 'MMM d, y, h:mm a' }}
+              } @else {
+                —
+              }
+            </p>
+            <p class="readiness-card__meta">
+              Last completed site:
+              @if (readiness.lastCompletedSite) {
+                {{ readiness.lastCompletedSite }}
+              } @else {
+                —
+              }
+            </p>
+
+            @if (readiness.hasScheduleConflict) {
+              <p class="readiness-card__conflict" role="status">
+                Schedule conflict detected in upcoming windows.
+              </p>
+            }
           </li>
         }
       </ul>

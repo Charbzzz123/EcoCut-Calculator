@@ -8,6 +8,8 @@
 .employees-summary,
 .employees-roster,
 .employees-hours,
+.employees-history,
+.employees-readiness,
 .employees-placeholder {
   border-radius: 1.5rem;
   border: 1px solid var(--border-soft);
@@ -335,6 +337,16 @@ h1 {
   gap: 0.9rem;
 }
 
+.employees-history {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.employees-readiness {
+  display: grid;
+  gap: 0.9rem;
+}
+
 .employees-hours__header {
   display: flex;
   justify-content: space-between;
@@ -342,7 +354,37 @@ h1 {
   gap: 0.7rem;
 }
 
+.employees-history__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.7rem;
+}
+
+.employees-readiness__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.7rem;
+}
+
 .employees-hours__eyebrow {
+  margin: 0 0 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.employees-history__eyebrow {
+  margin: 0 0 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.employees-readiness__eyebrow {
   margin: 0 0 0.35rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -411,6 +453,29 @@ h1 {
   gap: 0.8rem;
 }
 
+.history-context {
+  border-radius: 0.9rem;
+  border: 1px solid var(--border-soft);
+  background: rgba(7, 33, 24, 0.7);
+  padding: 0.7rem 0.8rem;
+}
+
+.history-context__employee {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.history-context__meta {
+  margin-top: 0.2rem;
+  color: var(--text-muted);
+}
+
+.history-summary {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
 .hours-list {
   list-style: none;
   margin: 0;
@@ -444,6 +509,91 @@ h1 {
 .hours-card__meta {
   margin-top: 0.25rem;
   color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.7rem;
+  max-height: 20rem;
+  overflow: auto;
+}
+
+.history-card {
+  border-radius: 1rem;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-card-muted);
+  padding: 0.8rem 0.9rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.history-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.history-card__site {
+  font-weight: 600;
+}
+
+.history-card__address {
+  color: var(--text-accent-soft);
+}
+
+.history-card__window,
+.history-card__hours {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.readiness-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.7rem;
+  max-height: 22rem;
+  overflow: auto;
+}
+
+.readiness-card {
+  border-radius: 1rem;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-card-muted);
+  padding: 0.8rem 0.9rem;
+  display: grid;
+  gap: 0.28rem;
+}
+
+.readiness-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.65rem;
+  align-items: baseline;
+}
+
+.readiness-card__header h3 {
+  font-size: 1.05rem;
+}
+
+.readiness-card__meta {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.readiness-card__conflict {
+  margin-top: 0.4rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border-warning);
+  background: var(--surface-warning-soft);
+  color: var(--text-warning);
+  padding: 0.45rem 0.55rem;
   font-size: 0.85rem;
 }
 
