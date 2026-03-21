@@ -413,6 +413,26 @@ describe('EmployeesFacade', () => {
     expect(facade.rosterSnapshot().some((employee) => employee.fullName === 'Maya Sarkis')).toBe(
       true,
     );
+
+    facade.openCreateProfile();
+    const createSpy = vi.spyOn(service, 'createEmployeeProfile');
+    facade.profileForm.setValue({
+      firstName: 'No',
+      lastName: 'Email',
+      phone: '(438) 555-9191',
+      email: '   ',
+      role: 'Crew support',
+      hourlyRate: '24',
+      notes: '   ',
+    });
+    await expect(facade.saveProfile()).resolves.toBe(true);
+    expect(createSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: undefined,
+        notes: undefined,
+      }),
+      'owner',
+    );
   });
 
   it('updates profile in owner mode and blocks save in manager mode', async () => {
@@ -561,6 +581,12 @@ describe('EmployeesFacade', () => {
     expect(facade.hoursErrorsSnapshot()[0]).toBe('Hours conflict. Try another slot.');
 
     vi.spyOn(service, 'createHoursEntry').mockRejectedValueOnce({ error: { message: 12 } });
+    await expect(facade.saveHoursEntry()).resolves.toBe(false);
+    expect(facade.hoursErrorsSnapshot()[0]).toBe('Unable to save hours entry.');
+
+    vi.spyOn(service, 'createHoursEntry').mockRejectedValueOnce({
+      error: { message: [1, 2] },
+    });
     await expect(facade.saveHoursEntry()).resolves.toBe(false);
     expect(facade.hoursErrorsSnapshot()[0]).toBe('Unable to save hours entry.');
   });
