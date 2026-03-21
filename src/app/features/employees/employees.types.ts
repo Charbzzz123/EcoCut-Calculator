@@ -51,6 +51,8 @@ export interface EmployeeHoursRecord {
   siteLabel: string;
   hours: number;
   source: EmployeeHoursSource;
+  assignmentId?: string | null;
+  historyEntryId?: string | null;
   clockInAt: string | null;
   clockOutAt: string | null;
   updatedByRole: EmployeeOperatorRole;
@@ -69,6 +71,13 @@ export interface EmployeeStartNextJobAssignmentPayload {
   scheduledStart: string;
   scheduledEnd: string;
   employeeIds: string[];
+}
+
+export interface EmployeeScheduledHistoryUpdatePayload {
+  siteLabel: string;
+  address: string;
+  scheduledStart: string;
+  scheduledEnd: string;
 }
 
 export interface EmployeeStartNextJobAssignmentResult {
@@ -90,7 +99,7 @@ export interface EmployeeHoursMutationPayload {
   hours: number;
 }
 
-export type EmployeeJobStatus = 'scheduled' | 'completed';
+export type EmployeeJobStatus = 'scheduled' | 'completed' | 'cancelled';
 
 export interface EmployeeJobHistoryRecord {
   id: string;
@@ -101,6 +110,7 @@ export interface EmployeeJobHistoryRecord {
   scheduledEnd: string;
   hoursWorked: number;
   status: EmployeeJobStatus;
+  assignmentId?: string | null;
 }
 
 export type EmployeeReadinessState = 'available' | 'scheduled' | 'inactive';

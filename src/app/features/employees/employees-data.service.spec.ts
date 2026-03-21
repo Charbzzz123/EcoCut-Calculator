@@ -110,6 +110,17 @@ describe('EmployeesDataService', () => {
       'owner',
     );
     const completeHistoryPromise = service.completeJobHistoryEntry('job-1', 'manager');
+    const updateSchedulePromise = service.updateScheduledHistoryEntry(
+      'job-1',
+      {
+        siteLabel: 'Morning route v2',
+        address: '1452 Pine Ave W',
+        scheduledStart: '2026-03-24T13:00:00.000Z',
+        scheduledEnd: '2026-03-24T16:00:00.000Z',
+      },
+      'manager',
+    );
+    const cancelSchedulePromise = service.cancelScheduledHistoryEntry('job-1', 'owner');
     const removeHoursPromise = service.removeHoursEntry('hours-1', 'manager');
 
     const createProfileReq = httpMock.expectOne(`${baseUrl}/roster`);
@@ -119,6 +130,8 @@ describe('EmployeesDataService', () => {
     const clockReq = httpMock.expectOne(`${baseUrl}/hours/clock`);
     const assignmentReq = httpMock.expectOne(`${baseUrl}/assignments/start-next-job`);
     const completeHistoryReq = httpMock.expectOne(`${baseUrl}/history/job-1/complete`);
+    const updateScheduleReq = httpMock.expectOne(`${baseUrl}/history/job-1/schedule`);
+    const cancelScheduleReq = httpMock.expectOne(`${baseUrl}/history/job-1/cancel`);
     const hoursByIdReqs = httpMock.match(`${baseUrl}/hours/hours-1`);
     expect(hoursByIdReqs).toHaveLength(2);
     const updateHoursReq = hoursByIdReqs.find((req) => req.request.method === 'PATCH');
@@ -131,6 +144,8 @@ describe('EmployeesDataService', () => {
     expect(clockReq.request.method).toBe('POST');
     expect(assignmentReq.request.method).toBe('POST');
     expect(completeHistoryReq.request.method).toBe('POST');
+    expect(updateScheduleReq.request.method).toBe('PATCH');
+    expect(cancelScheduleReq.request.method).toBe('POST');
     expect(updateHoursReq?.request.method).toBe('PATCH');
     expect(removeHoursReq?.request.method).toBe('DELETE');
 
@@ -141,6 +156,8 @@ describe('EmployeesDataService', () => {
     expect(clockReq.request.headers.get('x-operator-role')).toBe('manager');
     expect(assignmentReq.request.headers.get('x-operator-role')).toBe('owner');
     expect(completeHistoryReq.request.headers.get('x-operator-role')).toBe('manager');
+    expect(updateScheduleReq.request.headers.get('x-operator-role')).toBe('manager');
+    expect(cancelScheduleReq.request.headers.get('x-operator-role')).toBe('owner');
     expect(updateHoursReq?.request.headers.get('x-operator-role')).toBe('owner');
     expect(removeHoursReq?.request.headers.get('x-operator-role')).toBe('manager');
 
@@ -151,6 +168,8 @@ describe('EmployeesDataService', () => {
     clockReq.flush({ id: 'clock-1' });
     assignmentReq.flush({ assignmentId: 'assign-1', createdHistory: [], createdHours: [] });
     completeHistoryReq.flush({ id: 'job-1', status: 'completed' });
+    updateScheduleReq.flush({ id: 'job-1', status: 'scheduled' });
+    cancelScheduleReq.flush({ id: 'job-1', status: 'cancelled' });
     updateHoursReq?.flush({ id: 'hours-1' });
     removeHoursReq?.flush(null);
 
@@ -161,6 +180,8 @@ describe('EmployeesDataService', () => {
     await expect(clockInPromise).resolves.toMatchObject({ id: 'clock-1' });
     await expect(assignmentPromise).resolves.toMatchObject({ assignmentId: 'assign-1' });
     await expect(completeHistoryPromise).resolves.toMatchObject({ id: 'job-1' });
+    await expect(updateSchedulePromise).resolves.toMatchObject({ id: 'job-1' });
+    await expect(cancelSchedulePromise).resolves.toMatchObject({ id: 'job-1' });
     await expect(updateHoursPromise).resolves.toMatchObject({ id: 'hours-1' });
     await expect(removeHoursPromise).resolves.toBeUndefined();
   });

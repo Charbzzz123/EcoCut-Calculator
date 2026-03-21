@@ -55,6 +55,7 @@ const createFacadeStub = () => ({
   errorMessage: signal('Unable to load Start Next Job data right now.'),
   saveState: signal<'idle' | 'saving' | 'success' | 'error'>('idle'),
   saveMessage: signal(''),
+  editingHistoryEntryId: signal<string | null>(null),
   filteredReadiness: signal<EmployeeStartNextJobReadiness[]>([]),
   selectedCrew: signal<EmployeeStartNextJobReadiness[]>([]),
   selectedCrewConflicts: signal<CrewConflict[]>([]),
@@ -66,6 +67,12 @@ const createFacadeStub = () => ({
   loadBoard: vi.fn().mockResolvedValue(undefined),
   submitAssignment: vi.fn().mockResolvedValue(true),
   completeHistoryEntry: vi.fn().mockResolvedValue(true),
+  beginHistoryEdit: vi.fn(),
+  cancelHistoryEdit: vi.fn(),
+  submitHistoryEdit: vi.fn().mockResolvedValue(true),
+  cancelScheduledHistoryEntry: vi.fn().mockResolvedValue(true),
+  canSubmitHistoryEdit: vi.fn().mockReturnValue(true),
+  isEditingHistoryEntry: vi.fn().mockReturnValue(false),
   clearCrewSelection: vi.fn(),
   toggleEmployeeSelection: vi.fn(),
   isEmployeeSelected: vi.fn().mockReturnValue(false),
@@ -139,10 +146,22 @@ describe('StartNextJobShellComponent', () => {
     expect(facade.toggleEmployeeSelection).toHaveBeenCalledWith('emp-1');
 
     const complete = fixture.nativeElement.querySelector(
-      '.history-card__action',
+      '.history-card__actions .history-card__action',
     ) as HTMLButtonElement;
     complete.click();
+    expect(facade.beginHistoryEdit).toHaveBeenCalledWith(historyItem);
+
+    const completeButton = fixture.nativeElement.querySelectorAll(
+      '.history-card__actions .history-card__action',
+    )[1] as HTMLButtonElement;
+    completeButton.click();
     expect(facade.completeHistoryEntry).toHaveBeenCalledWith('job-1');
+
+    const cancelButton = fixture.nativeElement.querySelector(
+      '.history-card__action--danger',
+    ) as HTMLButtonElement;
+    cancelButton.click();
+    expect(facade.cancelScheduledHistoryEntry).toHaveBeenCalledWith('job-1');
   });
 
   it('renders draft-ready branch and clear crew action', () => {
@@ -174,5 +193,23 @@ describe('StartNextJobShellComponent', () => {
     expect(fixture.nativeElement.querySelector('.save-feedback')?.textContent).toContain(
       'Saving assignment',
     );
+  });
+
+  it('uses edit mode actions when a history entry is being edited', () => {
+    facade.loadState.set('ready');
+    facade.editingHistoryEntryId.set('job-1');
+    facade.canSubmitHistoryEdit.mockReturnValue(true);
+    fixture.detectChanges();
+
+    const primary = fixture.nativeElement.querySelector('.primary-btn') as HTMLButtonElement;
+    expect(primary.textContent).toContain('Save schedule update');
+    primary.click();
+    expect(facade.submitHistoryEdit).toHaveBeenCalled();
+
+    const cancelEdit = fixture.nativeElement.querySelector(
+      '.draft-actions .ghost-btn:nth-of-type(2)',
+    ) as HTMLButtonElement;
+    cancelEdit.click();
+    expect(facade.cancelHistoryEdit).toHaveBeenCalled();
   });
 });

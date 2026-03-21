@@ -366,4 +366,99 @@ describe('EmployeesService', () => {
       service.completeJobHistoryEntry('job-completed', 'owner'),
     ).rejects.toBeInstanceOf(ConflictException);
   });
+
+  it('updates scheduled assignment history and linked hours entries', async () => {
+    const created = await service.createStartNextJobAssignment(
+      {
+        jobLabel: 'Morning route',
+        address: '1450 Pine Ave W',
+        scheduledStart: '2099-03-25T09:00:00.000Z',
+        scheduledEnd: '2099-03-25T11:00:00.000Z',
+        employeeIds: ['emp-owner'],
+      },
+      'owner',
+    );
+    const entryId = created.createdHistory[0]?.id;
+    expect(entryId).toBeTruthy();
+
+    const updated = await service.updateScheduledHistoryEntry(
+      entryId,
+      {
+        siteLabel: 'Morning route updated',
+        address: '1452 Pine Ave W',
+        scheduledStart: '2099-03-25T10:00:00.000Z',
+        scheduledEnd: '2099-03-25T12:30:00.000Z',
+      },
+      'manager',
+    );
+
+    expect(updated.siteLabel).toBe('Morning route updated');
+    expect(updated.address).toBe('1452 Pine Ave W');
+    expect(updated.hoursWorked).toBe(2.5);
+
+    const linkedHours = service
+      .listHoursEntries()
+      .find((entry) => entry.historyEntryId === entryId);
+    expect(linkedHours?.siteLabel).toBe('Morning route updated');
+    expect(linkedHours?.workDate).toBe('2099-03-25');
+    expect(linkedHours?.hours).toBe(2.5);
+    expect(linkedHours?.updatedByRole).toBe('manager');
+  });
+
+  it('cancels scheduled assignment history and removes linked hours entries', async () => {
+    const created = await service.createStartNextJobAssignment(
+      {
+        jobLabel: 'Evening route',
+        address: '2200 Parc Ave',
+        scheduledStart: '2099-03-26T09:00:00.000Z',
+        scheduledEnd: '2099-03-26T10:00:00.000Z',
+        employeeIds: ['emp-owner'],
+      },
+      'owner',
+    );
+    const entryId = created.createdHistory[0]?.id;
+    const linkedHoursId = created.createdHours[0]?.id;
+
+    const cancelled = await service.cancelScheduledHistoryEntry(
+      entryId,
+      'owner',
+    );
+    expect(cancelled.status).toBe('cancelled');
+
+    expect(
+      service.listHoursEntries().some((entry) => entry.id === linkedHoursId),
+    ).toBe(false);
+  });
+
+  it('rejects invalid scheduled history edit/cancel transitions', async () => {
+    await expect(
+      service.updateScheduledHistoryEntry(
+        'job-completed',
+        {
+          siteLabel: 'x',
+          address: 'y',
+          scheduledStart: '2099-03-25T11:00:00.000Z',
+          scheduledEnd: '2099-03-25T10:00:00.000Z',
+        },
+        'owner',
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    await expect(
+      service.cancelScheduledHistoryEntry('job-completed', 'owner'),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    await expect(
+      service.updateScheduledHistoryEntry(
+        'missing-entry',
+        {
+          siteLabel: 'x',
+          address: 'y',
+          scheduledStart: '2099-03-25T09:00:00.000Z',
+          scheduledEnd: '2099-03-25T10:00:00.000Z',
+        },
+        'owner',
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
 });

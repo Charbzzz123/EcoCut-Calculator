@@ -10,6 +10,7 @@ import type { CreateEmployeeDto } from './dto/create-employee.dto';
 import type { CreateClockActionDto } from './dto/create-clock-action.dto';
 import type { CreateHoursEntryDto } from './dto/create-hours-entry.dto';
 import type { CreateStartNextJobAssignmentDto } from './dto/create-start-next-job-assignment.dto';
+import type { UpdateScheduledHistoryDto } from './dto/update-scheduled-history.dto';
 import type { UpdateEmployeeDto } from './dto/update-employee.dto';
 import type { UpdateHoursEntryDto } from './dto/update-hours-entry.dto';
 import { EmployeesRepository } from './employees.repository';
@@ -219,15 +220,18 @@ export class EmployeesService implements OnModuleInit {
       scheduledEnd: normalized.scheduledEnd,
       hoursWorked: durationHours,
       status: 'scheduled' as const,
+      assignmentId,
     }));
 
-    const createdHours = normalized.employeeIds.map((employeeId, index) => ({
+    const createdHours = createdHistory.map((entry, index) => ({
       id: `${assignmentId}-hours-${index + 1}`,
-      employeeId,
+      employeeId: entry.employeeId,
       workDate: normalized.scheduledStart.slice(0, 10),
       siteLabel: normalized.jobLabel,
       hours: durationHours,
       source: 'assignment' as const,
+      assignmentId,
+      historyEntryId: entry.id,
       clockInAt: null,
       clockOutAt: null,
       updatedByRole: actorRole,
@@ -289,6 +293,138 @@ export class EmployeesService implements OnModuleInit {
     };
     await this.persistSnapshot();
     return completed;
+  }
+
+  async updateScheduledHistoryEntry(
+    entryId: string,
+    payload: UpdateScheduledHistoryDto,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeJobHistoryRecord> {
+    this.assertOwnerOrManager(actorRole);
+    const existing = this.snapshot.history.find(
+      (entry) => entry.id === entryId,
+    );
+    if (!existing) {
+      throw new NotFoundException(`Job history entry "${entryId}" not found.`);
+    }
+    if (existing.status !== 'scheduled') {
+      throw new ConflictException(
+        `Only scheduled entries can be edited (entry "${entryId}").`,
+      );
+    }
+
+    const normalized = this.normalizeScheduledHistoryPatch(payload);
+    const updated: EmployeeJobHistoryRecord = {
+      ...existing,
+      siteLabel: normalized.siteLabel ?? existing.siteLabel,
+      address: normalized.address ?? existing.address,
+      scheduledStart: normalized.scheduledStart ?? existing.scheduledStart,
+      scheduledEnd: normalized.scheduledEnd ?? existing.scheduledEnd,
+    };
+    this.validateScheduledHistoryWindow(updated);
+
+    const conflictingEntry = this.snapshot.history.find(
+      (entry) =>
+        entry.id !== entryId &&
+        entry.employeeId === existing.employeeId &&
+        entry.status === 'scheduled' &&
+        overlapsRange(
+          toTimestamp(updated.scheduledStart),
+          toTimestamp(updated.scheduledEnd),
+          toTimestamp(entry.scheduledStart),
+          toTimestamp(entry.scheduledEnd),
+        ),
+    );
+    if (conflictingEntry) {
+      throw new ConflictException(
+        `Updated schedule overlaps "${conflictingEntry.siteLabel}".`,
+      );
+    }
+
+    const now = new Date().toISOString();
+    const durationHours = Math.max(
+      0.25,
+      Math.round(
+        ((toTimestamp(updated.scheduledEnd) -
+          toTimestamp(updated.scheduledStart)) /
+          3_600_000) *
+          4,
+      ) / 4,
+    );
+    const linkedHoursIds = this.findLinkedAssignmentHoursEntryIds(existing);
+
+    this.snapshot = {
+      ...this.snapshot,
+      history: this.snapshot.history.map((entry) =>
+        entry.id === entryId
+          ? { ...updated, hoursWorked: durationHours }
+          : entry,
+      ),
+      hours: this.snapshot.hours.map((entry) =>
+        linkedHoursIds.has(entry.id)
+          ? {
+              ...entry,
+              workDate: updated.scheduledStart.slice(0, 10),
+              siteLabel: updated.siteLabel,
+              hours: durationHours,
+              updatedByRole: actorRole,
+              updatedAt: now,
+            }
+          : entry,
+      ),
+      roster: this.snapshot.roster.map((employee) =>
+        employee.id === existing.employeeId
+          ? { ...employee, lastActivityAt: now }
+          : employee,
+      ),
+    };
+    await this.persistSnapshot();
+    return {
+      ...updated,
+      hoursWorked: durationHours,
+    };
+  }
+
+  async cancelScheduledHistoryEntry(
+    entryId: string,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeJobHistoryRecord> {
+    this.assertOwnerOrManager(actorRole);
+    const existing = this.snapshot.history.find(
+      (entry) => entry.id === entryId,
+    );
+    if (!existing) {
+      throw new NotFoundException(`Job history entry "${entryId}" not found.`);
+    }
+    if (existing.status !== 'scheduled') {
+      throw new ConflictException(
+        `Only scheduled entries can be cancelled (entry "${entryId}").`,
+      );
+    }
+
+    const cancelled: EmployeeJobHistoryRecord = {
+      ...existing,
+      status: 'cancelled',
+    };
+    const linkedHoursIds = this.findLinkedAssignmentHoursEntryIds(existing);
+    const now = new Date().toISOString();
+
+    this.snapshot = {
+      ...this.snapshot,
+      history: this.snapshot.history.map((entry) =>
+        entry.id === entryId ? cancelled : entry,
+      ),
+      hours: this.snapshot.hours.filter(
+        (entry) => !linkedHoursIds.has(entry.id),
+      ),
+      roster: this.snapshot.roster.map((employee) =>
+        employee.id === existing.employeeId
+          ? { ...employee, lastActivityAt: now }
+          : employee,
+      ),
+    };
+    await this.persistSnapshot();
+    return cancelled;
   }
 
   async createEmployeeProfile(
@@ -659,8 +795,14 @@ export class EmployeesService implements OnModuleInit {
       hours: snapshot.hours.map((entry) => ({
         ...entry,
         source: entry.source ?? 'manual',
+        assignmentId: entry.assignmentId ?? null,
+        historyEntryId: entry.historyEntryId ?? null,
         clockInAt: entry.clockInAt ?? null,
         clockOutAt: entry.clockOutAt ?? null,
+      })),
+      history: snapshot.history.map((entry) => ({
+        ...entry,
+        assignmentId: entry.assignmentId ?? null,
       })),
     };
   }
@@ -766,6 +908,74 @@ export class EmployeesService implements OnModuleInit {
       return '';
     }
     return new Date(parsed).toISOString();
+  }
+
+  private normalizeScheduledHistoryPatch(
+    payload: UpdateScheduledHistoryDto,
+  ): UpdateScheduledHistoryDto {
+    return {
+      siteLabel: payload.siteLabel?.trim(),
+      address: payload.address?.trim(),
+      scheduledStart: payload.scheduledStart
+        ? this.toIsoDateTime(payload.scheduledStart)
+        : undefined,
+      scheduledEnd: payload.scheduledEnd
+        ? this.toIsoDateTime(payload.scheduledEnd)
+        : undefined,
+    };
+  }
+
+  private validateScheduledHistoryWindow(
+    entry: EmployeeJobHistoryRecord,
+  ): void {
+    if (!entry.siteLabel.trim() || !entry.address.trim()) {
+      throw new BadRequestException(
+        'Scheduled entry requires site label and address.',
+      );
+    }
+    const startTimestamp = toTimestamp(entry.scheduledStart);
+    const endTimestamp = toTimestamp(entry.scheduledEnd);
+    if (!startTimestamp || !endTimestamp) {
+      throw new BadRequestException(
+        'Scheduled start/end must be valid datetimes.',
+      );
+    }
+    if (endTimestamp <= startTimestamp) {
+      throw new BadRequestException(
+        'Scheduled end must be after scheduled start.',
+      );
+    }
+  }
+
+  private findLinkedAssignmentHoursEntryIds(
+    entry: EmployeeJobHistoryRecord,
+  ): Set<string> {
+    const linkedIds = new Set<string>();
+    const legacyHoursId = entry.id.includes('-history-')
+      ? entry.id.replace('-history-', '-hours-')
+      : null;
+    for (const hoursEntry of this.snapshot.hours) {
+      if (hoursEntry.source !== 'assignment') {
+        continue;
+      }
+      if (hoursEntry.historyEntryId === entry.id) {
+        linkedIds.add(hoursEntry.id);
+        continue;
+      }
+      if (
+        entry.assignmentId &&
+        hoursEntry.assignmentId === entry.assignmentId
+      ) {
+        if (hoursEntry.employeeId === entry.employeeId) {
+          linkedIds.add(hoursEntry.id);
+        }
+        continue;
+      }
+      if (legacyHoursId && hoursEntry.id === legacyHoursId) {
+        linkedIds.add(hoursEntry.id);
+      }
+    }
+    return linkedIds;
   }
 
   private computeReadiness(

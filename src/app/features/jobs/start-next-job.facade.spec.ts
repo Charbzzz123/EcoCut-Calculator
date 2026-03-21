@@ -12,7 +12,11 @@ class EmployeesDataServiceStub {
   shouldFail = false;
   shouldFailCreate = false;
   shouldFailComplete = false;
+  shouldFailUpdate = false;
+  shouldFailCancel = false;
   completeCalls: string[] = [];
+  updateCalls: string[] = [];
+  cancelCalls: string[] = [];
 
   async listStartNextJobReadiness(): Promise<EmployeeStartNextJobReadiness[]> {
     if (this.shouldFail) {
@@ -64,6 +68,48 @@ class EmployeesDataServiceStub {
       scheduledEnd: '2026-03-21T17:00:00.000Z',
       hoursWorked: 3,
       status: 'completed' as const,
+    };
+  }
+
+  async updateScheduledHistoryEntry(
+    entryId: string,
+    payload: {
+      siteLabel: string;
+      address: string;
+      scheduledStart: string;
+      scheduledEnd: string;
+    },
+  ) {
+    this.updateCalls.push(entryId);
+    if (this.shouldFailUpdate) {
+      throw new Error('update-failure');
+    }
+    return {
+      id: entryId,
+      employeeId: 'emp-b',
+      siteLabel: payload.siteLabel,
+      address: payload.address,
+      scheduledStart: payload.scheduledStart,
+      scheduledEnd: payload.scheduledEnd,
+      hoursWorked: 2,
+      status: 'scheduled' as const,
+    };
+  }
+
+  async cancelScheduledHistoryEntry(entryId: string) {
+    this.cancelCalls.push(entryId);
+    if (this.shouldFailCancel) {
+      throw new Error('cancel-failure');
+    }
+    return {
+      id: entryId,
+      employeeId: 'emp-b',
+      siteLabel: 'Downtown',
+      address: '2 Main St',
+      scheduledStart: '2026-03-21T14:00:00.000Z',
+      scheduledEnd: '2026-03-21T17:00:00.000Z',
+      hoursWorked: 3,
+      status: 'cancelled' as const,
     };
   }
 }
@@ -350,5 +396,56 @@ describe('StartNextJobFacade', () => {
     await expect(facade.completeHistoryEntry('hist-2')).resolves.toBe(false);
     expect(facade.saveState()).toBe('error');
     expect(facade.saveMessage()).toBe('Unable to mark assignment as completed right now.');
+  });
+
+  it('starts and submits history edit mode', async () => {
+    await facade.loadBoard();
+    const entry = {
+      ...mockHistory[1],
+      employeeName: 'Bruno East',
+    };
+    facade.beginHistoryEdit(entry);
+
+    expect(facade.editingHistoryEntryId()).toBe('hist-2');
+    expect(facade.jobLabelControl.value).toBe('Downtown');
+    expect(facade.addressControl.value).toBe('2 Main St');
+    expect(facade.canSubmitHistoryEdit()).toBe(true);
+
+    await expect(facade.submitHistoryEdit('manager')).resolves.toBe(true);
+    expect(dataService.updateCalls).toEqual(['hist-2']);
+    expect(facade.editingHistoryEntryId()).toBeNull();
+    expect(facade.saveState()).toBe('success');
+    expect(facade.saveMessage()).toBe('Schedule updated.');
+  });
+
+  it('surfaces history edit failures', async () => {
+    await facade.loadBoard();
+    dataService.shouldFailUpdate = true;
+    facade.beginHistoryEdit({
+      ...mockHistory[1],
+      employeeName: 'Bruno East',
+    });
+
+    await expect(facade.submitHistoryEdit()).resolves.toBe(false);
+    expect(facade.saveState()).toBe('error');
+    expect(facade.saveMessage()).toBe('Unable to update the schedule right now.');
+  });
+
+  it('cancels scheduled history entries and refreshes board', async () => {
+    await facade.loadBoard();
+    await expect(facade.cancelScheduledHistoryEntry('hist-2', 'manager')).resolves.toBe(true);
+
+    expect(dataService.cancelCalls).toEqual(['hist-2']);
+    expect(facade.saveState()).toBe('success');
+    expect(facade.saveMessage()).toBe('Scheduled assignment cancelled.');
+  });
+
+  it('surfaces cancellation failures', async () => {
+    await facade.loadBoard();
+    dataService.shouldFailCancel = true;
+
+    await expect(facade.cancelScheduledHistoryEntry('hist-2')).resolves.toBe(false);
+    expect(facade.saveState()).toBe('error');
+    expect(facade.saveMessage()).toBe('Unable to cancel the scheduled assignment right now.');
   });
 });

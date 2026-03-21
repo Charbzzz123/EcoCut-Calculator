@@ -12,6 +12,7 @@ import type { CreateEmployeeDto } from './dto/create-employee.dto';
 import type { CreateClockActionDto } from './dto/create-clock-action.dto';
 import type { CreateHoursEntryDto } from './dto/create-hours-entry.dto';
 import type { CreateStartNextJobAssignmentDto } from './dto/create-start-next-job-assignment.dto';
+import type { UpdateScheduledHistoryDto } from './dto/update-scheduled-history.dto';
 import type { UpdateEmployeeDto } from './dto/update-employee.dto';
 import type { UpdateHoursEntryDto } from './dto/update-hours-entry.dto';
 import { EmployeesService } from './employees.service';
@@ -139,6 +140,30 @@ export class EmployeesController {
     @Headers('x-operator-role') operatorRole?: string,
   ) {
     return this.employees.completeJobHistoryEntry(
+      entryId,
+      this.parseOperatorRole(operatorRole),
+    );
+  }
+
+  @Patch('history/:entryId/schedule')
+  updateScheduledHistoryEntry(
+    @Param('entryId') entryId: string,
+    @Body() body: UpdateScheduledHistoryDto,
+    @Headers('x-operator-role') operatorRole?: string,
+  ) {
+    return this.employees.updateScheduledHistoryEntry(
+      entryId,
+      body,
+      this.parseOperatorRole(operatorRole),
+    );
+  }
+
+  @Post('history/:entryId/cancel')
+  cancelScheduledHistoryEntry(
+    @Param('entryId') entryId: string,
+    @Headers('x-operator-role') operatorRole?: string,
+  ) {
+    return this.employees.cancelScheduledHistoryEntry(
       entryId,
       this.parseOperatorRole(operatorRole),
     );

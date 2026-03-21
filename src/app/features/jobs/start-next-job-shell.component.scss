@@ -253,6 +253,23 @@
   background: rgba(17, 58, 45, 0.85);
 }
 
+.history-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: flex-end;
+}
+
+.history-card__actions .history-card__action {
+  margin-top: 0;
+}
+
+.history-card__action--danger {
+  border-color: rgba(222, 118, 118, 0.45);
+  background: rgba(52, 23, 23, 0.82);
+  color: #ffd7d7;
+}
+
 .history-card__action[disabled] {
   opacity: 0.6;
 }

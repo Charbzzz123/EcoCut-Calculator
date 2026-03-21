@@ -16,6 +16,8 @@ describe('EmployeesController', () => {
   const removeHoursEntry = jest.fn();
   const createStartNextJobAssignment = jest.fn();
   const completeJobHistoryEntry = jest.fn();
+  const updateScheduledHistoryEntry = jest.fn();
+  const cancelScheduledHistoryEntry = jest.fn();
 
   const createController = async (): Promise<EmployeesController> => {
     const moduleRef = await Test.createTestingModule({
@@ -37,6 +39,8 @@ describe('EmployeesController', () => {
             removeHoursEntry,
             createStartNextJobAssignment,
             completeJobHistoryEntry,
+            updateScheduledHistoryEntry,
+            cancelScheduledHistoryEntry,
           },
         },
       ],
@@ -77,6 +81,8 @@ describe('EmployeesController', () => {
       assignmentId: 'assign-1',
     });
     completeJobHistoryEntry.mockResolvedValue({ id: 'job-1' });
+    updateScheduledHistoryEntry.mockResolvedValue({ id: 'job-1' });
+    cancelScheduledHistoryEntry.mockResolvedValue({ id: 'job-1' });
 
     await controller.createEmployeeProfile(
       {
@@ -123,6 +129,17 @@ describe('EmployeesController', () => {
       'manager',
     );
     await controller.completeJobHistoryEntry('job-1', 'manager');
+    await controller.updateScheduledHistoryEntry(
+      'job-1',
+      {
+        siteLabel: 'Morning route v2',
+        address: '1452 Pine Ave W',
+        scheduledStart: '2026-03-24T13:00:00.000Z',
+        scheduledEnd: '2026-03-24T16:00:00.000Z',
+      },
+      'manager',
+    );
+    await controller.cancelScheduledHistoryEntry('job-1', 'manager');
 
     expect(createEmployeeProfile).toHaveBeenCalledWith(
       expect.any(Object),
@@ -162,6 +179,20 @@ describe('EmployeesController', () => {
       'manager',
     );
     expect(completeJobHistoryEntry).toHaveBeenCalledWith('job-1', 'manager');
+    expect(updateScheduledHistoryEntry).toHaveBeenCalledWith(
+      'job-1',
+      {
+        siteLabel: 'Morning route v2',
+        address: '1452 Pine Ave W',
+        scheduledStart: '2026-03-24T13:00:00.000Z',
+        scheduledEnd: '2026-03-24T16:00:00.000Z',
+      },
+      'manager',
+    );
+    expect(cancelScheduledHistoryEntry).toHaveBeenCalledWith(
+      'job-1',
+      'manager',
+    );
   });
 
   it('defaults unknown role headers to owner', async () => {

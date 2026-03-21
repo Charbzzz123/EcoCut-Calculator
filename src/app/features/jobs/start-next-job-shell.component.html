@@ -55,16 +55,35 @@
       <button type="button" class="ghost-btn" (click)="facade.clearCrewSelection()">
         Clear crew selection
       </button>
+      @if (facade.editingHistoryEntryId()) {
+        <button type="button" class="ghost-btn" (click)="facade.cancelHistoryEdit()">
+          Cancel edit
+        </button>
+      }
       <button
         type="button"
         class="primary-btn"
-        [disabled]="!facade.draftValidation().isReady || facade.saveState() === 'saving'"
-        (click)="facade.submitAssignment()"
+        [disabled]="
+          (facade.editingHistoryEntryId()
+            ? !facade.canSubmitHistoryEdit()
+            : !facade.draftValidation().isReady) || facade.saveState() === 'saving'
+        "
+        (click)="
+          facade.editingHistoryEntryId() ? facade.submitHistoryEdit() : facade.submitAssignment()
+        "
       >
         @if (facade.saveState() === 'saving') {
-          Saving assignment...
+          @if (facade.editingHistoryEntryId()) {
+            Saving schedule...
+          } @else {
+            Saving assignment...
+          }
         } @else {
-          Save assignment
+          @if (facade.editingHistoryEntryId()) {
+            Save schedule update
+          } @else {
+            Save assignment
+          }
         }
       </button>
     </div>
@@ -216,14 +235,36 @@
             </p>
             <p class="history-card__meta">{{ item.status }} | {{ item.hoursWorked }}h</p>
             @if (item.status === 'scheduled') {
-              <button
-                type="button"
-                class="history-card__action"
-                [disabled]="facade.saveState() === 'saving'"
-                (click)="facade.completeHistoryEntry(item.id)"
-              >
-                Mark completed
-              </button>
+              <div class="history-card__actions">
+                <button
+                  type="button"
+                  class="history-card__action"
+                  [disabled]="facade.saveState() === 'saving'"
+                  (click)="facade.beginHistoryEdit(item)"
+                >
+                  @if (facade.isEditingHistoryEntry(item.id)) {
+                    Editing
+                  } @else {
+                    Edit schedule
+                  }
+                </button>
+                <button
+                  type="button"
+                  class="history-card__action"
+                  [disabled]="facade.saveState() === 'saving'"
+                  (click)="facade.completeHistoryEntry(item.id)"
+                >
+                  Mark completed
+                </button>
+                <button
+                  type="button"
+                  class="history-card__action history-card__action--danger"
+                  [disabled]="facade.saveState() === 'saving'"
+                  (click)="facade.cancelScheduledHistoryEntry(item.id)"
+                >
+                  Cancel assignment
+                </button>
+              </div>
             }
           </li>
         }

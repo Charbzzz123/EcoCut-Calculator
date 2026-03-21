@@ -2,7 +2,7 @@ export type EmployeeRosterStatus = 'active' | 'inactive';
 
 export type EmployeeOperatorRole = 'owner' | 'manager';
 
-export type EmployeeJobStatus = 'scheduled' | 'completed';
+export type EmployeeJobStatus = 'scheduled' | 'completed' | 'cancelled';
 
 export type EmployeeReadinessState = 'available' | 'scheduled' | 'inactive';
 
@@ -31,6 +31,8 @@ export interface EmployeeHoursRecord {
   siteLabel: string;
   hours: number;
   source: EmployeeHoursSource;
+  assignmentId?: string | null;
+  historyEntryId?: string | null;
   clockInAt: string | null;
   clockOutAt: string | null;
   updatedByRole: EmployeeOperatorRole;
@@ -46,6 +48,7 @@ export interface EmployeeJobHistoryRecord {
   scheduledEnd: string;
   hoursWorked: number;
   status: EmployeeJobStatus;
+  assignmentId?: string | null;
 }
 
 export interface EmployeeAvailabilityWindow {

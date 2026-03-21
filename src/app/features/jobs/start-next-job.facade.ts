@@ -31,6 +31,11 @@ const overlapsRange = (
   endB: number,
 ): boolean => startA < endB && endA > startB;
 const toIsoDateTime = (value: string): string => new Date(value).toISOString();
+const toDateTimeLocal = (value: string): string => {
+  const date = new Date(value);
+  const pad = (segment: number): string => segment.toString().padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
 
 @Injectable()
 export class StartNextJobFacade {
@@ -48,6 +53,7 @@ export class StartNextJobFacade {
   readonly errorMessage = signal('');
   readonly saveState = signal<StartNextJobSaveState>('idle');
   readonly saveMessage = signal('');
+  readonly editingHistoryEntryId = signal<string | null>(null);
 
   private readonly readinessSignal = signal<EmployeeStartNextJobReadiness[]>([]);
   private readonly historySignal = signal<EmployeeJobHistoryRecord[]>([]);
@@ -195,6 +201,102 @@ export class StartNextJobFacade {
     } catch {
       this.saveState.set('error');
       this.saveMessage.set('Unable to save assignment right now.');
+      return false;
+    }
+  }
+
+  beginHistoryEdit(entry: SelectedCrewHistoryItem): void {
+    if (entry.status !== 'scheduled') {
+      return;
+    }
+    this.editingHistoryEntryId.set(entry.id);
+    this.jobLabelControl.setValue(entry.siteLabel, { emitEvent: false });
+    this.addressControl.setValue(entry.address, { emitEvent: false });
+    this.scheduledStartControl.setValue(toDateTimeLocal(entry.scheduledStart), {
+      emitEvent: false,
+    });
+    this.scheduledEndControl.setValue(toDateTimeLocal(entry.scheduledEnd), {
+      emitEvent: false,
+    });
+    this.saveState.set('idle');
+    this.saveMessage.set('');
+  }
+
+  cancelHistoryEdit(): void {
+    this.editingHistoryEntryId.set(null);
+    this.clearSaveFeedback();
+  }
+
+  isEditingHistoryEntry(entryId: string): boolean {
+    return this.editingHistoryEntryId() === entryId;
+  }
+
+  canSubmitHistoryEdit(): boolean {
+    if (!this.editingHistoryEntryId()) {
+      return false;
+    }
+    if (!this.jobLabelControl.value.trim() || !this.addressControl.value.trim()) {
+      return false;
+    }
+    const startTimestamp = toTimestamp(this.scheduledStartControl.value);
+    const endTimestamp = toTimestamp(this.scheduledEndControl.value);
+    if (!startTimestamp || !endTimestamp) {
+      return false;
+    }
+    return endTimestamp > startTimestamp;
+  }
+
+  async submitHistoryEdit(actorRole: EmployeeOperatorRole = 'owner'): Promise<boolean> {
+    const entryId = this.editingHistoryEntryId();
+    if (!entryId || !this.canSubmitHistoryEdit()) {
+      this.saveState.set('error');
+      this.saveMessage.set('Provide a valid schedule update before saving.');
+      return false;
+    }
+
+    this.saveState.set('saving');
+    this.saveMessage.set('Saving schedule update...');
+    try {
+      await this.employeesData.updateScheduledHistoryEntry(
+        entryId,
+        {
+          siteLabel: this.jobLabelControl.value.trim(),
+          address: this.addressControl.value.trim(),
+          scheduledStart: toIsoDateTime(this.scheduledStartControl.value),
+          scheduledEnd: toIsoDateTime(this.scheduledEndControl.value),
+        },
+        actorRole,
+      );
+      this.editingHistoryEntryId.set(null);
+      this.saveState.set('success');
+      this.saveMessage.set('Schedule updated.');
+      await this.loadBoard();
+      return true;
+    } catch {
+      this.saveState.set('error');
+      this.saveMessage.set('Unable to update the schedule right now.');
+      return false;
+    }
+  }
+
+  async cancelScheduledHistoryEntry(
+    entryId: string,
+    actorRole: EmployeeOperatorRole = 'owner',
+  ): Promise<boolean> {
+    this.saveState.set('saving');
+    this.saveMessage.set('Cancelling scheduled assignment...');
+    try {
+      await this.employeesData.cancelScheduledHistoryEntry(entryId, actorRole);
+      if (this.editingHistoryEntryId() === entryId) {
+        this.editingHistoryEntryId.set(null);
+      }
+      this.saveState.set('success');
+      this.saveMessage.set('Scheduled assignment cancelled.');
+      await this.loadBoard();
+      return true;
+    } catch {
+      this.saveState.set('error');
+      this.saveMessage.set('Unable to cancel the scheduled assignment right now.');
       return false;
     }
   }
