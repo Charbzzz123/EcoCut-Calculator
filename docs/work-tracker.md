@@ -6,6 +6,7 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 | Task                                                                 | Done       | Notes                                                                                                                                                                                                                                                                     |
 | -------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Manage Employees Phase ME-7 tests/docs/rollout checklist             | 2026-03-21 | Re-ran quality gates after backend employee typing fixes (`npm run lint:workspace`, `npm run test:ci`, `npm run build`, and `cd server && npm run check`) and synced functional/technical docs so the employee workspace status reflects the shipped backend wiring.      |
 | Manage Employees coverage hardening for API wiring edge cases        | 2026-03-21 | Added facade/shell regression specs for backend mutation failures, fallback API message parsing, readiness fallback rendering, empty-history + scheduled-history UI states, and optional payload normalization branches so backend-wired behavior stays stable.           |
 | Manage Employees frontend wiring to backend employees API            | 2026-03-21 | Replaced seeded `EmployeesDataService` data with `/api/employees/*` HTTP calls (roster/hours/history/readiness plus profile/hours mutations) and forwarded operator-role headers so backend permission rules apply to live UI actions.                                    |
 | Manage Employees Phase ME-4 backend role permissions API             | 2026-03-21 | Added Nest `employees` module (`/employees/roster`, `/employees/hours`, `/employees/history`, `/employees/readiness`) with owner/manager permission enforcement on profile/hours mutations and persisted employee snapshot storage.                                       |
@@ -73,9 +74,9 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 ## In Progress / Backlog
 
-| Step | Task                               | Owner | Notes                                                                                                                        |
-| ---- | ---------------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------- |
-| ME-7 | Tests, docs, and rollout checklist | —     | Keep >=99% per-file coverage target (100% preferred), update docs + tracker after each slice, and run lint/test/build gates. |
+| Step | Task             | Owner | Notes                                                                                                                     |
+| ---- | ---------------- | ----- | ------------------------------------------------------------------------------------------------------------------------- |
+| —    | _None right now_ | —     | Manage Employees ME-1 through ME-7 and Broadcast rollout phases are completed; add new items here when next slice starts. |
 
 ### Broadcast Requirements (locked for implementation)
 

@@ -154,8 +154,8 @@ All frontend services derive their HTTP targets from `environment.apiBaseUrl`, s
 - Replace placeholder Angular template with real calculator components.
 - Extend the `/clients` view into a full CRM (client detail drawer, job history timeline, edit/delete hooks) once backend persistence is durable.
 - Continue `/communications/broadcast` rollout in remaining slices: campaign history UI and final rollout checklist/integration hardening.
-- Continue `/employees/manage` implementation beyond the scaffold (roster, profile editor, permissions-aware hours workflow, and per-employee job history timeline).
-- Reuse employee history + availability contracts inside the upcoming `Start Next Job` flow so assignment logic stays centralized.
+- Build the `Start Next Job` assignment board on top of `/employees/readiness` + `/employees/history` so crew selection, conflict checks, and availability windows stay centralized.
+- Add employee clock-in/clock-out write flows that feed `/employees/hours` and eventually annotate history entries per site/job for payroll reconciliation.
 - Automate documentation publishing (Docs site or wiki) once scope grows.
 
 ## Durable Persistence

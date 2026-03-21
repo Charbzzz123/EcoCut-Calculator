@@ -124,7 +124,7 @@
   - All forms must surface validation errors inline plus summary banner.
   - Provide search/filter on each catalog screen for speed with large datasets.
 
-### Manage Employees Workspace (Planned)
+### Manage Employees Workspace (Current Release)
 
 - **Current status**: route + shell live with roster search/filter, active/inactive status filtering, summary metrics, owner-safe profile create/edit/archive, a dedicated hours editor (per-employee logs + totals), a per-employee history timeline (site/address + scheduled windows + status + rollups), and a Start Next Job readiness contract preview panel, all backed by `/employees` API data instead of static seed-only frontend state.
 - **Primary goal**: give Owners/Managers one place to manage staff, track hours, and review employee job history before we enable full `Start Next Job` assignment flows.
