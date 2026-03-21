@@ -6,6 +6,7 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 | Task                                                                 | Done       | Notes                                                                                                                                                                                                                                                                      |
 | -------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Manage Employees Phase ME-17 assignment analytics export             | 2026-03-21 | Added CSV export from Start Next Job Step 2 so schedulers can download selected-crew analytics plus underlying history rows (status/hours/site windows) for reporting and handoff without leaving the board.                                                               |
 | Manage Employees Phase ME-16 assignment analytics panel              | 2026-03-21 | Added Start Next Job analytics in Step 2 (tracked/scheduled/completed/cancelled counts, total/average hours, completion/cancellation rates, and unique sites) powered by selected crew history so schedulers get fast operational context before dispatch.                 |
 | Manage Employees Phase ME-15 optimistic reconciliation flow          | 2026-03-21 | Updated Start Next Job mutations to patch scheduled history/readiness in-place (single + bulk complete/cancel/reassign + schedule edits) with rollback on API failure, so the board no longer relies on full reloads after every action.                                   |
 | Manage Employees Phase ME-14 bulk scheduled lifecycle actions        | 2026-03-21 | Added Start Next Job bulk-selection controls so operators can select multiple scheduled history rows and run complete/cancel actions in one pass, with partial-failure feedback and selection state that stays in sync after refreshes.                                    |
@@ -85,7 +86,7 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 | Step | Task                                      | Owner | Notes                                                                     |
 | ---- | ----------------------------------------- | ----- | ------------------------------------------------------------------------- |
-| —    | No open Manage Employees slices right now | —     | ME-1 through ME-16 are complete. Add new rows when the next phase starts. |
+| —    | No open Manage Employees slices right now | —     | ME-1 through ME-17 are complete. Add new rows when the next phase starts. |
 
 ### Broadcast Requirements (locked for implementation)
 

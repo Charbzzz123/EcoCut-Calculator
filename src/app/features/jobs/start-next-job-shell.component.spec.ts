@@ -79,6 +79,8 @@ const createFacadeStub = () => ({
     cancellationRate: 0,
     uniqueSites: 0,
   }),
+  canExportAssignmentAnalytics: signal(false),
+  createAssignmentAnalyticsExport: vi.fn().mockReturnValue(null),
   loadBoard: vi.fn().mockResolvedValue(undefined),
   submitAssignment: vi.fn().mockResolvedValue(true),
   completeHistoryEntry: vi.fn().mockResolvedValue(true),
@@ -107,6 +109,10 @@ const createFacadeStub = () => ({
 describe('StartNextJobShellComponent', () => {
   let fixture: ComponentFixture<StartNextJobShellComponent>;
   let facade: ReturnType<typeof createFacadeStub>;
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
 
   beforeEach(async () => {
     facade = createFacadeStub();
@@ -166,6 +172,12 @@ describe('StartNextJobShellComponent', () => {
       cancellationRate: 0,
       uniqueSites: 1,
     });
+    facade.canExportAssignmentAnalytics.set(true);
+    facade.createAssignmentAnalyticsExport.mockReturnValue({
+      filename: 'start-next-job-assignment-analytics-2026-03-21.csv',
+      csvContent: 'Metric,Value',
+      rowCount: 1,
+    });
     facade.draftValidation.set({ isReady: false, blockingReasons: ['Resolve conflicts'] });
     facade.isEmployeeSelected.mockReturnValue(true);
     facade.getReadinessPill.mockReturnValue({ text: 'Scheduled', state: 'scheduled' });
@@ -210,6 +222,62 @@ describe('StartNextJobShellComponent', () => {
     ) as HTMLButtonElement;
     cancelButton.click();
     expect(facade.cancelScheduledHistoryEntry).toHaveBeenCalledWith('job-1');
+
+    const exportButton = fixture.nativeElement.querySelector(
+      '.analytics-panel__export-btn',
+    ) as HTMLButtonElement;
+    expect(exportButton.disabled).toBe(false);
+  });
+
+  it('keeps analytics export button disabled when no selected history exists', () => {
+    facade.loadState.set('ready');
+    facade.canExportAssignmentAnalytics.set(false);
+    fixture.detectChanges();
+
+    const exportButton = fixture.nativeElement.querySelector(
+      '.analytics-panel__export-btn',
+    ) as HTMLButtonElement;
+    expect(exportButton.disabled).toBe(true);
+  });
+
+  it('exports assignment analytics as CSV when export payload is available', () => {
+    const createObjectURL = vi.fn().mockReturnValue('blob:analytics');
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal('URL', {
+      createObjectURL,
+      revokeObjectURL,
+    });
+    facade.createAssignmentAnalyticsExport.mockReturnValue({
+      filename: 'start-next-job-assignment-analytics-2026-03-21.csv',
+      csvContent: 'Metric,Value',
+      rowCount: 1,
+    });
+
+    (
+      fixture.componentInstance as unknown as { exportAssignmentAnalytics: () => void }
+    ).exportAssignmentAnalytics();
+
+    expect(facade.createAssignmentAnalyticsExport).toHaveBeenCalledTimes(1);
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:analytics');
+  });
+
+  it('does not start a CSV download when analytics export is unavailable', () => {
+    const createObjectURL = vi.fn();
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal('URL', {
+      createObjectURL,
+      revokeObjectURL,
+    });
+    facade.createAssignmentAnalyticsExport.mockReturnValue(null);
+
+    (
+      fixture.componentInstance as unknown as { exportAssignmentAnalytics: () => void }
+    ).exportAssignmentAnalytics();
+
+    expect(facade.createAssignmentAnalyticsExport).toHaveBeenCalledTimes(1);
+    expect(createObjectURL).not.toHaveBeenCalled();
+    expect(revokeObjectURL).not.toHaveBeenCalled();
   });
 
   it('renders bulk actions for scheduled history and forwards button events', () => {

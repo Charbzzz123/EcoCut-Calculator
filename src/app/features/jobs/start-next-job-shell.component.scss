@@ -243,6 +243,18 @@
   font-size: 1rem;
 }
 
+.analytics-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.analytics-panel__export-btn {
+  padding: 0.35rem 0.72rem;
+  font-size: 0.8rem;
+}
+
 .analytics-panel__empty {
   margin: 0.6rem 0 0;
   color: rgba(190, 223, 210, 0.82);

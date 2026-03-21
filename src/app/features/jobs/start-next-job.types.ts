@@ -39,4 +39,10 @@ export interface AssignmentAnalyticsSnapshot {
   readonly uniqueSites: number;
 }
 
+export interface AssignmentAnalyticsExport {
+  readonly filename: string;
+  readonly csvContent: string;
+  readonly rowCount: number;
+}
+
 export type StartNextJobReadinessRecord = EmployeeStartNextJobReadiness;

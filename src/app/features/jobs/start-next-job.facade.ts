@@ -9,6 +9,7 @@ import type {
 } from '../employees/employees.types.js';
 import type {
   AssignmentAnalyticsSnapshot,
+  AssignmentAnalyticsExport,
   AssignmentDraftValidation,
   CrewConflict,
   ReadinessPill,
@@ -46,6 +47,10 @@ const toDateTimeLocal = (value: string): string => {
   const date = new Date(value);
   const pad = (segment: number): string => segment.toString().padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+const escapeCsvCell = (value: string | number): string => {
+  const normalized = String(value).replace(/"/g, '""');
+  return `"${normalized}"`;
 };
 
 @Injectable()
@@ -167,6 +172,9 @@ export class StartNextJobFacade {
       uniqueSites,
     };
   });
+  readonly canExportAssignmentAnalytics = computed(
+    () => this.selectedCrewHistoryAll().length > 0,
+  );
 
   readonly selectedCrewConflicts = computed<CrewConflict[]>(() => {
     const startTimestamp = toTimestamp(this.scheduledStartControl.value);
@@ -669,6 +677,59 @@ export class StartNextJobFacade {
 
   trackByHistoryEntry(_: number, historyEntry: SelectedCrewHistoryItem): string {
     return historyEntry.id;
+  }
+
+  createAssignmentAnalyticsExport(now = new Date()): AssignmentAnalyticsExport | null {
+    const history = this.selectedCrewHistoryAll();
+    if (!history.length) {
+      return null;
+    }
+    const analytics = this.assignmentAnalytics();
+    const dateStamp = now.toISOString().slice(0, 10);
+    const csvLines = [
+      `${escapeCsvCell('Metric')},${escapeCsvCell('Value')}`,
+      `${escapeCsvCell('Total tracked')},${escapeCsvCell(analytics.totalTracked)}`,
+      `${escapeCsvCell('Scheduled')},${escapeCsvCell(analytics.scheduledCount)}`,
+      `${escapeCsvCell('Completed')},${escapeCsvCell(analytics.completedCount)}`,
+      `${escapeCsvCell('Cancelled')},${escapeCsvCell(analytics.cancelledCount)}`,
+      `${escapeCsvCell('Total hours')},${escapeCsvCell(analytics.totalHours.toFixed(2))}`,
+      `${escapeCsvCell('Average hours / entry')},${escapeCsvCell(analytics.averageHours.toFixed(2))}`,
+      `${escapeCsvCell('Completion rate')},${escapeCsvCell(`${analytics.completionRate.toFixed(1)}%`)}`,
+      `${escapeCsvCell('Cancellation rate')},${escapeCsvCell(`${analytics.cancellationRate.toFixed(1)}%`)}`,
+      `${escapeCsvCell('Unique sites')},${escapeCsvCell(analytics.uniqueSites)}`,
+      '',
+      [
+        'Entry ID',
+        'Employee',
+        'Status',
+        'Site',
+        'Address',
+        'Scheduled start',
+        'Scheduled end',
+        'Hours',
+      ]
+        .map((value) => escapeCsvCell(value))
+        .join(','),
+      ...history.map((entry) =>
+        [
+          entry.id,
+          entry.employeeName,
+          entry.status,
+          entry.siteLabel,
+          entry.address,
+          entry.scheduledStart,
+          entry.scheduledEnd,
+          entry.hoursWorked.toFixed(2),
+        ]
+          .map((value) => escapeCsvCell(value))
+          .join(','),
+      ),
+    ];
+    return {
+      filename: `start-next-job-assignment-analytics-${dateStamp}.csv`,
+      csvContent: csvLines.join('\n'),
+      rowCount: history.length,
+    };
   }
 
   private buildConflictsForEmployee(

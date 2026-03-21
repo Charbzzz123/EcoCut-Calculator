@@ -211,7 +211,17 @@
       }
 
       <div class="analytics-panel">
-        <h3>Assignment analytics</h3>
+        <div class="analytics-panel__header">
+          <h3>Assignment analytics</h3>
+          <button
+            type="button"
+            class="ghost-btn analytics-panel__export-btn"
+            [disabled]="!facade.canExportAssignmentAnalytics()"
+            (click)="exportAssignmentAnalytics()"
+          >
+            Export CSV
+          </button>
+        </div>
         @if (!facade.assignmentAnalytics().totalTracked) {
           <p class="analytics-panel__empty">
             Select crew members to populate assignment analytics.

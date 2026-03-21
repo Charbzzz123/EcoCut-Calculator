@@ -20,4 +20,18 @@ export class StartNextJobShellComponent implements OnInit {
   ngOnInit(): void {
     void this.facade.loadBoard();
   }
+
+  protected exportAssignmentAnalytics(): void {
+    const exportPayload = this.facade.createAssignmentAnalyticsExport();
+    if (!exportPayload) {
+      return;
+    }
+    const blob = new Blob([exportPayload.csvContent], { type: 'text/csv;charset=utf-8' });
+    const downloadUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = downloadUrl;
+    anchor.download = exportPayload.filename;
+    anchor.click();
+    URL.revokeObjectURL(downloadUrl);
+  }
 }

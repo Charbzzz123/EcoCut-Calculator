@@ -401,6 +401,28 @@ describe('StartNextJobFacade', () => {
     });
   });
 
+  it('builds an analytics CSV export for the selected crew context', async () => {
+    await facade.loadBoard();
+    facade.toggleEmployeeSelection('emp-b');
+
+    const exportPayload = facade.createAssignmentAnalyticsExport(
+      new Date('2026-03-21T10:00:00.000Z'),
+    );
+
+    expect(exportPayload).not.toBeNull();
+    expect(exportPayload?.filename).toBe('start-next-job-assignment-analytics-2026-03-21.csv');
+    expect(exportPayload?.rowCount).toBe(1);
+    expect(exportPayload?.csvContent).toContain('"Metric","Value"');
+    expect(exportPayload?.csvContent).toContain('"Total tracked","1"');
+    expect(exportPayload?.csvContent).toContain('"hist-2","Bruno East","scheduled"');
+  });
+
+  it('returns no analytics export when no crew has been selected', async () => {
+    await facade.loadBoard();
+    expect(facade.canExportAssignmentAnalytics()).toBe(false);
+    expect(facade.createAssignmentAnalyticsExport()).toBeNull();
+  });
+
   it('trims selected ids when refreshed readiness no longer contains them', async () => {
     await facade.loadBoard();
     facade.toggleEmployeeSelection('emp-b');
