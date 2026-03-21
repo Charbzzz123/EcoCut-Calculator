@@ -126,7 +126,7 @@
 
 ### Manage Employees Workspace (Planned)
 
-- **Current status**: route + shell live with roster search/filter, active/inactive status filtering, summary metrics, and loading/error/empty states. Profile editing, hours workflows, and job-history timeline remain in upcoming slices.
+- **Current status**: route + shell live with roster search/filter, active/inactive status filtering, summary metrics, owner-safe profile create/edit/archive, and a dedicated hours editor (per-employee logs + totals).
 - **Primary goal**: give Owners/Managers one place to manage staff, track hours, and review employee job history before we enable full `Start Next Job` assignment flows.
 - **Roster view**
   - Search + status filters (active/inactive) with a compact, fast list.
@@ -145,6 +145,7 @@
   - Owner: full control.
   - Manager: add employee + edit hours.
   - Employee: view-only.
+  - Current release enforces these guards in the UI/facade layer; backend enforcement will be added when the employees API module is introduced.
 - **Validation and safeguards**
   - Required contact/rate fields with strict phone/email formatting.
   - Prevent duplicate employee creation using normalized name + phone/email checks.

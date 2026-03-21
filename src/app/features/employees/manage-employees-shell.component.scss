@@ -7,6 +7,7 @@
 .employees-toolbar,
 .employees-summary,
 .employees-roster,
+.employees-hours,
 .employees-placeholder {
   border-radius: 1.5rem;
   border: 1px solid var(--border-soft);
@@ -63,6 +64,13 @@ h1 {
   grid-template-columns: minmax(16rem, 1fr) auto;
 }
 
+.toolbar-actions {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
 .field {
   display: grid;
   gap: 0.35rem;
@@ -99,6 +107,17 @@ h1 {
   cursor: pointer;
 }
 
+.add-btn {
+  border-radius: 999px;
+  border: 1px solid var(--border-accent-medium);
+  background: rgba(18, 66, 46, 0.9);
+  color: var(--text-accent-strong);
+  font: inherit;
+  cursor: pointer;
+  padding: 0.65rem 1rem;
+  align-self: end;
+}
+
 .refresh-btn,
 .retry-btn {
   padding: 0.65rem 1rem;
@@ -109,6 +128,23 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   gap: 0.55rem;
+}
+
+.role-mode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.role-mode__label {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.role-mode__hint {
+  color: var(--text-accent-soft);
+  font-size: 0.85rem;
 }
 
 .status-pill {
@@ -125,6 +161,15 @@ h1 {
   display: grid;
   gap: 0.75rem;
   grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+}
+
+.workspace-notice {
+  margin: 0;
+  border-radius: 0.9rem;
+  border: 1px solid var(--border-warning);
+  background: var(--surface-warning-soft);
+  color: var(--text-warning);
+  padding: 0.62rem 0.85rem;
 }
 
 .summary-card {
@@ -242,6 +287,199 @@ h1 {
   font-size: 0.92rem;
 }
 
+.employee-card__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.employee-action {
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: rgba(9, 31, 23, 0.85);
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+  padding: 0.4rem 0.85rem;
+}
+
+.employee-action[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.employee-action--danger {
+  border-color: var(--border-danger-soft);
+  color: var(--text-danger-soft);
+  background: var(--surface-danger-ghost);
+}
+
+.employee-action--primary {
+  border-color: var(--border-accent-strong);
+  color: var(--text-accent-strong);
+  background: rgba(17, 59, 42, 0.9);
+}
+
+.employees-editor {
+  border-radius: 1.5rem;
+  border: 1px solid var(--border-soft);
+  background: linear-gradient(145deg, rgba(1, 24, 18, 0.95), rgba(2, 18, 12, 0.88));
+  box-shadow: var(--shadow-soft);
+  padding: clamp(1rem, 2vw, 1.5rem);
+  display: grid;
+  gap: 0.9rem;
+}
+
+.employees-hours {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.employees-hours__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.7rem;
+}
+
+.employees-hours__eyebrow {
+  margin: 0 0 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.employees-editor__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.employees-editor__eyebrow {
+  margin: 0 0 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.editor-placeholder {
+  color: var(--text-muted);
+}
+
+.profile-form {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.profile-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.hours-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+}
+
+.field--wide {
+  grid-column: span 2;
+}
+
+.hours-context {
+  border-radius: 0.9rem;
+  border: 1px solid var(--border-soft);
+  background: rgba(7, 33, 24, 0.7);
+  padding: 0.7rem 0.8rem;
+}
+
+.hours-context__employee {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.hours-context__meta {
+  margin-top: 0.2rem;
+  color: var(--text-muted);
+}
+
+.hours-form {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.hours-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.7rem;
+  max-height: 18rem;
+  overflow: auto;
+}
+
+.hours-card {
+  border-radius: 0.95rem;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-card-muted);
+  padding: 0.75rem 0.85rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.hours-card__date {
+  font-weight: 600;
+}
+
+.hours-card__site {
+  color: var(--text-accent-soft);
+  margin-top: 0.2rem;
+}
+
+.hours-card__meta {
+  margin-top: 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.field__textarea {
+  resize: vertical;
+  min-height: 6.2rem;
+}
+
+.editing-note {
+  color: var(--text-accent-soft);
+}
+
+.error-summary {
+  border-radius: 1rem;
+  border: 1px solid var(--border-danger-soft);
+  background: rgba(78, 27, 27, 0.28);
+  color: var(--text-danger);
+  padding: 0.7rem 0.85rem;
+}
+
+.error-summary p {
+  margin-bottom: 0.35rem;
+}
+
+.error-summary ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 0.55rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
 .employees-placeholder__eyebrow {
   margin-bottom: 0.45rem;
   text-transform: uppercase;
@@ -269,5 +507,17 @@ h1 {
 @media (max-width: 760px) {
   .employees-toolbar__row {
     grid-template-columns: 1fr;
+  }
+
+  .toolbar-actions {
+    justify-content: flex-start;
+  }
+
+  .field--wide {
+    grid-column: span 1;
+  }
+
+  .hours-card {
+    flex-direction: column;
   }
 }

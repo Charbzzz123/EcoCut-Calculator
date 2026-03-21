@@ -6,6 +6,7 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 | Task                                                                 | Done       | Notes                                                                                                                                                                                                                                                                     |
 | -------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Manage Employees Phase ME-3 profile create/edit/archive              | 2026-03-21 | Added owner-safe profile editor with strict phone/email/rate validation, duplicate detection, soft-archive action, and manager capability guards that block owner-only profile/archive actions.                                                                           |
 | Manage Employees Phase ME-2 roster + search/filter                   | 2026-03-21 | Added facade-driven roster loading with search + status filters, summary metrics, and explicit loading/error/empty UI states in `/employees/manage`.                                                                                                                      |
 | Manage Employees Phase ME-1 route + shell scaffold                   | 2026-03-21 | Added `/employees/manage` route plus standalone shell scaffold matching shared dark-evergreen styling, with phased placeholders for roster/profile/hours/history slices.                                                                                                  |
 | Backfill schedule controller + duplicate guard specs                 | 2026-03-06 | Added focused unit suites for EntryModalScheduleController and EntryModalDuplicateGuard so the extracted logic is regression-proof on its own.                                                                                                                            |
@@ -67,13 +68,12 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 ## In Progress / Backlog
 
-| Step | Task                                 | Owner | Notes                                                                                                                        |
-| ---- | ------------------------------------ | ----- | ---------------------------------------------------------------------------------------------------------------------------- |
-| ME-3 | Employee profile create/edit/archive | —     | Add owner-safe create/update flows, archive instead of hard delete, strict phone/email/rate validation, duplicate detection. |
-| ME-4 | Hours editor + role permissions      | —     | Managers can add employees and edit hours only; owners keep full control. Enforce capability guards in UI + backend.         |
-| ME-5 | Per-employee job history timeline    | —     | Show site/address, scheduled slot, and hours per job; include totals and recent-job summary for operational review.          |
-| ME-6 | Start Next Job readiness wiring      | —     | Expose employee history/availability data contract so future `Start Next Job` assignment UI can reuse it directly.           |
-| ME-7 | Tests, docs, and rollout checklist   | —     | Keep >=99% per-file coverage target (100% preferred), update docs + tracker after each slice, and run lint/test/build gates. |
+| Step | Task                               | Owner | Notes                                                                                                                                                                           |
+| ---- | ---------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ME-4 | Hours editor + role permissions    | —     | UI slice is live (per-employee hours editor + owner/manager capability guards). Remaining: enforce role guardrails on the backend employees API once that module is introduced. |
+| ME-5 | Per-employee job history timeline  | —     | Show site/address, scheduled slot, and hours per job; include totals and recent-job summary for operational review.                                                             |
+| ME-6 | Start Next Job readiness wiring    | —     | Expose employee history/availability data contract so future `Start Next Job` assignment UI can reuse it directly.                                                              |
+| ME-7 | Tests, docs, and rollout checklist | —     | Keep >=99% per-file coverage target (100% preferred), update docs + tracker after each slice, and run lint/test/build gates.                                                    |
 
 ### Broadcast Requirements (locked for implementation)
 

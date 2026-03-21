@@ -8,7 +8,7 @@
         <h1 id="{{ headingId }}">Manage employees</h1>
         <p class="subtitle">
           Monitor your roster, filter by availability status, and keep workforce operations clean
-          before deeper profile/hour/history workflows.
+          while owner/manager permissions stay explicit.
         </p>
       </div>
       <app-back-chip routerLink="/home" label="Back to dashboard"></app-back-chip>
@@ -27,7 +27,37 @@
         />
       </label>
 
-      <button type="button" class="refresh-btn" (click)="refreshRoster()">Refresh roster</button>
+      <div class="toolbar-actions">
+        <button type="button" class="refresh-btn" (click)="refreshRoster()">Refresh roster</button>
+        <button type="button" class="add-btn" (click)="openCreateProfile()">Add employee</button>
+      </div>
+    </div>
+
+    <div class="role-mode" role="group" aria-label="Operator role">
+      <span class="role-mode__label">Operator mode</span>
+      <button
+        type="button"
+        class="status-pill"
+        [class.status-pill--active]="operatorRole() === 'owner'"
+        (click)="roleControl.setValue('owner')"
+      >
+        Owner
+      </button>
+      <button
+        type="button"
+        class="status-pill"
+        [class.status-pill--active]="operatorRole() === 'manager'"
+        (click)="roleControl.setValue('manager')"
+      >
+        Manager
+      </button>
+      <span class="role-mode__hint">
+        @if (operatorRole() === 'owner') {
+          Full profile and hours control.
+        } @else {
+          Add employees + edit hours only.
+        }
+      </span>
     </div>
 
     <div class="status-filters" role="group" aria-label="Status filters">
@@ -73,6 +103,10 @@
     </article>
   </section>
 
+  @if (workspaceNotice()) {
+    <p class="workspace-notice" role="status">{{ workspaceNotice() }}</p>
+  }
+
   <article class="employees-roster" aria-live="polite">
     <header class="employees-roster__header">
       <h2>Showing {{ filteredRosterSnapshot().length }} employee(s)</h2>
@@ -101,7 +135,7 @@
                 {{ employee.status === 'active' ? 'Active' : 'Inactive' }}
               </span>
             </header>
-            <p class="employee-card__meta">{{ employee.role }} • ${{ employee.hourlyRate }}/hr</p>
+            <p class="employee-card__meta">{{ employee.role }} | ${{ employee.hourlyRate }}/hr</p>
             <p class="employee-card__contact">
               {{ employee.phone }}
               @if (employee.email) {
@@ -117,6 +151,217 @@
                 Last activity: —
               }
             </p>
+            <div class="employee-card__actions">
+              <button
+                type="button"
+                class="employee-action employee-action--primary"
+                (click)="openHoursEditor(employee.id)"
+              >
+                Hours
+              </button>
+              <button
+                type="button"
+                class="employee-action"
+                [disabled]="!canEditExistingProfiles()"
+                (click)="openEditProfile(employee.id)"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                class="employee-action employee-action--danger"
+                [disabled]="employee.status === 'inactive' || !canArchiveProfiles()"
+                (click)="archiveEmployee(employee.id)"
+              >
+                Archive
+              </button>
+            </div>
+          </li>
+        }
+      </ul>
+    }
+  </article>
+
+  <article class="employees-editor" aria-label="Employee profile editor">
+    <header class="employees-editor__header">
+      <div>
+        <p class="employees-editor__eyebrow">
+          {{ operatorRole() === 'owner' ? 'Owner mode' : 'Manager mode' }}
+        </p>
+        <h2>
+          @if (profileEditorMode() === 'create') {
+            Add employee profile
+          } @else {
+            Edit employee profile
+          }
+        </h2>
+      </div>
+    </header>
+
+    @if (!profileEditorOpen()) {
+      <p class="editor-placeholder">
+        Choose <strong>Add employee</strong> or click <strong>Edit</strong> on a roster card to
+        update profile data.
+      </p>
+    } @else {
+      <form class="profile-form" [formGroup]="profileForm" (ngSubmit)="saveProfile()">
+        @if (profileErrors().length) {
+          <div class="error-summary" role="alert">
+            <p>Fix the following before saving:</p>
+            <ul>
+              @for (error of profileErrors(); track error) {
+                <li>{{ error }}</li>
+              }
+            </ul>
+          </div>
+        }
+
+        @if (profileEditorMode() === 'edit' && activeEmployee()) {
+          <p class="editing-note">Editing: {{ activeEmployee()!.fullName }}</p>
+        }
+
+        <div class="profile-grid">
+          <label class="field">
+            <span class="field__label">First name *</span>
+            <input class="field__input" type="text" formControlName="firstName" />
+          </label>
+          <label class="field">
+            <span class="field__label">Last name *</span>
+            <input class="field__input" type="text" formControlName="lastName" />
+          </label>
+          <label class="field">
+            <span class="field__label">Phone (###) ###-#### *</span>
+            <input class="field__input" type="text" formControlName="phone" />
+          </label>
+          <label class="field">
+            <span class="field__label">Email</span>
+            <input class="field__input" type="email" formControlName="email" />
+          </label>
+          <label class="field">
+            <span class="field__label">Role *</span>
+            <input class="field__input" type="text" formControlName="role" />
+          </label>
+          <label class="field">
+            <span class="field__label">Hourly rate *</span>
+            <input class="field__input" type="text" formControlName="hourlyRate" />
+          </label>
+        </div>
+
+        <label class="field">
+          <span class="field__label">Notes</span>
+          <textarea
+            class="field__input field__textarea"
+            rows="3"
+            formControlName="notes"
+          ></textarea>
+        </label>
+
+        <div class="editor-actions">
+          <button type="button" class="employee-action" (click)="cancelProfileEditor()">
+            Cancel
+          </button>
+          <button type="submit" class="employee-action employee-action--primary">
+            Save profile
+          </button>
+        </div>
+      </form>
+    }
+  </article>
+
+  <article class="employees-hours" aria-label="Employee hours editor">
+    <header class="employees-hours__header">
+      <div>
+        <p class="employees-hours__eyebrow">Hours workflow</p>
+        <h2>Employee hours editor</h2>
+      </div>
+      @if (hoursEditorOpen()) {
+        <button type="button" class="employee-action" (click)="closeHoursEditor()">Close</button>
+      }
+    </header>
+
+    @if (!hoursEditorOpen()) {
+      <p class="editor-placeholder">
+        Click <strong>Hours</strong> on an employee card to log or update worked hours.
+      </p>
+    } @else {
+      <div class="hours-context">
+        <p class="hours-context__employee">{{ selectedHoursEmployee()!.fullName }}</p>
+        <p class="hours-context__meta">
+          Entries: {{ selectedHoursTotals().entryCount }} | Total hours:
+          {{ selectedHoursTotals().totalHours }}
+        </p>
+      </div>
+
+      <form class="hours-form" [formGroup]="hoursForm" (ngSubmit)="saveHoursEntry()">
+        @if (hoursErrors().length) {
+          <div class="error-summary" role="alert">
+            <p>Fix the following before saving hours:</p>
+            <ul>
+              @for (error of hoursErrors(); track error) {
+                <li>{{ error }}</li>
+              }
+            </ul>
+          </div>
+        }
+
+        @if (editingHoursEntry()) {
+          <p class="editing-note">
+            Editing hours entry from {{ editingHoursEntry()!.workDate }} at
+            {{ editingHoursEntry()!.siteLabel }}.
+          </p>
+        }
+
+        <div class="hours-grid">
+          <label class="field">
+            <span class="field__label">Work date *</span>
+            <input class="field__input" type="date" formControlName="workDate" />
+          </label>
+          <label class="field">
+            <span class="field__label">Hours *</span>
+            <input
+              class="field__input"
+              type="number"
+              min="0.25"
+              step="0.25"
+              formControlName="hours"
+            />
+          </label>
+          <label class="field field--wide">
+            <span class="field__label">Site / address *</span>
+            <input class="field__input" type="text" formControlName="siteLabel" />
+          </label>
+        </div>
+
+        <div class="editor-actions">
+          <button type="submit" class="employee-action employee-action--primary">
+            {{ editingHoursEntry() ? 'Update hours' : 'Save hours' }}
+          </button>
+        </div>
+      </form>
+
+      <ul class="hours-list">
+        @for (entry of selectedHoursEntries(); track trackByHoursEntryId($index, entry)) {
+          <li class="hours-card">
+            <div>
+              <p class="hours-card__date">{{ entry.workDate | date: 'MMM d, y' }}</p>
+              <p class="hours-card__site">{{ entry.siteLabel }}</p>
+              <p class="hours-card__meta">
+                {{ entry.hours }}h | Updated by {{ entry.updatedByRole }} |
+                {{ entry.updatedAt | date: 'MMM d, y, h:mm a' }}
+              </p>
+            </div>
+            <div class="employee-card__actions">
+              <button type="button" class="employee-action" (click)="editHoursEntry(entry.id)">
+                Edit
+              </button>
+              <button
+                type="button"
+                class="employee-action employee-action--danger"
+                (click)="removeHoursEntry(entry.id)"
+              >
+                Remove
+              </button>
+            </div>
           </li>
         }
       </ul>
