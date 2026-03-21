@@ -176,6 +176,7 @@
 - **Optimistic board updates**: schedule edits and lifecycle actions now patch board state immediately (history + readiness summaries) with rollback when an API call fails, so operators get instant feedback without waiting for full board reloads.
 - **Assignment analytics panel**: the summary column now shows selected-crew analytics (tracked, scheduled, completed, cancelled, total/average hours, completion/cancellation rates, unique sites) so dispatch decisions stay data-driven during scheduling.
 - **Analytics export**: Step 2 now includes `Export CSV`, which downloads selected-crew analytics plus detailed history rows (employee, status, site/address, scheduled window, and hours) for handoff/reporting.
+- **Date-range analytics window**: Step 2 now supports `From`/`To` filters for analytics; invalid ranges are blocked with inline guidance, and both panel metrics + CSV export respect the selected window.
 
 ## Calculation & Business Rules
 

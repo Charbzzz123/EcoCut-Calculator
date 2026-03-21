@@ -1,5 +1,6 @@
 import { FormControl } from '@angular/forms';
 import { computed, inject, Injectable, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { EmployeesDataService } from '../employees/employees-data.service.js';
 import type {
   EmployeeJobHistoryRecord,
@@ -48,6 +49,14 @@ const toDateTimeLocal = (value: string): string => {
   const pad = (segment: number): string => segment.toString().padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
+const toDateInputTimestamp = (value: string, endOfDay: boolean): number | null => {
+  if (!value) {
+    return null;
+  }
+  const suffix = endOfDay ? 'T23:59:59.999' : 'T00:00:00.000';
+  const timestamp = Date.parse(`${value}${suffix}`);
+  return Number.isNaN(timestamp) ? null : timestamp;
+};
 const escapeCsvCell = (value: string | number): string => {
   const normalized = String(value).replace(/"/g, '""');
   return `"${normalized}"`;
@@ -64,6 +73,15 @@ export class StartNextJobFacade {
   readonly addressControl = new FormControl('', { nonNullable: true });
   readonly scheduledStartControl = new FormControl('', { nonNullable: true });
   readonly scheduledEndControl = new FormControl('', { nonNullable: true });
+  readonly analyticsStartDateControl = new FormControl('', { nonNullable: true });
+  readonly analyticsEndDateControl = new FormControl('', { nonNullable: true });
+  private readonly analyticsStartDateValue = toSignal(
+    this.analyticsStartDateControl.valueChanges,
+    { initialValue: this.analyticsStartDateControl.value },
+  );
+  private readonly analyticsEndDateValue = toSignal(this.analyticsEndDateControl.valueChanges, {
+    initialValue: this.analyticsEndDateControl.value,
+  });
 
   readonly loadState = signal<StartNextJobLoadState>('loading');
   readonly errorMessage = signal('');
@@ -141,9 +159,38 @@ export class StartNextJobFacade {
   readonly selectedScheduledHistoryCount = computed(
     () => this.selectedScheduledHistoryEntries().length,
   );
+  readonly analyticsRangeError = computed<string | null>(() => {
+    const startTimestamp = toDateInputTimestamp(this.analyticsStartDateValue(), false);
+    const endTimestamp = toDateInputTimestamp(this.analyticsEndDateValue(), true);
+    if (startTimestamp !== null && endTimestamp !== null && startTimestamp > endTimestamp) {
+      return 'Analytics start date must be before the end date.';
+    }
+    return null;
+  });
+  private readonly assignmentAnalyticsHistory = computed<SelectedCrewHistoryItem[]>(() => {
+    if (this.analyticsRangeError()) {
+      return [];
+    }
+    const startTimestamp = toDateInputTimestamp(this.analyticsStartDateValue(), false);
+    const endTimestamp = toDateInputTimestamp(this.analyticsEndDateValue(), true);
+    const history = this.selectedCrewHistoryAll();
+    return history.filter((entry) => {
+      const scheduledAt = toTimestamp(entry.scheduledStart);
+      if (scheduledAt === null) {
+        return false;
+      }
+      if (startTimestamp !== null && scheduledAt < startTimestamp) {
+        return false;
+      }
+      if (endTimestamp !== null && scheduledAt > endTimestamp) {
+        return false;
+      }
+      return true;
+    });
+  });
 
   readonly assignmentAnalytics = computed<AssignmentAnalyticsSnapshot>(() => {
-    const history = this.selectedCrewHistoryAll();
+    const history = this.assignmentAnalyticsHistory();
     const totalTracked = history.length;
     const scheduledCount = history.filter((entry) => entry.status === 'scheduled').length;
     const completedCount = history.filter((entry) => entry.status === 'completed').length;
@@ -173,7 +220,7 @@ export class StartNextJobFacade {
     };
   });
   readonly canExportAssignmentAnalytics = computed(
-    () => this.selectedCrewHistoryAll().length > 0,
+    () => this.assignmentAnalyticsHistory().length > 0,
   );
 
   readonly selectedCrewConflicts = computed<CrewConflict[]>(() => {
@@ -282,6 +329,11 @@ export class StartNextJobFacade {
   clearHistorySelection(): void {
     this.clearSaveFeedback();
     this.selectedHistoryEntryIdsSignal.set([]);
+  }
+
+  clearAnalyticsDateRange(): void {
+    this.analyticsStartDateControl.setValue('');
+    this.analyticsEndDateControl.setValue('');
   }
 
   async submitAssignment(actorRole: EmployeeOperatorRole = 'owner'): Promise<boolean> {
@@ -680,14 +732,21 @@ export class StartNextJobFacade {
   }
 
   createAssignmentAnalyticsExport(now = new Date()): AssignmentAnalyticsExport | null {
-    const history = this.selectedCrewHistoryAll();
+    const history = this.assignmentAnalyticsHistory();
     if (!history.length) {
       return null;
     }
     const analytics = this.assignmentAnalytics();
     const dateStamp = now.toISOString().slice(0, 10);
+    const startDate = this.analyticsStartDateValue();
+    const endDate = this.analyticsEndDateValue();
+    const analyticsWindow =
+      startDate || endDate
+        ? `${startDate || 'Any'} -> ${endDate || 'Any'}`
+        : 'All dates';
     const csvLines = [
       `${escapeCsvCell('Metric')},${escapeCsvCell('Value')}`,
+      `${escapeCsvCell('Analytics window')},${escapeCsvCell(analyticsWindow)}`,
       `${escapeCsvCell('Total tracked')},${escapeCsvCell(analytics.totalTracked)}`,
       `${escapeCsvCell('Scheduled')},${escapeCsvCell(analytics.scheduledCount)}`,
       `${escapeCsvCell('Completed')},${escapeCsvCell(analytics.completedCount)}`,

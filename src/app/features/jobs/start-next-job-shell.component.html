@@ -213,18 +213,57 @@
       <div class="analytics-panel">
         <div class="analytics-panel__header">
           <h3>Assignment analytics</h3>
+          <div class="analytics-panel__actions">
+            <button
+              type="button"
+              class="ghost-btn analytics-panel__export-btn"
+              [disabled]="!facade.canExportAssignmentAnalytics()"
+              (click)="exportAssignmentAnalytics()"
+            >
+              Export CSV
+            </button>
+          </div>
+        </div>
+        <div class="analytics-panel__filters">
+          <label class="analytics-filter-field">
+            <span>From</span>
+            <input
+              class="field__input"
+              type="date"
+              [formControl]="facade.analyticsStartDateControl"
+            />
+          </label>
+          <label class="analytics-filter-field">
+            <span>To</span>
+            <input
+              class="field__input"
+              type="date"
+              [formControl]="facade.analyticsEndDateControl"
+            />
+          </label>
           <button
             type="button"
-            class="ghost-btn analytics-panel__export-btn"
-            [disabled]="!facade.canExportAssignmentAnalytics()"
-            (click)="exportAssignmentAnalytics()"
+            class="ghost-btn analytics-panel__clear-btn"
+            [disabled]="
+              !facade.analyticsStartDateControl.value && !facade.analyticsEndDateControl.value
+            "
+            (click)="facade.clearAnalyticsDateRange()"
           >
-            Export CSV
+            Clear range
           </button>
         </div>
+        @if (facade.analyticsRangeError(); as analyticsRangeError) {
+          <p class="analytics-panel__error" role="alert">
+            {{ analyticsRangeError }}
+          </p>
+        }
         @if (!facade.assignmentAnalytics().totalTracked) {
           <p class="analytics-panel__empty">
-            Select crew members to populate assignment analytics.
+            @if (facade.analyticsRangeError()) {
+              Fix the analytics date range to view metrics.
+            } @else {
+              Select crew members and adjust the date range to populate assignment analytics.
+            }
           </p>
         } @else {
           <dl class="analytics-grid">

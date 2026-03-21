@@ -250,9 +250,45 @@
   gap: 0.65rem;
 }
 
+.analytics-panel__actions {
+  display: flex;
+  gap: 0.45rem;
+}
+
 .analytics-panel__export-btn {
   padding: 0.35rem 0.72rem;
   font-size: 0.8rem;
+}
+
+.analytics-panel__filters {
+  margin-top: 0.65rem;
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+}
+
+.analytics-filter-field {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.analytics-filter-field span {
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(190, 223, 210, 0.72);
+}
+
+.analytics-panel__clear-btn {
+  align-self: end;
+  justify-self: start;
+  padding: 0.35rem 0.72rem;
+  font-size: 0.8rem;
+}
+
+.analytics-panel__error {
+  margin: 0.55rem 0 0;
+  color: #f7b59f;
 }
 
 .analytics-panel__empty {

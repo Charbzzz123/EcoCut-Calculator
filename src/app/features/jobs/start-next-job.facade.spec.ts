@@ -423,6 +423,73 @@ describe('StartNextJobFacade', () => {
     expect(facade.createAssignmentAnalyticsExport()).toBeNull();
   });
 
+  it('filters analytics by date range and includes range metadata in export', async () => {
+    dataService.history = [
+      {
+        id: 'hist-20',
+        employeeId: 'emp-b',
+        siteLabel: 'Downtown',
+        address: '2 Main St',
+        scheduledStart: '2026-03-21T14:00:00.000Z',
+        scheduledEnd: '2026-03-21T16:00:00.000Z',
+        hoursWorked: 2,
+        status: 'completed',
+      },
+      {
+        id: 'hist-21',
+        employeeId: 'emp-b',
+        siteLabel: 'Outremont',
+        address: '9 Side St',
+        scheduledStart: '2026-02-10T09:00:00.000Z',
+        scheduledEnd: '2026-02-10T11:00:00.000Z',
+        hoursWorked: 2,
+        status: 'cancelled',
+      },
+    ];
+    await facade.loadBoard();
+    facade.toggleEmployeeSelection('emp-b');
+    facade.analyticsStartDateControl.setValue('2026-03-01');
+    facade.analyticsEndDateControl.setValue('2026-03-31');
+
+    expect(facade.assignmentAnalytics()).toEqual({
+      totalTracked: 1,
+      scheduledCount: 0,
+      completedCount: 1,
+      cancelledCount: 0,
+      totalHours: 2,
+      averageHours: 2,
+      completionRate: 100,
+      cancellationRate: 0,
+      uniqueSites: 1,
+    });
+
+    const exportPayload = facade.createAssignmentAnalyticsExport(
+      new Date('2026-03-21T10:00:00.000Z'),
+    );
+    expect(exportPayload?.csvContent).toContain('"Analytics window","2026-03-01 -> 2026-03-31"');
+    expect(exportPayload?.csvContent).toContain('"hist-20","Bruno East","completed"');
+    expect(exportPayload?.csvContent).not.toContain('"hist-21","Bruno East","cancelled"');
+  });
+
+  it('guards analytics export when date range is invalid and clears range values', async () => {
+    await facade.loadBoard();
+    facade.toggleEmployeeSelection('emp-b');
+    facade.analyticsStartDateControl.setValue('2026-03-22');
+    facade.analyticsEndDateControl.setValue('2026-03-21');
+
+    expect(facade.analyticsRangeError()).toBe(
+      'Analytics start date must be before the end date.',
+    );
+    expect(facade.assignmentAnalytics().totalTracked).toBe(0);
+    expect(facade.canExportAssignmentAnalytics()).toBe(false);
+    expect(facade.createAssignmentAnalyticsExport()).toBeNull();
+
+    facade.clearAnalyticsDateRange();
+    expect(facade.analyticsStartDateControl.value).toBe('');
+    expect(facade.analyticsEndDateControl.value).toBe('');
+    expect(facade.analyticsRangeError()).toBeNull();
+  });
+
   it('trims selected ids when refreshed readiness no longer contains them', async () => {
     await facade.loadBoard();
     facade.toggleEmployeeSelection('emp-b');

@@ -51,6 +51,8 @@ const createFacadeStub = () => ({
   addressControl: new FormControl('', { nonNullable: true }),
   scheduledStartControl: new FormControl('', { nonNullable: true }),
   scheduledEndControl: new FormControl('', { nonNullable: true }),
+  analyticsStartDateControl: new FormControl('', { nonNullable: true }),
+  analyticsEndDateControl: new FormControl('', { nonNullable: true }),
   loadState: signal<'loading' | 'ready' | 'error'>('loading'),
   errorMessage: signal('Unable to load Start Next Job data right now.'),
   saveState: signal<'idle' | 'saving' | 'success' | 'error'>('idle'),
@@ -79,8 +81,10 @@ const createFacadeStub = () => ({
     cancellationRate: 0,
     uniqueSites: 0,
   }),
+  analyticsRangeError: signal<string | null>(null),
   canExportAssignmentAnalytics: signal(false),
   createAssignmentAnalyticsExport: vi.fn().mockReturnValue(null),
+  clearAnalyticsDateRange: vi.fn(),
   loadBoard: vi.fn().mockResolvedValue(undefined),
   submitAssignment: vi.fn().mockResolvedValue(true),
   completeHistoryEntry: vi.fn().mockResolvedValue(true),
@@ -238,6 +242,24 @@ describe('StartNextJobShellComponent', () => {
       '.analytics-panel__export-btn',
     ) as HTMLButtonElement;
     expect(exportButton.disabled).toBe(true);
+  });
+
+  it('shows analytics range error and forwards clear-range action', () => {
+    facade.loadState.set('ready');
+    facade.analyticsStartDateControl.setValue('2026-03-22');
+    facade.analyticsEndDateControl.setValue('2026-03-21');
+    facade.analyticsRangeError.set('Analytics start date must be before the end date.');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain(
+      'Analytics start date must be before the end date.',
+    );
+    const clearRangeButton = fixture.nativeElement.querySelector(
+      '.analytics-panel__clear-btn',
+    ) as HTMLButtonElement;
+    expect(clearRangeButton.disabled).toBe(false);
+    clearRangeButton.click();
+    expect(facade.clearAnalyticsDateRange).toHaveBeenCalledTimes(1);
   });
 
   it('exports assignment analytics as CSV when export payload is available', () => {
