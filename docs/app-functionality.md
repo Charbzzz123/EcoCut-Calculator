@@ -174,6 +174,7 @@
 - **Reassignment controls**: scheduled cards support `Reassign to ...` when exactly one different active crew member is selected. Reassign calls `/employees/history/:entryId/reassign`, runs overlap checks, and moves linked assignment-hours entries to the new employee.
 - **Bulk lifecycle controls**: schedulers can multi-select scheduled history entries and run `Complete selected` or `Cancel selected` actions from the same panel. The board reports partial failures (for example, 3 of 4 succeeded) and keeps failed rows selected for quick retry.
 - **Optimistic board updates**: schedule edits and lifecycle actions now patch board state immediately (history + readiness summaries) with rollback when an API call fails, so operators get instant feedback without waiting for full board reloads.
+- **Assignment analytics panel**: the summary column now shows selected-crew analytics (tracked, scheduled, completed, cancelled, total/average hours, completion/cancellation rates, unique sites) so dispatch decisions stay data-driven during scheduling.
 
 ## Calculation & Business Rules
 

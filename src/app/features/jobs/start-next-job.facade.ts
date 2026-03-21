@@ -8,6 +8,7 @@ import type {
   EmployeeStartNextJobReadiness,
 } from '../employees/employees.types.js';
 import type {
+  AssignmentAnalyticsSnapshot,
   AssignmentDraftValidation,
   CrewConflict,
   ReadinessPill,
@@ -94,7 +95,7 @@ export class StartNextJobFacade {
       .filter((employee): employee is EmployeeStartNextJobReadiness => Boolean(employee));
   });
 
-  readonly selectedCrewHistory = computed<SelectedCrewHistoryItem[]>(() => {
+  private readonly selectedCrewHistoryAll = computed<SelectedCrewHistoryItem[]>(() => {
     const selectedIds = new Set(this.selectedEmployeeIds());
     if (!selectedIds.size) {
       return [];
@@ -108,12 +109,15 @@ export class StartNextJobFacade {
         ...historyItem,
         employeeName: nameLookup.get(historyItem.employeeId) ?? 'Unknown employee',
       }))
-      .sort((left, right) => right.scheduledStart.localeCompare(left.scheduledStart))
-      .slice(0, 12);
+      .sort((left, right) => right.scheduledStart.localeCompare(left.scheduledStart));
+  });
+
+  readonly selectedCrewHistory = computed<SelectedCrewHistoryItem[]>(() => {
+    return this.selectedCrewHistoryAll().slice(0, 12);
   });
 
   readonly scheduledHistoryEntries = computed<SelectedCrewHistoryItem[]>(() =>
-    this.selectedCrewHistory().filter((entry) => entry.status === 'scheduled'),
+    this.selectedCrewHistoryAll().filter((entry) => entry.status === 'scheduled'),
   );
 
   readonly scheduledHistoryCount = computed(() => this.scheduledHistoryEntries().length);
@@ -132,6 +136,37 @@ export class StartNextJobFacade {
   readonly selectedScheduledHistoryCount = computed(
     () => this.selectedScheduledHistoryEntries().length,
   );
+
+  readonly assignmentAnalytics = computed<AssignmentAnalyticsSnapshot>(() => {
+    const history = this.selectedCrewHistoryAll();
+    const totalTracked = history.length;
+    const scheduledCount = history.filter((entry) => entry.status === 'scheduled').length;
+    const completedCount = history.filter((entry) => entry.status === 'completed').length;
+    const cancelledCount = history.filter((entry) => entry.status === 'cancelled').length;
+    const totalHours = history.reduce((sum, entry) => sum + entry.hoursWorked, 0);
+    const averageHours = totalTracked ? Number((totalHours / totalTracked).toFixed(2)) : 0;
+    const completionRate = totalTracked
+      ? Number(((completedCount / totalTracked) * 100).toFixed(1))
+      : 0;
+    const cancellationRate = totalTracked
+      ? Number(((cancelledCount / totalTracked) * 100).toFixed(1))
+      : 0;
+    const uniqueSites = new Set(
+      history.map((entry) => `${normalizeText(entry.siteLabel)}|${normalizeText(entry.address)}`),
+    ).size;
+
+    return {
+      totalTracked,
+      scheduledCount,
+      completedCount,
+      cancelledCount,
+      totalHours,
+      averageHours,
+      completionRate,
+      cancellationRate,
+      uniqueSites,
+    };
+  });
 
   readonly selectedCrewConflicts = computed<CrewConflict[]>(() => {
     const startTimestamp = toTimestamp(this.scheduledStartControl.value);

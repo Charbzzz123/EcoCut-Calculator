@@ -230,6 +230,54 @@
   background: rgba(58, 45, 24, 0.65);
 }
 
+.analytics-panel {
+  margin-top: 0.9rem;
+  border: 1px solid rgba(111, 212, 183, 0.2);
+  border-radius: 0.85rem;
+  padding: 0.7rem 0.8rem;
+  background: rgba(7, 30, 25, 0.65);
+}
+
+.analytics-panel h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.analytics-panel__empty {
+  margin: 0.6rem 0 0;
+  color: rgba(190, 223, 210, 0.82);
+}
+
+.analytics-grid {
+  margin: 0.7rem 0 0;
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.analytics-grid div {
+  border: 1px solid rgba(111, 212, 183, 0.18);
+  border-radius: 0.7rem;
+  background: rgba(6, 22, 18, 0.78);
+  padding: 0.45rem 0.55rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.analytics-grid dt {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: rgba(190, 223, 210, 0.7);
+  text-transform: uppercase;
+}
+
+.analytics-grid dd {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
 .conflict-box p,
 .validation-box p {
   margin: 0 0 0.5rem;

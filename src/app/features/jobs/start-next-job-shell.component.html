@@ -209,6 +209,54 @@
           </ul>
         </div>
       }
+
+      <div class="analytics-panel">
+        <h3>Assignment analytics</h3>
+        @if (!facade.assignmentAnalytics().totalTracked) {
+          <p class="analytics-panel__empty">
+            Select crew members to populate assignment analytics.
+          </p>
+        } @else {
+          <dl class="analytics-grid">
+            <div>
+              <dt>Total tracked</dt>
+              <dd>{{ facade.assignmentAnalytics().totalTracked }}</dd>
+            </div>
+            <div>
+              <dt>Scheduled</dt>
+              <dd>{{ facade.assignmentAnalytics().scheduledCount }}</dd>
+            </div>
+            <div>
+              <dt>Completed</dt>
+              <dd>{{ facade.assignmentAnalytics().completedCount }}</dd>
+            </div>
+            <div>
+              <dt>Cancelled</dt>
+              <dd>{{ facade.assignmentAnalytics().cancelledCount }}</dd>
+            </div>
+            <div>
+              <dt>Total hours</dt>
+              <dd>{{ facade.assignmentAnalytics().totalHours | number: '1.0-2' }}</dd>
+            </div>
+            <div>
+              <dt>Avg hours / entry</dt>
+              <dd>{{ facade.assignmentAnalytics().averageHours | number: '1.0-2' }}</dd>
+            </div>
+            <div>
+              <dt>Completion rate</dt>
+              <dd>{{ facade.assignmentAnalytics().completionRate | number: '1.0-1' }}%</dd>
+            </div>
+            <div>
+              <dt>Cancellation rate</dt>
+              <dd>{{ facade.assignmentAnalytics().cancellationRate | number: '1.0-1' }}%</dd>
+            </div>
+            <div>
+              <dt>Unique sites</dt>
+              <dd>{{ facade.assignmentAnalytics().uniqueSites }}</dd>
+            </div>
+          </dl>
+        }
+      </div>
     </section>
   </article>
 

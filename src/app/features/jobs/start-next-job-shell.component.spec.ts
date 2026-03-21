@@ -68,6 +68,17 @@ const createFacadeStub = () => ({
   scheduledHistoryCount: signal(0),
   selectedScheduledHistoryEntries: signal<SelectedCrewHistoryItem[]>([]),
   selectedScheduledHistoryCount: signal(0),
+  assignmentAnalytics: signal({
+    totalTracked: 0,
+    scheduledCount: 0,
+    completedCount: 0,
+    cancelledCount: 0,
+    totalHours: 0,
+    averageHours: 0,
+    completionRate: 0,
+    cancellationRate: 0,
+    uniqueSites: 0,
+  }),
   loadBoard: vi.fn().mockResolvedValue(undefined),
   submitAssignment: vi.fn().mockResolvedValue(true),
   completeHistoryEntry: vi.fn().mockResolvedValue(true),
@@ -144,6 +155,17 @@ describe('StartNextJobShellComponent', () => {
     facade.selectedCrewHistory.set([historyItem]);
     facade.scheduledHistoryEntries.set([historyItem]);
     facade.scheduledHistoryCount.set(1);
+    facade.assignmentAnalytics.set({
+      totalTracked: 1,
+      scheduledCount: 1,
+      completedCount: 0,
+      cancelledCount: 0,
+      totalHours: 1,
+      averageHours: 1,
+      completionRate: 0,
+      cancellationRate: 0,
+      uniqueSites: 1,
+    });
     facade.draftValidation.set({ isReady: false, blockingReasons: ['Resolve conflicts'] });
     facade.isEmployeeSelected.mockReturnValue(true);
     facade.getReadinessPill.mockReturnValue({ text: 'Scheduled', state: 'scheduled' });
@@ -151,6 +173,8 @@ describe('StartNextJobShellComponent', () => {
 
     expect(fixture.nativeElement.textContent).toContain('Conflict in upcoming windows.');
     expect(fixture.nativeElement.textContent).toContain('Resolve the following conflicts');
+    expect(fixture.nativeElement.textContent).toContain('Assignment analytics');
+    expect(fixture.nativeElement.textContent).toContain('Total tracked');
     expect(fixture.nativeElement.textContent).toContain('Selected crew job history');
     expect(fixture.nativeElement.textContent).toContain('Downtown');
 

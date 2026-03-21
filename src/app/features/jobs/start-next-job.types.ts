@@ -27,4 +27,16 @@ export interface ReadinessPill {
   readonly state: EmployeeReadinessState;
 }
 
+export interface AssignmentAnalyticsSnapshot {
+  readonly totalTracked: number;
+  readonly scheduledCount: number;
+  readonly completedCount: number;
+  readonly cancelledCount: number;
+  readonly totalHours: number;
+  readonly averageHours: number;
+  readonly completionRate: number;
+  readonly cancellationRate: number;
+  readonly uniqueSites: number;
+}
+
 export type StartNextJobReadinessRecord = EmployeeStartNextJobReadiness;

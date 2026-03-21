@@ -352,6 +352,55 @@ describe('StartNextJobFacade', () => {
     expect(facade.selectedScheduledHistoryCount()).toBe(0);
   });
 
+  it('computes assignment analytics from selected crew history', async () => {
+    dataService.history = [
+      {
+        id: 'hist-10',
+        employeeId: 'emp-b',
+        siteLabel: 'Downtown',
+        address: '2 Main St',
+        scheduledStart: '2026-03-21T14:00:00.000Z',
+        scheduledEnd: '2026-03-21T16:00:00.000Z',
+        hoursWorked: 2,
+        status: 'scheduled',
+      },
+      {
+        id: 'hist-11',
+        employeeId: 'emp-b',
+        siteLabel: 'Downtown',
+        address: '2 Main St',
+        scheduledStart: '2026-03-20T14:00:00.000Z',
+        scheduledEnd: '2026-03-20T17:00:00.000Z',
+        hoursWorked: 3,
+        status: 'completed',
+      },
+      {
+        id: 'hist-12',
+        employeeId: 'emp-b',
+        siteLabel: 'Outremont',
+        address: '9 Side St',
+        scheduledStart: '2026-03-19T09:00:00.000Z',
+        scheduledEnd: '2026-03-19T11:00:00.000Z',
+        hoursWorked: 2,
+        status: 'cancelled',
+      },
+    ];
+    await facade.loadBoard();
+    facade.toggleEmployeeSelection('emp-b');
+
+    expect(facade.assignmentAnalytics()).toEqual({
+      totalTracked: 3,
+      scheduledCount: 1,
+      completedCount: 1,
+      cancelledCount: 1,
+      totalHours: 7,
+      averageHours: 2.33,
+      completionRate: 33.3,
+      cancellationRate: 33.3,
+      uniqueSites: 2,
+    });
+  });
+
   it('trims selected ids when refreshed readiness no longer contains them', async () => {
     await facade.loadBoard();
     facade.toggleEmployeeSelection('emp-b');
@@ -430,11 +479,19 @@ describe('StartNextJobFacade', () => {
 
   it('surfaces complete-action API failures', async () => {
     await facade.loadBoard();
+    facade.toggleEmployeeSelection('emp-b');
     dataService.shouldFailComplete = true;
 
-    await expect(facade.completeHistoryEntry('hist-2')).resolves.toBe(false);
+    const completionPromise = facade.completeHistoryEntry('hist-2');
+    expect(facade.selectedCrewHistory().find((entry) => entry.id === 'hist-2')?.status).toBe(
+      'completed',
+    );
+    await expect(completionPromise).resolves.toBe(false);
     expect(facade.saveState()).toBe('error');
     expect(facade.saveMessage()).toBe('Unable to mark assignment as completed right now.');
+    expect(facade.selectedCrewHistory().find((entry) => entry.id === 'hist-2')?.status).toBe(
+      'scheduled',
+    );
   });
 
   it('starts and submits history edit mode', async () => {
@@ -647,7 +704,16 @@ describe('StartNextJobFacade', () => {
 
     facade.toggleEmployeeSelection('emp-a');
     dataService.shouldFailReassign = true;
-    await expect(facade.reassignHistoryEntry(entry)).resolves.toBe(false);
+    const reassignPromise = facade.reassignHistoryEntry(entry);
+    expect(facade.selectedCrewHistory().find((item) => item.id === 'hist-2')?.employeeId).toBe(
+      'emp-a',
+    );
+    await expect(reassignPromise).resolves.toBe(false);
     expect(facade.saveMessage()).toBe('Unable to reassign the scheduled assignment right now.');
+    facade.clearCrewSelection();
+    facade.toggleEmployeeSelection('emp-b');
+    expect(facade.selectedCrewHistory().find((item) => item.id === 'hist-2')?.employeeId).toBe(
+      'emp-b',
+    );
   });
 });
