@@ -158,7 +158,7 @@
   - Prevent duplicate employee creation using normalized name + phone/email checks.
   - Block save with a clear missing-field summary when required inputs are incomplete.
 - **Queued next slices**
-  - `ME-10`: Persist crew assignment into history + hours so reporting and timelines stay in sync.
+  - None right now (ME-1 through ME-10 complete).
 
 ### Start Next Job Assignment Board (Current Release)
 
@@ -168,6 +168,7 @@
 - **Conflict checks**: selection validates inactive members, existing readiness conflicts, next-available constraints, and overlap against upcoming windows before draft can proceed.
 - **Draft readiness**: panel shows blocking reasons until required fields + crew are valid and conflict-free.
 - **Crew history context**: selected crew history list is sourced from `/employees/history` so schedulers can verify recent assignments before confirming.
+- **Persistence wiring**: `Save assignment` now calls `/employees/assignments/start-next-job`, which writes scheduled history rows plus assignment-source hours entries for each selected employee and refreshes readiness/history immediately after save.
 
 ## Calculation & Business Rules
 

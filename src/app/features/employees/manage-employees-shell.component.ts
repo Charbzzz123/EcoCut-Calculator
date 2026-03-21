@@ -52,7 +52,7 @@ export class ManageEmployeesShellComponent implements OnInit {
   readonly trackByReadinessEmployeeId = this.facade.trackByReadinessEmployeeId;
   readonly trackByClockEmployeeId = this.facade.trackByClockEmployeeId;
   readonly nextSlices = [
-    'Persist crew assignment into history and payroll hours records',
+    'Manage Employees phase complete: no queued slices right now.',
   ] as const;
 
   ngOnInit(): void {

@@ -5,6 +5,7 @@ import type {
 } from '../employees/employees.types.js';
 
 export type StartNextJobLoadState = 'loading' | 'ready' | 'error';
+export type StartNextJobSaveState = 'idle' | 'saving' | 'success' | 'error';
 
 export interface CrewConflict {
   employeeId: string;

@@ -74,6 +74,26 @@
   gap: 0.6rem;
 }
 
+.save-feedback {
+  margin: 0.85rem 0 0;
+  border-radius: 0.8rem;
+  border: 1px solid rgba(111, 212, 183, 0.25);
+  background: rgba(7, 30, 25, 0.75);
+  color: #d8efe7;
+  padding: 0.6rem 0.75rem;
+}
+
+.save-feedback--success {
+  border-color: rgba(111, 212, 183, 0.5);
+  background: rgba(16, 63, 47, 0.72);
+}
+
+.save-feedback--error {
+  border-color: rgba(230, 114, 114, 0.45);
+  background: rgba(56, 26, 26, 0.72);
+  color: #ffd9d9;
+}
+
 .ghost-btn,
 .primary-btn,
 .crew-select-btn {

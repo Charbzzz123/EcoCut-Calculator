@@ -267,4 +267,74 @@ describe('EmployeesService', () => {
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
+
+  it('persists start-next-job assignment into history and hours', async () => {
+    const result = await service.createStartNextJobAssignment(
+      {
+        jobLabel: 'Morning route',
+        address: '1450 Pine Ave W',
+        scheduledStart: '2099-03-25T09:00:00.000Z',
+        scheduledEnd: '2099-03-25T11:00:00.000Z',
+        employeeIds: ['emp-owner'],
+      },
+      'manager',
+    );
+
+    expect(result.assignmentId).toContain('assign-');
+    expect(result.createdHistory).toHaveLength(1);
+    expect(result.createdHistory[0]?.status).toBe('scheduled');
+    expect(result.createdHours).toHaveLength(1);
+    expect(result.createdHours[0]?.source).toBe('assignment');
+    expect(result.createdHours[0]?.updatedByRole).toBe('manager');
+
+    const history = service.listJobHistoryEntries();
+    const hours = service.listHoursEntries();
+    expect(
+      history.some((entry) => entry.id === result.createdHistory[0]?.id),
+    ).toBe(true);
+    expect(hours.some((entry) => entry.id === result.createdHours[0]?.id)).toBe(
+      true,
+    );
+  });
+
+  it('rejects conflicting or invalid start-next-job assignment payloads', async () => {
+    await expect(
+      service.createStartNextJobAssignment(
+        {
+          jobLabel: '',
+          address: '',
+          scheduledStart: '',
+          scheduledEnd: '',
+          employeeIds: [],
+        },
+        'owner',
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    await expect(
+      service.createStartNextJobAssignment(
+        {
+          jobLabel: 'Overlap route',
+          address: '2331 Sherbrooke',
+          scheduledStart: '2099-03-24T14:30:00.000Z',
+          scheduledEnd: '2099-03-24T15:30:00.000Z',
+          employeeIds: ['emp-owner'],
+        },
+        'owner',
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    await expect(
+      service.createStartNextJobAssignment(
+        {
+          jobLabel: 'Inactive route',
+          address: '4100 Daniel-Johnson',
+          scheduledStart: '2099-03-25T12:00:00.000Z',
+          scheduledEnd: '2099-03-25T14:00:00.000Z',
+          employeeIds: ['emp-inactive'],
+        },
+        'owner',
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
 });

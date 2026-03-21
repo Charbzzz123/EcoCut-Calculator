@@ -6,7 +6,7 @@ export type EmployeeJobStatus = 'scheduled' | 'completed';
 
 export type EmployeeReadinessState = 'available' | 'scheduled' | 'inactive';
 
-export type EmployeeHoursSource = 'manual' | 'clock';
+export type EmployeeHoursSource = 'manual' | 'clock' | 'assignment';
 
 export type EmployeeClockAction = 'clock_in' | 'clock_out';
 
@@ -54,6 +54,12 @@ export interface EmployeeAvailabilityWindow {
   address: string;
   startAt: string;
   endAt: string;
+}
+
+export interface EmployeeStartNextJobAssignmentResult {
+  assignmentId: string;
+  createdHistory: EmployeeJobHistoryRecord[];
+  createdHours: EmployeeHoursRecord[];
 }
 
 export interface EmployeeStartNextJobReadiness {

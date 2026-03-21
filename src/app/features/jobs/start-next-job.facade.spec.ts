@@ -10,6 +10,7 @@ class EmployeesDataServiceStub {
   readiness: EmployeeStartNextJobReadiness[] = [];
   history: EmployeeJobHistoryRecord[] = [];
   shouldFail = false;
+  shouldFailCreate = false;
 
   async listStartNextJobReadiness(): Promise<EmployeeStartNextJobReadiness[]> {
     if (this.shouldFail) {
@@ -23,6 +24,28 @@ class EmployeesDataServiceStub {
       throw new Error('failure');
     }
     return this.history;
+  }
+
+  async createStartNextJobAssignment() {
+    if (this.shouldFailCreate) {
+      throw new Error('save-failure');
+    }
+    return {
+      assignmentId: 'assign-1',
+      createdHistory: [
+        {
+          id: 'created-history-1',
+          employeeId: 'emp-a',
+          siteLabel: 'Morning trim',
+          address: '12 Crew St',
+          scheduledStart: '2026-03-21T09:00:00.000Z',
+          scheduledEnd: '2026-03-21T10:00:00.000Z',
+          hoursWorked: 1,
+          status: 'scheduled' as const,
+        },
+      ],
+      createdHours: [],
+    };
   }
 }
 
@@ -260,5 +283,35 @@ describe('StartNextJobFacade', () => {
     expect(facade.draftValidation().blockingReasons).toContain(
       'Scheduled end must be after scheduled start.',
     );
+  });
+
+  it('submits assignment, resets draft, and keeps save success feedback', async () => {
+    await facade.loadBoard();
+    facade.toggleEmployeeSelection('emp-a');
+    facade.jobLabelControl.setValue('Morning trim');
+    facade.addressControl.setValue('12 Crew St');
+    facade.scheduledStartControl.setValue('2026-03-21T09:00');
+    facade.scheduledEndControl.setValue('2026-03-21T10:00');
+
+    await expect(facade.submitAssignment('manager')).resolves.toBe(true);
+    expect(facade.saveState()).toBe('success');
+    expect(facade.saveMessage()).toContain('Assignment saved for 1 crew member');
+    expect(facade.selectedEmployeeIds()).toEqual([]);
+    expect(facade.jobLabelControl.value).toBe('');
+    expect(facade.addressControl.value).toBe('');
+  });
+
+  it('returns save error feedback when assignment mutation fails', async () => {
+    await facade.loadBoard();
+    dataService.shouldFailCreate = true;
+    facade.toggleEmployeeSelection('emp-a');
+    facade.jobLabelControl.setValue('Morning trim');
+    facade.addressControl.setValue('12 Crew St');
+    facade.scheduledStartControl.setValue('2026-03-21T09:00');
+    facade.scheduledEndControl.setValue('2026-03-21T10:00');
+
+    await expect(facade.submitAssignment()).resolves.toBe(false);
+    expect(facade.saveState()).toBe('error');
+    expect(facade.saveMessage()).toBe('Unable to save assignment right now.');
   });
 });

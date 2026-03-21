@@ -3,6 +3,8 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { EmployeesDataService } from '../employees/employees-data.service.js';
 import type {
   EmployeeJobHistoryRecord,
+  EmployeeOperatorRole,
+  EmployeeStartNextJobAssignmentPayload,
   EmployeeStartNextJobReadiness,
 } from '../employees/employees.types.js';
 import type {
@@ -11,6 +13,7 @@ import type {
   ReadinessPill,
   SelectedCrewHistoryItem,
   StartNextJobLoadState,
+  StartNextJobSaveState,
 } from './start-next-job.types.js';
 
 const normalizeText = (value: string): string => value.trim().toLowerCase();
@@ -27,6 +30,7 @@ const overlapsRange = (
   startB: number,
   endB: number,
 ): boolean => startA < endB && endA > startB;
+const toIsoDateTime = (value: string): string => new Date(value).toISOString();
 
 @Injectable()
 export class StartNextJobFacade {
@@ -42,6 +46,8 @@ export class StartNextJobFacade {
 
   readonly loadState = signal<StartNextJobLoadState>('loading');
   readonly errorMessage = signal('');
+  readonly saveState = signal<StartNextJobSaveState>('idle');
+  readonly saveMessage = signal('');
 
   private readonly readinessSignal = signal<EmployeeStartNextJobReadiness[]>([]);
   private readonly historySignal = signal<EmployeeJobHistoryRecord[]>([]);
@@ -152,6 +158,7 @@ export class StartNextJobFacade {
   }
 
   toggleEmployeeSelection(employeeId: string): void {
+    this.clearSaveFeedback();
     this.selectedEmployeeIdsSignal.update((selectedIds) => {
       if (selectedIds.includes(employeeId)) {
         return selectedIds.filter((id) => id !== employeeId);
@@ -161,7 +168,35 @@ export class StartNextJobFacade {
   }
 
   clearCrewSelection(): void {
+    this.clearSaveFeedback();
     this.selectedEmployeeIdsSignal.set([]);
+  }
+
+  async submitAssignment(actorRole: EmployeeOperatorRole = 'owner'): Promise<boolean> {
+    const validation = this.draftValidation();
+    if (!validation.isReady) {
+      this.saveState.set('error');
+      this.saveMessage.set(validation.blockingReasons[0] ?? 'Assignment draft is invalid.');
+      return false;
+    }
+
+    this.saveState.set('saving');
+    this.saveMessage.set('Saving assignment...');
+    const payload = this.buildAssignmentPayload();
+    try {
+      const result = await this.employeesData.createStartNextJobAssignment(payload, actorRole);
+      this.saveState.set('success');
+      this.saveMessage.set(
+        `Assignment saved for ${result.createdHistory.length} crew member(s).`,
+      );
+      this.resetDraftAfterSave();
+      await this.loadBoard();
+      return true;
+    } catch {
+      this.saveState.set('error');
+      this.saveMessage.set('Unable to save assignment right now.');
+      return false;
+    }
   }
 
   getReadinessPill(readiness: EmployeeStartNextJobReadiness): ReadinessPill {
@@ -238,5 +273,32 @@ export class StartNextJobFacade {
       });
     }
     return conflicts;
+  }
+
+  private buildAssignmentPayload(): EmployeeStartNextJobAssignmentPayload {
+    return {
+      jobLabel: this.jobLabelControl.value.trim(),
+      address: this.addressControl.value.trim(),
+      scheduledStart: toIsoDateTime(this.scheduledStartControl.value),
+      scheduledEnd: toIsoDateTime(this.scheduledEndControl.value),
+      employeeIds: this.selectedEmployeeIds(),
+    };
+  }
+
+  private resetDraftAfterSave(): void {
+    this.selectedEmployeeIdsSignal.set([]);
+    this.queryControl.setValue('', { emitEvent: false });
+    this.jobLabelControl.setValue('', { emitEvent: false });
+    this.addressControl.setValue('', { emitEvent: false });
+    this.scheduledStartControl.setValue('', { emitEvent: false });
+    this.scheduledEndControl.setValue('', { emitEvent: false });
+  }
+
+  private clearSaveFeedback(): void {
+    if (this.saveState() === 'idle') {
+      return;
+    }
+    this.saveState.set('idle');
+    this.saveMessage.set('');
   }
 }

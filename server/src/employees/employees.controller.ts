@@ -11,6 +11,7 @@ import {
 import type { CreateEmployeeDto } from './dto/create-employee.dto';
 import type { CreateClockActionDto } from './dto/create-clock-action.dto';
 import type { CreateHoursEntryDto } from './dto/create-hours-entry.dto';
+import type { CreateStartNextJobAssignmentDto } from './dto/create-start-next-job-assignment.dto';
 import type { UpdateEmployeeDto } from './dto/update-employee.dto';
 import type { UpdateHoursEntryDto } from './dto/update-hours-entry.dto';
 import { EmployeesService } from './employees.service';
@@ -117,6 +118,17 @@ export class EmployeesController {
   ) {
     return this.employees.removeHoursEntry(
       entryId,
+      this.parseOperatorRole(operatorRole),
+    );
+  }
+
+  @Post('assignments/start-next-job')
+  createStartNextJobAssignment(
+    @Body() body: CreateStartNextJobAssignmentDto,
+    @Headers('x-operator-role') operatorRole?: string,
+  ) {
+    return this.employees.createStartNextJobAssignment(
+      body,
       this.parseOperatorRole(operatorRole),
     );
   }

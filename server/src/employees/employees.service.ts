@@ -9,6 +9,7 @@ import {
 import type { CreateEmployeeDto } from './dto/create-employee.dto';
 import type { CreateClockActionDto } from './dto/create-clock-action.dto';
 import type { CreateHoursEntryDto } from './dto/create-hours-entry.dto';
+import type { CreateStartNextJobAssignmentDto } from './dto/create-start-next-job-assignment.dto';
 import type { UpdateEmployeeDto } from './dto/update-employee.dto';
 import type { UpdateHoursEntryDto } from './dto/update-hours-entry.dto';
 import { EmployeesRepository } from './employees.repository';
@@ -19,6 +20,7 @@ import type {
   EmployeeJobHistoryRecord,
   EmployeeOperatorRole,
   EmployeeProfileRecord,
+  EmployeeStartNextJobAssignmentResult,
   EmployeeStartNextJobReadiness,
   EmployeesSnapshot,
 } from './employees.types';
@@ -41,6 +43,12 @@ const sortByHistoryStartAsc = (
   left: EmployeeJobHistoryRecord,
   right: EmployeeJobHistoryRecord,
 ): number => left.scheduledStart.localeCompare(right.scheduledStart);
+const overlapsRange = (
+  startA: number,
+  endA: number,
+  startB: number,
+  endB: number,
+): boolean => startA < endB && endA > startB;
 
 const phonePattern = /^\(\d{3}\)\s\d{3}-\d{4}$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -172,6 +180,77 @@ export class EmployeesService implements OnModuleInit {
 
   listStartNextJobReadiness(): EmployeeStartNextJobReadiness[] {
     return this.computeReadiness(this.snapshot.roster, this.snapshot.history);
+  }
+
+  async createStartNextJobAssignment(
+    payload: CreateStartNextJobAssignmentDto,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeStartNextJobAssignmentResult> {
+    this.assertOwnerOrManager(actorRole);
+    const normalized = this.normalizeStartNextJobPayload(payload);
+    this.validateStartNextJobPayload(normalized);
+    const startTimestamp = toTimestamp(normalized.scheduledStart);
+    const endTimestamp = toTimestamp(normalized.scheduledEnd);
+
+    const conflicts = this.collectAssignmentConflicts(
+      normalized.employeeIds,
+      startTimestamp,
+      endTimestamp,
+    );
+    if (conflicts.length) {
+      throw new ConflictException(
+        `Cannot assign crew due to scheduling conflicts: ${conflicts.join('; ')}`,
+      );
+    }
+
+    const assignmentId = `assign-${Date.now()}`;
+    const nowIso = new Date().toISOString();
+    const durationHours = Math.max(
+      0.25,
+      Math.round(((endTimestamp - startTimestamp) / 3_600_000) * 4) / 4,
+    );
+
+    const createdHistory = normalized.employeeIds.map((employeeId, index) => ({
+      id: `${assignmentId}-history-${index + 1}`,
+      employeeId,
+      siteLabel: normalized.jobLabel,
+      address: normalized.address,
+      scheduledStart: normalized.scheduledStart,
+      scheduledEnd: normalized.scheduledEnd,
+      hoursWorked: durationHours,
+      status: 'scheduled' as const,
+    }));
+
+    const createdHours = normalized.employeeIds.map((employeeId, index) => ({
+      id: `${assignmentId}-hours-${index + 1}`,
+      employeeId,
+      workDate: normalized.scheduledStart.slice(0, 10),
+      siteLabel: normalized.jobLabel,
+      hours: durationHours,
+      source: 'assignment' as const,
+      clockInAt: null,
+      clockOutAt: null,
+      updatedByRole: actorRole,
+      updatedAt: nowIso,
+    }));
+
+    this.snapshot = {
+      ...this.snapshot,
+      history: [...createdHistory, ...this.snapshot.history],
+      hours: [...createdHours, ...this.snapshot.hours],
+      roster: this.snapshot.roster.map((record) =>
+        normalized.employeeIds.includes(record.id)
+          ? { ...record, lastActivityAt: nowIso }
+          : record,
+      ),
+    };
+    await this.persistSnapshot();
+
+    return {
+      assignmentId,
+      createdHistory,
+      createdHours,
+    };
   }
 
   async createEmployeeProfile(
@@ -546,6 +625,109 @@ export class EmployeesService implements OnModuleInit {
         clockOutAt: entry.clockOutAt ?? null,
       })),
     };
+  }
+
+  private normalizeStartNextJobPayload(
+    payload: CreateStartNextJobAssignmentDto,
+  ): CreateStartNextJobAssignmentDto {
+    return {
+      jobLabel: payload.jobLabel.trim(),
+      address: payload.address.trim(),
+      scheduledStart: this.toIsoDateTime(payload.scheduledStart),
+      scheduledEnd: this.toIsoDateTime(payload.scheduledEnd),
+      employeeIds: Array.from(
+        new Set(
+          payload.employeeIds
+            .map((employeeId) => employeeId.trim())
+            .filter(Boolean),
+        ),
+      ),
+    };
+  }
+
+  private validateStartNextJobPayload(
+    payload: CreateStartNextJobAssignmentDto,
+  ): void {
+    const missingFields: string[] = [];
+    if (!payload.jobLabel) {
+      missingFields.push('jobLabel');
+    }
+    if (!payload.address) {
+      missingFields.push('address');
+    }
+    if (!payload.scheduledStart) {
+      missingFields.push('scheduledStart');
+    }
+    if (!payload.scheduledEnd) {
+      missingFields.push('scheduledEnd');
+    }
+    if (!payload.employeeIds.length) {
+      missingFields.push('employeeIds');
+    }
+    if (missingFields.length) {
+      throw new BadRequestException(
+        `Missing required start-next-job fields: ${missingFields.join(', ')}`,
+      );
+    }
+
+    const startTimestamp = toTimestamp(payload.scheduledStart);
+    const endTimestamp = toTimestamp(payload.scheduledEnd);
+    if (!startTimestamp || !endTimestamp) {
+      throw new BadRequestException(
+        'Scheduled start/end must be valid datetimes.',
+      );
+    }
+    if (endTimestamp <= startTimestamp) {
+      throw new BadRequestException(
+        'Scheduled end must be after scheduled start.',
+      );
+    }
+  }
+
+  private collectAssignmentConflicts(
+    employeeIds: string[],
+    startTimestamp: number,
+    endTimestamp: number,
+  ): string[] {
+    const conflicts: string[] = [];
+    for (const employeeId of employeeIds) {
+      const employee = this.requireEmployee(employeeId);
+      if (employee.status === 'inactive') {
+        conflicts.push(`${employee.fullName} is inactive`);
+        continue;
+      }
+
+      const overlappingScheduled = this.snapshot.history.find(
+        (entry) =>
+          entry.employeeId === employeeId &&
+          entry.status === 'scheduled' &&
+          overlapsRange(
+            startTimestamp,
+            endTimestamp,
+            toTimestamp(entry.scheduledStart),
+            toTimestamp(entry.scheduledEnd),
+          ),
+      );
+
+      if (overlappingScheduled) {
+        conflicts.push(
+          `${employee.fullName} overlaps "${overlappingScheduled.siteLabel}"`,
+        );
+      }
+    }
+    return conflicts;
+  }
+
+  private toIsoDateTime(value: string): string {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return '';
+    }
+    const parsed = Date.parse(trimmed);
+    if (Number.isNaN(parsed)) {
+      return '';
+    }
+    return new Date(parsed).toISOString();
   }
 
   private computeReadiness(

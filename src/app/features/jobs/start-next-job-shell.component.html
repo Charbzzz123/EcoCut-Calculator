@@ -55,10 +55,30 @@
       <button type="button" class="ghost-btn" (click)="facade.clearCrewSelection()">
         Clear crew selection
       </button>
-      <button type="button" class="primary-btn" [disabled]="!facade.draftValidation().isReady">
-        Save draft (next slice)
+      <button
+        type="button"
+        class="primary-btn"
+        [disabled]="!facade.draftValidation().isReady || facade.saveState() === 'saving'"
+        (click)="facade.submitAssignment()"
+      >
+        @if (facade.saveState() === 'saving') {
+          Saving assignment...
+        } @else {
+          Save assignment
+        }
       </button>
     </div>
+
+    @if (facade.saveState() !== 'idle' && facade.saveMessage()) {
+      <p
+        class="save-feedback"
+        [class.save-feedback--success]="facade.saveState() === 'success'"
+        [class.save-feedback--error]="facade.saveState() === 'error'"
+        role="status"
+      >
+        {{ facade.saveMessage() }}
+      </p>
+    }
   </article>
 
   <article class="board-grid">

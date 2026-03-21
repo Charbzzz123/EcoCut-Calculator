@@ -53,6 +53,8 @@ const createFacadeStub = () => ({
   scheduledEndControl: new FormControl('', { nonNullable: true }),
   loadState: signal<'loading' | 'ready' | 'error'>('loading'),
   errorMessage: signal('Unable to load Start Next Job data right now.'),
+  saveState: signal<'idle' | 'saving' | 'success' | 'error'>('idle'),
+  saveMessage: signal(''),
   filteredReadiness: signal<EmployeeStartNextJobReadiness[]>([]),
   selectedCrew: signal<EmployeeStartNextJobReadiness[]>([]),
   selectedCrewConflicts: signal<CrewConflict[]>([]),
@@ -62,6 +64,7 @@ const createFacadeStub = () => ({
   }),
   selectedCrewHistory: signal<SelectedCrewHistoryItem[]>([]),
   loadBoard: vi.fn().mockResolvedValue(undefined),
+  submitAssignment: vi.fn().mockResolvedValue(true),
   clearCrewSelection: vi.fn(),
   toggleEmployeeSelection: vi.fn(),
   isEmployeeSelected: vi.fn().mockReturnValue(false),
@@ -143,9 +146,26 @@ describe('StartNextJobShellComponent', () => {
 
     const saveButton = fixture.nativeElement.querySelector('.primary-btn') as HTMLButtonElement;
     expect(saveButton.disabled).toBe(false);
+    saveButton.click();
+    expect(facade.submitAssignment).toHaveBeenCalled();
 
     const clearButton = fixture.nativeElement.querySelector('.draft-actions .ghost-btn') as HTMLButtonElement;
     clearButton.click();
     expect(facade.clearCrewSelection).toHaveBeenCalled();
+  });
+
+  it('renders saving and feedback states for assignment submit', () => {
+    facade.loadState.set('ready');
+    facade.draftValidation.set({ isReady: true, blockingReasons: [] });
+    facade.saveState.set('saving');
+    facade.saveMessage.set('Saving assignment...');
+    fixture.detectChanges();
+
+    const saveButton = fixture.nativeElement.querySelector('.primary-btn') as HTMLButtonElement;
+    expect(saveButton.textContent).toContain('Saving assignment');
+    expect(saveButton.disabled).toBe(true);
+    expect(fixture.nativeElement.querySelector('.save-feedback')?.textContent).toContain(
+      'Saving assignment',
+    );
   });
 });

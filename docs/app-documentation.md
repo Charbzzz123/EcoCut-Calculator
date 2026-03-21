@@ -53,7 +53,7 @@ root/
 - **Entry persistence client**: `EntryRepositoryService` (`src/app/shared/domain/entry/entry-repository.service.ts`) wraps `/api/entries` and `/api/entries/clients`. `HomeDataService.saveEntry` now awaits this service so every submission is recorded immediately (no more console stub). `listClients()` will power the future CRM dashboard without duplicating HTTP plumbing.
 - **Client roster UI**: `/clients` is backed by `ClientsShellComponent` (standalone) which uses `EntryRepositoryService.listClients()` on init. The view renders summary cards, search/filter controls, and the roster list with dedicated loading/error states. Routes are defined in `app.routes.ts` (lazy loaded via `loadComponent`).
 - **Manage Employees workspace (ME-1 to ME-9 UI)**: `/employees/manage` lazy-loads `ManageEmployeesShellComponent` with `EmployeesFacade` + `EmployeesDataService`. Current release includes roster retrieval/filtering, owner-safe profile create/edit/archive, operator role mode (owner vs manager), per-employee hours editing with capability guards, manager/owner clock in/out cards, employee timeline rollups, and a Start Next Job readiness contract panel (availability state, upcoming windows, next available time, conflict flag). Both reads and writes are now wired to `/api/employees/*`, with operator-role headers applied on mutating requests so backend permissions remain authoritative.
-- **Start Next Job board (ME-8)**: `/jobs/start` lazy-loads `StartNextJobShellComponent` with `StartNextJobFacade`. It consumes `/api/employees/readiness` + `/api/employees/history`, supports crew selection, validates scheduling conflicts against upcoming windows, and keeps an assignment draft/readiness checklist in one place.
+- **Start Next Job board (ME-8 + ME-10)**: `/jobs/start` lazy-loads `StartNextJobShellComponent` with `StartNextJobFacade`. It consumes `/api/employees/readiness` + `/api/employees/history`, supports crew selection, validates scheduling conflicts against upcoming windows, and now persists confirmed assignments through `/api/employees/assignments/start-next-job`.
 - **Broadcast UI (Phase 1-6 live)**:
   - `/communications/broadcast` now lazy-loads `BroadcastShellComponent` and reuses the same evergreen shell language as `/clients`.
   - `BroadcastFacade` owns recipient loading, filter controls, channel selection, eligibility counts, exclusion summaries, and dispatch gating (no eligible recipients => dispatch blocked).
@@ -81,6 +81,7 @@ root/
   - `GET /employees/hours` - list per-employee hours entries.
   - `GET /employees/history` - list employee job-history timeline entries.
   - `GET /employees/readiness` - list Start Next Job readiness contract data (availability state, upcoming windows, conflict flags, totals).
+  - `POST /employees/assignments/start-next-job` - persist selected Start Next Job crew into scheduled history entries plus assignment-source hours rows.
   - `POST /employees/roster`, `PATCH /employees/roster/:employeeId`, `POST /employees/roster/:employeeId/archive` - profile writes with role guardrails (`owner` required for update/archive; `owner` or `manager` for create).
   - `POST /employees/hours`, `PATCH /employees/hours/:entryId`, `DELETE /employees/hours/:entryId` - hours mutations allowed for `owner` and `manager`.
   - `POST /employees/hours/clock` - role-guarded clock in/out action that writes audit-ready clock sessions into the hours stream (`source=clock`, `clockInAt`, `clockOutAt`, actor/timestamp).
@@ -156,7 +157,7 @@ All frontend services derive their HTTP targets from `environment.apiBaseUrl`, s
 - Replace placeholder Angular template with real calculator components.
 - Extend the `/clients` view into a full CRM (client detail drawer, job history timeline, edit/delete hooks) once backend persistence is durable.
 - Continue `/communications/broadcast` rollout in remaining slices: campaign history UI and final rollout checklist/integration hardening.
-- Persist Start Next Job crew assignments into employee history + payroll hours so board decisions become reportable records.
+- Continue Start Next Job enhancements (e.g., assignment edit/cancel + optimistic reconciliation) now that baseline persistence is live.
 - Automate documentation publishing (Docs site or wiki) once scope grows.
 
 ## Durable Persistence

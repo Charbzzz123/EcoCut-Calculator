@@ -6,6 +6,7 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 | Task                                                                 | Done       | Notes                                                                                                                                                                                                                                                                     |
 | -------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Manage Employees Phase ME-10 assignment persistence wiring           | 2026-03-21 | Added `POST /employees/assignments/start-next-job` so Start Next Job saves scheduled history rows plus assignment-source hours entries, updates roster activity, and immediately feeds Manage Employees timeline/payroll views after refresh.                             |
 | Manage Employees Phase ME-9 clock-in / clock-out workflow            | 2026-03-21 | Added role-guarded clock cards in `/employees/manage` and backend `POST /employees/hours/clock`; sessions persist into hours with `source=clock`, `clockInAt`, `clockOutAt`, actor role, and timestamp so payroll reconciliation has a durable audit trail.               |
 | Manage Employees Phase ME-8 Start Next Job assignment board          | 2026-03-21 | Added `/jobs/start` board with crew picker, readiness-based status badges, assignment draft validation, and conflict checks powered by `/employees/readiness` + `/employees/history` before draft confirmation.                                                           |
 | Manage Employees Phase ME-7 tests/docs/rollout checklist             | 2026-03-21 | Re-ran quality gates after backend employee typing fixes (`npm run lint:workspace`, `npm run test:ci`, `npm run build`, and `cd server && npm run check`) and synced functional/technical docs so the employee workspace status reflects the shipped backend wiring.      |
@@ -76,9 +77,9 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 ## In Progress / Backlog
 
-| Step  | Task                              | Owner | Notes                                                                                                                 |
-| ----- | --------------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------- |
-| ME-10 | Job assignment persistence wiring | —     | Save selected crew assignments into history + hours records so Start Next Job feeds reporting and employee timelines. |
+| Step | Task                                      | Owner | Notes                                                                     |
+| ---- | ----------------------------------------- | ----- | ------------------------------------------------------------------------- |
+| —    | No open Manage Employees slices right now | —     | ME-1 through ME-10 are complete. Add new rows when the next phase starts. |
 
 ### Broadcast Requirements (locked for implementation)
 

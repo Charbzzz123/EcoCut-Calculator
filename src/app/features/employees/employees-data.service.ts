@@ -10,6 +10,8 @@ import type {
   EmployeeOperatorRole,
   EmployeeProfileMutationPayload,
   EmployeeRosterRecord,
+  EmployeeStartNextJobAssignmentPayload,
+  EmployeeStartNextJobAssignmentResult,
   EmployeeStartNextJobReadiness,
 } from './employees.types.js';
 
@@ -33,6 +35,21 @@ export class EmployeesDataService {
   async listStartNextJobReadiness(): Promise<EmployeeStartNextJobReadiness[]> {
     return firstValueFrom(
       this.http.get<EmployeeStartNextJobReadiness[]>(`${this.baseUrl}/readiness`),
+    );
+  }
+
+  async createStartNextJobAssignment(
+    payload: EmployeeStartNextJobAssignmentPayload,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeStartNextJobAssignmentResult> {
+    return firstValueFrom(
+      this.http.post<EmployeeStartNextJobAssignmentResult>(
+        `${this.baseUrl}/assignments/start-next-job`,
+        payload,
+        {
+          headers: this.operatorHeaders(actorRole),
+        },
+      ),
     );
   }
 

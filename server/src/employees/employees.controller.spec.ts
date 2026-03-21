@@ -14,6 +14,7 @@ describe('EmployeesController', () => {
   const recordClockAction = jest.fn();
   const updateHoursEntry = jest.fn();
   const removeHoursEntry = jest.fn();
+  const createStartNextJobAssignment = jest.fn();
 
   const createController = async (): Promise<EmployeesController> => {
     const moduleRef = await Test.createTestingModule({
@@ -33,6 +34,7 @@ describe('EmployeesController', () => {
             recordClockAction,
             updateHoursEntry,
             removeHoursEntry,
+            createStartNextJobAssignment,
           },
         },
       ],
@@ -69,6 +71,9 @@ describe('EmployeesController', () => {
     recordClockAction.mockResolvedValue({ id: 'clock-new' });
     updateHoursEntry.mockResolvedValue({ id: 'hours-1' });
     removeHoursEntry.mockResolvedValue(undefined);
+    createStartNextJobAssignment.mockResolvedValue({
+      assignmentId: 'assign-1',
+    });
 
     await controller.createEmployeeProfile(
       {
@@ -104,6 +109,16 @@ describe('EmployeesController', () => {
       'manager',
     );
     await controller.removeHoursEntry('hours-1', 'manager');
+    await controller.createStartNextJobAssignment(
+      {
+        jobLabel: 'Morning route',
+        address: '1450 Pine Ave W',
+        scheduledStart: '2026-03-24T12:00:00.000Z',
+        scheduledEnd: '2026-03-24T15:00:00.000Z',
+        employeeIds: ['emp-1'],
+      },
+      'manager',
+    );
 
     expect(createEmployeeProfile).toHaveBeenCalledWith(
       expect.any(Object),
@@ -132,6 +147,16 @@ describe('EmployeesController', () => {
       'manager',
     );
     expect(removeHoursEntry).toHaveBeenCalledWith('hours-1', 'manager');
+    expect(createStartNextJobAssignment).toHaveBeenCalledWith(
+      {
+        jobLabel: 'Morning route',
+        address: '1450 Pine Ave W',
+        scheduledStart: '2026-03-24T12:00:00.000Z',
+        scheduledEnd: '2026-03-24T15:00:00.000Z',
+        employeeIds: ['emp-1'],
+      },
+      'manager',
+    );
   });
 
   it('defaults unknown role headers to owner', async () => {
