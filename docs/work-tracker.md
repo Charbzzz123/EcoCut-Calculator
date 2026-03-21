@@ -6,6 +6,8 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 | Task                                                                 | Done       | Notes                                                                                                                                                                                                                                                                      |
 | -------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Manage Employees Phase ME-14 bulk scheduled lifecycle actions        | 2026-03-21 | Added Start Next Job bulk-selection controls so operators can select multiple scheduled history rows and run complete/cancel actions in one pass, with partial-failure feedback and selection state that stays in sync after refreshes.                                    |
+| Manage Employees Phase ME-13 assignment reassignment workflow        | 2026-03-21 | Added `POST /employees/history/:entryId/reassign` plus Start Next Job UI wiring so schedulers can move scheduled entries to a different active crew member (with overlap checks) while linked assignment-hours rows stay synchronized.                                     |
 | Manage Employees Phase ME-12 assignment edit/cancel lifecycle        | 2026-03-21 | Added schedule edit + cancel endpoints (`PATCH /employees/history/:entryId/schedule`, `POST /employees/history/:entryId/cancel`) and wired Start Next Job history cards to edit, complete, or cancel scheduled entries while keeping linked assignment-hours rows in sync. |
 | Manage Employees Phase ME-11 assignment completion workflow          | 2026-03-21 | Added `POST /employees/history/:entryId/complete` plus Start Next Job history actions so schedulers can mark scheduled crew entries complete, refresh readiness totals immediately, and keep assignment lifecycle updates inside the same scheduling board.                |
 | Manage Employees Phase ME-10 assignment persistence wiring           | 2026-03-21 | Added `POST /employees/assignments/start-next-job` so Start Next Job saves scheduled history rows plus assignment-source hours entries, updates roster activity, and immediately feeds Manage Employees timeline/payroll views after refresh.                              |
@@ -81,7 +83,7 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 | Step | Task                                      | Owner | Notes                                                                     |
 | ---- | ----------------------------------------- | ----- | ------------------------------------------------------------------------- |
-| —    | No open Manage Employees slices right now | —     | ME-1 through ME-12 are complete. Add new rows when the next phase starts. |
+| —    | No open Manage Employees slices right now | —     | ME-1 through ME-14 are complete. Add new rows when the next phase starts. |
 
 ### Broadcast Requirements (locked for implementation)
 

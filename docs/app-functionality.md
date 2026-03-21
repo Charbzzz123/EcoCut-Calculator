@@ -158,7 +158,7 @@
   - Prevent duplicate employee creation using normalized name + phone/email checks.
   - Block save with a clear missing-field summary when required inputs are incomplete.
 - **Queued next slices**
-  - None right now (ME-1 through ME-12 complete).
+  - None right now (ME-1 through ME-13 complete).
 
 ### Start Next Job Assignment Board (Current Release)
 
@@ -171,6 +171,8 @@
 - **Persistence wiring**: `Save assignment` now calls `/employees/assignments/start-next-job`, which writes scheduled history rows plus assignment-source hours entries for each selected employee and refreshes readiness/history immediately after save.
 - **Completion workflow**: scheduled history cards now expose `Mark completed`, which calls `/employees/history/:entryId/complete` so crews can close an assignment directly from the board and instantly update readiness counts.
 - **Lifecycle controls**: scheduled history cards now support `Edit schedule` and `Cancel assignment` actions. Edits call `/employees/history/:entryId/schedule`; cancel calls `/employees/history/:entryId/cancel`. Both flows refresh readiness/history and keep linked assignment-hours entries aligned with schedule changes.
+- **Reassignment controls**: scheduled cards support `Reassign to ...` when exactly one different active crew member is selected. Reassign calls `/employees/history/:entryId/reassign`, runs overlap checks, and moves linked assignment-hours entries to the new employee.
+- **Bulk lifecycle controls**: schedulers can multi-select scheduled history entries and run `Complete selected` or `Cancel selected` actions from the same panel. The board reports partial failures (for example, 3 of 4 succeeded) and keeps failed rows selected for quick retry.
 
 ## Calculation & Business Rules
 

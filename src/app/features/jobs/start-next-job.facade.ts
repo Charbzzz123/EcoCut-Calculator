@@ -58,9 +58,11 @@ export class StartNextJobFacade {
   private readonly readinessSignal = signal<EmployeeStartNextJobReadiness[]>([]);
   private readonly historySignal = signal<EmployeeJobHistoryRecord[]>([]);
   private readonly selectedEmployeeIdsSignal = signal<string[]>([]);
+  private readonly selectedHistoryEntryIdsSignal = signal<string[]>([]);
 
   readonly readinessSnapshot = computed(() => this.readinessSignal());
   readonly selectedEmployeeIds = computed(() => this.selectedEmployeeIdsSignal());
+  readonly selectedHistoryEntryIds = computed(() => this.selectedHistoryEntryIdsSignal());
 
   readonly filteredReadiness = computed(() => {
     const query = normalizeText(this.queryControl.value);
@@ -99,6 +101,27 @@ export class StartNextJobFacade {
       .sort((left, right) => right.scheduledStart.localeCompare(left.scheduledStart))
       .slice(0, 12);
   });
+
+  readonly scheduledHistoryEntries = computed<SelectedCrewHistoryItem[]>(() =>
+    this.selectedCrewHistory().filter((entry) => entry.status === 'scheduled'),
+  );
+
+  readonly scheduledHistoryCount = computed(() => this.scheduledHistoryEntries().length);
+
+  readonly selectedScheduledHistoryEntries = computed<SelectedCrewHistoryItem[]>(() => {
+    const selectedIds = this.selectedHistoryEntryIds();
+    if (!selectedIds.length) {
+      return [];
+    }
+    const historyLookup = new Map(this.scheduledHistoryEntries().map((entry) => [entry.id, entry]));
+    return selectedIds
+      .map((entryId) => historyLookup.get(entryId))
+      .filter((entry): entry is SelectedCrewHistoryItem => Boolean(entry));
+  });
+
+  readonly selectedScheduledHistoryCount = computed(
+    () => this.selectedScheduledHistoryEntries().length,
+  );
 
   readonly selectedCrewConflicts = computed<CrewConflict[]>(() => {
     const startTimestamp = toTimestamp(this.scheduledStartControl.value);
@@ -152,6 +175,12 @@ export class StartNextJobFacade {
       this.selectedEmployeeIdsSignal.update((selectedIds) =>
         selectedIds.filter((employeeId) => allowedIds.has(employeeId)),
       );
+      const allowedHistoryIds = new Set(
+        history.filter((entry) => entry.status === 'scheduled').map((entry) => entry.id),
+      );
+      this.selectedHistoryEntryIdsSignal.update((selectedIds) =>
+        selectedIds.filter((entryId) => allowedHistoryIds.has(entryId)),
+      );
       this.loadState.set('ready');
     } catch {
       this.loadState.set('error');
@@ -171,11 +200,32 @@ export class StartNextJobFacade {
       }
       return [...selectedIds, employeeId];
     });
+    this.selectedHistoryEntryIdsSignal.set([]);
   }
 
   clearCrewSelection(): void {
     this.clearSaveFeedback();
     this.selectedEmployeeIdsSignal.set([]);
+    this.selectedHistoryEntryIdsSignal.set([]);
+  }
+
+  isHistoryEntrySelected(entryId: string): boolean {
+    return this.selectedHistoryEntryIds().includes(entryId);
+  }
+
+  toggleHistoryEntrySelection(entryId: string): void {
+    this.clearSaveFeedback();
+    this.selectedHistoryEntryIdsSignal.update((selectedIds) => {
+      if (selectedIds.includes(entryId)) {
+        return selectedIds.filter((id) => id !== entryId);
+      }
+      return [...selectedIds, entryId];
+    });
+  }
+
+  clearHistorySelection(): void {
+    this.clearSaveFeedback();
+    this.selectedHistoryEntryIdsSignal.set([]);
   }
 
   async submitAssignment(actorRole: EmployeeOperatorRole = 'owner'): Promise<boolean> {
@@ -290,6 +340,7 @@ export class StartNextJobFacade {
       if (this.editingHistoryEntryId() === entryId) {
         this.editingHistoryEntryId.set(null);
       }
+      this.removeSelectedHistoryIds([entryId]);
       this.saveState.set('success');
       this.saveMessage.set('Scheduled assignment cancelled.');
       await this.loadBoard();
@@ -297,6 +348,66 @@ export class StartNextJobFacade {
     } catch {
       this.saveState.set('error');
       this.saveMessage.set('Unable to cancel the scheduled assignment right now.');
+      return false;
+    }
+  }
+
+  resolveReassignTarget(entry: SelectedCrewHistoryItem): {
+    employeeId: string;
+    fullName: string;
+  } | null {
+    if (entry.status !== 'scheduled') {
+      return null;
+    }
+    const selected = this.selectedCrew();
+    if (selected.length !== 1) {
+      return null;
+    }
+    const [target] = selected;
+    if (!target || target.employeeId === entry.employeeId) {
+      return null;
+    }
+    if (target.status !== 'active') {
+      return null;
+    }
+    return {
+      employeeId: target.employeeId,
+      fullName: target.fullName,
+    };
+  }
+
+  async reassignHistoryEntry(
+    entry: SelectedCrewHistoryItem,
+    actorRole: EmployeeOperatorRole = 'owner',
+  ): Promise<boolean> {
+    const target = this.resolveReassignTarget(entry);
+    if (!target) {
+      this.saveState.set('error');
+      this.saveMessage.set('Select exactly one different active crew member before reassigning.');
+      return false;
+    }
+
+    this.saveState.set('saving');
+    this.saveMessage.set('Reassigning scheduled assignment...');
+    try {
+      await this.employeesData.reassignScheduledHistoryEntry(
+        entry.id,
+        {
+          employeeId: target.employeeId,
+        },
+        actorRole,
+      );
+      if (this.editingHistoryEntryId() === entry.id) {
+        this.editingHistoryEntryId.set(null);
+      }
+      this.removeSelectedHistoryIds([entry.id]);
+      this.saveState.set('success');
+      this.saveMessage.set(`Scheduled assignment moved to ${target.fullName}.`);
+      await this.loadBoard();
+      return true;
+    } catch {
+      this.saveState.set('error');
+      this.saveMessage.set('Unable to reassign the scheduled assignment right now.');
       return false;
     }
   }
@@ -309,6 +420,7 @@ export class StartNextJobFacade {
     this.saveMessage.set('Marking assignment as completed...');
     try {
       await this.employeesData.completeJobHistoryEntry(entryId, actorRole);
+      this.removeSelectedHistoryIds([entryId]);
       this.saveState.set('success');
       this.saveMessage.set('Assignment marked as completed.');
       await this.loadBoard();
@@ -318,6 +430,82 @@ export class StartNextJobFacade {
       this.saveMessage.set('Unable to mark assignment as completed right now.');
       return false;
     }
+  }
+
+  async completeSelectedHistoryEntries(
+    actorRole: EmployeeOperatorRole = 'owner',
+  ): Promise<boolean> {
+    const entries = this.selectedScheduledHistoryEntries();
+    if (!entries.length) {
+      this.saveState.set('error');
+      this.saveMessage.set('Select at least one scheduled assignment to complete.');
+      return false;
+    }
+
+    this.saveState.set('saving');
+    this.saveMessage.set(`Completing ${entries.length} scheduled assignment(s)...`);
+    const results = await Promise.allSettled(
+      entries.map((entry) =>
+        this.employeesData.completeJobHistoryEntry(entry.id, actorRole),
+      ),
+    );
+    const succeededIds = entries
+      .filter((_, index) => results[index]?.status === 'fulfilled')
+      .map((entry) => entry.id);
+    const failedCount = entries.length - succeededIds.length;
+    this.removeSelectedHistoryIds(succeededIds);
+
+    if (failedCount === 0) {
+      this.saveState.set('success');
+      this.saveMessage.set(`Completed ${entries.length} scheduled assignment(s).`);
+      await this.loadBoard();
+      return true;
+    }
+
+    this.saveState.set('error');
+    this.saveMessage.set(
+      `Completed ${succeededIds.length} of ${entries.length} scheduled assignments. Retry the remaining ${failedCount}.`,
+    );
+    await this.loadBoard();
+    return false;
+  }
+
+  async cancelSelectedHistoryEntries(
+    actorRole: EmployeeOperatorRole = 'owner',
+  ): Promise<boolean> {
+    const entries = this.selectedScheduledHistoryEntries();
+    if (!entries.length) {
+      this.saveState.set('error');
+      this.saveMessage.set('Select at least one scheduled assignment to cancel.');
+      return false;
+    }
+
+    this.saveState.set('saving');
+    this.saveMessage.set(`Cancelling ${entries.length} scheduled assignment(s)...`);
+    const results = await Promise.allSettled(
+      entries.map((entry) =>
+        this.employeesData.cancelScheduledHistoryEntry(entry.id, actorRole),
+      ),
+    );
+    const succeededIds = entries
+      .filter((_, index) => results[index]?.status === 'fulfilled')
+      .map((entry) => entry.id);
+    const failedCount = entries.length - succeededIds.length;
+    this.removeSelectedHistoryIds(succeededIds);
+
+    if (failedCount === 0) {
+      this.saveState.set('success');
+      this.saveMessage.set(`Cancelled ${entries.length} scheduled assignment(s).`);
+      await this.loadBoard();
+      return true;
+    }
+
+    this.saveState.set('error');
+    this.saveMessage.set(
+      `Cancelled ${succeededIds.length} of ${entries.length} scheduled assignments. Retry the remaining ${failedCount}.`,
+    );
+    await this.loadBoard();
+    return false;
   }
 
   getReadinessPill(readiness: EmployeeStartNextJobReadiness): ReadinessPill {
@@ -421,5 +609,15 @@ export class StartNextJobFacade {
     }
     this.saveState.set('idle');
     this.saveMessage.set('');
+  }
+
+  private removeSelectedHistoryIds(entryIds: readonly string[]): void {
+    if (!entryIds.length) {
+      return;
+    }
+    const removals = new Set(entryIds);
+    this.selectedHistoryEntryIdsSignal.update((selectedIds) =>
+      selectedIds.filter((entryId) => !removals.has(entryId)),
+    );
   }
 }

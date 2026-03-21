@@ -461,4 +461,117 @@ describe('EmployeesService', () => {
       ),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it('reassigns scheduled entries and linked assignment hours to another active employee', async () => {
+    await service.createEmployeeProfile(
+      {
+        firstName: 'Lina',
+        lastName: 'Sarkis',
+        phone: '(438) 777-7777',
+        email: 'lina@ecocutqc.com',
+        role: 'Crew',
+        hourlyRate: 28,
+      },
+      'owner',
+    );
+    const target = service
+      .listRoster()
+      .find((employee) => employee.fullName === 'Lina Sarkis');
+    expect(target).toBeTruthy();
+
+    const created = await service.createStartNextJobAssignment(
+      {
+        jobLabel: 'North route',
+        address: '500 Main St',
+        scheduledStart: '2099-03-28T09:00:00.000Z',
+        scheduledEnd: '2099-03-28T11:00:00.000Z',
+        employeeIds: ['emp-owner'],
+      },
+      'owner',
+    );
+    const historyId = created.createdHistory[0]?.id;
+
+    const reassigned = await service.reassignScheduledHistoryEntry(
+      historyId,
+      { employeeId: target?.id ?? '' },
+      'manager',
+    );
+
+    expect(reassigned.employeeId).toBe(target?.id);
+    const persistedHistory = service
+      .listJobHistoryEntries()
+      .find((entry) => entry.id === historyId);
+    expect(persistedHistory?.employeeId).toBe(target?.id);
+
+    const linkedHours = service
+      .listHoursEntries()
+      .find((entry) => entry.historyEntryId === historyId);
+    expect(linkedHours?.employeeId).toBe(target?.id);
+    expect(linkedHours?.updatedByRole).toBe('manager');
+  });
+
+  it('rejects reassignment to same/inactive/conflicting employees', async () => {
+    const created = await service.createStartNextJobAssignment(
+      {
+        jobLabel: 'North route',
+        address: '500 Main St',
+        scheduledStart: '2099-03-28T09:00:00.000Z',
+        scheduledEnd: '2099-03-28T11:00:00.000Z',
+        employeeIds: ['emp-owner'],
+      },
+      'owner',
+    );
+    const historyId = created.createdHistory[0]?.id;
+
+    await expect(
+      service.reassignScheduledHistoryEntry(
+        historyId,
+        { employeeId: 'emp-owner' },
+        'owner',
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    await expect(
+      service.reassignScheduledHistoryEntry(
+        historyId,
+        { employeeId: 'emp-inactive' },
+        'owner',
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    await service.createEmployeeProfile(
+      {
+        firstName: 'Ben',
+        lastName: 'Crew',
+        phone: '(438) 666-6666',
+        email: 'ben@ecocutqc.com',
+        role: 'Crew',
+        hourlyRate: 26,
+      },
+      'owner',
+    );
+    const target = service
+      .listRoster()
+      .find((employee) => employee.fullName === 'Ben Crew');
+    expect(target).toBeTruthy();
+
+    await service.createStartNextJobAssignment(
+      {
+        jobLabel: 'Blocking route',
+        address: '88 Block St',
+        scheduledStart: '2099-03-28T10:00:00.000Z',
+        scheduledEnd: '2099-03-28T12:00:00.000Z',
+        employeeIds: [target?.id ?? ''],
+      },
+      'owner',
+    );
+
+    await expect(
+      service.reassignScheduledHistoryEntry(
+        historyId,
+        { employeeId: target?.id ?? '' },
+        'owner',
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
 });

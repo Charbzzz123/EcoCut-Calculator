@@ -247,6 +247,27 @@
   font-weight: 600;
 }
 
+.history-bulk-actions {
+  margin-bottom: 0.75rem;
+  border: 1px solid rgba(111, 212, 183, 0.2);
+  border-radius: 0.85rem;
+  padding: 0.65rem 0.75rem;
+  background: rgba(7, 29, 24, 0.74);
+  display: grid;
+  gap: 0.55rem;
+}
+
+.history-bulk-actions p {
+  margin: 0;
+  color: rgba(190, 223, 210, 0.86);
+}
+
+.history-bulk-actions__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
 .history-card__action {
   justify-self: end;
   margin-top: 0.2rem;
@@ -268,6 +289,21 @@
   border-color: rgba(222, 118, 118, 0.45);
   background: rgba(52, 23, 23, 0.82);
   color: #ffd7d7;
+}
+
+.history-card__action--info {
+  border-color: rgba(116, 162, 236, 0.45);
+  background: rgba(22, 38, 68, 0.78);
+  color: #d5e4ff;
+}
+
+.history-card__action--select {
+  border-color: rgba(111, 212, 183, 0.38);
+}
+
+.history-card__action--select-active {
+  background: rgba(94, 206, 175, 0.22);
+  border-color: rgba(111, 212, 183, 0.7);
 }
 
 .history-card__action[disabled] {

@@ -10,6 +10,7 @@ import type {
   EmployeeOperatorRole,
   EmployeeProfileMutationPayload,
   EmployeeRosterRecord,
+  EmployeeScheduledHistoryReassignPayload,
   EmployeeScheduledHistoryUpdatePayload,
   EmployeeStartNextJobAssignmentPayload,
   EmployeeStartNextJobAssignmentResult,
@@ -93,6 +94,22 @@ export class EmployeesDataService {
       this.http.post<EmployeeJobHistoryRecord>(
         `${this.baseUrl}/history/${entryId}/cancel`,
         null,
+        {
+          headers: this.operatorHeaders(actorRole),
+        },
+      ),
+    );
+  }
+
+  async reassignScheduledHistoryEntry(
+    entryId: string,
+    payload: EmployeeScheduledHistoryReassignPayload,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeJobHistoryRecord> {
+    return firstValueFrom(
+      this.http.post<EmployeeJobHistoryRecord>(
+        `${this.baseUrl}/history/${entryId}/reassign`,
+        payload,
         {
           headers: this.operatorHeaders(actorRole),
         },

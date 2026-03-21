@@ -14,9 +14,13 @@ class EmployeesDataServiceStub {
   shouldFailComplete = false;
   shouldFailUpdate = false;
   shouldFailCancel = false;
+  shouldFailReassign = false;
+  shouldFailCompleteIds = new Set<string>();
+  shouldFailCancelIds = new Set<string>();
   completeCalls: string[] = [];
   updateCalls: string[] = [];
   cancelCalls: string[] = [];
+  reassignCalls: { entryId: string; employeeId: string }[] = [];
 
   async listStartNextJobReadiness(): Promise<EmployeeStartNextJobReadiness[]> {
     if (this.shouldFail) {
@@ -56,7 +60,7 @@ class EmployeesDataServiceStub {
 
   async completeJobHistoryEntry(entryId: string) {
     this.completeCalls.push(entryId);
-    if (this.shouldFailComplete) {
+    if (this.shouldFailComplete || this.shouldFailCompleteIds.has(entryId)) {
       throw new Error('complete-failure');
     }
     return {
@@ -98,7 +102,7 @@ class EmployeesDataServiceStub {
 
   async cancelScheduledHistoryEntry(entryId: string) {
     this.cancelCalls.push(entryId);
-    if (this.shouldFailCancel) {
+    if (this.shouldFailCancel || this.shouldFailCancelIds.has(entryId)) {
       throw new Error('cancel-failure');
     }
     return {
@@ -110,6 +114,26 @@ class EmployeesDataServiceStub {
       scheduledEnd: '2026-03-21T17:00:00.000Z',
       hoursWorked: 3,
       status: 'cancelled' as const,
+    };
+  }
+
+  async reassignScheduledHistoryEntry(
+    entryId: string,
+    payload: { employeeId: string },
+  ) {
+    this.reassignCalls.push({ entryId, employeeId: payload.employeeId });
+    if (this.shouldFailReassign) {
+      throw new Error('reassign-failure');
+    }
+    return {
+      id: entryId,
+      employeeId: payload.employeeId,
+      siteLabel: 'Downtown',
+      address: '2 Main St',
+      scheduledStart: '2026-03-21T14:00:00.000Z',
+      scheduledEnd: '2026-03-21T17:00:00.000Z',
+      hoursWorked: 3,
+      status: 'scheduled' as const,
     };
   }
 }
@@ -313,6 +337,21 @@ describe('StartNextJobFacade', () => {
     expect(facade.selectedEmployeeIds()).toEqual([]);
   });
 
+  it('tracks scheduled history selection independently from crew selection', async () => {
+    await facade.loadBoard();
+    facade.toggleEmployeeSelection('emp-b');
+    expect(facade.selectedCrewHistory().map((entry) => entry.id)).toEqual(['hist-2']);
+    expect(facade.scheduledHistoryCount()).toBe(1);
+    expect(facade.selectedScheduledHistoryCount()).toBe(0);
+
+    facade.toggleHistoryEntrySelection('hist-2');
+    expect(facade.isHistoryEntrySelected('hist-2')).toBe(true);
+    expect(facade.selectedScheduledHistoryCount()).toBe(1);
+
+    facade.clearHistorySelection();
+    expect(facade.selectedScheduledHistoryCount()).toBe(0);
+  });
+
   it('trims selected ids when refreshed readiness no longer contains them', async () => {
     await facade.loadBoard();
     facade.toggleEmployeeSelection('emp-b');
@@ -447,5 +486,168 @@ describe('StartNextJobFacade', () => {
     await expect(facade.cancelScheduledHistoryEntry('hist-2')).resolves.toBe(false);
     expect(facade.saveState()).toBe('error');
     expect(facade.saveMessage()).toBe('Unable to cancel the scheduled assignment right now.');
+  });
+
+  it('runs bulk complete flow and clears successful selections', async () => {
+    dataService.history = [
+      ...mockHistory,
+      {
+        id: 'hist-3',
+        employeeId: 'emp-b',
+        siteLabel: 'Outremont',
+        address: '9 Side St',
+        scheduledStart: '2026-03-21T18:00:00.000Z',
+        scheduledEnd: '2026-03-21T19:00:00.000Z',
+        hoursWorked: 1,
+        status: 'scheduled',
+      },
+    ];
+    await facade.loadBoard();
+    facade.toggleEmployeeSelection('emp-b');
+    facade.toggleHistoryEntrySelection('hist-2');
+    facade.toggleHistoryEntrySelection('hist-3');
+
+    await expect(facade.completeSelectedHistoryEntries('manager')).resolves.toBe(true);
+    expect(dataService.completeCalls).toEqual(['hist-2', 'hist-3']);
+    expect(facade.selectedScheduledHistoryCount()).toBe(0);
+    expect(facade.saveState()).toBe('success');
+    expect(facade.saveMessage()).toContain('Completed 2 scheduled assignment(s).');
+  });
+
+  it('handles partial failures in bulk complete flow', async () => {
+    dataService.history = [
+      ...mockHistory,
+      {
+        id: 'hist-3',
+        employeeId: 'emp-b',
+        siteLabel: 'Outremont',
+        address: '9 Side St',
+        scheduledStart: '2026-03-21T18:00:00.000Z',
+        scheduledEnd: '2026-03-21T19:00:00.000Z',
+        hoursWorked: 1,
+        status: 'scheduled',
+      },
+    ];
+    dataService.shouldFailCompleteIds = new Set(['hist-3']);
+    await facade.loadBoard();
+    facade.toggleEmployeeSelection('emp-b');
+    facade.toggleHistoryEntrySelection('hist-2');
+    facade.toggleHistoryEntrySelection('hist-3');
+
+    await expect(facade.completeSelectedHistoryEntries()).resolves.toBe(false);
+    expect(facade.saveState()).toBe('error');
+    expect(facade.saveMessage()).toContain('Completed 1 of 2 scheduled assignments.');
+    expect(facade.selectedHistoryEntryIds()).toEqual(['hist-3']);
+  });
+
+  it('requires at least one selected scheduled entry before bulk cancel', async () => {
+    await facade.loadBoard();
+    await expect(facade.cancelSelectedHistoryEntries()).resolves.toBe(false);
+    expect(facade.saveState()).toBe('error');
+    expect(facade.saveMessage()).toBe('Select at least one scheduled assignment to cancel.');
+  });
+
+  it('runs bulk cancel flow and clears successful selections', async () => {
+    dataService.history = [
+      ...mockHistory,
+      {
+        id: 'hist-3',
+        employeeId: 'emp-b',
+        siteLabel: 'Outremont',
+        address: '9 Side St',
+        scheduledStart: '2026-03-21T18:00:00.000Z',
+        scheduledEnd: '2026-03-21T19:00:00.000Z',
+        hoursWorked: 1,
+        status: 'scheduled',
+      },
+    ];
+    await facade.loadBoard();
+    facade.toggleEmployeeSelection('emp-b');
+    facade.toggleHistoryEntrySelection('hist-2');
+    facade.toggleHistoryEntrySelection('hist-3');
+
+    await expect(facade.cancelSelectedHistoryEntries('manager')).resolves.toBe(true);
+    expect(dataService.cancelCalls).toEqual(['hist-2', 'hist-3']);
+    expect(facade.selectedScheduledHistoryCount()).toBe(0);
+    expect(facade.saveState()).toBe('success');
+    expect(facade.saveMessage()).toContain('Cancelled 2 scheduled assignment(s).');
+  });
+
+  it('handles partial failures in bulk cancel flow', async () => {
+    dataService.history = [
+      ...mockHistory,
+      {
+        id: 'hist-3',
+        employeeId: 'emp-b',
+        siteLabel: 'Outremont',
+        address: '9 Side St',
+        scheduledStart: '2026-03-21T18:00:00.000Z',
+        scheduledEnd: '2026-03-21T19:00:00.000Z',
+        hoursWorked: 1,
+        status: 'scheduled',
+      },
+    ];
+    dataService.shouldFailCancelIds = new Set(['hist-3']);
+    await facade.loadBoard();
+    facade.toggleEmployeeSelection('emp-b');
+    facade.toggleHistoryEntrySelection('hist-2');
+    facade.toggleHistoryEntrySelection('hist-3');
+
+    await expect(facade.cancelSelectedHistoryEntries()).resolves.toBe(false);
+    expect(facade.saveState()).toBe('error');
+    expect(facade.saveMessage()).toContain('Cancelled 1 of 2 scheduled assignments.');
+    expect(facade.selectedHistoryEntryIds()).toEqual(['hist-3']);
+  });
+
+  it('resolves reassign target only when exactly one different active crew member is selected', async () => {
+    await facade.loadBoard();
+    const entry = {
+      ...mockHistory[1],
+      employeeName: 'Bruno East',
+    };
+
+    expect(facade.resolveReassignTarget(entry)).toBeNull();
+
+    facade.toggleEmployeeSelection('emp-a');
+    expect(facade.resolveReassignTarget(entry)).toEqual({
+      employeeId: 'emp-a',
+      fullName: 'Alex North',
+    });
+
+    facade.toggleEmployeeSelection('emp-c');
+    expect(facade.resolveReassignTarget(entry)).toBeNull();
+  });
+
+  it('reassigns scheduled history entries and refreshes board', async () => {
+    await facade.loadBoard();
+    facade.toggleEmployeeSelection('emp-a');
+    const entry = {
+      ...mockHistory[1],
+      employeeName: 'Bruno East',
+    };
+
+    await expect(facade.reassignHistoryEntry(entry, 'manager')).resolves.toBe(true);
+    expect(dataService.reassignCalls).toEqual([
+      { entryId: 'hist-2', employeeId: 'emp-a' },
+    ]);
+    expect(facade.saveState()).toBe('success');
+    expect(facade.saveMessage()).toContain('Alex North');
+  });
+
+  it('rejects reassign action without a valid target and surfaces API failures', async () => {
+    await facade.loadBoard();
+    const entry = {
+      ...mockHistory[1],
+      employeeName: 'Bruno East',
+    };
+
+    await expect(facade.reassignHistoryEntry(entry)).resolves.toBe(false);
+    expect(facade.saveState()).toBe('error');
+    expect(facade.saveMessage()).toContain('Select exactly one different active crew member');
+
+    facade.toggleEmployeeSelection('emp-a');
+    dataService.shouldFailReassign = true;
+    await expect(facade.reassignHistoryEntry(entry)).resolves.toBe(false);
+    expect(facade.saveMessage()).toBe('Unable to reassign the scheduled assignment right now.');
   });
 });

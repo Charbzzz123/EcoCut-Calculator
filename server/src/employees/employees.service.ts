@@ -10,6 +10,7 @@ import type { CreateEmployeeDto } from './dto/create-employee.dto';
 import type { CreateClockActionDto } from './dto/create-clock-action.dto';
 import type { CreateHoursEntryDto } from './dto/create-hours-entry.dto';
 import type { CreateStartNextJobAssignmentDto } from './dto/create-start-next-job-assignment.dto';
+import type { ReassignScheduledHistoryDto } from './dto/reassign-scheduled-history.dto';
 import type { UpdateScheduledHistoryDto } from './dto/update-scheduled-history.dto';
 import type { UpdateEmployeeDto } from './dto/update-employee.dto';
 import type { UpdateHoursEntryDto } from './dto/update-hours-entry.dto';
@@ -425,6 +426,97 @@ export class EmployeesService implements OnModuleInit {
     };
     await this.persistSnapshot();
     return cancelled;
+  }
+
+  async reassignScheduledHistoryEntry(
+    entryId: string,
+    payload: ReassignScheduledHistoryDto,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeJobHistoryRecord> {
+    this.assertOwnerOrManager(actorRole);
+    const existing = this.snapshot.history.find(
+      (entry) => entry.id === entryId,
+    );
+    if (!existing) {
+      throw new NotFoundException(`Job history entry "${entryId}" not found.`);
+    }
+    if (existing.status !== 'scheduled') {
+      throw new ConflictException(
+        `Only scheduled entries can be reassigned (entry "${entryId}").`,
+      );
+    }
+
+    const nextEmployeeId = payload.employeeId.trim();
+    if (!nextEmployeeId) {
+      throw new BadRequestException('employeeId is required for reassignment.');
+    }
+    if (nextEmployeeId === existing.employeeId) {
+      throw new ConflictException(
+        `Job history entry "${entryId}" is already assigned to this employee.`,
+      );
+    }
+
+    const targetEmployee = this.requireEmployee(nextEmployeeId);
+    if (targetEmployee.status !== 'active') {
+      throw new ConflictException(
+        `Employee "${targetEmployee.fullName}" is inactive and cannot be assigned.`,
+      );
+    }
+
+    const startTimestamp = toTimestamp(existing.scheduledStart);
+    const endTimestamp = toTimestamp(existing.scheduledEnd);
+    const targetOverlap = this.snapshot.history.find(
+      (entry) =>
+        entry.id !== entryId &&
+        entry.employeeId === targetEmployee.id &&
+        entry.status === 'scheduled' &&
+        overlapsRange(
+          startTimestamp,
+          endTimestamp,
+          toTimestamp(entry.scheduledStart),
+          toTimestamp(entry.scheduledEnd),
+        ),
+    );
+    if (targetOverlap) {
+      throw new ConflictException(
+        `Target employee overlaps "${targetOverlap.siteLabel}" (${targetOverlap.scheduledStart} - ${targetOverlap.scheduledEnd}).`,
+      );
+    }
+
+    const reassigned: EmployeeJobHistoryRecord = {
+      ...existing,
+      employeeId: targetEmployee.id,
+    };
+    const linkedHoursIds = this.findLinkedAssignmentHoursEntryIds(existing);
+    const now = new Date().toISOString();
+
+    this.snapshot = {
+      ...this.snapshot,
+      history: this.snapshot.history.map((entry) =>
+        entry.id === entryId ? reassigned : entry,
+      ),
+      hours: this.snapshot.hours.map((entry) =>
+        linkedHoursIds.has(entry.id)
+          ? {
+              ...entry,
+              employeeId: targetEmployee.id,
+              updatedByRole: actorRole,
+              updatedAt: now,
+            }
+          : entry,
+      ),
+      roster: this.snapshot.roster.map((employee) => {
+        if (
+          employee.id === existing.employeeId ||
+          employee.id === targetEmployee.id
+        ) {
+          return { ...employee, lastActivityAt: now };
+        }
+        return employee;
+      }),
+    };
+    await this.persistSnapshot();
+    return reassigned;
   }
 
   async createEmployeeProfile(

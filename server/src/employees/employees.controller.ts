@@ -12,6 +12,7 @@ import type { CreateEmployeeDto } from './dto/create-employee.dto';
 import type { CreateClockActionDto } from './dto/create-clock-action.dto';
 import type { CreateHoursEntryDto } from './dto/create-hours-entry.dto';
 import type { CreateStartNextJobAssignmentDto } from './dto/create-start-next-job-assignment.dto';
+import type { ReassignScheduledHistoryDto } from './dto/reassign-scheduled-history.dto';
 import type { UpdateScheduledHistoryDto } from './dto/update-scheduled-history.dto';
 import type { UpdateEmployeeDto } from './dto/update-employee.dto';
 import type { UpdateHoursEntryDto } from './dto/update-hours-entry.dto';
@@ -165,6 +166,19 @@ export class EmployeesController {
   ) {
     return this.employees.cancelScheduledHistoryEntry(
       entryId,
+      this.parseOperatorRole(operatorRole),
+    );
+  }
+
+  @Post('history/:entryId/reassign')
+  reassignScheduledHistoryEntry(
+    @Param('entryId') entryId: string,
+    @Body() body: ReassignScheduledHistoryDto,
+    @Headers('x-operator-role') operatorRole?: string,
+  ) {
+    return this.employees.reassignScheduledHistoryEntry(
+      entryId,
+      body,
       this.parseOperatorRole(operatorRole),
     );
   }

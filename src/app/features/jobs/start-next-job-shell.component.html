@@ -218,6 +218,41 @@
       <p>{{ facade.selectedCrewHistory().length }} recent entries</p>
     </header>
 
+    @if (facade.scheduledHistoryCount()) {
+      <div class="history-bulk-actions">
+        <p>
+          {{ facade.selectedScheduledHistoryCount() }} of {{ facade.scheduledHistoryCount() }}
+          scheduled selected
+        </p>
+        <div class="history-bulk-actions__buttons">
+          <button
+            type="button"
+            class="ghost-btn"
+            [disabled]="!facade.selectedScheduledHistoryCount() || facade.saveState() === 'saving'"
+            (click)="facade.clearHistorySelection()"
+          >
+            Clear selected
+          </button>
+          <button
+            type="button"
+            class="ghost-btn"
+            [disabled]="!facade.selectedScheduledHistoryCount() || facade.saveState() === 'saving'"
+            (click)="facade.completeSelectedHistoryEntries()"
+          >
+            Complete selected
+          </button>
+          <button
+            type="button"
+            class="ghost-btn history-card__action--danger"
+            [disabled]="!facade.selectedScheduledHistoryCount() || facade.saveState() === 'saving'"
+            (click)="facade.cancelSelectedHistoryEntries()"
+          >
+            Cancel selected
+          </button>
+        </div>
+      </div>
+    }
+
     @if (!facade.selectedCrewHistory().length) {
       <p class="state">Select crew members to inspect their recent job windows and sites.</p>
     } @else {
@@ -238,6 +273,17 @@
               <div class="history-card__actions">
                 <button
                   type="button"
+                  class="history-card__action history-card__action--select"
+                  [class.history-card__action--select-active]="
+                    facade.isHistoryEntrySelected(item.id)
+                  "
+                  [disabled]="facade.saveState() === 'saving'"
+                  (click)="facade.toggleHistoryEntrySelection(item.id)"
+                >
+                  {{ facade.isHistoryEntrySelected(item.id) ? 'Selected' : 'Select' }}
+                </button>
+                <button
+                  type="button"
                   class="history-card__action"
                   [disabled]="facade.saveState() === 'saving'"
                   (click)="facade.beginHistoryEdit(item)"
@@ -256,6 +302,24 @@
                 >
                   Mark completed
                 </button>
+                @if (facade.resolveReassignTarget(item); as target) {
+                  <button
+                    type="button"
+                    class="history-card__action history-card__action--info"
+                    [disabled]="facade.saveState() === 'saving'"
+                    (click)="facade.reassignHistoryEntry(item)"
+                  >
+                    Reassign to {{ target.fullName }}
+                  </button>
+                } @else {
+                  <button
+                    type="button"
+                    class="history-card__action history-card__action--info"
+                    [disabled]="true"
+                  >
+                    Reassign (select one other crew member)
+                  </button>
+                }
                 <button
                   type="button"
                   class="history-card__action history-card__action--danger"

@@ -64,18 +64,29 @@ const createFacadeStub = () => ({
     blockingReasons: ['Job label is required.'],
   }),
   selectedCrewHistory: signal<SelectedCrewHistoryItem[]>([]),
+  scheduledHistoryEntries: signal<SelectedCrewHistoryItem[]>([]),
+  scheduledHistoryCount: signal(0),
+  selectedScheduledHistoryEntries: signal<SelectedCrewHistoryItem[]>([]),
+  selectedScheduledHistoryCount: signal(0),
   loadBoard: vi.fn().mockResolvedValue(undefined),
   submitAssignment: vi.fn().mockResolvedValue(true),
   completeHistoryEntry: vi.fn().mockResolvedValue(true),
+  completeSelectedHistoryEntries: vi.fn().mockResolvedValue(true),
   beginHistoryEdit: vi.fn(),
   cancelHistoryEdit: vi.fn(),
   submitHistoryEdit: vi.fn().mockResolvedValue(true),
   cancelScheduledHistoryEntry: vi.fn().mockResolvedValue(true),
+  cancelSelectedHistoryEntries: vi.fn().mockResolvedValue(true),
+  reassignHistoryEntry: vi.fn().mockResolvedValue(true),
+  resolveReassignTarget: vi.fn().mockReturnValue(null),
   canSubmitHistoryEdit: vi.fn().mockReturnValue(true),
   isEditingHistoryEntry: vi.fn().mockReturnValue(false),
   clearCrewSelection: vi.fn(),
+  clearHistorySelection: vi.fn(),
   toggleEmployeeSelection: vi.fn(),
+  toggleHistoryEntrySelection: vi.fn(),
   isEmployeeSelected: vi.fn().mockReturnValue(false),
+  isHistoryEntrySelected: vi.fn().mockReturnValue(false),
   getReadinessPill: vi.fn().mockReturnValue({ text: 'Available', state: 'available' }),
   trackByEmployeeId: (_: number, record: EmployeeStartNextJobReadiness) => record.employeeId,
   trackByCrewConflict: (_: number, value: CrewConflict) => `${value.employeeId}:${value.reason}`,
@@ -131,6 +142,8 @@ describe('StartNextJobShellComponent', () => {
     facade.selectedCrew.set([employee]);
     facade.selectedCrewConflicts.set([conflict]);
     facade.selectedCrewHistory.set([historyItem]);
+    facade.scheduledHistoryEntries.set([historyItem]);
+    facade.scheduledHistoryCount.set(1);
     facade.draftValidation.set({ isReady: false, blockingReasons: ['Resolve conflicts'] });
     facade.isEmployeeSelected.mockReturnValue(true);
     facade.getReadinessPill.mockReturnValue({ text: 'Scheduled', state: 'scheduled' });
@@ -145,23 +158,73 @@ describe('StartNextJobShellComponent', () => {
     select.click();
     expect(facade.toggleEmployeeSelection).toHaveBeenCalledWith('emp-1');
 
-    const complete = fixture.nativeElement.querySelector(
-      '.history-card__actions .history-card__action',
+    const selectHistory = fixture.nativeElement.querySelector(
+      '.history-card__actions .history-card__action--select',
     ) as HTMLButtonElement;
-    complete.click();
+    selectHistory.click();
+    expect(facade.toggleHistoryEntrySelection).toHaveBeenCalledWith('job-1');
+
+    const edit = fixture.nativeElement.querySelectorAll(
+      '.history-card__actions .history-card__action',
+    )[1] as HTMLButtonElement;
+    edit.click();
     expect(facade.beginHistoryEdit).toHaveBeenCalledWith(historyItem);
 
     const completeButton = fixture.nativeElement.querySelectorAll(
       '.history-card__actions .history-card__action',
-    )[1] as HTMLButtonElement;
+    )[2] as HTMLButtonElement;
     completeButton.click();
     expect(facade.completeHistoryEntry).toHaveBeenCalledWith('job-1');
 
+    const reassignHintButton = fixture.nativeElement.querySelector(
+      '.history-card__action--info',
+    ) as HTMLButtonElement;
+    expect(reassignHintButton.disabled).toBe(true);
+
     const cancelButton = fixture.nativeElement.querySelector(
-      '.history-card__action--danger',
+      '.history-card__actions .history-card__action--danger',
     ) as HTMLButtonElement;
     cancelButton.click();
     expect(facade.cancelScheduledHistoryEntry).toHaveBeenCalledWith('job-1');
+  });
+
+  it('renders bulk actions for scheduled history and forwards button events', () => {
+    facade.loadState.set('ready');
+    facade.selectedCrewHistory.set([historyItem]);
+    facade.scheduledHistoryEntries.set([historyItem]);
+    facade.scheduledHistoryCount.set(1);
+    facade.selectedScheduledHistoryEntries.set([historyItem]);
+    facade.selectedScheduledHistoryCount.set(1);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('1 of 1 scheduled selected');
+
+    const bulkButtons = fixture.nativeElement.querySelectorAll('.history-bulk-actions .ghost-btn');
+    (bulkButtons[0] as HTMLButtonElement).click();
+    expect(facade.clearHistorySelection).toHaveBeenCalled();
+
+    (bulkButtons[1] as HTMLButtonElement).click();
+    expect(facade.completeSelectedHistoryEntries).toHaveBeenCalled();
+
+    (bulkButtons[2] as HTMLButtonElement).click();
+    expect(facade.cancelSelectedHistoryEntries).toHaveBeenCalled();
+  });
+
+  it('triggers reassign action when a valid target is selected', () => {
+    facade.loadState.set('ready');
+    facade.selectedCrewHistory.set([historyItem]);
+    facade.resolveReassignTarget.mockReturnValue({
+      employeeId: 'emp-2',
+      fullName: 'Bruno East',
+    });
+    fixture.detectChanges();
+
+    const reassignButton = fixture.nativeElement.querySelector(
+      '.history-card__action--info',
+    ) as HTMLButtonElement;
+    expect(reassignButton.disabled).toBe(false);
+    reassignButton.click();
+    expect(facade.reassignHistoryEntry).toHaveBeenCalledWith(historyItem);
   });
 
   it('renders draft-ready branch and clear crew action', () => {

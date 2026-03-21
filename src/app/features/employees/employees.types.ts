@@ -80,6 +80,10 @@ export interface EmployeeScheduledHistoryUpdatePayload {
   scheduledEnd: string;
 }
 
+export interface EmployeeScheduledHistoryReassignPayload {
+  employeeId: string;
+}
+
 export interface EmployeeStartNextJobAssignmentResult {
   assignmentId: string;
   createdHistory: EmployeeJobHistoryRecord[];
