@@ -16,6 +16,12 @@ import type {
   StartNextJobSaveState,
 } from './start-next-job.types.js';
 
+interface OptimisticBoardSnapshot {
+  readonly history: EmployeeJobHistoryRecord[];
+  readonly readiness: EmployeeStartNextJobReadiness[];
+  readonly selectedHistoryEntryIds: string[];
+}
+
 const normalizeText = (value: string): string => value.trim().toLowerCase();
 const toTimestamp = (value: string): number | null => {
   if (!value) {
@@ -31,6 +37,10 @@ const overlapsRange = (
   endB: number,
 ): boolean => startA < endB && endA > startB;
 const toIsoDateTime = (value: string): string => new Date(value).toISOString();
+const sortHistoryByStartDesc = (
+  left: EmployeeJobHistoryRecord,
+  right: EmployeeJobHistoryRecord,
+): number => right.scheduledStart.localeCompare(left.scheduledStart);
 const toDateTimeLocal = (value: string): string => {
   const date = new Date(value);
   const pad = (segment: number): string => segment.toString().padStart(2, '0');
@@ -169,14 +179,17 @@ export class StartNextJobFacade {
       const sortedReadiness = [...readiness].sort((left, right) =>
         left.fullName.localeCompare(right.fullName),
       );
+      const sortedHistory = [...history].sort(sortHistoryByStartDesc);
       this.readinessSignal.set(sortedReadiness);
-      this.historySignal.set(history);
+      this.historySignal.set(sortedHistory);
       const allowedIds = new Set(sortedReadiness.map((employee) => employee.employeeId));
       this.selectedEmployeeIdsSignal.update((selectedIds) =>
         selectedIds.filter((employeeId) => allowedIds.has(employeeId)),
       );
       const allowedHistoryIds = new Set(
-        history.filter((entry) => entry.status === 'scheduled').map((entry) => entry.id),
+        sortedHistory
+          .filter((entry) => entry.status === 'scheduled')
+          .map((entry) => entry.id),
       );
       this.selectedHistoryEntryIdsSignal.update((selectedIds) =>
         selectedIds.filter((entryId) => allowedHistoryIds.has(entryId)),
@@ -241,12 +254,12 @@ export class StartNextJobFacade {
     const payload = this.buildAssignmentPayload();
     try {
       const result = await this.employeesData.createStartNextJobAssignment(payload, actorRole);
+      this.applyHistoryUpserts(result.createdHistory);
       this.saveState.set('success');
       this.saveMessage.set(
         `Assignment saved for ${result.createdHistory.length} crew member(s).`,
       );
       this.resetDraftAfterSave();
-      await this.loadBoard();
       return true;
     } catch {
       this.saveState.set('error');
@@ -304,25 +317,46 @@ export class StartNextJobFacade {
       return false;
     }
 
+    const existing = this.historySignal().find((entry) => entry.id === entryId);
+    if (!existing) {
+      this.saveState.set('error');
+      this.saveMessage.set('Unable to find this scheduled assignment anymore.');
+      return false;
+    }
+
+    const nextScheduledStart = toIsoDateTime(this.scheduledStartControl.value);
+    const nextScheduledEnd = toIsoDateTime(this.scheduledEndControl.value);
+    const optimisticEntry: EmployeeJobHistoryRecord = {
+      ...existing,
+      siteLabel: this.jobLabelControl.value.trim(),
+      address: this.addressControl.value.trim(),
+      scheduledStart: nextScheduledStart,
+      scheduledEnd: nextScheduledEnd,
+      hoursWorked: this.estimateHoursFromRange(nextScheduledStart, nextScheduledEnd),
+    };
+    const snapshot = this.captureBoardSnapshot();
+
     this.saveState.set('saving');
     this.saveMessage.set('Saving schedule update...');
+    this.applyHistoryUpserts([optimisticEntry]);
     try {
-      await this.employeesData.updateScheduledHistoryEntry(
+      const updated = await this.employeesData.updateScheduledHistoryEntry(
         entryId,
         {
-          siteLabel: this.jobLabelControl.value.trim(),
-          address: this.addressControl.value.trim(),
-          scheduledStart: toIsoDateTime(this.scheduledStartControl.value),
-          scheduledEnd: toIsoDateTime(this.scheduledEndControl.value),
+          siteLabel: optimisticEntry.siteLabel,
+          address: optimisticEntry.address,
+          scheduledStart: nextScheduledStart,
+          scheduledEnd: nextScheduledEnd,
         },
         actorRole,
       );
+      this.applyHistoryUpserts([updated]);
       this.editingHistoryEntryId.set(null);
       this.saveState.set('success');
       this.saveMessage.set('Schedule updated.');
-      await this.loadBoard();
       return true;
     } catch {
+      this.restoreBoardSnapshot(snapshot);
       this.saveState.set('error');
       this.saveMessage.set('Unable to update the schedule right now.');
       return false;
@@ -333,19 +367,34 @@ export class StartNextJobFacade {
     entryId: string,
     actorRole: EmployeeOperatorRole = 'owner',
   ): Promise<boolean> {
+    const existing = this.historySignal().find((entry) => entry.id === entryId);
+    if (!existing) {
+      this.saveState.set('error');
+      this.saveMessage.set('Unable to find this scheduled assignment anymore.');
+      return false;
+    }
+    const snapshot = this.captureBoardSnapshot();
+
     this.saveState.set('saving');
     this.saveMessage.set('Cancelling scheduled assignment...');
+    this.removeSelectedHistoryIds([entryId]);
+    this.applyHistoryUpserts([
+      {
+        ...existing,
+        status: 'cancelled',
+      },
+    ]);
     try {
-      await this.employeesData.cancelScheduledHistoryEntry(entryId, actorRole);
+      const cancelled = await this.employeesData.cancelScheduledHistoryEntry(entryId, actorRole);
+      this.applyHistoryUpserts([cancelled]);
       if (this.editingHistoryEntryId() === entryId) {
         this.editingHistoryEntryId.set(null);
       }
-      this.removeSelectedHistoryIds([entryId]);
       this.saveState.set('success');
       this.saveMessage.set('Scheduled assignment cancelled.');
-      await this.loadBoard();
       return true;
     } catch {
+      this.restoreBoardSnapshot(snapshot);
       this.saveState.set('error');
       this.saveMessage.set('Unable to cancel the scheduled assignment right now.');
       return false;
@@ -387,25 +436,33 @@ export class StartNextJobFacade {
       return false;
     }
 
+    const snapshot = this.captureBoardSnapshot();
     this.saveState.set('saving');
     this.saveMessage.set('Reassigning scheduled assignment...');
+    this.removeSelectedHistoryIds([entry.id]);
+    this.applyHistoryUpserts([
+      {
+        ...entry,
+        employeeId: target.employeeId,
+      },
+    ]);
     try {
-      await this.employeesData.reassignScheduledHistoryEntry(
+      const reassigned = await this.employeesData.reassignScheduledHistoryEntry(
         entry.id,
         {
           employeeId: target.employeeId,
         },
         actorRole,
       );
+      this.applyHistoryUpserts([reassigned]);
       if (this.editingHistoryEntryId() === entry.id) {
         this.editingHistoryEntryId.set(null);
       }
-      this.removeSelectedHistoryIds([entry.id]);
       this.saveState.set('success');
       this.saveMessage.set(`Scheduled assignment moved to ${target.fullName}.`);
-      await this.loadBoard();
       return true;
     } catch {
+      this.restoreBoardSnapshot(snapshot);
       this.saveState.set('error');
       this.saveMessage.set('Unable to reassign the scheduled assignment right now.');
       return false;
@@ -416,16 +473,31 @@ export class StartNextJobFacade {
     entryId: string,
     actorRole: EmployeeOperatorRole = 'owner',
   ): Promise<boolean> {
+    const existing = this.historySignal().find((entry) => entry.id === entryId);
+    if (!existing) {
+      this.saveState.set('error');
+      this.saveMessage.set('Unable to find this scheduled assignment anymore.');
+      return false;
+    }
+    const snapshot = this.captureBoardSnapshot();
+
     this.saveState.set('saving');
     this.saveMessage.set('Marking assignment as completed...');
+    this.removeSelectedHistoryIds([entryId]);
+    this.applyHistoryUpserts([
+      {
+        ...existing,
+        status: 'completed',
+      },
+    ]);
     try {
-      await this.employeesData.completeJobHistoryEntry(entryId, actorRole);
-      this.removeSelectedHistoryIds([entryId]);
+      const completed = await this.employeesData.completeJobHistoryEntry(entryId, actorRole);
+      this.applyHistoryUpserts([completed]);
       this.saveState.set('success');
       this.saveMessage.set('Assignment marked as completed.');
-      await this.loadBoard();
       return true;
     } catch {
+      this.restoreBoardSnapshot(snapshot);
       this.saveState.set('error');
       this.saveMessage.set('Unable to mark assignment as completed right now.');
       return false;
@@ -442,31 +514,48 @@ export class StartNextJobFacade {
       return false;
     }
 
+    const snapshot = this.captureBoardSnapshot();
+    const selectedIds = entries.map((entry) => entry.id);
     this.saveState.set('saving');
     this.saveMessage.set(`Completing ${entries.length} scheduled assignment(s)...`);
+    this.selectedHistoryEntryIdsSignal.set([]);
+    this.applyHistoryUpserts(
+      entries.map((entry) => ({
+        ...entry,
+        status: 'completed',
+      })),
+    );
     const results = await Promise.allSettled(
       entries.map((entry) =>
         this.employeesData.completeJobHistoryEntry(entry.id, actorRole),
       ),
     );
-    const succeededIds = entries
-      .filter((_, index) => results[index]?.status === 'fulfilled')
-      .map((entry) => entry.id);
-    const failedCount = entries.length - succeededIds.length;
-    this.removeSelectedHistoryIds(succeededIds);
+    const succeededRecords = results
+      .filter(
+        (result): result is PromiseFulfilledResult<EmployeeJobHistoryRecord> =>
+          result.status === 'fulfilled',
+      )
+      .map((result) => result.value);
+    const succeededIds = new Set(succeededRecords.map((record) => record.id));
+    const failedIds = selectedIds.filter((entryId) => !succeededIds.has(entryId));
+    const failedCount = failedIds.length;
+
+    if (succeededRecords.length) {
+      this.applyHistoryUpserts(succeededRecords);
+    }
 
     if (failedCount === 0) {
       this.saveState.set('success');
       this.saveMessage.set(`Completed ${entries.length} scheduled assignment(s).`);
-      await this.loadBoard();
       return true;
     }
 
+    this.restoreHistoryEntries(snapshot.history, failedIds);
+    this.selectedHistoryEntryIdsSignal.set(failedIds);
     this.saveState.set('error');
     this.saveMessage.set(
-      `Completed ${succeededIds.length} of ${entries.length} scheduled assignments. Retry the remaining ${failedCount}.`,
+      `Completed ${succeededRecords.length} of ${entries.length} scheduled assignments. Retry the remaining ${failedCount}.`,
     );
-    await this.loadBoard();
     return false;
   }
 
@@ -480,31 +569,48 @@ export class StartNextJobFacade {
       return false;
     }
 
+    const snapshot = this.captureBoardSnapshot();
+    const selectedIds = entries.map((entry) => entry.id);
     this.saveState.set('saving');
     this.saveMessage.set(`Cancelling ${entries.length} scheduled assignment(s)...`);
+    this.selectedHistoryEntryIdsSignal.set([]);
+    this.applyHistoryUpserts(
+      entries.map((entry) => ({
+        ...entry,
+        status: 'cancelled',
+      })),
+    );
     const results = await Promise.allSettled(
       entries.map((entry) =>
         this.employeesData.cancelScheduledHistoryEntry(entry.id, actorRole),
       ),
     );
-    const succeededIds = entries
-      .filter((_, index) => results[index]?.status === 'fulfilled')
-      .map((entry) => entry.id);
-    const failedCount = entries.length - succeededIds.length;
-    this.removeSelectedHistoryIds(succeededIds);
+    const succeededRecords = results
+      .filter(
+        (result): result is PromiseFulfilledResult<EmployeeJobHistoryRecord> =>
+          result.status === 'fulfilled',
+      )
+      .map((result) => result.value);
+    const succeededIds = new Set(succeededRecords.map((record) => record.id));
+    const failedIds = selectedIds.filter((entryId) => !succeededIds.has(entryId));
+    const failedCount = failedIds.length;
+
+    if (succeededRecords.length) {
+      this.applyHistoryUpserts(succeededRecords);
+    }
 
     if (failedCount === 0) {
       this.saveState.set('success');
       this.saveMessage.set(`Cancelled ${entries.length} scheduled assignment(s).`);
-      await this.loadBoard();
       return true;
     }
 
+    this.restoreHistoryEntries(snapshot.history, failedIds);
+    this.selectedHistoryEntryIdsSignal.set(failedIds);
     this.saveState.set('error');
     this.saveMessage.set(
-      `Cancelled ${succeededIds.length} of ${entries.length} scheduled assignments. Retry the remaining ${failedCount}.`,
+      `Cancelled ${succeededRecords.length} of ${entries.length} scheduled assignments. Retry the remaining ${failedCount}.`,
     );
-    await this.loadBoard();
     return false;
   }
 
@@ -594,8 +700,135 @@ export class StartNextJobFacade {
     };
   }
 
+  private estimateHoursFromRange(startIso: string, endIso: string): number {
+    const startTimestamp = toTimestamp(startIso);
+    const endTimestamp = toTimestamp(endIso);
+    if (!startTimestamp || !endTimestamp || endTimestamp <= startTimestamp) {
+      return 0;
+    }
+    return Math.max(
+      0.25,
+      Math.round(((endTimestamp - startTimestamp) / 3_600_000) * 4) / 4,
+    );
+  }
+
+  private captureBoardSnapshot(): OptimisticBoardSnapshot {
+    return {
+      history: [...this.historySignal()],
+      readiness: [...this.readinessSignal()],
+      selectedHistoryEntryIds: [...this.selectedHistoryEntryIds()],
+    };
+  }
+
+  private restoreBoardSnapshot(snapshot: OptimisticBoardSnapshot): void {
+    this.historySignal.set(snapshot.history);
+    this.readinessSignal.set(snapshot.readiness);
+    this.selectedHistoryEntryIdsSignal.set(snapshot.selectedHistoryEntryIds);
+  }
+
+  private applyHistoryUpserts(records: readonly EmployeeJobHistoryRecord[]): void {
+    if (!records.length) {
+      return;
+    }
+    const updates = new Map(records.map((record) => [record.id, record]));
+    const nextHistory = this.historySignal().map((entry) => updates.get(entry.id) ?? entry);
+    const knownIds = new Set(nextHistory.map((entry) => entry.id));
+    for (const record of records) {
+      if (!knownIds.has(record.id)) {
+        nextHistory.unshift(record);
+      }
+    }
+    this.historySignal.set(nextHistory.sort(sortHistoryByStartDesc));
+    this.readinessSignal.set(this.rebuildReadinessFromHistory(nextHistory));
+  }
+
+  private restoreHistoryEntries(
+    snapshotHistory: readonly EmployeeJobHistoryRecord[],
+    entryIds: readonly string[],
+  ): void {
+    if (!entryIds.length) {
+      return;
+    }
+    const restoreIds = new Set(entryIds);
+    const snapshotLookup = new Map(
+      snapshotHistory
+        .filter((entry) => restoreIds.has(entry.id))
+        .map((entry) => [entry.id, entry]),
+    );
+    this.applyHistoryUpserts(Array.from(snapshotLookup.values()));
+  }
+
+  private rebuildReadinessFromHistory(
+    history: readonly EmployeeJobHistoryRecord[],
+  ): EmployeeStartNextJobReadiness[] {
+    return [...this.readinessSignal()]
+      .map((record) => {
+        const employeeHistory = history.filter(
+          (entry) => entry.employeeId === record.employeeId,
+        );
+        const scheduledEntries = employeeHistory
+          .filter((entry) => entry.status === 'scheduled')
+          .sort((left, right) => left.scheduledStart.localeCompare(right.scheduledStart));
+        const completedEntries = employeeHistory
+          .filter((entry) => entry.status === 'completed')
+          .sort((left, right) => right.scheduledEnd.localeCompare(left.scheduledEnd));
+
+        const nextScheduled = scheduledEntries[0];
+        const hasConflict = scheduledEntries.some((entry, index) => {
+          const nextEntry = scheduledEntries[index + 1];
+          if (!nextEntry) {
+            return false;
+          }
+          return overlapsRange(
+            toTimestamp(entry.scheduledStart) ?? 0,
+            toTimestamp(entry.scheduledEnd) ?? 0,
+            toTimestamp(nextEntry.scheduledStart) ?? 0,
+            toTimestamp(nextEntry.scheduledEnd) ?? 0,
+          );
+        });
+        const lastCompleted = completedEntries[0];
+        const readinessState: EmployeeStartNextJobReadiness['readinessState'] =
+          record.status === 'inactive'
+            ? 'inactive'
+            : scheduledEntries.length
+              ? 'scheduled'
+              : 'available';
+
+        return {
+          ...record,
+          readinessState,
+          scheduledJobsCount: scheduledEntries.length,
+          completedJobsCount: completedEntries.length,
+          scheduledHours: scheduledEntries.reduce(
+            (sum, entry) => sum + entry.hoursWorked,
+            0,
+          ),
+          completedHours: completedEntries.reduce(
+            (sum, entry) => sum + entry.hoursWorked,
+            0,
+          ),
+          nextScheduledStart: nextScheduled?.scheduledStart ?? null,
+          nextScheduledEnd: nextScheduled?.scheduledEnd ?? null,
+          nextAvailableAt:
+            record.status === 'inactive' ? null : nextScheduled?.scheduledEnd ?? null,
+          lastCompletedAt: lastCompleted?.scheduledEnd ?? null,
+          lastCompletedSite: lastCompleted?.siteLabel ?? null,
+          hasScheduleConflict: hasConflict,
+          upcomingWindows: scheduledEntries.map((entry) => ({
+            jobId: entry.id,
+            siteLabel: entry.siteLabel,
+            address: entry.address,
+            startAt: entry.scheduledStart,
+            endAt: entry.scheduledEnd,
+          })),
+        };
+      })
+      .sort((left, right) => left.fullName.localeCompare(right.fullName));
+  }
+
   private resetDraftAfterSave(): void {
     this.selectedEmployeeIdsSignal.set([]);
+    this.selectedHistoryEntryIdsSignal.set([]);
     this.queryControl.setValue('', { emitEvent: false });
     this.jobLabelControl.setValue('', { emitEvent: false });
     this.addressControl.setValue('', { emitEvent: false });

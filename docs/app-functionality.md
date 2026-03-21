@@ -173,6 +173,7 @@
 - **Lifecycle controls**: scheduled history cards now support `Edit schedule` and `Cancel assignment` actions. Edits call `/employees/history/:entryId/schedule`; cancel calls `/employees/history/:entryId/cancel`. Both flows refresh readiness/history and keep linked assignment-hours entries aligned with schedule changes.
 - **Reassignment controls**: scheduled cards support `Reassign to ...` when exactly one different active crew member is selected. Reassign calls `/employees/history/:entryId/reassign`, runs overlap checks, and moves linked assignment-hours entries to the new employee.
 - **Bulk lifecycle controls**: schedulers can multi-select scheduled history entries and run `Complete selected` or `Cancel selected` actions from the same panel. The board reports partial failures (for example, 3 of 4 succeeded) and keeps failed rows selected for quick retry.
+- **Optimistic board updates**: schedule edits and lifecycle actions now patch board state immediately (history + readiness summaries) with rollback when an API call fails, so operators get instant feedback without waiting for full board reloads.
 
 ## Calculation & Business Rules
 
