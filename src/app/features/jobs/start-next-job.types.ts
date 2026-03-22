@@ -45,4 +45,36 @@ export interface AssignmentAnalyticsExport {
   readonly rowCount: number;
 }
 
+export interface EmployeeAssignmentTrendSnapshot {
+  readonly employeeId: string;
+  readonly employeeName: string;
+  readonly totalTracked: number;
+  readonly scheduledCount: number;
+  readonly completedCount: number;
+  readonly cancelledCount: number;
+  readonly totalHours: number;
+  readonly averageHours: number;
+  readonly completionRate: number;
+  readonly cancellationRate: number;
+  readonly lastScheduledStart: string | null;
+  readonly lastSiteLabel: string | null;
+  readonly lastAddress: string | null;
+}
+
+export interface RouteAssignmentVarianceSnapshot {
+  readonly routeId: string;
+  readonly siteLabel: string;
+  readonly address: string;
+  readonly totalTracked: number;
+  readonly scheduledCount: number;
+  readonly completedCount: number;
+  readonly cancelledCount: number;
+  readonly totalHours: number;
+  readonly averageHours: number;
+  readonly completionRate: number;
+  readonly cancellationRate: number;
+  readonly averageHoursVariance: number;
+  readonly lastScheduledStart: string | null;
+}
+
 export type StartNextJobReadinessRecord = EmployeeStartNextJobReadiness;

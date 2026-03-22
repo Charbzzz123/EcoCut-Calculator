@@ -158,7 +158,7 @@
   - Prevent duplicate employee creation using normalized name + phone/email checks.
   - Block save with a clear missing-field summary when required inputs are incomplete.
 - **Queued next slices**
-  - None right now (ME-1 through ME-13 complete).
+  - None right now (ME-1 through ME-20 complete).
 
 ### Start Next Job Assignment Board (Current Release)
 
@@ -177,6 +177,8 @@
 - **Assignment analytics panel**: the summary column now shows selected-crew analytics (tracked, scheduled, completed, cancelled, total/average hours, completion/cancellation rates, unique sites) so dispatch decisions stay data-driven during scheduling.
 - **Analytics export**: Step 2 now includes `Export CSV`, which downloads selected-crew analytics plus detailed history rows (employee, status, site/address, scheduled window, and hours) for handoff/reporting.
 - **Date-range analytics window**: Step 2 now supports `From`/`To` filters for analytics; invalid ranges are blocked with inline guidance, and both panel metrics + CSV export respect the selected window.
+- **Per-employee trend drill-down**: Step 2 now renders employee-level trend cards (status counts, total/average hours, completion/cancellation rates, last site, last scheduled slot) so supervisors can compare crew members before finalizing dispatch.
+- **Route-level variance drill-down**: Step 2 now renders per-route cards (site/address, status mix, total/average hours, completion/cancellation rates, and average-hours variance vs crew average) so supervisors can spot heavy routes before dispatch.
 
 ## Calculation & Business Rules
 

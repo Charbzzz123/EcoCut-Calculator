@@ -13,7 +13,9 @@ import type {
   AssignmentAnalyticsExport,
   AssignmentDraftValidation,
   CrewConflict,
+  EmployeeAssignmentTrendSnapshot,
   ReadinessPill,
+  RouteAssignmentVarianceSnapshot,
   SelectedCrewHistoryItem,
   StartNextJobLoadState,
   StartNextJobSaveState,
@@ -218,6 +220,112 @@ export class StartNextJobFacade {
       cancellationRate,
       uniqueSites,
     };
+  });
+  readonly employeeTrendAnalytics = computed<EmployeeAssignmentTrendSnapshot[]>(() => {
+    const groupedHistory = new Map<string, SelectedCrewHistoryItem[]>();
+    for (const entry of this.assignmentAnalyticsHistory()) {
+      const group = groupedHistory.get(entry.employeeId);
+      if (group) {
+        group.push(entry);
+      } else {
+        groupedHistory.set(entry.employeeId, [entry]);
+      }
+    }
+
+    return Array.from(groupedHistory.entries())
+      .map(([employeeId, entries]) => {
+        const totalTracked = entries.length;
+        const scheduledCount = entries.filter((entry) => entry.status === 'scheduled').length;
+        const completedCount = entries.filter((entry) => entry.status === 'completed').length;
+        const cancelledCount = entries.filter((entry) => entry.status === 'cancelled').length;
+        const totalHours = entries.reduce((sum, entry) => sum + entry.hoursWorked, 0);
+        const averageHours = totalTracked ? Number((totalHours / totalTracked).toFixed(2)) : 0;
+        const completionRate = totalTracked
+          ? Number(((completedCount / totalTracked) * 100).toFixed(1))
+          : 0;
+        const cancellationRate = totalTracked
+          ? Number(((cancelledCount / totalTracked) * 100).toFixed(1))
+          : 0;
+        const latestEntry = entries.reduce((latest, current) =>
+          current.scheduledStart > latest.scheduledStart ? current : latest,
+        );
+
+        return {
+          employeeId,
+          employeeName: latestEntry.employeeName,
+          totalTracked,
+          scheduledCount,
+          completedCount,
+          cancelledCount,
+          totalHours,
+          averageHours,
+          completionRate,
+          cancellationRate,
+          lastScheduledStart: latestEntry.scheduledStart,
+          lastSiteLabel: latestEntry.siteLabel,
+          lastAddress: latestEntry.address,
+        };
+      })
+      .sort(
+        (left, right) =>
+          right.totalHours - left.totalHours ||
+          right.totalTracked - left.totalTracked ||
+          left.employeeName.localeCompare(right.employeeName),
+      );
+  });
+  readonly routeVarianceAnalytics = computed<RouteAssignmentVarianceSnapshot[]>(() => {
+    const groupedHistory = new Map<string, SelectedCrewHistoryItem[]>();
+    for (const entry of this.assignmentAnalyticsHistory()) {
+      const routeId = `${normalizeText(entry.siteLabel)}|${normalizeText(entry.address)}`;
+      const group = groupedHistory.get(routeId);
+      if (group) {
+        group.push(entry);
+      } else {
+        groupedHistory.set(routeId, [entry]);
+      }
+    }
+
+    const overallAverageHours = this.assignmentAnalytics().averageHours;
+    return Array.from(groupedHistory.entries())
+      .map(([routeId, entries]) => {
+        const totalTracked = entries.length;
+        const scheduledCount = entries.filter((entry) => entry.status === 'scheduled').length;
+        const completedCount = entries.filter((entry) => entry.status === 'completed').length;
+        const cancelledCount = entries.filter((entry) => entry.status === 'cancelled').length;
+        const totalHours = entries.reduce((sum, entry) => sum + entry.hoursWorked, 0);
+        const averageHours = totalTracked ? Number((totalHours / totalTracked).toFixed(2)) : 0;
+        const completionRate = totalTracked
+          ? Number(((completedCount / totalTracked) * 100).toFixed(1))
+          : 0;
+        const cancellationRate = totalTracked
+          ? Number(((cancelledCount / totalTracked) * 100).toFixed(1))
+          : 0;
+        const latestEntry = entries.reduce((latest, current) =>
+          current.scheduledStart > latest.scheduledStart ? current : latest,
+        );
+        return {
+          routeId,
+          siteLabel: latestEntry.siteLabel,
+          address: latestEntry.address,
+          totalTracked,
+          scheduledCount,
+          completedCount,
+          cancelledCount,
+          totalHours,
+          averageHours,
+          completionRate,
+          cancellationRate,
+          averageHoursVariance: Number((averageHours - overallAverageHours).toFixed(2)),
+          lastScheduledStart: latestEntry.scheduledStart,
+        };
+      })
+      .sort(
+        (left, right) =>
+          right.totalTracked - left.totalTracked ||
+          Math.abs(right.averageHoursVariance) - Math.abs(left.averageHoursVariance) ||
+          right.totalHours - left.totalHours ||
+          left.siteLabel.localeCompare(right.siteLabel),
+      );
   });
   readonly canExportAssignmentAnalytics = computed(
     () => this.assignmentAnalyticsHistory().length > 0,
@@ -744,6 +852,8 @@ export class StartNextJobFacade {
       startDate || endDate
         ? `${startDate || 'Any'} -> ${endDate || 'Any'}`
         : 'All dates';
+    const employeeTrends = this.employeeTrendAnalytics();
+    const routeVariance = this.routeVarianceAnalytics();
     const csvLines = [
       `${escapeCsvCell('Metric')},${escapeCsvCell('Value')}`,
       `${escapeCsvCell('Analytics window')},${escapeCsvCell(analyticsWindow)}`,
@@ -779,6 +889,76 @@ export class StartNextJobFacade {
           entry.scheduledStart,
           entry.scheduledEnd,
           entry.hoursWorked.toFixed(2),
+        ]
+          .map((value) => escapeCsvCell(value))
+          .join(','),
+      ),
+      '',
+      [
+        'Employee',
+        'Tracked',
+        'Scheduled',
+        'Completed',
+        'Cancelled',
+        'Total hours',
+        'Average hours',
+        'Completion rate',
+        'Cancellation rate',
+        'Last scheduled start',
+        'Last site',
+        'Last address',
+      ]
+        .map((value) => escapeCsvCell(value))
+        .join(','),
+      ...employeeTrends.map((trend) =>
+        [
+          trend.employeeName,
+          trend.totalTracked,
+          trend.scheduledCount,
+          trend.completedCount,
+          trend.cancelledCount,
+          trend.totalHours.toFixed(2),
+          trend.averageHours.toFixed(2),
+          `${trend.completionRate.toFixed(1)}%`,
+          `${trend.cancellationRate.toFixed(1)}%`,
+          trend.lastScheduledStart ?? '--',
+          trend.lastSiteLabel ?? '--',
+          trend.lastAddress ?? '--',
+        ]
+          .map((value) => escapeCsvCell(value))
+          .join(','),
+      ),
+      '',
+      [
+        'Route',
+        'Address',
+        'Tracked',
+        'Scheduled',
+        'Completed',
+        'Cancelled',
+        'Total hours',
+        'Average hours',
+        'Avg hours variance',
+        'Completion rate',
+        'Cancellation rate',
+        'Last scheduled start',
+      ]
+        .map((value) => escapeCsvCell(value))
+        .join(','),
+      ...routeVariance.map((route) =>
+        [
+          route.siteLabel,
+          route.address,
+          route.totalTracked,
+          route.scheduledCount,
+          route.completedCount,
+          route.cancelledCount,
+          route.totalHours.toFixed(2),
+          route.averageHours.toFixed(2),
+          route.averageHoursVariance.toFixed(2),
+          `${route.completionRate.toFixed(1)}%`,
+          `${route.cancellationRate.toFixed(1)}%`,
+          route.lastScheduledStart ?? '--',
         ]
           .map((value) => escapeCsvCell(value))
           .join(','),
@@ -1009,3 +1189,4 @@ export class StartNextJobFacade {
     );
   }
 }
+

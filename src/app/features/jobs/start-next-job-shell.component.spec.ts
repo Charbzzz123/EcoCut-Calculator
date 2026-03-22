@@ -3,7 +3,11 @@ import { FormControl } from '@angular/forms';
 import { provideRouter } from '@angular/router';
 import { signal } from '@angular/core';
 import { vi } from 'vitest';
-import type { CrewConflict, SelectedCrewHistoryItem } from './start-next-job.types.js';
+import type {
+  CrewConflict,
+  EmployeeAssignmentTrendSnapshot,
+  SelectedCrewHistoryItem,
+} from './start-next-job.types.js';
 import type { EmployeeStartNextJobReadiness } from '../employees/employees.types.js';
 import { StartNextJobFacade } from './start-next-job.facade.js';
 import { StartNextJobShellComponent } from './start-next-job-shell.component.js';
@@ -81,6 +85,40 @@ const createFacadeStub = () => ({
     cancellationRate: 0,
     uniqueSites: 0,
   }),
+  employeeTrendAnalytics: signal<EmployeeAssignmentTrendSnapshot[]>([
+    {
+      employeeId: 'emp-1',
+      employeeName: 'Alex North',
+      totalTracked: 0,
+      scheduledCount: 0,
+      completedCount: 0,
+      cancelledCount: 0,
+      totalHours: 0,
+      averageHours: 0,
+      completionRate: 0,
+      cancellationRate: 0,
+      lastScheduledStart: null,
+      lastSiteLabel: null,
+      lastAddress: null,
+    },
+  ]),
+  routeVarianceAnalytics: signal([
+    {
+      routeId: 'downtown|1-main-st',
+      siteLabel: 'Downtown',
+      address: '1 Main St',
+      totalTracked: 0,
+      scheduledCount: 0,
+      completedCount: 0,
+      cancelledCount: 0,
+      totalHours: 0,
+      averageHours: 0,
+      completionRate: 0,
+      cancellationRate: 0,
+      averageHoursVariance: 0,
+      lastScheduledStart: null as string | null,
+    },
+  ]),
   analyticsRangeError: signal<string | null>(null),
   canExportAssignmentAnalytics: signal(false),
   createAssignmentAnalyticsExport: vi.fn().mockReturnValue(null),
@@ -176,6 +214,40 @@ describe('StartNextJobShellComponent', () => {
       cancellationRate: 0,
       uniqueSites: 1,
     });
+    facade.employeeTrendAnalytics.set([
+      {
+        employeeId: 'emp-1',
+        employeeName: 'Alex North',
+        totalTracked: 1,
+        scheduledCount: 1,
+        completedCount: 0,
+        cancelledCount: 0,
+        totalHours: 1,
+        averageHours: 1,
+        completionRate: 0,
+        cancellationRate: 0,
+        lastScheduledStart: '2026-03-21T14:00:00.000Z',
+        lastSiteLabel: 'Downtown',
+        lastAddress: '1 Main St',
+      },
+    ]);
+    facade.routeVarianceAnalytics.set([
+      {
+        routeId: 'downtown|1-main-st',
+        siteLabel: 'Downtown',
+        address: '1 Main St',
+        totalTracked: 1,
+        scheduledCount: 1,
+        completedCount: 0,
+        cancelledCount: 0,
+        totalHours: 1,
+        averageHours: 1,
+        completionRate: 0,
+        cancellationRate: 0,
+        averageHoursVariance: 0,
+        lastScheduledStart: '2026-03-21T14:00:00.000Z',
+      },
+    ]);
     facade.canExportAssignmentAnalytics.set(true);
     facade.createAssignmentAnalyticsExport.mockReturnValue({
       filename: 'start-next-job-assignment-analytics-2026-03-21.csv',
@@ -191,6 +263,8 @@ describe('StartNextJobShellComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Resolve the following conflicts');
     expect(fixture.nativeElement.textContent).toContain('Assignment analytics');
     expect(fixture.nativeElement.textContent).toContain('Total tracked');
+    expect(fixture.nativeElement.textContent).toContain('Per-employee trend');
+    expect(fixture.nativeElement.textContent).toContain('Route-level variance');
     expect(fixture.nativeElement.textContent).toContain('Selected crew job history');
     expect(fixture.nativeElement.textContent).toContain('Downtown');
 

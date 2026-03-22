@@ -326,6 +326,97 @@
   font-weight: 600;
 }
 
+.employee-trend-panel {
+  margin-top: 0.75rem;
+}
+
+.employee-trend-panel h4,
+.route-variance-panel h4 {
+  margin: 0;
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(190, 223, 210, 0.76);
+}
+
+.employee-trend-list {
+  margin: 0.55rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.employee-trend-card {
+  border: 1px solid rgba(111, 212, 183, 0.16);
+  border-radius: 0.7rem;
+  background: rgba(6, 22, 18, 0.72);
+  padding: 0.5rem 0.6rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.employee-trend-card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.employee-trend-card h5,
+.employee-trend-card p {
+  margin: 0;
+}
+
+.employee-trend-card h5 {
+  font-size: 0.93rem;
+}
+
+.employee-trend-card p {
+  color: rgba(190, 223, 210, 0.8);
+  font-size: 0.84rem;
+}
+
+.route-variance-panel {
+  margin-top: 0.75rem;
+}
+
+.route-variance-list {
+  margin: 0.55rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.route-variance-card {
+  border: 1px solid rgba(111, 212, 183, 0.16);
+  border-radius: 0.7rem;
+  background: rgba(6, 22, 18, 0.72);
+  padding: 0.5rem 0.6rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.route-variance-card header {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.route-variance-card h5,
+.route-variance-card p {
+  margin: 0;
+}
+
+.route-variance-card h5 {
+  font-size: 0.93rem;
+}
+
+.route-variance-card p {
+  color: rgba(190, 223, 210, 0.8);
+  font-size: 0.84rem;
+}
+
 .conflict-box p,
 .validation-box p {
   margin: 0 0 0.5rem;

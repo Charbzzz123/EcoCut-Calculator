@@ -304,6 +304,82 @@
               <dd>{{ facade.assignmentAnalytics().uniqueSites }}</dd>
             </div>
           </dl>
+
+          <div class="employee-trend-panel">
+            <h4>Per-employee trend</h4>
+            <ul class="employee-trend-list">
+              @for (trend of facade.employeeTrendAnalytics(); track trend.employeeId) {
+                <li class="employee-trend-card">
+                  <header>
+                    <h5>{{ trend.employeeName }}</h5>
+                    <p>{{ trend.totalHours | number: '1.0-2' }}h tracked</p>
+                  </header>
+                  <p>
+                    {{ trend.completedCount }} completed · {{ trend.scheduledCount }} scheduled ·
+                    {{ trend.cancelledCount }} cancelled
+                  </p>
+                  <p>
+                    Completion {{ trend.completionRate | number: '1.0-1' }}% · Cancellation
+                    {{ trend.cancellationRate | number: '1.0-1' }}%
+                  </p>
+                  <p>
+                    Last site:
+                    @if (trend.lastSiteLabel && trend.lastAddress) {
+                      {{ trend.lastSiteLabel }} · {{ trend.lastAddress }}
+                    } @else {
+                      —
+                    }
+                  </p>
+                  <p>
+                    Last scheduled:
+                    @if (trend.lastScheduledStart) {
+                      {{ trend.lastScheduledStart | date: 'MMM d, y, h:mm a' }}
+                    } @else {
+                      —
+                    }
+                  </p>
+                </li>
+              }
+            </ul>
+          </div>
+
+          <div class="route-variance-panel">
+            <h4>Route-level variance</h4>
+            <ul class="route-variance-list">
+              @for (route of facade.routeVarianceAnalytics(); track route.routeId) {
+                <li class="route-variance-card">
+                  <header>
+                    <h5>{{ route.siteLabel }}</h5>
+                    <p>{{ route.address }}</p>
+                  </header>
+                  <p>
+                    {{ route.completedCount }} completed - {{ route.scheduledCount }} scheduled -
+                    {{ route.cancelledCount }} cancelled
+                  </p>
+                  <p>
+                    Avg {{ route.averageHours | number: '1.0-2' }}h
+                    @if (route.averageHoursVariance >= 0) {
+                      (+{{ route.averageHoursVariance | number: '1.0-2' }}h vs crew avg)
+                    } @else {
+                      ({{ route.averageHoursVariance | number: '1.0-2' }}h vs crew avg)
+                    }
+                  </p>
+                  <p>
+                    Completion {{ route.completionRate | number: '1.0-1' }}% - Cancellation
+                    {{ route.cancellationRate | number: '1.0-1' }}%
+                  </p>
+                  <p>
+                    Last scheduled:
+                    @if (route.lastScheduledStart) {
+                      {{ route.lastScheduledStart | date: 'MMM d, y, h:mm a' }}
+                    } @else {
+                      --
+                    }
+                  </p>
+                </li>
+              }
+            </ul>
+          </div>
         }
       </div>
     </section>

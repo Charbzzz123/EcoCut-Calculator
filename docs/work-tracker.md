@@ -6,6 +6,8 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 | Task                                                                 | Done       | Notes                                                                                                                                                                                                                                                                      |
 | -------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Manage Employees Phase ME-20 route-level variance drill-down         | 2026-03-21 | Added route-level variance cards in Start Next Job Step 2 (per-site tracked/scheduled/completed/cancelled counts, average-hours variance vs crew average, and latest scheduled slot) plus CSV export rows for route trends.                                                |
+| Manage Employees Phase ME-19 per-employee trend drill-down           | 2026-03-21 | Added per-employee trend cards in Start Next Job Step 2 (tracked status counts, hours, completion/cancellation rates, and latest site/schedule context) so dispatchers can compare crew momentum directly in the board.                                                    |
 | Manage Employees Phase ME-18 date-range analytics window             | 2026-03-21 | Added Start Next Job analytics date-range filters (`From` / `To`) with invalid-range guardrails plus range-aware CSV export metadata, so dispatchers can isolate specific scheduling windows before sharing reports.                                                       |
 | Manage Employees Phase ME-17 assignment analytics export             | 2026-03-21 | Added CSV export from Start Next Job Step 2 so schedulers can download selected-crew analytics plus underlying history rows (status/hours/site windows) for reporting and handoff without leaving the board.                                                               |
 | Manage Employees Phase ME-16 assignment analytics panel              | 2026-03-21 | Added Start Next Job analytics in Step 2 (tracked/scheduled/completed/cancelled counts, total/average hours, completion/cancellation rates, and unique sites) powered by selected crew history so schedulers get fast operational context before dispatch.                 |
@@ -87,7 +89,7 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 | Step | Task                                      | Owner | Notes                                                                     |
 | ---- | ----------------------------------------- | ----- | ------------------------------------------------------------------------- |
-| —    | No open Manage Employees slices right now | —     | ME-1 through ME-18 are complete. Add new rows when the next phase starts. |
+| —    | No open Manage Employees slices right now | —     | ME-1 through ME-20 are complete. Add new rows when the next phase starts. |
 
 ### Broadcast Requirements (locked for implementation)
 

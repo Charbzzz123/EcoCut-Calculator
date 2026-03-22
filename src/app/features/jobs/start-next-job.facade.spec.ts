@@ -415,6 +415,10 @@ describe('StartNextJobFacade', () => {
     expect(exportPayload?.csvContent).toContain('"Metric","Value"');
     expect(exportPayload?.csvContent).toContain('"Total tracked","1"');
     expect(exportPayload?.csvContent).toContain('"hist-2","Bruno East","scheduled"');
+    expect(exportPayload?.csvContent).toContain('"Employee","Tracked","Scheduled"');
+    expect(exportPayload?.csvContent).toContain('"Bruno East","1","1","0","0","3.00"');
+    expect(exportPayload?.csvContent).toContain('"Route","Address","Tracked","Scheduled"');
+    expect(exportPayload?.csvContent).toContain('"Downtown","2 Main St","1","1","0","0"');
   });
 
   it('returns no analytics export when no crew has been selected', async () => {
@@ -469,6 +473,152 @@ describe('StartNextJobFacade', () => {
     expect(exportPayload?.csvContent).toContain('"Analytics window","2026-03-01 -> 2026-03-31"');
     expect(exportPayload?.csvContent).toContain('"hist-20","Bruno East","completed"');
     expect(exportPayload?.csvContent).not.toContain('"hist-21","Bruno East","cancelled"');
+  });
+
+  it('builds per-employee trend analytics from selected crew history in range', async () => {
+    dataService.history = [
+      {
+        id: 'hist-30',
+        employeeId: 'emp-a',
+        siteLabel: 'Westmount',
+        address: '1 Main St',
+        scheduledStart: '2026-03-21T10:00:00.000Z',
+        scheduledEnd: '2026-03-21T12:00:00.000Z',
+        hoursWorked: 2,
+        status: 'completed',
+      },
+      {
+        id: 'hist-31',
+        employeeId: 'emp-b',
+        siteLabel: 'Downtown',
+        address: '2 Main St',
+        scheduledStart: '2026-03-20T14:00:00.000Z',
+        scheduledEnd: '2026-03-20T17:00:00.000Z',
+        hoursWorked: 3,
+        status: 'scheduled',
+      },
+      {
+        id: 'hist-32',
+        employeeId: 'emp-b',
+        siteLabel: 'Outremont',
+        address: '9 Side St',
+        scheduledStart: '2026-03-10T09:00:00.000Z',
+        scheduledEnd: '2026-03-10T11:00:00.000Z',
+        hoursWorked: 2,
+        status: 'cancelled',
+      },
+    ];
+    await facade.loadBoard();
+    facade.toggleEmployeeSelection('emp-a');
+    facade.toggleEmployeeSelection('emp-b');
+    facade.analyticsStartDateControl.setValue('2026-03-15');
+    facade.analyticsEndDateControl.setValue('2026-03-31');
+
+    expect(facade.employeeTrendAnalytics()).toEqual([
+      {
+        employeeId: 'emp-b',
+        employeeName: 'Bruno East',
+        totalTracked: 1,
+        scheduledCount: 1,
+        completedCount: 0,
+        cancelledCount: 0,
+        totalHours: 3,
+        averageHours: 3,
+        completionRate: 0,
+        cancellationRate: 0,
+        lastScheduledStart: '2026-03-20T14:00:00.000Z',
+        lastSiteLabel: 'Downtown',
+        lastAddress: '2 Main St',
+      },
+      {
+        employeeId: 'emp-a',
+        employeeName: 'Alex North',
+        totalTracked: 1,
+        scheduledCount: 0,
+        completedCount: 1,
+        cancelledCount: 0,
+        totalHours: 2,
+        averageHours: 2,
+        completionRate: 100,
+        cancellationRate: 0,
+        lastScheduledStart: '2026-03-21T10:00:00.000Z',
+        lastSiteLabel: 'Westmount',
+        lastAddress: '1 Main St',
+      },
+    ]);
+  });
+
+  it('builds route-level variance analytics from selected crew history in range', async () => {
+    dataService.history = [
+      {
+        id: 'hist-40',
+        employeeId: 'emp-a',
+        siteLabel: 'Westmount',
+        address: '1 Main St',
+        scheduledStart: '2026-03-21T10:00:00.000Z',
+        scheduledEnd: '2026-03-21T12:00:00.000Z',
+        hoursWorked: 2,
+        status: 'completed',
+      },
+      {
+        id: 'hist-41',
+        employeeId: 'emp-b',
+        siteLabel: 'Downtown',
+        address: '2 Main St',
+        scheduledStart: '2026-03-20T14:00:00.000Z',
+        scheduledEnd: '2026-03-20T18:00:00.000Z',
+        hoursWorked: 4,
+        status: 'scheduled',
+      },
+      {
+        id: 'hist-42',
+        employeeId: 'emp-b',
+        siteLabel: 'Downtown',
+        address: '2 Main St',
+        scheduledStart: '2026-03-18T14:00:00.000Z',
+        scheduledEnd: '2026-03-18T16:00:00.000Z',
+        hoursWorked: 2,
+        status: 'completed',
+      },
+    ];
+    await facade.loadBoard();
+    facade.toggleEmployeeSelection('emp-a');
+    facade.toggleEmployeeSelection('emp-b');
+    facade.analyticsStartDateControl.setValue('2026-03-01');
+    facade.analyticsEndDateControl.setValue('2026-03-31');
+
+    expect(facade.routeVarianceAnalytics()).toEqual([
+      {
+        routeId: 'downtown|2 main st',
+        siteLabel: 'Downtown',
+        address: '2 Main St',
+        totalTracked: 2,
+        scheduledCount: 1,
+        completedCount: 1,
+        cancelledCount: 0,
+        totalHours: 6,
+        averageHours: 3,
+        completionRate: 50,
+        cancellationRate: 0,
+        averageHoursVariance: 0.33,
+        lastScheduledStart: '2026-03-20T14:00:00.000Z',
+      },
+      {
+        routeId: 'westmount|1 main st',
+        siteLabel: 'Westmount',
+        address: '1 Main St',
+        totalTracked: 1,
+        scheduledCount: 0,
+        completedCount: 1,
+        cancelledCount: 0,
+        totalHours: 2,
+        averageHours: 2,
+        completionRate: 100,
+        cancellationRate: 0,
+        averageHoursVariance: -0.67,
+        lastScheduledStart: '2026-03-21T10:00:00.000Z',
+      },
+    ]);
   });
 
   it('guards analytics export when date range is invalid and clears range values', async () => {
