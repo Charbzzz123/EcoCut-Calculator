@@ -14,7 +14,54 @@
     </header>
   </article>
 
-  <article class="draft-panel" aria-label="Assignment draft">
+  <article class="start-next-flow" aria-label="Start Next Job workflow">
+    <p class="start-next-flow__eyebrow">Workflow</p>
+    <ol class="start-next-flow__steps">
+      <li><strong>1.</strong> Select crew from readiness cards.</li>
+      <li><strong>2.</strong> Set job label, site, and schedule.</li>
+      <li><strong>3.</strong> Review conflicts/analytics, then save.</li>
+    </ol>
+  </article>
+
+  <article class="start-next-jump" aria-label="Start Next Job quick navigation">
+    <p class="start-next-jump__label">Jump to step</p>
+    <div class="start-next-jump__actions">
+      <button
+        type="button"
+        class="ghost-btn"
+        [class.start-next-jump__action--active]="stepFocus() === 'crew'"
+        (click)="setStepFocus('crew')"
+      >
+        Step 1 - Crew ({{ facade.selectedCrew().length }} selected)
+      </button>
+      <button
+        type="button"
+        class="ghost-btn"
+        [class.start-next-jump__action--active]="stepFocus() === 'draft'"
+        (click)="setStepFocus('draft')"
+      >
+        Step 2 - Draft
+      </button>
+      <button
+        type="button"
+        class="ghost-btn"
+        [class.start-next-jump__action--active]="stepFocus() === 'review'"
+        (click)="setStepFocus('review')"
+      >
+        Step 3 - Review
+      </button>
+      <button
+        type="button"
+        class="ghost-btn"
+        [class.start-next-jump__action--active]="stepFocus() === 'history'"
+        (click)="setStepFocus('history')"
+      >
+        Scheduled history ({{ facade.scheduledHistoryCount() }})
+      </button>
+    </div>
+  </article>
+
+  <article id="start-next-draft" class="draft-panel" aria-label="Assignment draft">
     <div class="draft-grid">
       <label class="field field--wide">
         <span class="field__label">Search crew</span>
@@ -101,7 +148,7 @@
   </article>
 
   <article class="board-grid">
-    <section class="crew-pool" aria-live="polite">
+    <section id="start-next-crew" class="crew-pool" aria-live="polite">
       <header class="panel-header">
         <h2>Crew pool</h2>
         <p>{{ facade.filteredReadiness().length }} employee(s)</p>
@@ -164,7 +211,7 @@
       }
     </section>
 
-    <section class="assignment-summary">
+    <section id="start-next-review" class="assignment-summary">
       <header class="panel-header">
         <h2>Assignment summary</h2>
         <p>{{ facade.selectedCrew().length }} selected</p>
@@ -446,7 +493,7 @@
     </section>
   </article>
 
-  <article class="history-panel" aria-label="Selected crew history">
+  <article id="start-next-history" class="history-panel" aria-label="Selected crew history">
     <header class="panel-header">
       <h2>Selected crew job history</h2>
       <p>{{ facade.selectedCrewHistory().length }} recent entries</p>

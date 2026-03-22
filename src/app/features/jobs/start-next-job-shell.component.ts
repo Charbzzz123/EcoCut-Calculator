@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 import { BackChipComponent } from '@shared/ui/back-chip/back-chip.component.js';
 import { BrandBannerComponent } from '@shared/ui/brand-banner/brand-banner.component.js';
@@ -16,9 +16,15 @@ import { StartNextJobFacade } from './start-next-job.facade.js';
 })
 export class StartNextJobShellComponent implements OnInit {
   protected readonly facade = inject(StartNextJobFacade);
+  protected readonly stepFocus = signal<'crew' | 'draft' | 'review' | 'history'>('crew');
 
   ngOnInit(): void {
     void this.facade.loadBoard();
+  }
+
+  protected setStepFocus(step: 'crew' | 'draft' | 'review' | 'history'): void {
+    this.stepFocus.set(step);
+    this.scrollToSection(`start-next-${step}`);
   }
 
   protected exportAssignmentAnalytics(): void {
@@ -33,5 +39,10 @@ export class StartNextJobShellComponent implements OnInit {
     anchor.download = exportPayload.filename;
     anchor.click();
     URL.revokeObjectURL(downloadUrl);
+  }
+
+  private scrollToSection(sectionId: string): void {
+    const section = document.getElementById(sectionId);
+    section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 }

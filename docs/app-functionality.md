@@ -157,6 +157,9 @@
   - Required contact/rate fields with strict phone/email formatting.
   - Prevent duplicate employee creation using normalized name + phone/email checks.
   - Block save with a clear missing-field summary when required inputs are incomplete.
+- **UX hierarchy pass (in progress)**
+  - Added a workflow strip at the top of Manage Employees (`filter/search -> choose operation -> save/verify`) so operators can orient before entering deeper editor panels.
+  - Added a quick-jump row (`Roster`, `Clock`, `Profile`, `Hours`, `History`, `Readiness`) so operators can move between dense sections without hunting through the full page.
 - **Queued next slices**
   - None right now (ME-1 through ME-21 complete).
 
@@ -167,6 +170,8 @@
 - **Crew picker**: operators can select/deselect employees from live readiness records (`/employees/readiness`) with status badges (`Available`, `Scheduled`, `Inactive`).
 - **Conflict checks**: selection validates inactive members, existing readiness conflicts, next-available constraints, and overlap against upcoming windows before draft can proceed.
 - **Draft readiness**: panel shows blocking reasons until required fields + crew are valid and conflict-free.
+- **Workflow guidance strip**: top-of-page 3-step helper (`select crew -> set schedule -> review/save`) now anchors the primary flow before secondary analytics.
+- **Step jump row**: quick navigation buttons (`Step 1 crew`, `Step 2 draft`, `Step 3 review`, `Scheduled history`) now scroll operators directly to the matching board section.
 - **Crew history context**: selected crew history list is sourced from `/employees/history` so schedulers can verify recent assignments before confirming.
 - **Persistence wiring**: `Save assignment` now calls `/employees/assignments/start-next-job`, which writes scheduled history rows plus assignment-source hours entries for each selected employee and refreshes readiness/history immediately after save.
 - **Completion workflow**: scheduled history cards now expose `Mark completed`, which calls `/employees/history/:entryId/complete` so crews can close an assignment directly from the board and instantly update readiness counts.

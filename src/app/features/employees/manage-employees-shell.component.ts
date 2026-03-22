@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 import { BackChipComponent } from '@shared/ui/back-chip/back-chip.component.js';
 import { BrandBannerComponent } from '@shared/ui/brand-banner/brand-banner.component.js';
@@ -15,6 +15,9 @@ import { EmployeesFacade } from './employees.facade.js';
 })
 export class ManageEmployeesShellComponent implements OnInit {
   protected readonly facade = inject(EmployeesFacade);
+  protected readonly workspaceFocus = signal<
+    'roster' | 'clock' | 'profile' | 'hours' | 'history' | 'readiness'
+  >('roster');
 
   readonly headingId = this.facade.headingId;
   readonly queryControl = this.facade.queryControl;
@@ -59,6 +62,13 @@ export class ManageEmployeesShellComponent implements OnInit {
     void this.facade.loadRoster();
   }
 
+  protected setWorkspaceFocus(
+    focus: 'roster' | 'clock' | 'profile' | 'hours' | 'history' | 'readiness',
+  ): void {
+    this.workspaceFocus.set(focus);
+    this.scrollToSection(`employees-${focus}`);
+  }
+
   protected refreshRoster(): void {
     void this.facade.loadRoster();
   }
@@ -68,10 +78,12 @@ export class ManageEmployeesShellComponent implements OnInit {
   }
 
   protected openCreateProfile(): void {
+    this.workspaceFocus.set('profile');
     this.facade.openCreateProfile();
   }
 
   protected openEditProfile(employeeId: string): void {
+    this.workspaceFocus.set('profile');
     this.facade.openEditProfile(employeeId);
   }
 
@@ -80,26 +92,32 @@ export class ManageEmployeesShellComponent implements OnInit {
   }
 
   protected openHoursEditor(employeeId: string): void {
+    this.workspaceFocus.set('hours');
     this.facade.openHoursEditor(employeeId);
   }
 
   protected openJobHistory(employeeId: string): void {
+    this.workspaceFocus.set('history');
     this.facade.openJobHistory(employeeId);
   }
 
   protected closeHoursEditor(): void {
+    this.workspaceFocus.set('roster');
     this.facade.closeHoursEditor();
   }
 
   protected closeJobHistory(): void {
+    this.workspaceFocus.set('roster');
     this.facade.closeJobHistory();
   }
 
   protected clockIn(employeeId: string): void {
+    this.workspaceFocus.set('clock');
     void this.facade.clockIn(employeeId);
   }
 
   protected clockOut(employeeId: string): void {
+    this.workspaceFocus.set('clock');
     void this.facade.clockOut(employeeId);
   }
 
@@ -120,6 +138,12 @@ export class ManageEmployeesShellComponent implements OnInit {
   }
 
   protected cancelProfileEditor(): void {
+    this.workspaceFocus.set('roster');
     this.facade.cancelProfileEditor();
+  }
+
+  private scrollToSection(sectionId: string): void {
+    const section = document.getElementById(sectionId);
+    section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 }

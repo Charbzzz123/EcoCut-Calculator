@@ -88,9 +88,14 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 ## In Progress / Backlog
 
-| Step | Task                                      | Owner | Notes                                                                     |
-| ---- | ----------------------------------------- | ----- | ------------------------------------------------------------------------- |
-| —    | No open Manage Employees slices right now | —     | ME-1 through ME-21 are complete. Add new rows when the next phase starts. |
+| Step | Task                                          | Owner | Notes                                                                                                                                                       |
+| ---- | --------------------------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| UX-1 | Information hierarchy pass (Employees + Jobs) | —     | In progress. Workflow strips plus quick "jump to section/step" navigation are live; next pass will tighten visual grouping of primary vs advanced controls. |
+| UX-2 | Manage Employees flow simplification          | —     | Planned. Default to roster-first workflow; move deep operations into clearer grouped sections.                                                              |
+| UX-3 | Start Next Job step-flow simplification       | —     | Planned. Emphasize select crew -> set schedule -> review/save with clearer progression cues.                                                                |
+| UX-4 | Analytics progressive disclosure              | —     | Planned. Keep key KPIs visible and collapse heavy analytics by default.                                                                                     |
+| UX-5 | Interaction/state consistency pass            | —     | Planned. Align action buttons, status chips, loading/error/empty states across both workspaces.                                                             |
+| UX-6 | Validation and accessibility clarity pass     | —     | Planned. Tighten inline validation language, focus order, keyboard flow, and ARIA semantics.                                                                |
 
 ### Broadcast Requirements (locked for implementation)
 

@@ -88,6 +88,69 @@
     </div>
   </article>
 
+  <article class="employees-flow" aria-label="Manage employees workflow">
+    <p class="employees-flow__eyebrow">Workflow</p>
+    <ol class="employees-flow__steps">
+      <li><strong>1.</strong> Filter/search the roster and choose an employee.</li>
+      <li><strong>2.</strong> Run one operation at a time (profile, hours, history, clock).</li>
+      <li><strong>3.</strong> Save changes and confirm status feedback before moving on.</li>
+    </ol>
+  </article>
+
+  <article class="employees-jump" aria-label="Workspace quick navigation">
+    <p class="employees-jump__label">Jump to section</p>
+    <div class="employees-jump__actions">
+      <button
+        type="button"
+        class="status-pill"
+        [class.status-pill--active]="workspaceFocus() === 'roster'"
+        (click)="setWorkspaceFocus('roster')"
+      >
+        Roster
+      </button>
+      <button
+        type="button"
+        class="status-pill"
+        [class.status-pill--active]="workspaceFocus() === 'clock'"
+        (click)="setWorkspaceFocus('clock')"
+      >
+        Clock
+      </button>
+      <button
+        type="button"
+        class="status-pill"
+        [class.status-pill--active]="workspaceFocus() === 'profile'"
+        (click)="setWorkspaceFocus('profile')"
+      >
+        Profile
+      </button>
+      <button
+        type="button"
+        class="status-pill"
+        [class.status-pill--active]="workspaceFocus() === 'hours'"
+        (click)="setWorkspaceFocus('hours')"
+      >
+        Hours
+      </button>
+      <button
+        type="button"
+        class="status-pill"
+        [class.status-pill--active]="workspaceFocus() === 'history'"
+        (click)="setWorkspaceFocus('history')"
+      >
+        History
+      </button>
+      <button
+        type="button"
+        class="status-pill"
+        [class.status-pill--active]="workspaceFocus() === 'readiness'"
+        (click)="setWorkspaceFocus('readiness')"
+      >
+        Readiness
+      </button>
+    </div>
+  </article>
+
   <section class="employees-summary" aria-label="Employee metrics">
     <article class="summary-card">
       <p class="summary-card__label">Total employees</p>
@@ -107,7 +170,7 @@
     <p class="workspace-notice" role="status">{{ workspaceNotice() }}</p>
   }
 
-  <article class="employees-clock" aria-label="Clock in and clock out">
+  <article id="employees-clock" class="employees-clock" aria-label="Clock in and clock out">
     <header class="employees-clock__header">
       <div>
         <p class="employees-clock__eyebrow">Payroll reconciliation</p>
@@ -194,7 +257,7 @@
     }
   </article>
 
-  <article class="employees-roster" aria-live="polite">
+  <article id="employees-roster" class="employees-roster" aria-live="polite">
     <header class="employees-roster__header">
       <h2>Showing {{ filteredRosterSnapshot().length }} employee(s)</h2>
       <p>Total in roster: {{ rosterSnapshot().length }}</p>
@@ -272,7 +335,7 @@
     }
   </article>
 
-  <article class="employees-editor" aria-label="Employee profile editor">
+  <article id="employees-profile" class="employees-editor" aria-label="Employee profile editor">
     <header class="employees-editor__header">
       <div>
         <p class="employees-editor__eyebrow">
@@ -358,7 +421,7 @@
     }
   </article>
 
-  <article class="employees-hours" aria-label="Employee hours editor">
+  <article id="employees-hours" class="employees-hours" aria-label="Employee hours editor">
     <header class="employees-hours__header">
       <div>
         <p class="employees-hours__eyebrow">Hours workflow</p>
@@ -458,7 +521,11 @@
     }
   </article>
 
-  <article class="employees-history" aria-label="Employee job history timeline">
+  <article
+    id="employees-history"
+    class="employees-history"
+    aria-label="Employee job history timeline"
+  >
     <header class="employees-history__header">
       <div>
         <p class="employees-history__eyebrow">Operations timeline</p>
@@ -530,7 +597,11 @@
     }
   </article>
 
-  <article class="employees-readiness" aria-label="Start Next Job readiness contract">
+  <article
+    id="employees-readiness"
+    class="employees-readiness"
+    aria-label="Start Next Job readiness contract"
+  >
     <header class="employees-readiness__header">
       <div>
         <p class="employees-readiness__eyebrow">Start Next Job readiness</p>

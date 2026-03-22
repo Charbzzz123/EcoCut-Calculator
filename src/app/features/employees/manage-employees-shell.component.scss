@@ -5,6 +5,8 @@
 
 .employees-hero,
 .employees-toolbar,
+.employees-flow,
+.employees-jump,
 .employees-summary,
 .employees-clock,
 .employees-roster,
@@ -59,6 +61,49 @@ h1 {
 .employees-toolbar {
   display: grid;
   gap: 0.8rem;
+}
+
+.employees-flow__eyebrow {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.employees-flow__steps {
+  margin: 0.55rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.employees-flow__steps li {
+  border: 1px solid var(--border-soft);
+  border-radius: 0.85rem;
+  background: rgba(5, 27, 20, 0.72);
+  padding: 0.45rem 0.6rem;
+  color: var(--text-primary);
+}
+
+.employees-jump {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.employees-jump__label {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.employees-jump__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
 }
 
 .employees-toolbar__row {
