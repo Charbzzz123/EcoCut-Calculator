@@ -6,6 +6,7 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 | Task                                                                 | Done       | Notes                                                                                                                                                                                                                                                                      |
 | -------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Manage Employees Phase ME-21 cross-run trend analytics               | 2026-03-21 | Added analytics window shortcuts (7/30/90/custom) plus per-day cross-run trend cards in Start Next Job Step 2 (hours-share bar, status mix, completion/cancellation rates) and extended CSV export with trend rows for reporting.                                          |
 | Manage Employees Phase ME-20 route-level variance drill-down         | 2026-03-21 | Added route-level variance cards in Start Next Job Step 2 (per-site tracked/scheduled/completed/cancelled counts, average-hours variance vs crew average, and latest scheduled slot) plus CSV export rows for route trends.                                                |
 | Manage Employees Phase ME-19 per-employee trend drill-down           | 2026-03-21 | Added per-employee trend cards in Start Next Job Step 2 (tracked status counts, hours, completion/cancellation rates, and latest site/schedule context) so dispatchers can compare crew momentum directly in the board.                                                    |
 | Manage Employees Phase ME-18 date-range analytics window             | 2026-03-21 | Added Start Next Job analytics date-range filters (`From` / `To`) with invalid-range guardrails plus range-aware CSV export metadata, so dispatchers can isolate specific scheduling windows before sharing reports.                                                       |
@@ -89,7 +90,7 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 | Step | Task                                      | Owner | Notes                                                                     |
 | ---- | ----------------------------------------- | ----- | ------------------------------------------------------------------------- |
-| —    | No open Manage Employees slices right now | —     | ME-1 through ME-20 are complete. Add new rows when the next phase starts. |
+| —    | No open Manage Employees slices right now | —     | ME-1 through ME-21 are complete. Add new rows when the next phase starts. |
 
 ### Broadcast Requirements (locked for implementation)
 

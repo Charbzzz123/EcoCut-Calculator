@@ -12,11 +12,13 @@ import type {
   AssignmentAnalyticsSnapshot,
   AssignmentAnalyticsExport,
   AssignmentDraftValidation,
+  CrossRunTrendSnapshot,
   CrewConflict,
   EmployeeAssignmentTrendSnapshot,
   ReadinessPill,
   RouteAssignmentVarianceSnapshot,
   SelectedCrewHistoryItem,
+  StartNextJobAnalyticsWindow,
   StartNextJobLoadState,
   StartNextJobSaveState,
 } from './start-next-job.types.js';
@@ -59,6 +61,12 @@ const toDateInputTimestamp = (value: string, endOfDay: boolean): number | null =
   const timestamp = Date.parse(`${value}${suffix}`);
   return Number.isNaN(timestamp) ? null : timestamp;
 };
+const toDateInputValue = (value: Date): string => {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 const escapeCsvCell = (value: string | number): string => {
   const normalized = String(value).replace(/"/g, '""');
   return `"${normalized}"`;
@@ -84,6 +92,7 @@ export class StartNextJobFacade {
   private readonly analyticsEndDateValue = toSignal(this.analyticsEndDateControl.valueChanges, {
     initialValue: this.analyticsEndDateControl.value,
   });
+  readonly analyticsWindow = signal<StartNextJobAnalyticsWindow>('30d');
 
   readonly loadState = signal<StartNextJobLoadState>('loading');
   readonly errorMessage = signal('');
@@ -95,6 +104,10 @@ export class StartNextJobFacade {
   private readonly historySignal = signal<EmployeeJobHistoryRecord[]>([]);
   private readonly selectedEmployeeIdsSignal = signal<string[]>([]);
   private readonly selectedHistoryEntryIdsSignal = signal<string[]>([]);
+
+  constructor() {
+    this.setAnalyticsWindow('30d');
+  }
 
   readonly readinessSnapshot = computed(() => this.readinessSignal());
   readonly selectedEmployeeIds = computed(() => this.selectedEmployeeIdsSignal());
@@ -327,6 +340,56 @@ export class StartNextJobFacade {
           left.siteLabel.localeCompare(right.siteLabel),
       );
   });
+  readonly crossRunTrends = computed<CrossRunTrendSnapshot[]>(() => {
+    const groupedHistory = new Map<string, SelectedCrewHistoryItem[]>();
+    for (const entry of this.assignmentAnalyticsHistory()) {
+      const dateKey = entry.scheduledStart.slice(0, 10);
+      const group = groupedHistory.get(dateKey);
+      if (group) {
+        group.push(entry);
+      } else {
+        groupedHistory.set(dateKey, [entry]);
+      }
+    }
+
+    const points = Array.from(groupedHistory.entries())
+      .map(([periodStart, entries]) => {
+        const totalTracked = entries.length;
+        const scheduledCount = entries.filter((entry) => entry.status === 'scheduled').length;
+        const completedCount = entries.filter((entry) => entry.status === 'completed').length;
+        const cancelledCount = entries.filter((entry) => entry.status === 'cancelled').length;
+        const totalHours = entries.reduce((sum, entry) => sum + entry.hoursWorked, 0);
+        const completionRate = totalTracked
+          ? Number(((completedCount / totalTracked) * 100).toFixed(1))
+          : 0;
+        const cancellationRate = totalTracked
+          ? Number(((cancelledCount / totalTracked) * 100).toFixed(1))
+          : 0;
+        const periodDate = new Date(`${periodStart}T00:00:00.000`);
+        return {
+          periodStart,
+          periodLabel: periodDate.toLocaleDateString(undefined, {
+            month: 'short',
+            day: 'numeric',
+          }),
+          totalTracked,
+          completedCount,
+          cancelledCount,
+          scheduledCount,
+          totalHours: Number(totalHours.toFixed(2)),
+          completionRate,
+          cancellationRate,
+          hoursShare: 0,
+        };
+      })
+      .sort((left, right) => left.periodStart.localeCompare(right.periodStart));
+
+    const maxHours = points.reduce((max, point) => Math.max(max, point.totalHours), 0);
+    return points.map((point) => ({
+      ...point,
+      hoursShare: maxHours ? Number(((point.totalHours / maxHours) * 100).toFixed(1)) : 0,
+    }));
+  });
   readonly canExportAssignmentAnalytics = computed(
     () => this.assignmentAnalyticsHistory().length > 0,
   );
@@ -440,8 +503,31 @@ export class StartNextJobFacade {
   }
 
   clearAnalyticsDateRange(): void {
+    this.analyticsWindow.set('custom');
     this.analyticsStartDateControl.setValue('');
     this.analyticsEndDateControl.setValue('');
+  }
+
+  setAnalyticsWindow(window: StartNextJobAnalyticsWindow, now = new Date()): void {
+    this.analyticsWindow.set(window);
+    if (window === 'custom') {
+      return;
+    }
+
+    const end = new Date(now);
+    end.setHours(0, 0, 0, 0);
+    const start = new Date(end);
+    const lookbackDays = window === '7d' ? 6 : window === '30d' ? 29 : 89;
+    start.setDate(start.getDate() - lookbackDays);
+    this.analyticsStartDateControl.setValue(toDateInputValue(start));
+    this.analyticsEndDateControl.setValue(toDateInputValue(end));
+  }
+
+  markAnalyticsWindowCustom(): void {
+    if (this.analyticsWindow() === 'custom') {
+      return;
+    }
+    this.analyticsWindow.set('custom');
   }
 
   async submitAssignment(actorRole: EmployeeOperatorRole = 'owner'): Promise<boolean> {
@@ -854,6 +940,7 @@ export class StartNextJobFacade {
         : 'All dates';
     const employeeTrends = this.employeeTrendAnalytics();
     const routeVariance = this.routeVarianceAnalytics();
+    const crossRunTrends = this.crossRunTrends();
     const csvLines = [
       `${escapeCsvCell('Metric')},${escapeCsvCell('Value')}`,
       `${escapeCsvCell('Analytics window')},${escapeCsvCell(analyticsWindow)}`,
@@ -959,6 +1046,35 @@ export class StartNextJobFacade {
           `${route.completionRate.toFixed(1)}%`,
           `${route.cancellationRate.toFixed(1)}%`,
           route.lastScheduledStart ?? '--',
+        ]
+          .map((value) => escapeCsvCell(value))
+          .join(','),
+      ),
+      '',
+      [
+        'Period',
+        'Tracked',
+        'Scheduled',
+        'Completed',
+        'Cancelled',
+        'Total hours',
+        'Hours share',
+        'Completion rate',
+        'Cancellation rate',
+      ]
+        .map((value) => escapeCsvCell(value))
+        .join(','),
+      ...crossRunTrends.map((point) =>
+        [
+          point.periodLabel,
+          point.totalTracked,
+          point.scheduledCount,
+          point.completedCount,
+          point.cancelledCount,
+          point.totalHours.toFixed(2),
+          `${point.hoursShare.toFixed(1)}%`,
+          `${point.completionRate.toFixed(1)}%`,
+          `${point.cancellationRate.toFixed(1)}%`,
         ]
           .map((value) => escapeCsvCell(value))
           .join(','),

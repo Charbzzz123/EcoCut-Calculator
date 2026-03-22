@@ -77,4 +77,19 @@ export interface RouteAssignmentVarianceSnapshot {
   readonly lastScheduledStart: string | null;
 }
 
+export type StartNextJobAnalyticsWindow = '7d' | '30d' | '90d' | 'custom';
+
+export interface CrossRunTrendSnapshot {
+  readonly periodStart: string;
+  readonly periodLabel: string;
+  readonly totalTracked: number;
+  readonly completedCount: number;
+  readonly cancelledCount: number;
+  readonly scheduledCount: number;
+  readonly totalHours: number;
+  readonly completionRate: number;
+  readonly cancellationRate: number;
+  readonly hoursShare: number;
+}
+
 export type StartNextJobReadinessRecord = EmployeeStartNextJobReadiness;

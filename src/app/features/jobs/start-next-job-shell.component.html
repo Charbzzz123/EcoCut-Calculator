@@ -225,12 +225,47 @@
           </div>
         </div>
         <div class="analytics-panel__filters">
+          <div class="analytics-window-buttons" role="group" aria-label="Analytics windows">
+            <button
+              type="button"
+              class="ghost-btn analytics-window-btn"
+              [class.analytics-window-btn--active]="facade.analyticsWindow() === '7d'"
+              (click)="facade.setAnalyticsWindow('7d')"
+            >
+              7 days
+            </button>
+            <button
+              type="button"
+              class="ghost-btn analytics-window-btn"
+              [class.analytics-window-btn--active]="facade.analyticsWindow() === '30d'"
+              (click)="facade.setAnalyticsWindow('30d')"
+            >
+              30 days
+            </button>
+            <button
+              type="button"
+              class="ghost-btn analytics-window-btn"
+              [class.analytics-window-btn--active]="facade.analyticsWindow() === '90d'"
+              (click)="facade.setAnalyticsWindow('90d')"
+            >
+              90 days
+            </button>
+            <button
+              type="button"
+              class="ghost-btn analytics-window-btn"
+              [class.analytics-window-btn--active]="facade.analyticsWindow() === 'custom'"
+              (click)="facade.setAnalyticsWindow('custom')"
+            >
+              Custom
+            </button>
+          </div>
           <label class="analytics-filter-field">
             <span>From</span>
             <input
               class="field__input"
               type="date"
               [formControl]="facade.analyticsStartDateControl"
+              (change)="facade.markAnalyticsWindowCustom()"
             />
           </label>
           <label class="analytics-filter-field">
@@ -239,6 +274,7 @@
               class="field__input"
               type="date"
               [formControl]="facade.analyticsEndDateControl"
+              (change)="facade.markAnalyticsWindowCustom()"
             />
           </label>
           <button
@@ -375,6 +411,31 @@
                     } @else {
                       --
                     }
+                  </p>
+                </li>
+              }
+            </ul>
+          </div>
+
+          <div class="cross-run-panel">
+            <h4>Cross-run trend</h4>
+            <ul class="cross-run-list">
+              @for (point of facade.crossRunTrends(); track point.periodStart) {
+                <li class="cross-run-card">
+                  <header>
+                    <h5>{{ point.periodLabel }}</h5>
+                    <p>{{ point.totalHours | number: '1.0-2' }}h</p>
+                  </header>
+                  <div class="cross-run-bar">
+                    <span [style.width.%]="point.hoursShare"></span>
+                  </div>
+                  <p>
+                    {{ point.completedCount }} completed - {{ point.scheduledCount }} scheduled -
+                    {{ point.cancelledCount }} cancelled
+                  </p>
+                  <p>
+                    Completion {{ point.completionRate | number: '1.0-1' }}% - Cancellation
+                    {{ point.cancellationRate | number: '1.0-1' }}%
                   </p>
                 </li>
               }

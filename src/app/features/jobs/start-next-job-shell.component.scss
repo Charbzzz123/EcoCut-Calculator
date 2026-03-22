@@ -267,6 +267,23 @@
   grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
 }
 
+.analytics-window-buttons {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.analytics-window-btn {
+  padding: 0.3rem 0.72rem;
+  font-size: 0.78rem;
+}
+
+.analytics-window-btn--active {
+  border-color: rgba(111, 212, 183, 0.8);
+  background: rgba(94, 206, 175, 0.22);
+}
+
 .analytics-filter-field {
   display: grid;
   gap: 0.25rem;
@@ -331,7 +348,8 @@
 }
 
 .employee-trend-panel h4,
-.route-variance-panel h4 {
+.route-variance-panel h4,
+.cross-run-panel h4 {
   margin: 0;
   font-size: 0.9rem;
   letter-spacing: 0.04em;
@@ -381,7 +399,19 @@
   margin-top: 0.75rem;
 }
 
+.cross-run-panel {
+  margin-top: 0.75rem;
+}
+
 .route-variance-list {
+  margin: 0.55rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.cross-run-list {
   margin: 0.55rem 0 0;
   padding: 0;
   list-style: none;
@@ -403,8 +433,26 @@
   gap: 0.15rem;
 }
 
+.cross-run-card {
+  border: 1px solid rgba(111, 212, 183, 0.16);
+  border-radius: 0.7rem;
+  background: rgba(6, 22, 18, 0.72);
+  padding: 0.5rem 0.6rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.cross-run-card header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 .route-variance-card h5,
-.route-variance-card p {
+.route-variance-card p,
+.cross-run-card h5,
+.cross-run-card p {
   margin: 0;
 }
 
@@ -415,6 +463,29 @@
 .route-variance-card p {
   color: rgba(190, 223, 210, 0.8);
   font-size: 0.84rem;
+}
+
+.cross-run-card h5 {
+  font-size: 0.9rem;
+}
+
+.cross-run-card p {
+  color: rgba(190, 223, 210, 0.8);
+  font-size: 0.84rem;
+}
+
+.cross-run-bar {
+  height: 0.35rem;
+  border-radius: 999px;
+  background: rgba(111, 212, 183, 0.14);
+  overflow: hidden;
+}
+
+.cross-run-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(111, 212, 183, 0.42), rgba(53, 131, 206, 0.4));
 }
 
 .conflict-box p,

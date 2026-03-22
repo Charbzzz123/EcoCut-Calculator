@@ -4,6 +4,7 @@ import { provideRouter } from '@angular/router';
 import { signal } from '@angular/core';
 import { vi } from 'vitest';
 import type {
+  CrossRunTrendSnapshot,
   CrewConflict,
   EmployeeAssignmentTrendSnapshot,
   SelectedCrewHistoryItem,
@@ -57,6 +58,7 @@ const createFacadeStub = () => ({
   scheduledEndControl: new FormControl('', { nonNullable: true }),
   analyticsStartDateControl: new FormControl('', { nonNullable: true }),
   analyticsEndDateControl: new FormControl('', { nonNullable: true }),
+  analyticsWindow: signal<'7d' | '30d' | '90d' | 'custom'>('30d'),
   loadState: signal<'loading' | 'ready' | 'error'>('loading'),
   errorMessage: signal('Unable to load Start Next Job data right now.'),
   saveState: signal<'idle' | 'saving' | 'success' | 'error'>('idle'),
@@ -119,10 +121,26 @@ const createFacadeStub = () => ({
       lastScheduledStart: null as string | null,
     },
   ]),
+  crossRunTrends: signal<CrossRunTrendSnapshot[]>([
+    {
+      periodStart: '2026-03-21',
+      periodLabel: 'Mar 21',
+      totalTracked: 0,
+      completedCount: 0,
+      cancelledCount: 0,
+      scheduledCount: 0,
+      totalHours: 0,
+      completionRate: 0,
+      cancellationRate: 0,
+      hoursShare: 0,
+    },
+  ]),
   analyticsRangeError: signal<string | null>(null),
   canExportAssignmentAnalytics: signal(false),
   createAssignmentAnalyticsExport: vi.fn().mockReturnValue(null),
   clearAnalyticsDateRange: vi.fn(),
+  setAnalyticsWindow: vi.fn(),
+  markAnalyticsWindowCustom: vi.fn(),
   loadBoard: vi.fn().mockResolvedValue(undefined),
   submitAssignment: vi.fn().mockResolvedValue(true),
   completeHistoryEntry: vi.fn().mockResolvedValue(true),
@@ -248,6 +266,20 @@ describe('StartNextJobShellComponent', () => {
         lastScheduledStart: '2026-03-21T14:00:00.000Z',
       },
     ]);
+    facade.crossRunTrends.set([
+      {
+        periodStart: '2026-03-21',
+        periodLabel: 'Mar 21',
+        totalTracked: 1,
+        completedCount: 0,
+        cancelledCount: 0,
+        scheduledCount: 1,
+        totalHours: 1,
+        completionRate: 0,
+        cancellationRate: 0,
+        hoursShare: 100,
+      },
+    ]);
     facade.canExportAssignmentAnalytics.set(true);
     facade.createAssignmentAnalyticsExport.mockReturnValue({
       filename: 'start-next-job-assignment-analytics-2026-03-21.csv',
@@ -265,6 +297,7 @@ describe('StartNextJobShellComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Total tracked');
     expect(fixture.nativeElement.textContent).toContain('Per-employee trend');
     expect(fixture.nativeElement.textContent).toContain('Route-level variance');
+    expect(fixture.nativeElement.textContent).toContain('Cross-run trend');
     expect(fixture.nativeElement.textContent).toContain('Selected crew job history');
     expect(fixture.nativeElement.textContent).toContain('Downtown');
 
@@ -305,6 +338,12 @@ describe('StartNextJobShellComponent', () => {
       '.analytics-panel__export-btn',
     ) as HTMLButtonElement;
     expect(exportButton.disabled).toBe(false);
+
+    const windowButtons = fixture.nativeElement.querySelectorAll(
+      '.analytics-window-buttons .analytics-window-btn',
+    ) as NodeListOf<HTMLButtonElement>;
+    windowButtons[0]?.click();
+    expect(facade.setAnalyticsWindow).toHaveBeenCalledWith('7d');
   });
 
   it('keeps analytics export button disabled when no selected history exists', () => {
@@ -334,6 +373,12 @@ describe('StartNextJobShellComponent', () => {
     expect(clearRangeButton.disabled).toBe(false);
     clearRangeButton.click();
     expect(facade.clearAnalyticsDateRange).toHaveBeenCalledTimes(1);
+
+    const dateInputs = fixture.nativeElement.querySelectorAll(
+      '.analytics-panel__filters input[type="date"]',
+    ) as NodeListOf<HTMLInputElement>;
+    dateInputs[0]?.dispatchEvent(new Event('change'));
+    expect(facade.markAnalyticsWindowCustom).toHaveBeenCalled();
   });
 
   it('exports assignment analytics as CSV when export payload is available', () => {

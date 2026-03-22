@@ -419,6 +419,9 @@ describe('StartNextJobFacade', () => {
     expect(exportPayload?.csvContent).toContain('"Bruno East","1","1","0","0","3.00"');
     expect(exportPayload?.csvContent).toContain('"Route","Address","Tracked","Scheduled"');
     expect(exportPayload?.csvContent).toContain('"Downtown","2 Main St","1","1","0","0"');
+    expect(exportPayload?.csvContent).toContain(
+      '"Period","Tracked","Scheduled","Completed","Cancelled","Total hours","Hours share","Completion rate","Cancellation rate"',
+    );
   });
 
   it('returns no analytics export when no crew has been selected', async () => {
@@ -619,6 +622,86 @@ describe('StartNextJobFacade', () => {
         lastScheduledStart: '2026-03-21T10:00:00.000Z',
       },
     ]);
+  });
+
+  it('builds cross-run trends from selected crew history in range', async () => {
+    dataService.history = [
+      {
+        id: 'hist-50',
+        employeeId: 'emp-a',
+        siteLabel: 'Westmount',
+        address: '1 Main St',
+        scheduledStart: '2026-03-21T10:00:00.000Z',
+        scheduledEnd: '2026-03-21T12:00:00.000Z',
+        hoursWorked: 2,
+        status: 'completed',
+      },
+      {
+        id: 'hist-51',
+        employeeId: 'emp-b',
+        siteLabel: 'Downtown',
+        address: '2 Main St',
+        scheduledStart: '2026-03-21T14:00:00.000Z',
+        scheduledEnd: '2026-03-21T18:00:00.000Z',
+        hoursWorked: 4,
+        status: 'scheduled',
+      },
+      {
+        id: 'hist-52',
+        employeeId: 'emp-b',
+        siteLabel: 'Downtown',
+        address: '2 Main St',
+        scheduledStart: '2026-03-20T14:00:00.000Z',
+        scheduledEnd: '2026-03-20T16:00:00.000Z',
+        hoursWorked: 2,
+        status: 'cancelled',
+      },
+    ];
+    await facade.loadBoard();
+    facade.toggleEmployeeSelection('emp-a');
+    facade.toggleEmployeeSelection('emp-b');
+    facade.analyticsStartDateControl.setValue('2026-03-01');
+    facade.analyticsEndDateControl.setValue('2026-03-31');
+
+    const trends = facade.crossRunTrends();
+    expect(trends).toHaveLength(2);
+    expect(trends[0]).toMatchObject({
+      periodStart: '2026-03-20',
+      totalTracked: 1,
+      completedCount: 0,
+      cancelledCount: 1,
+      scheduledCount: 0,
+      totalHours: 2,
+      completionRate: 0,
+      cancellationRate: 100,
+      hoursShare: 33.3,
+    });
+    expect(trends[0]?.periodLabel).toBeTruthy();
+    expect(trends[1]).toMatchObject({
+      periodStart: '2026-03-21',
+      totalTracked: 2,
+      completedCount: 1,
+      cancelledCount: 0,
+      scheduledCount: 1,
+      totalHours: 6,
+      completionRate: 50,
+      cancellationRate: 0,
+      hoursShare: 100,
+    });
+    expect(trends[1]?.periodLabel).toBeTruthy();
+  });
+
+  it('applies preset analytics windows and falls back to custom for manual edits', () => {
+    facade.setAnalyticsWindow('7d', new Date('2026-03-22T12:00:00.000Z'));
+    expect(facade.analyticsWindow()).toBe('7d');
+    expect(facade.analyticsStartDateControl.value).toBe('2026-03-16');
+    expect(facade.analyticsEndDateControl.value).toBe('2026-03-22');
+
+    facade.markAnalyticsWindowCustom();
+    expect(facade.analyticsWindow()).toBe('custom');
+
+    facade.setAnalyticsWindow('custom');
+    expect(facade.analyticsWindow()).toBe('custom');
   });
 
   it('guards analytics export when date range is invalid and clears range values', async () => {
