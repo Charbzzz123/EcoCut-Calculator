@@ -175,6 +175,8 @@
 - **Draft readiness**: panel shows blocking reasons until required fields + crew are valid and conflict-free.
 - **Workflow guidance strip**: top-of-page 3-step helper (`select crew -> set schedule -> review/save`) now anchors the primary flow before secondary analytics.
 - **Step jump row**: quick navigation buttons (`Step 1 crew`, `Step 2 draft`, `Step 3 review`, `Scheduled history`) now scroll operators directly to the matching board section.
+- **Step locks + readiness messaging**: draft/review/history jump controls stay disabled until prerequisites are met, and inline status rows explicitly call out what is still missing (`select crew`, `capture draft details`, `resolve blockers`).
+- **Progressive CTAs**: `Continue to Step 2` appears in the crew panel and `Continue to Step 3` appears in the draft panel so schedulers can move forward without scanning the full page.
 - **Crew history context**: selected crew history list is sourced from `/employees/history` so schedulers can verify recent assignments before confirming.
 - **Persistence wiring**: `Save assignment` now calls `/employees/assignments/start-next-job`, which writes scheduled history rows plus assignment-source hours entries for each selected employee and refreshes readiness/history immediately after save.
 - **Completion workflow**: scheduled history cards now expose `Mark completed`, which calls `/employees/history/:entryId/complete` so crews can close an assignment directly from the board and instantly update readiness counts.

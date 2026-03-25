@@ -171,6 +171,7 @@ describe('StartNextJobShellComponent', () => {
   let facade: ReturnType<typeof createFacadeStub>;
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -489,6 +490,51 @@ describe('StartNextJobShellComponent', () => {
     expect(fixture.nativeElement.querySelector('.save-feedback')?.textContent).toContain(
       'Saving assignment',
     );
+  });
+
+  it('keeps step navigation locked until prerequisites are met', () => {
+    facade.loadState.set('ready');
+    fixture.detectChanges();
+
+    const jumpButtons = fixture.nativeElement.querySelectorAll(
+      '.start-next-jump__actions .ghost-btn',
+    ) as NodeListOf<HTMLButtonElement>;
+    expect(jumpButtons[1]?.disabled).toBe(true);
+    expect(jumpButtons[2]?.disabled).toBe(true);
+    expect(jumpButtons[3]?.disabled).toBe(true);
+    expect(fixture.nativeElement.textContent).toContain('Select at least 1 crew member');
+  });
+
+  it('unlocks step navigation and updates draft status once prerequisites are provided', () => {
+    const scrollIntoView = vi.fn();
+    const getElementById = vi
+      .spyOn(document, 'getElementById')
+      .mockReturnValue({ scrollIntoView } as unknown as HTMLElement);
+
+    facade.loadState.set('ready');
+    facade.selectedCrew.set([employee]);
+    facade.scheduledHistoryCount.set(1);
+    facade.jobLabelControl.setValue('Route A');
+    facade.addressControl.setValue('1 Main St');
+    facade.scheduledStartControl.setValue('2026-03-22T09:00');
+    facade.scheduledEndControl.setValue('2026-03-22T10:00');
+    fixture.detectChanges();
+
+    const jumpButtons = fixture.nativeElement.querySelectorAll(
+      '.start-next-jump__actions .ghost-btn',
+    ) as NodeListOf<HTMLButtonElement>;
+    expect(jumpButtons[1]?.disabled).toBe(false);
+    expect(jumpButtons[2]?.disabled).toBe(false);
+    expect(jumpButtons[3]?.disabled).toBe(false);
+    expect(fixture.nativeElement.textContent).toContain('Draft details captured');
+
+    jumpButtons[1]?.click();
+    jumpButtons[2]?.click();
+    jumpButtons[3]?.click();
+    expect(getElementById).toHaveBeenCalledWith('start-next-draft');
+    expect(getElementById).toHaveBeenCalledWith('start-next-review');
+    expect(getElementById).toHaveBeenCalledWith('start-next-history');
+    expect(scrollIntoView).toHaveBeenCalled();
   });
 
   it('uses edit mode actions when a history entry is being edited', () => {

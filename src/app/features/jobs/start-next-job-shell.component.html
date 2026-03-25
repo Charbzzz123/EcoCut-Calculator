@@ -38,6 +38,7 @@
         type="button"
         class="ghost-btn"
         [class.start-next-jump__action--active]="stepFocus() === 'draft'"
+        [disabled]="!canOpenDraftStep()"
         (click)="setStepFocus('draft')"
       >
         Step 2 - Draft
@@ -46,6 +47,7 @@
         type="button"
         class="ghost-btn"
         [class.start-next-jump__action--active]="stepFocus() === 'review'"
+        [disabled]="!canOpenReviewStep()"
         (click)="setStepFocus('review')"
       >
         Step 3 - Review
@@ -54,14 +56,41 @@
         type="button"
         class="ghost-btn"
         [class.start-next-jump__action--active]="stepFocus() === 'history'"
+        [disabled]="!canOpenHistoryStep()"
         (click)="setStepFocus('history')"
       >
         Scheduled history ({{ facade.scheduledHistoryCount() }})
       </button>
     </div>
+    <ul class="start-next-jump__status">
+      <li>
+        <span>Step 1</span>
+        <strong>{{ canOpenDraftStep() ? 'Complete' : 'Select at least 1 crew member' }}</strong>
+      </li>
+      <li>
+        <span>Step 2</span>
+        <strong>{{
+          hasDraftBasics() ? 'Draft details captured' : 'Add label, site, and schedule'
+        }}</strong>
+      </li>
+      <li>
+        <span>Step 3</span>
+        <strong>
+          {{
+            facade.draftValidation().isReady
+              ? 'Ready to save'
+              : 'Review conflicts and validation blockers'
+          }}
+        </strong>
+      </li>
+    </ul>
   </article>
 
   <article id="start-next-draft" class="draft-panel" aria-label="Assignment draft">
+    <header class="panel-header draft-panel__header">
+      <h2>Step 2 - Draft details</h2>
+      <p>Set job metadata and schedule window</p>
+    </header>
     <div class="draft-grid">
       <label class="field field--wide">
         <span class="field__label">Search crew</span>
@@ -133,6 +162,14 @@
           }
         }
       </button>
+      <button
+        type="button"
+        class="ghost-btn"
+        [disabled]="!canOpenReviewStep()"
+        (click)="setStepFocus('review')"
+      >
+        Continue to Step 3
+      </button>
     </div>
 
     @if (facade.saveState() !== 'idle' && facade.saveMessage()) {
@@ -150,7 +187,7 @@
   <article class="board-grid">
     <section id="start-next-crew" class="crew-pool" aria-live="polite">
       <header class="panel-header">
-        <h2>Crew pool</h2>
+        <h2>Step 1 - Crew pool</h2>
         <p>{{ facade.filteredReadiness().length }} employee(s)</p>
       </header>
 
@@ -208,12 +245,22 @@
             </li>
           }
         </ul>
+        <div class="step-continue">
+          <button
+            type="button"
+            class="ghost-btn"
+            [disabled]="!canOpenDraftStep()"
+            (click)="setStepFocus('draft')"
+          >
+            Continue to Step 2
+          </button>
+        </div>
       }
     </section>
 
     <section id="start-next-review" class="assignment-summary">
       <header class="panel-header">
-        <h2>Assignment summary</h2>
+        <h2>Step 3 - Assignment summary</h2>
         <p>{{ facade.selectedCrew().length }} selected</p>
       </header>
 
