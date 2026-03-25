@@ -1,4 +1,4 @@
-<section class="employees-shell" aria-labelledby="{{ headingId }}">
+﻿<section class="employees-shell" aria-labelledby="{{ headingId }}">
   <article class="employees-hero">
     <app-brand-banner></app-brand-banner>
 
@@ -97,16 +97,16 @@
     </ol>
   </article>
 
-  <article class="employees-jump" aria-label="Workspace quick navigation">
-    <p class="employees-jump__label">Jump to section</p>
-    <div class="employees-jump__actions">
+  <article class="employees-workspace" aria-label="Workspace mode">
+    <p class="employees-workspace__label">Workspace mode</p>
+    <div class="employees-workspace__actions">
       <button
         type="button"
         class="status-pill"
         [class.status-pill--active]="workspaceFocus() === 'roster'"
         (click)="setWorkspaceFocus('roster')"
       >
-        Roster
+        Roster focus
       </button>
       <button
         type="button"
@@ -114,7 +114,7 @@
         [class.status-pill--active]="workspaceFocus() === 'clock'"
         (click)="setWorkspaceFocus('clock')"
       >
-        Clock
+        Clock board
       </button>
       <button
         type="button"
@@ -122,7 +122,7 @@
         [class.status-pill--active]="workspaceFocus() === 'profile'"
         (click)="setWorkspaceFocus('profile')"
       >
-        Profile
+        Profile editor
       </button>
       <button
         type="button"
@@ -130,7 +130,7 @@
         [class.status-pill--active]="workspaceFocus() === 'hours'"
         (click)="setWorkspaceFocus('hours')"
       >
-        Hours
+        Hours editor
       </button>
       <button
         type="button"
@@ -138,7 +138,7 @@
         [class.status-pill--active]="workspaceFocus() === 'history'"
         (click)="setWorkspaceFocus('history')"
       >
-        History
+        History timeline
       </button>
       <button
         type="button"
@@ -146,7 +146,7 @@
         [class.status-pill--active]="workspaceFocus() === 'readiness'"
         (click)="setWorkspaceFocus('readiness')"
       >
-        Readiness
+        Assignment readiness
       </button>
     </div>
   </article>
@@ -170,92 +170,94 @@
     <p class="workspace-notice" role="status">{{ workspaceNotice() }}</p>
   }
 
-  <article id="employees-clock" class="employees-clock" aria-label="Clock in and clock out">
-    <header class="employees-clock__header">
-      <div>
-        <p class="employees-clock__eyebrow">Payroll reconciliation</p>
-        <h2>Employee clock in/out</h2>
-      </div>
-    </header>
+  @if (workspaceFocus() === 'clock') {
+    <article id="employees-clock" class="employees-clock" aria-label="Clock in and clock out">
+      <header class="employees-clock__header">
+        <div>
+          <p class="employees-clock__eyebrow">Payroll reconciliation</p>
+          <h2>Employee clock in/out</h2>
+        </div>
+      </header>
 
-    @if (!clockSummaries().length) {
-      <p class="roster-state">No employees available for clock actions.</p>
-    } @else {
-      <ul class="clock-list">
-        @for (summary of clockSummaries(); track trackByClockEmployeeId($index, summary)) {
-          <li class="clock-card">
-            <header class="clock-card__header">
-              <h3>{{ summary.fullName }}</h3>
-              <span
-                class="status-chip"
-                [class.status-chip--inactive]="summary.state !== 'clocked_in'"
-              >
-                @if (summary.state === 'clocked_in') {
-                  Clocked in
-                } @else if (summary.state === 'inactive') {
-                  Inactive
+      @if (!clockSummaries().length) {
+        <p class="roster-state">No employees available for clock actions.</p>
+      } @else {
+        <ul class="clock-list">
+          @for (summary of clockSummaries(); track trackByClockEmployeeId($index, summary)) {
+            <li class="clock-card">
+              <header class="clock-card__header">
+                <h3>{{ summary.fullName }}</h3>
+                <span
+                  class="status-chip"
+                  [class.status-chip--inactive]="summary.state !== 'clocked_in'"
+                >
+                  @if (summary.state === 'clocked_in') {
+                    Clocked in
+                  } @else if (summary.state === 'inactive') {
+                    Inactive
+                  } @else {
+                    Clocked out
+                  }
+                </span>
+              </header>
+
+              <p class="clock-card__meta">
+                Site:
+                @if (summary.currentSiteLabel) {
+                  {{ summary.currentSiteLabel }}
                 } @else {
-                  Clocked out
+                  â€”
                 }
-              </span>
-            </header>
+              </p>
+              <p class="clock-card__meta">
+                Clock-in:
+                @if (summary.clockInAt) {
+                  {{ summary.clockInAt | date: 'MMM d, y, h:mm a' }}
+                } @else {
+                  â€”
+                }
+              </p>
+              <p class="clock-card__meta">
+                Last clock-out:
+                @if (summary.clockOutAt) {
+                  {{ summary.clockOutAt | date: 'MMM d, y, h:mm a' }}
+                } @else {
+                  â€”
+                }
+              </p>
+              <p class="clock-card__meta">
+                Last duration:
+                @if (summary.lastDurationHours) {
+                  {{ summary.lastDurationHours }}h
+                } @else {
+                  â€”
+                }
+              </p>
 
-            <p class="clock-card__meta">
-              Site:
-              @if (summary.currentSiteLabel) {
-                {{ summary.currentSiteLabel }}
-              } @else {
-                —
-              }
-            </p>
-            <p class="clock-card__meta">
-              Clock-in:
-              @if (summary.clockInAt) {
-                {{ summary.clockInAt | date: 'MMM d, y, h:mm a' }}
-              } @else {
-                —
-              }
-            </p>
-            <p class="clock-card__meta">
-              Last clock-out:
-              @if (summary.clockOutAt) {
-                {{ summary.clockOutAt | date: 'MMM d, y, h:mm a' }}
-              } @else {
-                —
-              }
-            </p>
-            <p class="clock-card__meta">
-              Last duration:
-              @if (summary.lastDurationHours) {
-                {{ summary.lastDurationHours }}h
-              } @else {
-                —
-              }
-            </p>
-
-            <div class="employee-card__actions">
-              <button
-                type="button"
-                class="employee-action employee-action--primary"
-                [disabled]="summary.state === 'clocked_in' || summary.state === 'inactive'"
-                (click)="clockIn(summary.employeeId)"
-              >
-                Clock in
-              </button>
-              <button
-                type="button"
-                class="employee-action"
-                [disabled]="summary.state !== 'clocked_in'"
-                (click)="clockOut(summary.employeeId)"
-              >
-                Clock out
-              </button>
-            </div>
-          </li>
-        }
-      </ul>
-    }
-  </article>
+              <div class="employee-card__actions">
+                <button
+                  type="button"
+                  class="employee-action employee-action--primary"
+                  [disabled]="summary.state === 'clocked_in' || summary.state === 'inactive'"
+                  (click)="clockIn(summary.employeeId)"
+                >
+                  Clock in
+                </button>
+                <button
+                  type="button"
+                  class="employee-action"
+                  [disabled]="summary.state !== 'clocked_in'"
+                  (click)="clockOut(summary.employeeId)"
+                >
+                  Clock out
+                </button>
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    </article>
+  }
 
   <article id="employees-roster" class="employees-roster" aria-live="polite">
     <header class="employees-roster__header">
@@ -264,7 +266,7 @@
     </header>
 
     @if (loadState() === 'loading') {
-      <p class="roster-state">Loading employee roster…</p>
+      <p class="roster-state">Loading employee rosterâ€¦</p>
     } @else if (loadState() === 'error') {
       <div class="roster-state roster-state--error">
         <p>Unable to load employee roster right now.</p>
@@ -298,7 +300,7 @@
               @if (employee.lastActivityAt) {
                 Last activity: {{ employee.lastActivityAt | date: 'MMM d, y, h:mm a' }}
               } @else {
-                Last activity: —
+                Last activity: â€”
               }
             </p>
             <div class="employee-card__actions">
@@ -335,356 +337,356 @@
     }
   </article>
 
-  <article id="employees-profile" class="employees-editor" aria-label="Employee profile editor">
-    <header class="employees-editor__header">
-      <div>
-        <p class="employees-editor__eyebrow">
-          {{ operatorRole() === 'owner' ? 'Owner mode' : 'Manager mode' }}
-        </p>
-        <h2>
-          @if (profileEditorMode() === 'create') {
-            Add employee profile
-          } @else {
-            Edit employee profile
-          }
-        </h2>
-      </div>
-    </header>
-
-    @if (!profileEditorOpen()) {
-      <p class="editor-placeholder">
-        Choose <strong>Add employee</strong> or click <strong>Edit</strong> on a roster card to
-        update profile data.
-      </p>
-    } @else {
-      <form class="profile-form" [formGroup]="profileForm" (ngSubmit)="saveProfile()">
-        @if (profileErrors().length) {
-          <div class="error-summary" role="alert">
-            <p>Fix the following before saving:</p>
-            <ul>
-              @for (error of profileErrors(); track error) {
-                <li>{{ error }}</li>
-              }
-            </ul>
-          </div>
-        }
-
-        @if (profileEditorMode() === 'edit' && activeEmployee()) {
-          <p class="editing-note">Editing: {{ activeEmployee()!.fullName }}</p>
-        }
-
-        <div class="profile-grid">
-          <label class="field">
-            <span class="field__label">First name *</span>
-            <input class="field__input" type="text" formControlName="firstName" />
-          </label>
-          <label class="field">
-            <span class="field__label">Last name *</span>
-            <input class="field__input" type="text" formControlName="lastName" />
-          </label>
-          <label class="field">
-            <span class="field__label">Phone (###) ###-#### *</span>
-            <input class="field__input" type="text" formControlName="phone" />
-          </label>
-          <label class="field">
-            <span class="field__label">Email</span>
-            <input class="field__input" type="email" formControlName="email" />
-          </label>
-          <label class="field">
-            <span class="field__label">Role *</span>
-            <input class="field__input" type="text" formControlName="role" />
-          </label>
-          <label class="field">
-            <span class="field__label">Hourly rate *</span>
-            <input class="field__input" type="text" formControlName="hourlyRate" />
-          </label>
-        </div>
-
-        <label class="field">
-          <span class="field__label">Notes</span>
-          <textarea
-            class="field__input field__textarea"
-            rows="3"
-            formControlName="notes"
-          ></textarea>
-        </label>
-
-        <div class="editor-actions">
-          <button type="button" class="employee-action" (click)="cancelProfileEditor()">
-            Cancel
-          </button>
-          <button type="submit" class="employee-action employee-action--primary">
-            Save profile
-          </button>
-        </div>
-      </form>
-    }
-  </article>
-
-  <article id="employees-hours" class="employees-hours" aria-label="Employee hours editor">
-    <header class="employees-hours__header">
-      <div>
-        <p class="employees-hours__eyebrow">Hours workflow</p>
-        <h2>Employee hours editor</h2>
-      </div>
-      @if (hoursEditorOpen()) {
-        <button type="button" class="employee-action" (click)="closeHoursEditor()">Close</button>
-      }
-    </header>
-
-    @if (!hoursEditorOpen()) {
-      <p class="editor-placeholder">
-        Click <strong>Hours</strong> on an employee card to log or update worked hours.
-      </p>
-    } @else {
-      <div class="hours-context">
-        <p class="hours-context__employee">{{ selectedHoursEmployee()!.fullName }}</p>
-        <p class="hours-context__meta">
-          Entries: {{ selectedHoursTotals().entryCount }} | Total hours:
-          {{ selectedHoursTotals().totalHours }}
-        </p>
-      </div>
-
-      <form class="hours-form" [formGroup]="hoursForm" (ngSubmit)="saveHoursEntry()">
-        @if (hoursErrors().length) {
-          <div class="error-summary" role="alert">
-            <p>Fix the following before saving hours:</p>
-            <ul>
-              @for (error of hoursErrors(); track error) {
-                <li>{{ error }}</li>
-              }
-            </ul>
-          </div>
-        }
-
-        @if (editingHoursEntry()) {
-          <p class="editing-note">
-            Editing hours entry from {{ editingHoursEntry()!.workDate }} at
-            {{ editingHoursEntry()!.siteLabel }}.
+  @if (workspaceFocus() === 'profile' || profileEditorOpen()) {
+    <article id="employees-profile" class="employees-editor" aria-label="Employee profile editor">
+      <header class="employees-editor__header">
+        <div>
+          <p class="employees-editor__eyebrow">
+            {{ operatorRole() === 'owner' ? 'Owner mode' : 'Manager mode' }}
           </p>
-        }
-
-        <div class="hours-grid">
-          <label class="field">
-            <span class="field__label">Work date *</span>
-            <input class="field__input" type="date" formControlName="workDate" />
-          </label>
-          <label class="field">
-            <span class="field__label">Hours *</span>
-            <input
-              class="field__input"
-              type="number"
-              min="0.25"
-              step="0.25"
-              formControlName="hours"
-            />
-          </label>
-          <label class="field field--wide">
-            <span class="field__label">Site / address *</span>
-            <input class="field__input" type="text" formControlName="siteLabel" />
-          </label>
+          <h2>
+            @if (profileEditorMode() === 'create') {
+              Add employee profile
+            } @else {
+              Edit employee profile
+            }
+          </h2>
         </div>
+      </header>
 
-        <div class="editor-actions">
-          <button type="submit" class="employee-action employee-action--primary">
-            {{ editingHoursEntry() ? 'Update hours' : 'Save hours' }}
-          </button>
-        </div>
-      </form>
-
-      <ul class="hours-list">
-        @for (entry of selectedHoursEntries(); track trackByHoursEntryId($index, entry)) {
-          <li class="hours-card">
-            <div>
-              <p class="hours-card__date">{{ entry.workDate | date: 'MMM d, y' }}</p>
-              <p class="hours-card__site">{{ entry.siteLabel }}</p>
-              <p class="hours-card__meta">
-                {{ entry.hours }}h | Updated by {{ entry.updatedByRole }} |
-                {{ entry.updatedAt | date: 'MMM d, y, h:mm a' }}
-              </p>
-            </div>
-            <div class="employee-card__actions">
-              <button type="button" class="employee-action" (click)="editHoursEntry(entry.id)">
-                Edit
-              </button>
-              <button
-                type="button"
-                class="employee-action employee-action--danger"
-                (click)="removeHoursEntry(entry.id)"
-              >
-                Remove
-              </button>
-            </div>
-          </li>
-        }
-      </ul>
-    }
-  </article>
-
-  <article
-    id="employees-history"
-    class="employees-history"
-    aria-label="Employee job history timeline"
-  >
-    <header class="employees-history__header">
-      <div>
-        <p class="employees-history__eyebrow">Operations timeline</p>
-        <h2>Per-employee job history</h2>
-      </div>
-      @if (historyPanelOpen()) {
-        <button type="button" class="employee-action" (click)="closeJobHistory()">Close</button>
-      }
-    </header>
-
-    @if (!historyPanelOpen()) {
-      <p class="editor-placeholder">
-        Click <strong>History</strong> on an employee card to review sites, scheduled slots, and
-        job-by-job hours.
-      </p>
-    } @else {
-      <div class="history-context">
-        <p class="history-context__employee">{{ selectedHistoryEmployee()!.fullName }}</p>
-        <p class="history-context__meta">Recent site: {{ selectedHistorySummary().recentSite }}</p>
-      </div>
-
-      <section class="history-summary" aria-label="History totals">
-        <article class="summary-card">
-          <p class="summary-card__label">Jobs tracked</p>
-          <p class="summary-card__value">{{ selectedHistorySummary().jobsCount }}</p>
-        </article>
-        <article class="summary-card">
-          <p class="summary-card__label">Completed</p>
-          <p class="summary-card__value">{{ selectedHistorySummary().completedCount }}</p>
-        </article>
-        <article class="summary-card">
-          <p class="summary-card__label">Scheduled</p>
-          <p class="summary-card__value">{{ selectedHistorySummary().scheduledCount }}</p>
-        </article>
-        <article class="summary-card">
-          <p class="summary-card__label">Total hours</p>
-          <p class="summary-card__value">{{ selectedHistorySummary().totalHours }}</p>
-        </article>
-      </section>
-
-      @if (!selectedEmployeeJobHistory().length) {
-        <p class="roster-state">No job history found for this employee yet.</p>
+      @if (!profileEditorOpen()) {
+        <p class="editor-placeholder">
+          Choose <strong>Add employee</strong> or click <strong>Edit</strong> on a roster card to
+          update profile data.
+        </p>
       } @else {
-        <ol class="history-list">
-          @for (
-            historyEntry of selectedEmployeeJobHistory();
-            track trackByHistoryEntryId($index, historyEntry)
-          ) {
-            <li class="history-card">
-              <header class="history-card__header">
-                <p class="history-card__site">{{ historyEntry.siteLabel }}</p>
-                <span
-                  class="status-chip"
-                  [class.status-chip--inactive]="historyEntry.status === 'scheduled'"
+        <form class="profile-form" [formGroup]="profileForm" (ngSubmit)="saveProfile()">
+          @if (profileErrors().length) {
+            <div class="error-summary" role="alert">
+              <p>Fix the following before saving:</p>
+              <ul>
+                @for (error of profileErrors(); track error) {
+                  <li>{{ error }}</li>
+                }
+              </ul>
+            </div>
+          }
+
+          @if (profileEditorMode() === 'edit' && activeEmployee()) {
+            <p class="editing-note">Editing: {{ activeEmployee()!.fullName }}</p>
+          }
+
+          <div class="profile-grid">
+            <label class="field">
+              <span class="field__label">First name *</span>
+              <input class="field__input" type="text" formControlName="firstName" />
+            </label>
+            <label class="field">
+              <span class="field__label">Last name *</span>
+              <input class="field__input" type="text" formControlName="lastName" />
+            </label>
+            <label class="field">
+              <span class="field__label">Phone (###) ###-#### *</span>
+              <input class="field__input" type="text" formControlName="phone" />
+            </label>
+            <label class="field">
+              <span class="field__label">Email</span>
+              <input class="field__input" type="email" formControlName="email" />
+            </label>
+            <label class="field">
+              <span class="field__label">Role *</span>
+              <input class="field__input" type="text" formControlName="role" />
+            </label>
+            <label class="field">
+              <span class="field__label">Hourly rate *</span>
+              <input class="field__input" type="text" formControlName="hourlyRate" />
+            </label>
+          </div>
+
+          <label class="field">
+            <span class="field__label">Notes</span>
+            <textarea
+              class="field__input field__textarea"
+              rows="3"
+              formControlName="notes"
+            ></textarea>
+          </label>
+
+          <div class="editor-actions">
+            <button type="button" class="employee-action" (click)="cancelProfileEditor()">
+              Cancel
+            </button>
+            <button type="submit" class="employee-action employee-action--primary">
+              Save profile
+            </button>
+          </div>
+        </form>
+      }
+    </article>
+  }
+
+  @if (workspaceFocus() === 'hours' || hoursEditorOpen()) {
+    <article id="employees-hours" class="employees-hours" aria-label="Employee hours editor">
+      <header class="employees-hours__header">
+        <div>
+          <p class="employees-hours__eyebrow">Hours workflow</p>
+          <h2>Employee hours editor</h2>
+        </div>
+        @if (hoursEditorOpen()) {
+          <button type="button" class="employee-action" (click)="closeHoursEditor()">Close</button>
+        }
+      </header>
+
+      @if (!hoursEditorOpen()) {
+        <p class="editor-placeholder">
+          Click <strong>Hours</strong> on an employee card to log or update worked hours.
+        </p>
+      } @else {
+        <div class="hours-context">
+          <p class="hours-context__employee">{{ selectedHoursEmployee()!.fullName }}</p>
+          <p class="hours-context__meta">
+            Entries: {{ selectedHoursTotals().entryCount }} | Total hours:
+            {{ selectedHoursTotals().totalHours }}
+          </p>
+        </div>
+
+        <form class="hours-form" [formGroup]="hoursForm" (ngSubmit)="saveHoursEntry()">
+          @if (hoursErrors().length) {
+            <div class="error-summary" role="alert">
+              <p>Fix the following before saving hours:</p>
+              <ul>
+                @for (error of hoursErrors(); track error) {
+                  <li>{{ error }}</li>
+                }
+              </ul>
+            </div>
+          }
+
+          @if (editingHoursEntry()) {
+            <p class="editing-note">
+              Editing hours entry from {{ editingHoursEntry()!.workDate }} at
+              {{ editingHoursEntry()!.siteLabel }}.
+            </p>
+          }
+
+          <div class="hours-grid">
+            <label class="field">
+              <span class="field__label">Work date *</span>
+              <input class="field__input" type="date" formControlName="workDate" />
+            </label>
+            <label class="field">
+              <span class="field__label">Hours *</span>
+              <input
+                class="field__input"
+                type="number"
+                min="0.25"
+                step="0.25"
+                formControlName="hours"
+              />
+            </label>
+            <label class="field field--wide">
+              <span class="field__label">Site / address *</span>
+              <input class="field__input" type="text" formControlName="siteLabel" />
+            </label>
+          </div>
+
+          <div class="editor-actions">
+            <button type="submit" class="employee-action employee-action--primary">
+              {{ editingHoursEntry() ? 'Update hours' : 'Save hours' }}
+            </button>
+          </div>
+        </form>
+
+        <ul class="hours-list">
+          @for (entry of selectedHoursEntries(); track trackByHoursEntryId($index, entry)) {
+            <li class="hours-card">
+              <div>
+                <p class="hours-card__date">{{ entry.workDate | date: 'MMM d, y' }}</p>
+                <p class="hours-card__site">{{ entry.siteLabel }}</p>
+                <p class="hours-card__meta">
+                  {{ entry.hours }}h | Updated by {{ entry.updatedByRole }} |
+                  {{ entry.updatedAt | date: 'MMM d, y, h:mm a' }}
+                </p>
+              </div>
+              <div class="employee-card__actions">
+                <button type="button" class="employee-action" (click)="editHoursEntry(entry.id)">
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  class="employee-action employee-action--danger"
+                  (click)="removeHoursEntry(entry.id)"
                 >
-                  {{ historyEntry.status === 'completed' ? 'Completed' : 'Scheduled' }}
-                </span>
-              </header>
-              <p class="history-card__address">{{ historyEntry.address }}</p>
-              <p class="history-card__window">
-                {{ historyEntry.scheduledStart | date: 'MMM d, y, h:mm a' }} -
-                {{ historyEntry.scheduledEnd | date: 'h:mm a' }}
-              </p>
-              <p class="history-card__hours">Hours on job: {{ historyEntry.hoursWorked }}</p>
+                  Remove
+                </button>
+              </div>
             </li>
           }
-        </ol>
+        </ul>
       }
-    }
-  </article>
+    </article>
+  }
 
-  <article
-    id="employees-readiness"
-    class="employees-readiness"
-    aria-label="Start Next Job readiness contract"
-  >
-    <header class="employees-readiness__header">
-      <div>
-        <p class="employees-readiness__eyebrow">Start Next Job readiness</p>
-        <h2>Assignment data contract preview</h2>
-      </div>
-    </header>
-
-    @if (!startNextJobReadiness().length) {
-      <p class="roster-state">No readiness data available yet.</p>
-    } @else {
-      <ul class="readiness-list">
-        @for (
-          readiness of startNextJobReadiness();
-          track trackByReadinessEmployeeId($index, readiness)
-        ) {
-          <li class="readiness-card">
-            <header class="readiness-card__header">
-              <h3>{{ readiness.fullName }}</h3>
-              <span
-                class="status-chip"
-                [class.status-chip--inactive]="readiness.readinessState !== 'available'"
-              >
-                @if (readiness.readinessState === 'available') {
-                  Available now
-                } @else if (readiness.readinessState === 'scheduled') {
-                  On scheduled work
-                } @else {
-                  Inactive
-                }
-              </span>
-            </header>
-
-            <p class="readiness-card__meta">
-              Scheduled jobs: {{ readiness.scheduledJobsCount }} | Completed jobs:
-              {{ readiness.completedJobsCount }}
-            </p>
-            <p class="readiness-card__meta">
-              Scheduled hours: {{ readiness.scheduledHours }} | Completed hours:
-              {{ readiness.completedHours }}
-            </p>
-            <p class="readiness-card__meta">
-              Next scheduled:
-              @if (readiness.nextScheduledStart) {
-                {{ readiness.nextScheduledStart | date: 'MMM d, y, h:mm a' }}
-              } @else {
-                —
-              }
-            </p>
-            <p class="readiness-card__meta">
-              Next available:
-              @if (readiness.nextAvailableAt) {
-                {{ readiness.nextAvailableAt | date: 'MMM d, y, h:mm a' }}
-              } @else {
-                —
-              }
-            </p>
-            <p class="readiness-card__meta">
-              Last completed site:
-              @if (readiness.lastCompletedSite) {
-                {{ readiness.lastCompletedSite }}
-              } @else {
-                —
-              }
-            </p>
-
-            @if (readiness.hasScheduleConflict) {
-              <p class="readiness-card__conflict" role="status">
-                Schedule conflict detected in upcoming windows.
-              </p>
-            }
-          </li>
+  @if (workspaceFocus() === 'history' || historyPanelOpen()) {
+    <article
+      id="employees-history"
+      class="employees-history"
+      aria-label="Employee job history timeline"
+    >
+      <header class="employees-history__header">
+        <div>
+          <p class="employees-history__eyebrow">Operations timeline</p>
+          <h2>Per-employee job history</h2>
+        </div>
+        @if (historyPanelOpen()) {
+          <button type="button" class="employee-action" (click)="closeJobHistory()">Close</button>
         }
-      </ul>
-    }
-  </article>
+      </header>
 
-  <article class="employees-placeholder" aria-label="Upcoming slices">
-    <p class="employees-placeholder__eyebrow">Next slices</p>
-    <h2>Queued after roster foundation</h2>
-    <ul class="slice-list">
-      @for (slice of nextSlices; track slice) {
-        <li class="slice-card">{{ slice }}</li>
+      @if (!historyPanelOpen()) {
+        <p class="editor-placeholder">
+          Click <strong>History</strong> on an employee card to review sites, scheduled slots, and
+          job-by-job hours.
+        </p>
+      } @else {
+        <div class="history-context">
+          <p class="history-context__employee">{{ selectedHistoryEmployee()!.fullName }}</p>
+          <p class="history-context__meta">
+            Recent site: {{ selectedHistorySummary().recentSite }}
+          </p>
+        </div>
+
+        <section class="history-summary" aria-label="History totals">
+          <article class="summary-card">
+            <p class="summary-card__label">Jobs tracked</p>
+            <p class="summary-card__value">{{ selectedHistorySummary().jobsCount }}</p>
+          </article>
+          <article class="summary-card">
+            <p class="summary-card__label">Completed</p>
+            <p class="summary-card__value">{{ selectedHistorySummary().completedCount }}</p>
+          </article>
+          <article class="summary-card">
+            <p class="summary-card__label">Scheduled</p>
+            <p class="summary-card__value">{{ selectedHistorySummary().scheduledCount }}</p>
+          </article>
+          <article class="summary-card">
+            <p class="summary-card__label">Total hours</p>
+            <p class="summary-card__value">{{ selectedHistorySummary().totalHours }}</p>
+          </article>
+        </section>
+
+        @if (!selectedEmployeeJobHistory().length) {
+          <p class="roster-state">No job history found for this employee yet.</p>
+        } @else {
+          <ol class="history-list">
+            @for (
+              historyEntry of selectedEmployeeJobHistory();
+              track trackByHistoryEntryId($index, historyEntry)
+            ) {
+              <li class="history-card">
+                <header class="history-card__header">
+                  <p class="history-card__site">{{ historyEntry.siteLabel }}</p>
+                  <span
+                    class="status-chip"
+                    [class.status-chip--inactive]="historyEntry.status === 'scheduled'"
+                  >
+                    {{ historyEntry.status === 'completed' ? 'Completed' : 'Scheduled' }}
+                  </span>
+                </header>
+                <p class="history-card__address">{{ historyEntry.address }}</p>
+                <p class="history-card__window">
+                  {{ historyEntry.scheduledStart | date: 'MMM d, y, h:mm a' }} -
+                  {{ historyEntry.scheduledEnd | date: 'h:mm a' }}
+                </p>
+                <p class="history-card__hours">Hours on job: {{ historyEntry.hoursWorked }}</p>
+              </li>
+            }
+          </ol>
+        }
       }
-    </ul>
-  </article>
+    </article>
+  }
+
+  @if (workspaceFocus() === 'readiness') {
+    <article
+      id="employees-readiness"
+      class="employees-readiness"
+      aria-label="Start Next Job readiness contract"
+    >
+      <header class="employees-readiness__header">
+        <div>
+          <p class="employees-readiness__eyebrow">Start Next Job readiness</p>
+          <h2>Assignment data contract preview</h2>
+        </div>
+      </header>
+
+      @if (!startNextJobReadiness().length) {
+        <p class="roster-state">No readiness data available yet.</p>
+      } @else {
+        <ul class="readiness-list">
+          @for (
+            readiness of startNextJobReadiness();
+            track trackByReadinessEmployeeId($index, readiness)
+          ) {
+            <li class="readiness-card">
+              <header class="readiness-card__header">
+                <h3>{{ readiness.fullName }}</h3>
+                <span
+                  class="status-chip"
+                  [class.status-chip--inactive]="readiness.readinessState !== 'available'"
+                >
+                  @if (readiness.readinessState === 'available') {
+                    Available now
+                  } @else if (readiness.readinessState === 'scheduled') {
+                    On scheduled work
+                  } @else {
+                    Inactive
+                  }
+                </span>
+              </header>
+
+              <p class="readiness-card__meta">
+                Scheduled jobs: {{ readiness.scheduledJobsCount }} | Completed jobs:
+                {{ readiness.completedJobsCount }}
+              </p>
+              <p class="readiness-card__meta">
+                Scheduled hours: {{ readiness.scheduledHours }} | Completed hours:
+                {{ readiness.completedHours }}
+              </p>
+              <p class="readiness-card__meta">
+                Next scheduled:
+                @if (readiness.nextScheduledStart) {
+                  {{ readiness.nextScheduledStart | date: 'MMM d, y, h:mm a' }}
+                } @else {
+                  —
+                }
+              </p>
+              <p class="readiness-card__meta">
+                Next available:
+                @if (readiness.nextAvailableAt) {
+                  {{ readiness.nextAvailableAt | date: 'MMM d, y, h:mm a' }}
+                } @else {
+                  —
+                }
+              </p>
+              <p class="readiness-card__meta">
+                Last completed site:
+                @if (readiness.lastCompletedSite) {
+                  {{ readiness.lastCompletedSite }}
+                } @else {
+                  —
+                }
+              </p>
+
+              @if (readiness.hasScheduleConflict) {
+                <p class="readiness-card__conflict" role="status">
+                  Schedule conflict detected in upcoming windows.
+                </p>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </article>
+  }
 </section>

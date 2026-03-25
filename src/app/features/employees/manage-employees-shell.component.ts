@@ -54,9 +54,6 @@ export class ManageEmployeesShellComponent implements OnInit {
   readonly trackByHistoryEntryId = this.facade.trackByHistoryEntryId;
   readonly trackByReadinessEmployeeId = this.facade.trackByReadinessEmployeeId;
   readonly trackByClockEmployeeId = this.facade.trackByClockEmployeeId;
-  readonly nextSlices = [
-    'Manage Employees phase complete: no queued slices right now.',
-  ] as const;
 
   ngOnInit(): void {
     void this.facade.loadRoster();
@@ -144,6 +141,8 @@ export class ManageEmployeesShellComponent implements OnInit {
 
   private scrollToSection(sectionId: string): void {
     const section = document.getElementById(sectionId);
-    section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (section && typeof section.scrollIntoView === 'function') {
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 }

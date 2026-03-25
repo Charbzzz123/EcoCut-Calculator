@@ -349,7 +349,7 @@ describe('ManageEmployeesShellComponent', () => {
     const native = fixture.nativeElement as HTMLElement;
     expect(facade.loadRoster).toHaveBeenCalledTimes(1);
     expect(native.querySelector('h1')?.textContent).toContain('Manage employees');
-    expect(native.querySelectorAll('.slice-card')).toHaveLength(1);
+    expect(native.textContent).toContain('Workspace mode');
   });
 
   it('renders loading, error, and empty states', () => {
@@ -429,6 +429,12 @@ describe('ManageEmployeesShellComponent', () => {
     expect(facade.setStatusFilter).toHaveBeenCalledWith('active');
     expect(facade.setStatusFilter).toHaveBeenCalledWith('inactive');
 
+    const workspaceButtons = native.querySelectorAll(
+      '.employees-workspace .status-pill',
+    ) as NodeListOf<HTMLButtonElement>;
+    workspaceButtons[1]?.click();
+    fixture.detectChanges();
+
     const clockButtons = native.querySelectorAll('.clock-card .employee-action');
     (clockButtons[0] as HTMLButtonElement).click();
     (clockButtons[3] as HTMLButtonElement).click();
@@ -461,6 +467,12 @@ describe('ManageEmployeesShellComponent', () => {
   it('renders profile editor states and forwards submit/cancel', () => {
     facade.setViewModel({ profileEditorOpen: false });
     let fixture = TestBed.createComponent(ManageEmployeesShellComponent);
+    fixture.detectChanges();
+    const firstNative = fixture.nativeElement as HTMLElement;
+    const workspaceButtons = firstNative.querySelectorAll(
+      '.employees-workspace .status-pill',
+    ) as NodeListOf<HTMLButtonElement>;
+    workspaceButtons[2]?.click();
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.editor-placeholder')).toBeTruthy();
 
@@ -650,6 +662,12 @@ describe('ManageEmployeesShellComponent', () => {
     fixture.detectChanges();
     const native = fixture.nativeElement as HTMLElement;
 
+    const workspaceButtons = native.querySelectorAll(
+      '.employees-workspace .status-pill',
+    ) as NodeListOf<HTMLButtonElement>;
+    workspaceButtons[5]?.click();
+    fixture.detectChanges();
+
     expect(native.querySelector('.employees-readiness h2')?.textContent).toContain(
       'Assignment data contract preview',
     );
@@ -687,6 +705,12 @@ describe('ManageEmployeesShellComponent', () => {
     const fixture = TestBed.createComponent(ManageEmployeesShellComponent);
     fixture.detectChanges();
     const native = fixture.nativeElement as HTMLElement;
+
+    const workspaceButtons = native.querySelectorAll(
+      '.employees-workspace .status-pill',
+    ) as NodeListOf<HTMLButtonElement>;
+    workspaceButtons[5]?.click();
+    fixture.detectChanges();
 
     const readinessCards = native.querySelectorAll('.readiness-card');
     expect(readinessCards.length).toBe(2);

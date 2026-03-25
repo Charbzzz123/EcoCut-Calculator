@@ -6,14 +6,13 @@
 .employees-hero,
 .employees-toolbar,
 .employees-flow,
-.employees-jump,
+.employees-workspace,
 .employees-summary,
 .employees-clock,
 .employees-roster,
 .employees-hours,
 .employees-history,
-.employees-readiness,
-.employees-placeholder {
+.employees-readiness {
   border-radius: 1.5rem;
   border: 1px solid var(--border-soft);
   background: linear-gradient(145deg, rgba(1, 24, 18, 0.95), rgba(2, 18, 12, 0.88));
@@ -87,12 +86,12 @@ h1 {
   color: var(--text-primary);
 }
 
-.employees-jump {
+.employees-workspace {
   display: grid;
   gap: 0.6rem;
 }
 
-.employees-jump__label {
+.employees-workspace__label {
   margin: 0;
   color: var(--text-muted);
   font-size: 0.86rem;
@@ -100,7 +99,7 @@ h1 {
   letter-spacing: 0.08em;
 }
 
-.employees-jump__actions {
+.employees-workspace__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
@@ -729,30 +728,6 @@ h1 {
   gap: 0.55rem;
   justify-content: flex-end;
   flex-wrap: wrap;
-}
-
-.employees-placeholder__eyebrow {
-  margin-bottom: 0.45rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 0.78rem;
-  color: var(--text-muted);
-}
-
-.slice-list {
-  list-style: none;
-  margin: 0.9rem 0 0;
-  padding: 0;
-  display: grid;
-  gap: 0.65rem;
-}
-
-.slice-card {
-  border-radius: 0.95rem;
-  border: 1px solid var(--border-soft);
-  background: rgba(4, 29, 21, 0.8);
-  padding: 0.7rem 0.85rem;
-  color: var(--text-accent-soft);
 }
 
 @media (max-width: 760px) {

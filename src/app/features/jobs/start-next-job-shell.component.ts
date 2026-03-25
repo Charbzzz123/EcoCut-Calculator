@@ -43,6 +43,8 @@ export class StartNextJobShellComponent implements OnInit {
 
   private scrollToSection(sectionId: string): void {
     const section = document.getElementById(sectionId);
-    section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (section && typeof section.scrollIntoView === 'function') {
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 }

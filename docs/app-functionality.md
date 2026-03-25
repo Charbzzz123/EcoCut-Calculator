@@ -159,7 +159,10 @@
   - Block save with a clear missing-field summary when required inputs are incomplete.
 - **UX hierarchy pass (in progress)**
   - Added a workflow strip at the top of Manage Employees (`filter/search -> choose operation -> save/verify`) so operators can orient before entering deeper editor panels.
-  - Added a quick-jump row (`Roster`, `Clock`, `Profile`, `Hours`, `History`, `Readiness`) so operators can move between dense sections without hunting through the full page.
+  - Added a workspace-mode jump row (`Roster focus`, `Clock board`, `Profile editor`, `Hours editor`, `History timeline`, `Assignment readiness`) so operators can move between dense sections without hunting through the page.
+- **Roster-first flow simplification (in progress)**
+  - Added a dedicated workspace-mode switch that defaults to roster focus and reveals one deep operation panel at a time (`Clock board`, `Profile editor`, `Hours editor`, `History timeline`, `Assignment readiness`) to reduce cognitive load.
+  - Readiness was moved behind explicit mode selection so daily operations (roster/profile/hours/history) stay front-and-center.
 - **Queued next slices**
   - None right now (ME-1 through ME-21 complete).
 
