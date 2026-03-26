@@ -1,11 +1,10 @@
 .employees-shell {
   display: grid;
-  gap: 1.2rem;
+  gap: 0.9rem;
 }
 
 .employees-hero,
 .employees-toolbar,
-.employees-flow,
 .employees-workspace,
 .employees-summary,
 .employees-clock,
@@ -17,7 +16,7 @@
   border: 1px solid var(--border-soft);
   background: linear-gradient(145deg, rgba(1, 24, 18, 0.95), rgba(2, 18, 12, 0.88));
   box-shadow: var(--shadow-soft);
-  padding: clamp(1rem, 2vw, 1.5rem);
+  padding: clamp(0.85rem, 1.7vw, 1.25rem);
 }
 
 .employees-shell__header {
@@ -26,6 +25,12 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 0.9rem;
+}
+
+.employees-shell__header app-back-chip {
+  opacity: 0.85;
+  transform: scale(0.92);
+  transform-origin: top right;
 }
 
 .hero-copy {
@@ -79,33 +84,13 @@ h1 {
   text-transform: uppercase;
 }
 
-.employees-flow__eyebrow {
-  margin: 0;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 0.76rem;
-  color: var(--text-muted);
-}
-
-.employees-flow__steps {
-  margin: 0.55rem 0 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  gap: 0.45rem;
-}
-
-.employees-flow__steps li {
-  border: 1px solid var(--border-soft);
-  border-radius: 0.85rem;
-  background: rgba(5, 27, 20, 0.72);
-  padding: 0.45rem 0.6rem;
-  color: var(--text-primary);
-}
-
 .employees-workspace {
   display: grid;
-  gap: 0.6rem;
+  gap: 0.45rem;
+  position: sticky;
+  top: 0.6rem;
+  z-index: 5;
+  backdrop-filter: blur(6px);
 }
 
 .employees-workspace__label {
@@ -119,7 +104,7 @@ h1 {
 .employees-workspace__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem;
+  gap: 0.35rem;
 }
 
 .employees-toolbar__row {
@@ -141,6 +126,16 @@ h1 {
 .status-filters-block__label {
   color: var(--text-muted);
   font-size: 0.82rem;
+}
+
+.employees-toolbar__summary {
+  margin: 0;
+  border-radius: 0.8rem;
+  border: 1px solid var(--border-soft);
+  background: rgba(7, 30, 22, 0.72);
+  color: var(--text-accent-soft);
+  font-size: 0.9rem;
+  padding: 0.5rem 0.65rem;
 }
 
 .toolbar-actions {
@@ -228,6 +223,11 @@ h1 {
 
 .status-pill {
   padding: 0.42rem 0.85rem;
+}
+
+.employees-workspace .status-pill {
+  padding: 0.32rem 0.72rem;
+  font-size: 0.95rem;
 }
 
 .status-pill--active {

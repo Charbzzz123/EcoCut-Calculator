@@ -158,14 +158,16 @@
   - Prevent duplicate employee creation using normalized name + phone/email checks.
   - Block save with a clear missing-field summary when required inputs are incomplete.
 - **UX hierarchy pass (completed)**
-  - Added a workflow strip at the top of Manage Employees (`filter/search -> choose operation -> save/verify`) so operators can orient before entering deeper editor panels.
-  - Added a workspace-mode jump row (`Roster focus`, `Clock board`, `Profile editor`, `Hours editor`, `History timeline`, `Assignment readiness`) so operators can move between dense sections without hunting through the page.
+  - Consolidated roster counts into the controls area (single canonical `Showing X employee(s)` line + summary cards) so operators see key state before scrolling.
+  - Removed the static workflow text block from default view to reduce non-actionable UI noise.
+  - Kept workspace-mode jump controls (`Roster focus`, `Clock board`, `Profile editor`, `Hours editor`, `History timeline`, `Assignment readiness`) while making them compact for faster scanning.
 - **Roster-first flow simplification (completed)**
   - Added a dedicated workspace-mode switch that defaults to roster focus and reveals one deep operation panel at a time (`Clock board`, `Profile editor`, `Hours editor`, `History timeline`, `Assignment readiness`) to reduce cognitive load.
   - Readiness was moved behind explicit mode selection so daily operations (roster/profile/hours/history) stay front-and-center.
   - Loading/error/empty messages now opt into shared workspace-state styling hooks so operational feedback reads consistently across employee/job screens.
   - Status chips and action buttons now consume shared workspace tokens (default/primary/danger emphasis) so control hierarchy matches Start Next Job.
   - Added explicit `Primary controls` vs `Advanced controls` grouping in the toolbar so core actions (search, refresh, add) are visually separated from operator/status toggles.
+  - Workspace mode now stays sticky and visually smaller while scrolling so context remains visible without dominating the page.
 - **Queued next slices**
   - None right now (ME-1 through ME-21 complete).
 

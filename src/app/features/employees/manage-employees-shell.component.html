@@ -103,16 +103,24 @@
           </div>
         </div>
       </div>
+      <p class="employees-toolbar__summary" aria-live="polite">
+        Showing {{ filteredRosterSnapshot().length }} employee(s) in current filter.
+      </p>
+      <section class="employees-summary" aria-label="Employee metrics">
+        <article class="summary-card">
+          <p class="summary-card__label">Total employees</p>
+          <p class="summary-card__value">{{ statsSnapshot().total }}</p>
+        </article>
+        <article class="summary-card">
+          <p class="summary-card__label">Active</p>
+          <p class="summary-card__value">{{ statsSnapshot().active }}</p>
+        </article>
+        <article class="summary-card">
+          <p class="summary-card__label">Inactive</p>
+          <p class="summary-card__value">{{ statsSnapshot().inactive }}</p>
+        </article>
+      </section>
     </section>
-  </article>
-
-  <article class="employees-flow" aria-label="Manage employees workflow">
-    <p class="employees-flow__eyebrow">Workflow</p>
-    <ol class="employees-flow__steps">
-      <li><strong>1.</strong> Filter/search the roster and choose an employee.</li>
-      <li><strong>2.</strong> Run one operation at a time (profile, hours, history, clock).</li>
-      <li><strong>3.</strong> Save changes and confirm status feedback before moving on.</li>
-    </ol>
   </article>
 
   <article class="employees-workspace" aria-label="Workspace mode">
@@ -180,21 +188,6 @@
       </button>
     </div>
   </article>
-
-  <section class="employees-summary" aria-label="Employee metrics">
-    <article class="summary-card">
-      <p class="summary-card__label">Total employees</p>
-      <p class="summary-card__value">{{ statsSnapshot().total }}</p>
-    </article>
-    <article class="summary-card">
-      <p class="summary-card__label">Active</p>
-      <p class="summary-card__value">{{ statsSnapshot().active }}</p>
-    </article>
-    <article class="summary-card">
-      <p class="summary-card__label">Inactive</p>
-      <p class="summary-card__value">{{ statsSnapshot().inactive }}</p>
-    </article>
-  </section>
 
   @if (workspaceNotice()) {
     <p class="workspace-notice" role="status" aria-live="polite">{{ workspaceNotice() }}</p>
@@ -291,8 +284,8 @@
 
   <article id="employees-roster" class="employees-roster" aria-live="polite">
     <header class="employees-roster__header">
-      <h2>Showing {{ filteredRosterSnapshot().length }} employee(s)</h2>
-      <p>Total in roster: {{ rosterSnapshot().length }}</p>
+      <h2>Employee roster</h2>
+      <p>Filtered list</p>
     </header>
 
     @if (loadState() === 'loading') {
