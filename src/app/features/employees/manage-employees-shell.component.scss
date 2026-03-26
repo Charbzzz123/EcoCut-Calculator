@@ -310,18 +310,18 @@ h1 {
 
 .status-chip {
   border-radius: 999px;
-  border: 1px solid var(--border-accent-medium);
-  background: rgba(14, 47, 35, 0.8);
-  color: var(--text-accent-strong);
+  border: 1px solid var(--workspace-chip-border);
+  background: var(--workspace-chip-bg);
+  color: var(--workspace-chip-text);
   font-size: 0.78rem;
   padding: 0.2rem 0.6rem;
   white-space: nowrap;
 }
 
 .status-chip--inactive {
-  border-color: var(--border-warning);
-  background: var(--surface-warning-soft);
-  color: var(--text-warning);
+  border-color: var(--workspace-chip-muted-border);
+  background: var(--workspace-chip-muted-bg);
+  color: var(--workspace-chip-muted-text);
 }
 
 .employee-card__meta,
@@ -342,12 +342,12 @@ h1 {
 
 .employee-action {
   border-radius: 999px;
-  border: 1px solid var(--border-soft);
-  background: rgba(9, 31, 23, 0.85);
-  color: var(--text-primary);
+  border: 1px solid var(--workspace-action-border);
+  background: var(--workspace-action-bg);
+  color: var(--workspace-action-text);
   font: inherit;
   cursor: pointer;
-  padding: 0.4rem 0.85rem;
+  padding: 0.45rem 0.9rem;
 }
 
 .employee-action[disabled] {
@@ -356,15 +356,15 @@ h1 {
 }
 
 .employee-action--danger {
-  border-color: var(--border-danger-soft);
-  color: var(--text-danger-soft);
-  background: var(--surface-danger-ghost);
+  border-color: var(--workspace-action-danger-border);
+  color: var(--workspace-action-danger-text);
+  background: var(--workspace-action-danger-bg);
 }
 
 .employee-action--primary {
-  border-color: var(--border-accent-strong);
-  color: var(--text-accent-strong);
-  background: rgba(17, 59, 42, 0.9);
+  border-color: var(--workspace-action-primary-border);
+  color: var(--workspace-action-primary-text);
+  background: var(--workspace-action-primary-bg);
 }
 
 .employees-editor {

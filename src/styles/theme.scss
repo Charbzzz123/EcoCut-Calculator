@@ -59,6 +59,21 @@
   --focus-ring: rgba(103, 232, 194, 0.45);
   --focus-ring-glow: rgba(45, 212, 191, 0.2);
   --focus-ring-inner: rgba(103, 232, 194, 0.35);
+  --workspace-action-bg: rgba(9, 31, 23, 0.85);
+  --workspace-action-border: rgba(111, 212, 183, 0.32);
+  --workspace-action-text: #d8efe7;
+  --workspace-action-primary-bg: rgba(17, 59, 42, 0.9);
+  --workspace-action-primary-border: rgba(111, 212, 183, 0.75);
+  --workspace-action-primary-text: #e9fff7;
+  --workspace-action-danger-bg: rgba(52, 23, 23, 0.82);
+  --workspace-action-danger-border: rgba(222, 118, 118, 0.45);
+  --workspace-action-danger-text: #ffd7d7;
+  --workspace-chip-bg: rgba(14, 47, 35, 0.8);
+  --workspace-chip-border: rgba(111, 212, 183, 0.6);
+  --workspace-chip-text: #e9fff7;
+  --workspace-chip-muted-bg: rgba(86, 56, 11, 0.35);
+  --workspace-chip-muted-border: rgba(251, 191, 36, 0.55);
+  --workspace-chip-muted-text: #ffe7b2;
   --scrollbar-track: rgba(6, 18, 14, 0.75);
   --scrollbar-thumb-solid: rgba(103, 232, 194, 0.55);
   --scrollbar-thumb: linear-gradient(
