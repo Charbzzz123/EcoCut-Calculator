@@ -229,7 +229,7 @@
                 @if (summary.currentSiteLabel) {
                   {{ summary.currentSiteLabel }}
                 } @else {
-                  â€”
+                  &mdash;
                 }
               </p>
               <p class="clock-card__meta">
@@ -237,7 +237,7 @@
                 @if (summary.clockInAt) {
                   {{ summary.clockInAt | date: 'MMM d, y, h:mm a' }}
                 } @else {
-                  â€”
+                  &mdash;
                 }
               </p>
               <p class="clock-card__meta">
@@ -245,7 +245,7 @@
                 @if (summary.clockOutAt) {
                   {{ summary.clockOutAt | date: 'MMM d, y, h:mm a' }}
                 } @else {
-                  â€”
+                  &mdash;
                 }
               </p>
               <p class="clock-card__meta">
@@ -253,7 +253,7 @@
                 @if (summary.lastDurationHours) {
                   {{ summary.lastDurationHours }}h
                 } @else {
-                  â€”
+                  &mdash;
                 }
               </p>
 
@@ -289,7 +289,7 @@
     </header>
 
     @if (loadState() === 'loading') {
-      <p class="roster-state workspace-state">Loading employee rosterâ€¦</p>
+      <p class="roster-state workspace-state">Loading employee roster...</p>
     } @else if (loadState() === 'error') {
       <div class="roster-state roster-state--error workspace-state workspace-state--error">
         <p>Unable to load employee roster right now.</p>
@@ -323,7 +323,7 @@
               @if (employee.lastActivityAt) {
                 Last activity: {{ employee.lastActivityAt | date: 'MMM d, y, h:mm a' }}
               } @else {
-                Last activity: â€”
+                Last activity: &mdash;
               }
             </p>
             <div class="employee-card__actions">

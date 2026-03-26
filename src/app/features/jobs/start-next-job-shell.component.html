@@ -231,7 +231,7 @@
       </header>
 
       @if (facade.loadState() === 'loading') {
-        <p class="state workspace-state">Loading readiness dataâ€¦</p>
+        <p class="state workspace-state">Loading readiness data...</p>
       } @else if (facade.loadState() === 'error') {
         <div class="state state--error workspace-state workspace-state--error">
           <p>{{ facade.errorMessage() }}</p>
@@ -267,7 +267,7 @@
                 @if (employee.nextAvailableAt) {
                   {{ employee.nextAvailableAt | date: 'MMM d, y, h:mm a' }}
                 } @else {
-                  â€”
+                  &mdash;
                 }
               </p>
               @if (employee.hasScheduleConflict) {
