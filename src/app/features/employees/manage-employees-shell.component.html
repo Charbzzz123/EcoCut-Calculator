@@ -180,7 +180,7 @@
       </header>
 
       @if (!clockSummaries().length) {
-        <p class="roster-state">No employees available for clock actions.</p>
+        <p class="roster-state workspace-state">No employees available for clock actions.</p>
       } @else {
         <ul class="clock-list">
           @for (summary of clockSummaries(); track trackByClockEmployeeId($index, summary)) {
@@ -266,14 +266,14 @@
     </header>
 
     @if (loadState() === 'loading') {
-      <p class="roster-state">Loading employee rosterâ€¦</p>
+      <p class="roster-state workspace-state">Loading employee rosterâ€¦</p>
     } @else if (loadState() === 'error') {
-      <div class="roster-state roster-state--error">
+      <div class="roster-state roster-state--error workspace-state workspace-state--error">
         <p>Unable to load employee roster right now.</p>
         <button type="button" class="retry-btn" (click)="refreshRoster()">Retry</button>
       </div>
     } @else if (!filteredRosterSnapshot().length) {
-      <p class="roster-state">No employees match this filter.</p>
+      <p class="roster-state workspace-state">No employees match this filter.</p>
     } @else {
       <ul class="roster-list">
         @for (employee of filteredRosterSnapshot(); track trackByEmployeeId($index, employee)) {
@@ -576,7 +576,7 @@
         </section>
 
         @if (!selectedEmployeeJobHistory().length) {
-          <p class="roster-state">No job history found for this employee yet.</p>
+          <p class="roster-state workspace-state">No job history found for this employee yet.</p>
         } @else {
           <ol class="history-list">
             @for (
@@ -621,7 +621,7 @@
       </header>
 
       @if (!startNextJobReadiness().length) {
-        <p class="roster-state">No readiness data available yet.</p>
+        <p class="roster-state workspace-state">No readiness data available yet.</p>
       } @else {
         <ul class="readiness-list">
           @for (

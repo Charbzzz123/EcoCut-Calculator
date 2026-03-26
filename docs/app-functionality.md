@@ -163,6 +163,7 @@
 - **Roster-first flow simplification (in progress)**
   - Added a dedicated workspace-mode switch that defaults to roster focus and reveals one deep operation panel at a time (`Clock board`, `Profile editor`, `Hours editor`, `History timeline`, `Assignment readiness`) to reduce cognitive load.
   - Readiness was moved behind explicit mode selection so daily operations (roster/profile/hours/history) stay front-and-center.
+  - Loading/error/empty messages now opt into shared workspace-state styling hooks so operational feedback reads consistently across employee/job screens.
 - **Queued next slices**
   - None right now (ME-1 through ME-21 complete).
 
@@ -191,6 +192,7 @@
 - **Route-level variance drill-down**: Step 2 now renders per-route cards (site/address, status mix, total/average hours, completion/cancellation rates, and average-hours variance vs crew average) so supervisors can spot heavy routes before dispatch.
 - **Cross-run trend analytics**: Step 2 now includes analytics window shortcuts (`7 days`, `30 days`, `90 days`, `Custom`) plus per-day trend cards (hours-share bar, status mix, completion/cancellation rates) to compare run quality over time inside the same board.
 - **Progressive analytics disclosure (in progress)**: core KPI cards (tracked/scheduled/completed/cancelled/hours/rates/sites) remain visible by default, while heavy trend sections (employee, route variance, cross-run) are collapsed behind a `Show detailed analytics` toggle.
+- **State-message consistency (in progress)**: loading/error/empty states now use shared workspace-state styling hooks that match Manage Employees feedback cards.
 
 ## Calculation & Business Rules
 

@@ -94,7 +94,7 @@ Living checklist for in-flight feature work so we never lose track of what€™
 | UX-2 | Manage Employees flow simplification          | —     | In progress. Added a roster-first workspace mode switch (clock/profile/hours/history/readiness) with progressive section visibility to cut page clutter.        |
 | UX-3 | Start Next Job step-flow simplification       | —     | In progress. Added step-lock navigation, readiness status rows, and "Continue to next step" actions so operators follow `crew -> draft -> review` more clearly. |
 | UX-4 | Analytics progressive disclosure              | —     | In progress. KPI summary stays visible while deep trend cards are collapsed by default behind a Show/Hide details toggle.                                       |
-| UX-5 | Interaction/state consistency pass            | —     | Planned. Align action buttons, status chips, loading/error/empty states across both workspaces.                                                                 |
+| UX-5 | Interaction/state consistency pass            | —     | In progress. Added shared workspace state styling hooks for loading/error/empty messages across Manage Employees and Start Next Job.                            |
 | UX-6 | Validation and accessibility clarity pass     | —     | Planned. Tighten inline validation language, focus order, keyboard flow, and ARIA semantics.                                                                    |
 
 ### Broadcast Requirements (locked for implementation)

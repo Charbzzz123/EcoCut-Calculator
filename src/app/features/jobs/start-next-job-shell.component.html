@@ -192,14 +192,14 @@
       </header>
 
       @if (facade.loadState() === 'loading') {
-        <p class="state">Loading readiness dataâ€¦</p>
+        <p class="state workspace-state">Loading readiness dataâ€¦</p>
       } @else if (facade.loadState() === 'error') {
-        <div class="state state--error">
+        <div class="state state--error workspace-state workspace-state--error">
           <p>{{ facade.errorMessage() }}</p>
           <button type="button" class="ghost-btn" (click)="facade.loadBoard()">Retry</button>
         </div>
       } @else if (!facade.filteredReadiness().length) {
-        <p class="state">No employees match this filter.</p>
+        <p class="state workspace-state">No employees match this filter.</p>
       } @else {
         <ul class="crew-list">
           @for (
@@ -265,7 +265,9 @@
       </header>
 
       @if (!facade.selectedCrew().length) {
-        <p class="state">Select employees from the crew pool to build the assignment draft.</p>
+        <p class="state workspace-state">
+          Select employees from the crew pool to build the assignment draft.
+        </p>
       } @else {
         <ul class="selected-list">
           @for (
@@ -599,7 +601,9 @@
     }
 
     @if (!facade.selectedCrewHistory().length) {
-      <p class="state">Select crew members to inspect their recent job windows and sites.</p>
+      <p class="state workspace-state">
+        Select crew members to inspect their recent job windows and sites.
+      </p>
     } @else {
       <ul class="history-list">
         @for (

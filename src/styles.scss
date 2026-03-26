@@ -49,3 +49,17 @@ button {
   outline: 2px solid var(--accent-amber);
   outline-offset: 2px;
 }
+
+.workspace-state {
+  margin: 0;
+  color: var(--text-muted);
+  padding: 0.5rem 0;
+}
+
+.workspace-state--error {
+  border-radius: 0.9rem;
+  border: 1px solid var(--border-danger-soft);
+  background: var(--surface-danger-ghost);
+  color: var(--text-danger-soft);
+  padding: 0.6rem 0.75rem;
+}
