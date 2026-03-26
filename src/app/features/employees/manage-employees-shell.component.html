@@ -39,6 +39,7 @@
         type="button"
         class="status-pill"
         [class.status-pill--active]="operatorRole() === 'owner'"
+        [attr.aria-pressed]="operatorRole() === 'owner'"
         (click)="roleControl.setValue('owner')"
       >
         Owner
@@ -47,6 +48,7 @@
         type="button"
         class="status-pill"
         [class.status-pill--active]="operatorRole() === 'manager'"
+        [attr.aria-pressed]="operatorRole() === 'manager'"
         (click)="roleControl.setValue('manager')"
       >
         Manager
@@ -65,6 +67,7 @@
         type="button"
         class="status-pill"
         [class.status-pill--active]="statusFilter() === 'all'"
+        [attr.aria-pressed]="statusFilter() === 'all'"
         (click)="setStatusFilter('all')"
       >
         All
@@ -73,6 +76,7 @@
         type="button"
         class="status-pill"
         [class.status-pill--active]="statusFilter() === 'active'"
+        [attr.aria-pressed]="statusFilter() === 'active'"
         (click)="setStatusFilter('active')"
       >
         Active
@@ -81,6 +85,7 @@
         type="button"
         class="status-pill"
         [class.status-pill--active]="statusFilter() === 'inactive'"
+        [attr.aria-pressed]="statusFilter() === 'inactive'"
         (click)="setStatusFilter('inactive')"
       >
         Inactive
@@ -104,6 +109,8 @@
         type="button"
         class="status-pill"
         [class.status-pill--active]="workspaceFocus() === 'roster'"
+        [attr.aria-pressed]="workspaceFocus() === 'roster'"
+        aria-controls="employees-roster"
         (click)="setWorkspaceFocus('roster')"
       >
         Roster focus
@@ -112,6 +119,8 @@
         type="button"
         class="status-pill"
         [class.status-pill--active]="workspaceFocus() === 'clock'"
+        [attr.aria-pressed]="workspaceFocus() === 'clock'"
+        aria-controls="employees-clock"
         (click)="setWorkspaceFocus('clock')"
       >
         Clock board
@@ -120,6 +129,8 @@
         type="button"
         class="status-pill"
         [class.status-pill--active]="workspaceFocus() === 'profile'"
+        [attr.aria-pressed]="workspaceFocus() === 'profile'"
+        aria-controls="employees-profile"
         (click)="setWorkspaceFocus('profile')"
       >
         Profile editor
@@ -128,6 +139,8 @@
         type="button"
         class="status-pill"
         [class.status-pill--active]="workspaceFocus() === 'hours'"
+        [attr.aria-pressed]="workspaceFocus() === 'hours'"
+        aria-controls="employees-hours"
         (click)="setWorkspaceFocus('hours')"
       >
         Hours editor
@@ -136,6 +149,8 @@
         type="button"
         class="status-pill"
         [class.status-pill--active]="workspaceFocus() === 'history'"
+        [attr.aria-pressed]="workspaceFocus() === 'history'"
+        aria-controls="employees-history"
         (click)="setWorkspaceFocus('history')"
       >
         History timeline
@@ -144,6 +159,8 @@
         type="button"
         class="status-pill"
         [class.status-pill--active]="workspaceFocus() === 'readiness'"
+        [attr.aria-pressed]="workspaceFocus() === 'readiness'"
+        aria-controls="employees-readiness"
         (click)="setWorkspaceFocus('readiness')"
       >
         Assignment readiness
@@ -167,7 +184,7 @@
   </section>
 
   @if (workspaceNotice()) {
-    <p class="workspace-notice" role="status">{{ workspaceNotice() }}</p>
+    <p class="workspace-notice" role="status" aria-live="polite">{{ workspaceNotice() }}</p>
   }
 
   @if (workspaceFocus() === 'clock') {
@@ -362,7 +379,12 @@
       } @else {
         <form class="profile-form" [formGroup]="profileForm" (ngSubmit)="saveProfile()">
           @if (profileErrors().length) {
-            <div class="error-summary" role="alert">
+            <div
+              id="employees-profile-errors"
+              class="error-summary"
+              role="alert"
+              aria-live="assertive"
+            >
               <p>Fix the following before saving:</p>
               <ul>
                 @for (error of profileErrors(); track error) {
@@ -379,15 +401,33 @@
           <div class="profile-grid">
             <label class="field">
               <span class="field__label">First name *</span>
-              <input class="field__input" type="text" formControlName="firstName" />
+              <input
+                class="field__input"
+                type="text"
+                formControlName="firstName"
+                required
+                aria-required="true"
+              />
             </label>
             <label class="field">
               <span class="field__label">Last name *</span>
-              <input class="field__input" type="text" formControlName="lastName" />
+              <input
+                class="field__input"
+                type="text"
+                formControlName="lastName"
+                required
+                aria-required="true"
+              />
             </label>
             <label class="field">
               <span class="field__label">Phone (###) ###-#### *</span>
-              <input class="field__input" type="text" formControlName="phone" />
+              <input
+                class="field__input"
+                type="text"
+                formControlName="phone"
+                required
+                aria-required="true"
+              />
             </label>
             <label class="field">
               <span class="field__label">Email</span>
@@ -395,11 +435,23 @@
             </label>
             <label class="field">
               <span class="field__label">Role *</span>
-              <input class="field__input" type="text" formControlName="role" />
+              <input
+                class="field__input"
+                type="text"
+                formControlName="role"
+                required
+                aria-required="true"
+              />
             </label>
             <label class="field">
               <span class="field__label">Hourly rate *</span>
-              <input class="field__input" type="text" formControlName="hourlyRate" />
+              <input
+                class="field__input"
+                type="text"
+                formControlName="hourlyRate"
+                required
+                aria-required="true"
+              />
             </label>
           </div>
 
@@ -416,7 +468,11 @@
             <button type="button" class="employee-action" (click)="cancelProfileEditor()">
               Cancel
             </button>
-            <button type="submit" class="employee-action employee-action--primary">
+            <button
+              type="submit"
+              class="employee-action employee-action--primary"
+              aria-describedby="employees-profile-errors"
+            >
               Save profile
             </button>
           </div>
@@ -452,7 +508,12 @@
 
         <form class="hours-form" [formGroup]="hoursForm" (ngSubmit)="saveHoursEntry()">
           @if (hoursErrors().length) {
-            <div class="error-summary" role="alert">
+            <div
+              id="employees-hours-errors"
+              class="error-summary"
+              role="alert"
+              aria-live="assertive"
+            >
               <p>Fix the following before saving hours:</p>
               <ul>
                 @for (error of hoursErrors(); track error) {
@@ -472,7 +533,13 @@
           <div class="hours-grid">
             <label class="field">
               <span class="field__label">Work date *</span>
-              <input class="field__input" type="date" formControlName="workDate" />
+              <input
+                class="field__input"
+                type="date"
+                formControlName="workDate"
+                required
+                aria-required="true"
+              />
             </label>
             <label class="field">
               <span class="field__label">Hours *</span>
@@ -482,16 +549,28 @@
                 min="0.25"
                 step="0.25"
                 formControlName="hours"
+                required
+                aria-required="true"
               />
             </label>
             <label class="field field--wide">
               <span class="field__label">Site / address *</span>
-              <input class="field__input" type="text" formControlName="siteLabel" />
+              <input
+                class="field__input"
+                type="text"
+                formControlName="siteLabel"
+                required
+                aria-required="true"
+              />
             </label>
           </div>
 
           <div class="editor-actions">
-            <button type="submit" class="employee-action employee-action--primary">
+            <button
+              type="submit"
+              class="employee-action employee-action--primary"
+              aria-describedby="employees-hours-errors"
+            >
               {{ editingHoursEntry() ? 'Update hours' : 'Save hours' }}
             </button>
           </div>

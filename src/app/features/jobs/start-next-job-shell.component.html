@@ -30,6 +30,8 @@
         type="button"
         class="ghost-btn"
         [class.start-next-jump__action--active]="stepFocus() === 'crew'"
+        [attr.aria-pressed]="stepFocus() === 'crew'"
+        aria-controls="start-next-crew"
         (click)="setStepFocus('crew')"
       >
         Step 1 - Crew ({{ facade.selectedCrew().length }} selected)
@@ -38,6 +40,8 @@
         type="button"
         class="ghost-btn"
         [class.start-next-jump__action--active]="stepFocus() === 'draft'"
+        [attr.aria-pressed]="stepFocus() === 'draft'"
+        aria-controls="start-next-draft"
         [disabled]="!canOpenDraftStep()"
         (click)="setStepFocus('draft')"
       >
@@ -47,6 +51,8 @@
         type="button"
         class="ghost-btn"
         [class.start-next-jump__action--active]="stepFocus() === 'review'"
+        [attr.aria-pressed]="stepFocus() === 'review'"
+        aria-controls="start-next-review"
         [disabled]="!canOpenReviewStep()"
         (click)="setStepFocus('review')"
       >
@@ -56,6 +62,8 @@
         type="button"
         class="ghost-btn"
         [class.start-next-jump__action--active]="stepFocus() === 'history'"
+        [attr.aria-pressed]="stepFocus() === 'history'"
+        aria-controls="start-next-history"
         [disabled]="!canOpenHistoryStep()"
         (click)="setStepFocus('history')"
       >
@@ -103,11 +111,23 @@
       </label>
       <label class="field">
         <span class="field__label">Job label *</span>
-        <input class="field__input" type="text" [formControl]="facade.jobLabelControl" />
+        <input
+          class="field__input"
+          type="text"
+          [formControl]="facade.jobLabelControl"
+          required
+          aria-required="true"
+        />
       </label>
       <label class="field">
         <span class="field__label">Site / address *</span>
-        <input class="field__input" type="text" [formControl]="facade.addressControl" />
+        <input
+          class="field__input"
+          type="text"
+          [formControl]="facade.addressControl"
+          required
+          aria-required="true"
+        />
       </label>
       <label class="field">
         <span class="field__label">Scheduled start *</span>
@@ -115,6 +135,8 @@
           class="field__input"
           type="datetime-local"
           [formControl]="facade.scheduledStartControl"
+          required
+          aria-required="true"
         />
       </label>
       <label class="field">
@@ -123,6 +145,8 @@
           class="field__input"
           type="datetime-local"
           [formControl]="facade.scheduledEndControl"
+          required
+          aria-required="true"
         />
       </label>
     </div>
@@ -144,6 +168,7 @@
             ? !facade.canSubmitHistoryEdit()
             : !facade.draftValidation().isReady) || facade.saveState() === 'saving'
         "
+        aria-describedby="start-next-draft-blockers"
         (click)="
           facade.editingHistoryEntryId() ? facade.submitHistoryEdit() : facade.submitAssignment()
         "
@@ -178,6 +203,7 @@
         [class.save-feedback--success]="facade.saveState() === 'success'"
         [class.save-feedback--error]="facade.saveState() === 'error'"
         role="status"
+        aria-live="polite"
       >
         {{ facade.saveMessage() }}
       </p>
@@ -296,7 +322,12 @@
       }
 
       @if (!facade.draftValidation().isReady) {
-        <div class="validation-box" role="alert">
+        <div
+          id="start-next-draft-blockers"
+          class="validation-box"
+          role="alert"
+          aria-live="assertive"
+        >
           <p>Draft is blocked until these are fixed:</p>
           <ul>
             @for (reason of facade.draftValidation().blockingReasons; track reason) {
@@ -322,6 +353,8 @@
               type="button"
               class="ghost-btn analytics-panel__toggle-btn analytics-panel__secondary-btn"
               [disabled]="!facade.assignmentAnalytics().totalTracked"
+              [attr.aria-expanded]="analyticsExpanded()"
+              aria-controls="start-next-analytics-details"
               (click)="toggleAnalyticsExpanded()"
             >
               {{ analyticsExpanded() ? 'Hide detailed analytics' : 'Show detailed analytics' }}
@@ -445,115 +478,120 @@
             </div>
           </dl>
 
-          @if (analyticsExpanded()) {
-            <div class="analytics-panel__details">
-              <div class="employee-trend-panel">
-                <h4>Per-employee trend</h4>
-                <ul class="employee-trend-list">
-                  @for (trend of facade.employeeTrendAnalytics(); track trend.employeeId) {
-                    <li class="employee-trend-card">
-                      <header>
-                        <h5>{{ trend.employeeName }}</h5>
-                        <p>{{ trend.totalHours | number: '1.0-2' }}h tracked</p>
-                      </header>
-                      <p>
-                        {{ trend.completedCount }} completed · {{ trend.scheduledCount }} scheduled
-                        · {{ trend.cancelledCount }} cancelled
-                      </p>
-                      <p>
-                        Completion {{ trend.completionRate | number: '1.0-1' }}% · Cancellation
-                        {{ trend.cancellationRate | number: '1.0-1' }}%
-                      </p>
-                      <p>
-                        Last site:
-                        @if (trend.lastSiteLabel && trend.lastAddress) {
-                          {{ trend.lastSiteLabel }} · {{ trend.lastAddress }}
-                        } @else {
-                          —
-                        }
-                      </p>
-                      <p>
-                        Last scheduled:
-                        @if (trend.lastScheduledStart) {
-                          {{ trend.lastScheduledStart | date: 'MMM d, y, h:mm a' }}
-                        } @else {
-                          —
-                        }
-                      </p>
-                    </li>
-                  }
-                </ul>
-              </div>
+          <div id="start-next-analytics-details">
+            @if (analyticsExpanded()) {
+              <div class="analytics-panel__details">
+                <div class="employee-trend-panel">
+                  <h4>Per-employee trend</h4>
+                  <ul class="employee-trend-list">
+                    @for (trend of facade.employeeTrendAnalytics(); track trend.employeeId) {
+                      <li class="employee-trend-card">
+                        <header>
+                          <h5>{{ trend.employeeName }}</h5>
+                          <p>{{ trend.totalHours | number: '1.0-2' }}h tracked</p>
+                        </header>
+                        <p>
+                          {{ trend.completedCount }} completed ·
+                          {{ trend.scheduledCount }} scheduled ·
+                          {{ trend.cancelledCount }} cancelled
+                        </p>
+                        <p>
+                          Completion {{ trend.completionRate | number: '1.0-1' }}% · Cancellation
+                          {{ trend.cancellationRate | number: '1.0-1' }}%
+                        </p>
+                        <p>
+                          Last site:
+                          @if (trend.lastSiteLabel && trend.lastAddress) {
+                            {{ trend.lastSiteLabel }} · {{ trend.lastAddress }}
+                          } @else {
+                            —
+                          }
+                        </p>
+                        <p>
+                          Last scheduled:
+                          @if (trend.lastScheduledStart) {
+                            {{ trend.lastScheduledStart | date: 'MMM d, y, h:mm a' }}
+                          } @else {
+                            —
+                          }
+                        </p>
+                      </li>
+                    }
+                  </ul>
+                </div>
 
-              <div class="route-variance-panel">
-                <h4>Route-level variance</h4>
-                <ul class="route-variance-list">
-                  @for (route of facade.routeVarianceAnalytics(); track route.routeId) {
-                    <li class="route-variance-card">
-                      <header>
-                        <h5>{{ route.siteLabel }}</h5>
-                        <p>{{ route.address }}</p>
-                      </header>
-                      <p>
-                        {{ route.completedCount }} completed - {{ route.scheduledCount }} scheduled
-                        - {{ route.cancelledCount }} cancelled
-                      </p>
-                      <p>
-                        Avg {{ route.averageHours | number: '1.0-2' }}h
-                        @if (route.averageHoursVariance >= 0) {
-                          (+{{ route.averageHoursVariance | number: '1.0-2' }}h vs crew avg)
-                        } @else {
-                          ({{ route.averageHoursVariance | number: '1.0-2' }}h vs crew avg)
-                        }
-                      </p>
-                      <p>
-                        Completion {{ route.completionRate | number: '1.0-1' }}% - Cancellation
-                        {{ route.cancellationRate | number: '1.0-1' }}%
-                      </p>
-                      <p>
-                        Last scheduled:
-                        @if (route.lastScheduledStart) {
-                          {{ route.lastScheduledStart | date: 'MMM d, y, h:mm a' }}
-                        } @else {
-                          --
-                        }
-                      </p>
-                    </li>
-                  }
-                </ul>
-              </div>
+                <div class="route-variance-panel">
+                  <h4>Route-level variance</h4>
+                  <ul class="route-variance-list">
+                    @for (route of facade.routeVarianceAnalytics(); track route.routeId) {
+                      <li class="route-variance-card">
+                        <header>
+                          <h5>{{ route.siteLabel }}</h5>
+                          <p>{{ route.address }}</p>
+                        </header>
+                        <p>
+                          {{ route.completedCount }} completed -
+                          {{ route.scheduledCount }} scheduled -
+                          {{ route.cancelledCount }} cancelled
+                        </p>
+                        <p>
+                          Avg {{ route.averageHours | number: '1.0-2' }}h
+                          @if (route.averageHoursVariance >= 0) {
+                            (+{{ route.averageHoursVariance | number: '1.0-2' }}h vs crew avg)
+                          } @else {
+                            ({{ route.averageHoursVariance | number: '1.0-2' }}h vs crew avg)
+                          }
+                        </p>
+                        <p>
+                          Completion {{ route.completionRate | number: '1.0-1' }}% - Cancellation
+                          {{ route.cancellationRate | number: '1.0-1' }}%
+                        </p>
+                        <p>
+                          Last scheduled:
+                          @if (route.lastScheduledStart) {
+                            {{ route.lastScheduledStart | date: 'MMM d, y, h:mm a' }}
+                          } @else {
+                            --
+                          }
+                        </p>
+                      </li>
+                    }
+                  </ul>
+                </div>
 
-              <div class="cross-run-panel">
-                <h4>Cross-run trend</h4>
-                <ul class="cross-run-list">
-                  @for (point of facade.crossRunTrends(); track point.periodStart) {
-                    <li class="cross-run-card">
-                      <header>
-                        <h5>{{ point.periodLabel }}</h5>
-                        <p>{{ point.totalHours | number: '1.0-2' }}h</p>
-                      </header>
-                      <div class="cross-run-bar">
-                        <span [style.width.%]="point.hoursShare"></span>
-                      </div>
-                      <p>
-                        {{ point.completedCount }} completed - {{ point.scheduledCount }} scheduled
-                        - {{ point.cancelledCount }} cancelled
-                      </p>
-                      <p>
-                        Completion {{ point.completionRate | number: '1.0-1' }}% - Cancellation
-                        {{ point.cancellationRate | number: '1.0-1' }}%
-                      </p>
-                    </li>
-                  }
-                </ul>
+                <div class="cross-run-panel">
+                  <h4>Cross-run trend</h4>
+                  <ul class="cross-run-list">
+                    @for (point of facade.crossRunTrends(); track point.periodStart) {
+                      <li class="cross-run-card">
+                        <header>
+                          <h5>{{ point.periodLabel }}</h5>
+                          <p>{{ point.totalHours | number: '1.0-2' }}h</p>
+                        </header>
+                        <div class="cross-run-bar">
+                          <span [style.width.%]="point.hoursShare"></span>
+                        </div>
+                        <p>
+                          {{ point.completedCount }} completed -
+                          {{ point.scheduledCount }} scheduled -
+                          {{ point.cancelledCount }} cancelled
+                        </p>
+                        <p>
+                          Completion {{ point.completionRate | number: '1.0-1' }}% - Cancellation
+                          {{ point.cancellationRate | number: '1.0-1' }}%
+                        </p>
+                      </li>
+                    }
+                  </ul>
+                </div>
               </div>
-            </div>
-          } @else {
-            <p class="analytics-panel__details-hint">
-              Detailed trend cards are hidden. Use "Show detailed analytics" when you need deeper
-              breakdowns.
-            </p>
-          }
+            } @else {
+              <p class="analytics-panel__details-hint">
+                Detailed trend cards are hidden. Use "Show detailed analytics" when you need deeper
+                breakdowns.
+              </p>
+            }
+          </div>
         }
       </div>
     </section>

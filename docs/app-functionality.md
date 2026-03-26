@@ -195,6 +195,7 @@
 - **Progressive analytics disclosure (in progress)**: core KPI cards (tracked/scheduled/completed/cancelled/hours/rates/sites) remain visible by default, while heavy trend sections (employee, route variance, cross-run) are collapsed behind a `Show detailed analytics` toggle.
 - **State-message consistency (in progress)**: loading/error/empty states now use shared workspace-state styling hooks that match Manage Employees feedback cards.
 - **Button/chip consistency (in progress)**: review/workflow actions and readiness/status chips now use the same visual token hierarchy used in Manage Employees (default, primary, danger emphasis).
+- **Validation + accessibility clarity (in progress)**: required draft/profile/hours fields now expose explicit required semantics, validation blockers are announced in assertive live regions, and step/workspace controls expose ARIA pressed/expanded state for keyboard/screen-reader clarity.
 
 ## Calculation & Business Rules
 
