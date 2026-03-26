@@ -99,102 +99,115 @@
       <h2>Step 2 - Draft details</h2>
       <p>Set job metadata and schedule window</p>
     </header>
-    <div class="draft-grid">
-      <label class="field field--wide">
-        <span class="field__label">Search crew</span>
-        <input
-          class="field__input"
-          type="search"
-          [formControl]="facade.queryControl"
-          placeholder="Filter by employee, last site, or upcoming slot"
-        />
-      </label>
-      <label class="field">
-        <span class="field__label">Job label *</span>
-        <input
-          class="field__input"
-          type="text"
-          [formControl]="facade.jobLabelControl"
-          required
-          aria-required="true"
-        />
-      </label>
-      <label class="field">
-        <span class="field__label">Site / address *</span>
-        <input
-          class="field__input"
-          type="text"
-          [formControl]="facade.addressControl"
-          required
-          aria-required="true"
-        />
-      </label>
-      <label class="field">
-        <span class="field__label">Scheduled start *</span>
-        <input
-          class="field__input"
-          type="datetime-local"
-          [formControl]="facade.scheduledStartControl"
-          required
-          aria-required="true"
-        />
-      </label>
-      <label class="field">
-        <span class="field__label">Scheduled end *</span>
-        <input
-          class="field__input"
-          type="datetime-local"
-          [formControl]="facade.scheduledEndControl"
-          required
-          aria-required="true"
-        />
-      </label>
+    <div class="draft-groups">
+      <section class="draft-group draft-group--primary" aria-label="Primary draft details">
+        <p class="draft-group__label">Primary details</p>
+        <div class="draft-grid">
+          <label class="field">
+            <span class="field__label">Job label *</span>
+            <input
+              class="field__input"
+              type="text"
+              [formControl]="facade.jobLabelControl"
+              required
+              aria-required="true"
+            />
+          </label>
+          <label class="field">
+            <span class="field__label">Site / address *</span>
+            <input
+              class="field__input"
+              type="text"
+              [formControl]="facade.addressControl"
+              required
+              aria-required="true"
+            />
+          </label>
+          <label class="field">
+            <span class="field__label">Scheduled start *</span>
+            <input
+              class="field__input"
+              type="datetime-local"
+              [formControl]="facade.scheduledStartControl"
+              required
+              aria-required="true"
+            />
+          </label>
+          <label class="field">
+            <span class="field__label">Scheduled end *</span>
+            <input
+              class="field__input"
+              type="datetime-local"
+              [formControl]="facade.scheduledEndControl"
+              required
+              aria-required="true"
+            />
+          </label>
+        </div>
+      </section>
+
+      <section class="draft-group draft-group--advanced" aria-label="Advanced draft controls">
+        <p class="draft-group__label">Advanced controls</p>
+        <label class="field field--wide">
+          <span class="field__label">Search crew</span>
+          <input
+            class="field__input"
+            type="search"
+            [formControl]="facade.queryControl"
+            placeholder="Filter by employee, last site, or upcoming slot"
+          />
+        </label>
+      </section>
     </div>
 
     <div class="draft-actions">
-      <button type="button" class="ghost-btn" (click)="facade.clearCrewSelection()">
-        Clear crew selection
-      </button>
-      @if (facade.editingHistoryEntryId()) {
-        <button type="button" class="ghost-btn" (click)="facade.cancelHistoryEdit()">
-          Cancel edit
+      <div class="draft-actions__secondary">
+        <button type="button" class="ghost-btn" (click)="facade.clearCrewSelection()">
+          Clear crew selection
         </button>
-      }
-      <button
-        type="button"
-        class="primary-btn"
-        [disabled]="
-          (facade.editingHistoryEntryId()
-            ? !facade.canSubmitHistoryEdit()
-            : !facade.draftValidation().isReady) || facade.saveState() === 'saving'
-        "
-        aria-describedby="start-next-draft-blockers"
-        (click)="
-          facade.editingHistoryEntryId() ? facade.submitHistoryEdit() : facade.submitAssignment()
-        "
-      >
-        @if (facade.saveState() === 'saving') {
-          @if (facade.editingHistoryEntryId()) {
-            Saving schedule...
-          } @else {
-            Saving assignment...
-          }
-        } @else {
-          @if (facade.editingHistoryEntryId()) {
-            Save schedule update
-          } @else {
-            Save assignment
-          }
+        @if (facade.editingHistoryEntryId()) {
+          <button type="button" class="ghost-btn" (click)="facade.cancelHistoryEdit()">
+            Cancel edit
+          </button>
         }
-      </button>
-      <button
-        type="button"
-        class="ghost-btn"
-        [disabled]="!canOpenReviewStep()"
-        (click)="setStepFocus('review')"
-      >
-        Continue to Step 3
-      </button>
+      </div>
+      <div class="draft-actions__primary">
+        <button
+          type="button"
+          class="primary-btn"
+          [disabled]="
+            (facade.editingHistoryEntryId()
+              ? !facade.canSubmitHistoryEdit()
+              : !facade.draftValidation().isReady) || facade.saveState() === 'saving'
+          "
+          aria-describedby="start-next-draft-blockers"
+          (click)="
+            facade.editingHistoryEntryId() ? facade.submitHistoryEdit() : facade.submitAssignment()
+          "
+        >
+          @if (facade.saveState() === 'saving') {
+            @if (facade.editingHistoryEntryId()) {
+              Saving schedule...
+            } @else {
+              Saving assignment...
+            }
+          } @else {
+            @if (facade.editingHistoryEntryId()) {
+              Save schedule update
+            } @else {
+              Save assignment
+            }
+          }
+        </button>
+        <button
+          type="button"
+          class="ghost-btn"
+          [disabled]="!canOpenReviewStep()"
+          (click)="setStepFocus('review')"
+        >
+          Continue to Step 3
+        </button>
+      </div>
     </div>
 
     @if (facade.saveState() !== 'idle' && facade.saveMessage()) {

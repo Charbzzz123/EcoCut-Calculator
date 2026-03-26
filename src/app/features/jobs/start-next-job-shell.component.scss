@@ -126,6 +126,26 @@
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
 }
 
+.draft-groups {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.draft-group {
+  border: 1px solid rgba(111, 212, 183, 0.18);
+  border-radius: 0.85rem;
+  background: rgba(6, 22, 18, 0.72);
+  padding: 0.7rem;
+}
+
+.draft-group__label {
+  margin: 0 0 0.55rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(190, 223, 210, 0.74);
+}
+
 .draft-panel__header {
   margin-bottom: 0.8rem;
 }
@@ -155,8 +175,20 @@
 .draft-actions {
   margin-top: 0.95rem;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.draft-actions__secondary,
+.draft-actions__primary {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.draft-actions__primary {
+  justify-content: flex-end;
 }
 
 .save-feedback {

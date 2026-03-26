@@ -62,6 +62,23 @@ h1 {
   gap: 0.8rem;
 }
 
+.employees-toolbar__group {
+  border-radius: 1rem;
+  border: 1px solid var(--border-soft);
+  background: rgba(5, 25, 18, 0.66);
+  padding: 0.7rem 0.75rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.employees-toolbar__group-label {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .employees-flow__eyebrow {
   margin: 0;
   text-transform: uppercase;
@@ -109,6 +126,21 @@ h1 {
   display: grid;
   gap: 0.8rem;
   grid-template-columns: minmax(16rem, 1fr) auto;
+}
+
+.employees-toolbar__advanced-grid {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.status-filters-block {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.status-filters-block__label {
+  color: var(--text-muted);
+  font-size: 0.82rem;
 }
 
 .toolbar-actions {

@@ -157,14 +157,15 @@
   - Required contact/rate fields with strict phone/email formatting.
   - Prevent duplicate employee creation using normalized name + phone/email checks.
   - Block save with a clear missing-field summary when required inputs are incomplete.
-- **UX hierarchy pass (in progress)**
+- **UX hierarchy pass (completed)**
   - Added a workflow strip at the top of Manage Employees (`filter/search -> choose operation -> save/verify`) so operators can orient before entering deeper editor panels.
   - Added a workspace-mode jump row (`Roster focus`, `Clock board`, `Profile editor`, `Hours editor`, `History timeline`, `Assignment readiness`) so operators can move between dense sections without hunting through the page.
-- **Roster-first flow simplification (in progress)**
+- **Roster-first flow simplification (completed)**
   - Added a dedicated workspace-mode switch that defaults to roster focus and reveals one deep operation panel at a time (`Clock board`, `Profile editor`, `Hours editor`, `History timeline`, `Assignment readiness`) to reduce cognitive load.
   - Readiness was moved behind explicit mode selection so daily operations (roster/profile/hours/history) stay front-and-center.
   - Loading/error/empty messages now opt into shared workspace-state styling hooks so operational feedback reads consistently across employee/job screens.
   - Status chips and action buttons now consume shared workspace tokens (default/primary/danger emphasis) so control hierarchy matches Start Next Job.
+  - Added explicit `Primary controls` vs `Advanced controls` grouping in the toolbar so core actions (search, refresh, add) are visually separated from operator/status toggles.
 - **Queued next slices**
   - None right now (ME-1 through ME-21 complete).
 
@@ -192,10 +193,11 @@
 - **Per-employee trend drill-down**: Step 2 now renders employee-level trend cards (status counts, total/average hours, completion/cancellation rates, last site, last scheduled slot) so supervisors can compare crew members before finalizing dispatch.
 - **Route-level variance drill-down**: Step 2 now renders per-route cards (site/address, status mix, total/average hours, completion/cancellation rates, and average-hours variance vs crew average) so supervisors can spot heavy routes before dispatch.
 - **Cross-run trend analytics**: Step 2 now includes analytics window shortcuts (`7 days`, `30 days`, `90 days`, `Custom`) plus per-day trend cards (hours-share bar, status mix, completion/cancellation rates) to compare run quality over time inside the same board.
-- **Progressive analytics disclosure (in progress)**: core KPI cards (tracked/scheduled/completed/cancelled/hours/rates/sites) remain visible by default, while heavy trend sections (employee, route variance, cross-run) are collapsed behind a `Show detailed analytics` toggle.
-- **State-message consistency (in progress)**: loading/error/empty states now use shared workspace-state styling hooks that match Manage Employees feedback cards.
-- **Button/chip consistency (in progress)**: review/workflow actions and readiness/status chips now use the same visual token hierarchy used in Manage Employees (default, primary, danger emphasis).
-- **Validation + accessibility clarity (in progress)**: required draft/profile/hours fields now expose explicit required semantics, validation blockers are announced in assertive live regions, and step/workspace controls expose ARIA pressed/expanded state for keyboard/screen-reader clarity.
+- **Progressive analytics disclosure (completed)**: core KPI cards (tracked/scheduled/completed/cancelled/hours/rates/sites) remain visible by default, while heavy trend sections (employee, route variance, cross-run) are collapsed behind a `Show detailed analytics` toggle.
+- **State-message consistency (completed)**: loading/error/empty states now use shared workspace-state styling hooks that match Manage Employees feedback cards.
+- **Button/chip consistency (completed)**: review/workflow actions and readiness/status chips now use the same visual token hierarchy used in Manage Employees (default, primary, danger emphasis).
+- **Validation + accessibility clarity (completed)**: required draft/profile/hours fields now expose explicit required semantics, validation blockers are announced in assertive live regions, and step/workspace controls expose ARIA pressed/expanded state for keyboard/screen-reader clarity.
+- **Step-2 hierarchy grouping (completed)**: Start Next Job draft now separates `Primary details` from `Advanced controls` so essential scheduling fields stay visually dominant.
 
 ## Calculation & Business Rules
 

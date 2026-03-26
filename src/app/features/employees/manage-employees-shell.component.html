@@ -16,81 +16,94 @@
   </article>
 
   <article class="employees-toolbar" aria-label="Employee filters">
-    <div class="employees-toolbar__row">
-      <label class="field">
-        <span class="field__label">Search roster</span>
-        <input
-          class="field__input"
-          type="search"
-          placeholder="Name, role, email, or phone"
-          [formControl]="queryControl"
-        />
-      </label>
+    <section class="employees-toolbar__group employees-toolbar__group--primary">
+      <p class="employees-toolbar__group-label">Primary controls</p>
+      <div class="employees-toolbar__row">
+        <label class="field">
+          <span class="field__label">Search roster</span>
+          <input
+            class="field__input"
+            type="search"
+            placeholder="Name, role, email, or phone"
+            [formControl]="queryControl"
+          />
+        </label>
 
-      <div class="toolbar-actions">
-        <button type="button" class="refresh-btn" (click)="refreshRoster()">Refresh roster</button>
-        <button type="button" class="add-btn" (click)="openCreateProfile()">Add employee</button>
+        <div class="toolbar-actions">
+          <button type="button" class="refresh-btn" (click)="refreshRoster()">
+            Refresh roster
+          </button>
+          <button type="button" class="add-btn" (click)="openCreateProfile()">Add employee</button>
+        </div>
       </div>
-    </div>
+    </section>
 
-    <div class="role-mode" role="group" aria-label="Operator role">
-      <span class="role-mode__label">Operator mode</span>
-      <button
-        type="button"
-        class="status-pill"
-        [class.status-pill--active]="operatorRole() === 'owner'"
-        [attr.aria-pressed]="operatorRole() === 'owner'"
-        (click)="roleControl.setValue('owner')"
-      >
-        Owner
-      </button>
-      <button
-        type="button"
-        class="status-pill"
-        [class.status-pill--active]="operatorRole() === 'manager'"
-        [attr.aria-pressed]="operatorRole() === 'manager'"
-        (click)="roleControl.setValue('manager')"
-      >
-        Manager
-      </button>
-      <span class="role-mode__hint">
-        @if (operatorRole() === 'owner') {
-          Full profile and hours control.
-        } @else {
-          Add employees + edit hours only.
-        }
-      </span>
-    </div>
+    <section class="employees-toolbar__group employees-toolbar__group--advanced">
+      <p class="employees-toolbar__group-label">Advanced controls</p>
+      <div class="employees-toolbar__advanced-grid">
+        <div class="role-mode" role="group" aria-label="Operator role">
+          <span class="role-mode__label">Operator mode</span>
+          <button
+            type="button"
+            class="status-pill"
+            [class.status-pill--active]="operatorRole() === 'owner'"
+            [attr.aria-pressed]="operatorRole() === 'owner'"
+            (click)="roleControl.setValue('owner')"
+          >
+            Owner
+          </button>
+          <button
+            type="button"
+            class="status-pill"
+            [class.status-pill--active]="operatorRole() === 'manager'"
+            [attr.aria-pressed]="operatorRole() === 'manager'"
+            (click)="roleControl.setValue('manager')"
+          >
+            Manager
+          </button>
+          <span class="role-mode__hint">
+            @if (operatorRole() === 'owner') {
+              Full profile and hours control.
+            } @else {
+              Add employees + edit hours only.
+            }
+          </span>
+        </div>
 
-    <div class="status-filters" role="group" aria-label="Status filters">
-      <button
-        type="button"
-        class="status-pill"
-        [class.status-pill--active]="statusFilter() === 'all'"
-        [attr.aria-pressed]="statusFilter() === 'all'"
-        (click)="setStatusFilter('all')"
-      >
-        All
-      </button>
-      <button
-        type="button"
-        class="status-pill"
-        [class.status-pill--active]="statusFilter() === 'active'"
-        [attr.aria-pressed]="statusFilter() === 'active'"
-        (click)="setStatusFilter('active')"
-      >
-        Active
-      </button>
-      <button
-        type="button"
-        class="status-pill"
-        [class.status-pill--active]="statusFilter() === 'inactive'"
-        [attr.aria-pressed]="statusFilter() === 'inactive'"
-        (click)="setStatusFilter('inactive')"
-      >
-        Inactive
-      </button>
-    </div>
+        <div class="status-filters-block">
+          <span class="status-filters-block__label">Roster status</span>
+          <div class="status-filters" role="group" aria-label="Status filters">
+            <button
+              type="button"
+              class="status-pill"
+              [class.status-pill--active]="statusFilter() === 'all'"
+              [attr.aria-pressed]="statusFilter() === 'all'"
+              (click)="setStatusFilter('all')"
+            >
+              All
+            </button>
+            <button
+              type="button"
+              class="status-pill"
+              [class.status-pill--active]="statusFilter() === 'active'"
+              [attr.aria-pressed]="statusFilter() === 'active'"
+              (click)="setStatusFilter('active')"
+            >
+              Active
+            </button>
+            <button
+              type="button"
+              class="status-pill"
+              [class.status-pill--active]="statusFilter() === 'inactive'"
+              [attr.aria-pressed]="statusFilter() === 'inactive'"
+              (click)="setStatusFilter('inactive')"
+            >
+              Inactive
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
   </article>
 
   <article class="employees-flow" aria-label="Manage employees workflow">
