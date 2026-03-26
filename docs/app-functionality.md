@@ -160,14 +160,14 @@
 - **UX hierarchy pass (completed)**
   - Consolidated roster counts into the controls area (single canonical `Showing X employee(s)` line + summary cards) so operators see key state before scrolling.
   - Removed the static workflow text block from default view to reduce non-actionable UI noise.
-  - Kept workspace-mode jump controls (`Roster focus`, `Clock board`, `Profile editor`, `Hours editor`, `History timeline`, `Assignment readiness`) while making them compact for faster scanning.
+  - Kept workspace-mode jump controls focused on global context (`Roster focus`, `Clock board`, `Assignment readiness`) while making them compact for faster scanning.
 - **Roster-first flow simplification (completed)**
-  - Added a dedicated workspace-mode switch that defaults to roster focus and reveals one deep operation panel at a time (`Clock board`, `Profile editor`, `Hours editor`, `History timeline`, `Assignment readiness`) to reduce cognitive load.
+  - Added a dedicated workspace-mode switch that defaults to roster focus and keeps only high-level sections (`Clock board`, `Assignment readiness`) in global nav to reduce cognitive load.
   - Readiness was moved behind explicit mode selection so daily operations (roster/profile/hours/history) stay front-and-center.
   - Loading/error/empty messages now opt into shared workspace-state styling hooks so operational feedback reads consistently across employee/job screens.
   - Status chips and action buttons now consume shared workspace tokens (default/primary/danger emphasis) so control hierarchy matches Start Next Job.
   - Added explicit `Primary controls` vs `Advanced controls` grouping in the toolbar so core actions (search, refresh, add) are visually separated from operator/status toggles.
-  - Workspace mode now stays sticky and visually smaller while scrolling so context remains visible without dominating the page.
+  - Workspace mode now stays sticky and visually smaller while scrolling so context remains visible without dominating the page; profile/hours/history views are launched from per-employee card actions instead of global buttons.
 - **Queued next slices**
   - None right now (ME-1 through ME-21 complete).
 

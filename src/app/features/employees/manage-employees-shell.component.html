@@ -149,36 +149,6 @@
       <button
         type="button"
         class="status-pill"
-        [class.status-pill--active]="workspaceFocus() === 'profile'"
-        [attr.aria-pressed]="workspaceFocus() === 'profile'"
-        aria-controls="employees-profile"
-        (click)="setWorkspaceFocus('profile')"
-      >
-        Profile editor
-      </button>
-      <button
-        type="button"
-        class="status-pill"
-        [class.status-pill--active]="workspaceFocus() === 'hours'"
-        [attr.aria-pressed]="workspaceFocus() === 'hours'"
-        aria-controls="employees-hours"
-        (click)="setWorkspaceFocus('hours')"
-      >
-        Hours editor
-      </button>
-      <button
-        type="button"
-        class="status-pill"
-        [class.status-pill--active]="workspaceFocus() === 'history'"
-        [attr.aria-pressed]="workspaceFocus() === 'history'"
-        aria-controls="employees-history"
-        (click)="setWorkspaceFocus('history')"
-      >
-        History timeline
-      </button>
-      <button
-        type="button"
-        class="status-pill"
         [class.status-pill--active]="workspaceFocus() === 'readiness'"
         [attr.aria-pressed]="workspaceFocus() === 'readiness'"
         aria-controls="employees-readiness"
@@ -187,6 +157,9 @@
         Assignment readiness
       </button>
     </div>
+    <p class="employees-workspace__hint">
+      Profile, hours, and history open from each employee card action.
+    </p>
   </article>
 
   @if (workspaceNotice()) {

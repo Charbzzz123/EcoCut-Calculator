@@ -71,7 +71,9 @@ class EmployeesFacadeStub {
   readonly trackByReadinessEmployeeId = vi.fn(
     (_: number, entry: EmployeeStartNextJobReadiness) => entry.employeeId,
   );
-  readonly trackByClockEmployeeId = vi.fn((_: number, entry: EmployeeClockSummary) => entry.employeeId);
+  readonly trackByClockEmployeeId = vi.fn(
+    (_: number, entry: EmployeeClockSummary) => entry.employeeId,
+  );
 
   private readonly loadStateSignal = signal<EmployeeLoadState>('loading');
   readonly loadState = this.loadStateSignal.asReadonly();
@@ -118,20 +120,26 @@ class EmployeesFacadeStub {
     this.rosterSignal().find((employee) => employee.id === this.editingEmployeeIdSignal()) ?? null;
   readonly hoursEditorOpen = () => this.selectedHoursEmployeeIdSignal() !== null;
   readonly selectedHoursEmployee = () =>
-    this.rosterSignal().find((employee) => employee.id === this.selectedHoursEmployeeIdSignal()) ?? null;
+    this.rosterSignal().find((employee) => employee.id === this.selectedHoursEmployeeIdSignal()) ??
+    null;
   readonly selectedHoursEntries = () =>
-    this.hoursEntriesSignal().filter((entry) => entry.employeeId === this.selectedHoursEmployeeIdSignal());
+    this.hoursEntriesSignal().filter(
+      (entry) => entry.employeeId === this.selectedHoursEmployeeIdSignal(),
+    );
   readonly selectedHoursTotals = () => ({
     totalHours: `${this.selectedHoursEntries().reduce((sum, entry) => sum + entry.hours, 0)}`,
     entryCount: this.selectedHoursEntries().length,
     lastUpdated: this.selectedHoursEntries()[0]?.updatedAt ?? '—',
   });
   readonly editingHoursEntry = () =>
-    this.selectedHoursEntries().find((entry) => entry.id === this.editingHoursEntryIdSignal()) ?? null;
+    this.selectedHoursEntries().find((entry) => entry.id === this.editingHoursEntryIdSignal()) ??
+    null;
   readonly hoursErrors = this.hoursErrorsSignal.asReadonly();
   readonly historyPanelOpen = () => this.selectedHistoryEmployeeIdSignal() !== null;
   readonly selectedHistoryEmployee = () =>
-    this.rosterSignal().find((employee) => employee.id === this.selectedHistoryEmployeeIdSignal()) ?? null;
+    this.rosterSignal().find(
+      (employee) => employee.id === this.selectedHistoryEmployeeIdSignal(),
+    ) ?? null;
   readonly selectedEmployeeJobHistory = () =>
     this.historyEntriesSignal().filter(
       (entry) => entry.employeeId === this.selectedHistoryEmployeeIdSignal(),
@@ -356,9 +364,9 @@ describe('ManageEmployeesShellComponent', () => {
     facade.setViewModel({ loadState: 'loading' });
     let fixture = TestBed.createComponent(ManageEmployeesShellComponent);
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.employees-roster .roster-state')?.textContent).toContain(
-      'Loading employee roster',
-    );
+    expect(
+      fixture.nativeElement.querySelector('.employees-roster .roster-state')?.textContent,
+    ).toContain('Loading employee roster');
 
     fixture.destroy();
     facade.setViewModel({ loadState: 'error' });
@@ -373,9 +381,9 @@ describe('ManageEmployeesShellComponent', () => {
     facade.setViewModel({ loadState: 'ready', roster: [], filteredRoster: [] });
     fixture = TestBed.createComponent(ManageEmployeesShellComponent);
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.employees-roster .roster-state')?.textContent).toContain(
-      'No employees match this filter.',
-    );
+    expect(
+      fixture.nativeElement.querySelector('.employees-roster .roster-state')?.textContent,
+    ).toContain('No employees match this filter.');
   });
 
   it('forwards roster actions and role toggles', () => {
@@ -459,7 +467,9 @@ describe('ManageEmployeesShellComponent', () => {
 
     const cardActions = native.querySelectorAll('.employee-card__actions');
     const firstEdit = cardActions[0]?.querySelectorAll('.employee-action')[2] as HTMLButtonElement;
-    const firstArchive = cardActions[0]?.querySelectorAll('.employee-action')[3] as HTMLButtonElement;
+    const firstArchive = cardActions[0]?.querySelectorAll(
+      '.employee-action',
+    )[3] as HTMLButtonElement;
     expect(firstEdit.disabled).toBe(true);
     expect(firstArchive.disabled).toBe(true);
   });
@@ -468,11 +478,9 @@ describe('ManageEmployeesShellComponent', () => {
     facade.setViewModel({ profileEditorOpen: false });
     let fixture = TestBed.createComponent(ManageEmployeesShellComponent);
     fixture.detectChanges();
-    const firstNative = fixture.nativeElement as HTMLElement;
-    const workspaceButtons = firstNative.querySelectorAll(
-      '.employees-workspace .status-pill',
-    ) as NodeListOf<HTMLButtonElement>;
-    workspaceButtons[2]?.click();
+    (
+      fixture.componentInstance as unknown as { setWorkspaceFocus: (focus: string) => void }
+    ).setWorkspaceFocus('profile');
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.editor-placeholder')).toBeTruthy();
 
@@ -564,7 +572,9 @@ describe('ManageEmployeesShellComponent', () => {
     fixture.detectChanges();
     expect(facade.saveHoursEntry).toHaveBeenCalled();
 
-    const closeButton = native.querySelector('.employees-hours__header .employee-action') as HTMLButtonElement;
+    const closeButton = native.querySelector(
+      '.employees-hours__header .employee-action',
+    ) as HTMLButtonElement;
     closeButton.click();
     expect(facade.closeHoursEditor).toHaveBeenCalled();
   });
@@ -665,14 +675,16 @@ describe('ManageEmployeesShellComponent', () => {
     const workspaceButtons = native.querySelectorAll(
       '.employees-workspace .status-pill',
     ) as NodeListOf<HTMLButtonElement>;
-    workspaceButtons[5]?.click();
+    workspaceButtons[2]?.click();
     fixture.detectChanges();
 
     expect(native.querySelector('.employees-readiness h2')?.textContent).toContain(
       'Assignment data contract preview',
     );
     expect(native.querySelector('.readiness-card__header h3')?.textContent).toContain('Alex Karam');
-    expect(native.querySelector('.readiness-card__meta')?.textContent).toContain('Scheduled jobs: 1');
+    expect(native.querySelector('.readiness-card__meta')?.textContent).toContain(
+      'Scheduled jobs: 1',
+    );
     expect(facade.trackByReadinessEmployeeId).toHaveBeenCalled();
   });
 
@@ -709,7 +721,7 @@ describe('ManageEmployeesShellComponent', () => {
     const workspaceButtons = native.querySelectorAll(
       '.employees-workspace .status-pill',
     ) as NodeListOf<HTMLButtonElement>;
-    workspaceButtons[5]?.click();
+    workspaceButtons[2]?.click();
     fixture.detectChanges();
 
     const readinessCards = native.querySelectorAll('.readiness-card');
