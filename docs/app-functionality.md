@@ -190,6 +190,7 @@
 - **Per-employee trend drill-down**: Step 2 now renders employee-level trend cards (status counts, total/average hours, completion/cancellation rates, last site, last scheduled slot) so supervisors can compare crew members before finalizing dispatch.
 - **Route-level variance drill-down**: Step 2 now renders per-route cards (site/address, status mix, total/average hours, completion/cancellation rates, and average-hours variance vs crew average) so supervisors can spot heavy routes before dispatch.
 - **Cross-run trend analytics**: Step 2 now includes analytics window shortcuts (`7 days`, `30 days`, `90 days`, `Custom`) plus per-day trend cards (hours-share bar, status mix, completion/cancellation rates) to compare run quality over time inside the same board.
+- **Progressive analytics disclosure (in progress)**: core KPI cards (tracked/scheduled/completed/cancelled/hours/rates/sites) remain visible by default, while heavy trend sections (employee, route variance, cross-run) are collapsed behind a `Show detailed analytics` toggle.
 
 ## Calculation & Business Rules
 

@@ -356,6 +356,17 @@
   font-size: 0.8rem;
 }
 
+.analytics-panel__toggle-btn {
+  padding: 0.35rem 0.72rem;
+  font-size: 0.8rem;
+}
+
+.analytics-panel__secondary-btn {
+  border-color: rgba(111, 212, 183, 0.2);
+  background: rgba(9, 27, 22, 0.68);
+  color: rgba(203, 231, 221, 0.86);
+}
+
 .analytics-panel__filters {
   margin-top: 0.65rem;
   display: grid;
@@ -407,6 +418,22 @@
 .analytics-panel__empty {
   margin: 0.6rem 0 0;
   color: rgba(190, 223, 210, 0.82);
+}
+
+.analytics-panel__details {
+  margin-top: 0.65rem;
+  border-top: 1px dashed rgba(111, 212, 183, 0.2);
+  padding-top: 0.65rem;
+}
+
+.analytics-panel__details-hint {
+  margin: 0.65rem 0 0;
+  border: 1px dashed rgba(111, 212, 183, 0.24);
+  border-radius: 0.7rem;
+  background: rgba(6, 21, 17, 0.75);
+  color: rgba(190, 223, 210, 0.8);
+  padding: 0.5rem 0.6rem;
+  font-size: 0.84rem;
 }
 
 .analytics-grid {

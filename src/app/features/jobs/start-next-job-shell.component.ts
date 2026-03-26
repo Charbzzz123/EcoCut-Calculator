@@ -25,6 +25,7 @@ import { StartNextJobFacade } from './start-next-job.facade.js';
 export class StartNextJobShellComponent implements OnInit {
   protected readonly facade = inject(StartNextJobFacade);
   protected readonly stepFocus = signal<'crew' | 'draft' | 'review' | 'history'>('crew');
+  protected readonly analyticsExpanded = signal(false);
   protected readonly canOpenDraftStep = computed(
     () => this.facade.selectedCrew().length > 0,
   );
@@ -89,6 +90,10 @@ export class StartNextJobShellComponent implements OnInit {
     anchor.download = exportPayload.filename;
     anchor.click();
     URL.revokeObjectURL(downloadUrl);
+  }
+
+  protected toggleAnalyticsExpanded(): void {
+    this.analyticsExpanded.update((expanded) => !expanded);
   }
 
   private scrollToSection(sectionId: string): void {

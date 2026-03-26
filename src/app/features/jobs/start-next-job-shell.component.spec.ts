@@ -296,9 +296,8 @@ describe('StartNextJobShellComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Resolve the following conflicts');
     expect(fixture.nativeElement.textContent).toContain('Assignment analytics');
     expect(fixture.nativeElement.textContent).toContain('Total tracked');
-    expect(fixture.nativeElement.textContent).toContain('Per-employee trend');
-    expect(fixture.nativeElement.textContent).toContain('Route-level variance');
-    expect(fixture.nativeElement.textContent).toContain('Cross-run trend');
+    expect(fixture.nativeElement.textContent).not.toContain('Per-employee trend');
+    expect(fixture.nativeElement.textContent).toContain('Detailed trend cards are hidden');
     expect(fixture.nativeElement.textContent).toContain('Selected crew job history');
     expect(fixture.nativeElement.textContent).toContain('Downtown');
 
@@ -339,6 +338,19 @@ describe('StartNextJobShellComponent', () => {
       '.analytics-panel__export-btn',
     ) as HTMLButtonElement;
     expect(exportButton.disabled).toBe(false);
+    const analyticsToggle = fixture.nativeElement.querySelector(
+      '.analytics-panel__toggle-btn',
+    ) as HTMLButtonElement;
+    expect(analyticsToggle.textContent).toContain('Show detailed analytics');
+    analyticsToggle.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Per-employee trend');
+    expect(fixture.nativeElement.textContent).toContain('Route-level variance');
+    expect(fixture.nativeElement.textContent).toContain('Cross-run trend');
+    const expandedAnalyticsToggle = fixture.nativeElement.querySelector(
+      '.analytics-panel__toggle-btn',
+    ) as HTMLButtonElement;
+    expect(expandedAnalyticsToggle.textContent).toContain('Hide detailed analytics');
 
     const windowButtons = fixture.nativeElement.querySelectorAll(
       '.analytics-window-buttons .analytics-window-btn',
@@ -356,6 +368,10 @@ describe('StartNextJobShellComponent', () => {
       '.analytics-panel__export-btn',
     ) as HTMLButtonElement;
     expect(exportButton.disabled).toBe(true);
+    const analyticsToggle = fixture.nativeElement.querySelector(
+      '.analytics-panel__toggle-btn',
+    ) as HTMLButtonElement;
+    expect(analyticsToggle.disabled).toBe(true);
   });
 
   it('shows analytics range error and forwards clear-range action', () => {
