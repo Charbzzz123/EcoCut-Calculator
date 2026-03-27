@@ -198,6 +198,14 @@
               </header>
 
               <p class="clock-card__meta">
+                Last activity:
+                @if (summary.lastActivityAt) {
+                  {{ summary.lastActivityAt | date: 'MMM d, y, h:mm a' }}
+                } @else {
+                  &mdash;
+                }
+              </p>
+              <p class="clock-card__meta">
                 Site:
                 @if (summary.currentSiteLabel) {
                   {{ summary.currentSiteLabel }}
@@ -356,7 +364,7 @@
           update profile data.
         </p>
       } @else {
-        <form class="profile-form" [formGroup]="profileForm" (ngSubmit)="saveProfile()">
+        <form class="profile-form" [formGroup]="profileForm" (ngSubmit)="saveProfile()" novalidate>
           @if (profileErrors().length) {
             <div
               id="employees-profile-errors"
@@ -485,7 +493,7 @@
           </p>
         </div>
 
-        <form class="hours-form" [formGroup]="hoursForm" (ngSubmit)="saveHoursEntry()">
+        <form class="hours-form" [formGroup]="hoursForm" (ngSubmit)="saveHoursEntry()" novalidate>
           @if (hoursErrors().length) {
             <div
               id="employees-hours-errors"
@@ -500,6 +508,9 @@
                 }
               </ul>
             </div>
+          }
+          @if (hoursSuccess()) {
+            <p class="success-summary" role="status" aria-live="polite">{{ hoursSuccess() }}</p>
           }
 
           @if (editingHoursEntry()) {

@@ -47,6 +47,7 @@ export interface EmployeeClockSummary {
   employeeId: string;
   fullName: string;
   state: EmployeeClockState;
+  lastActivityAt: string | null;
   currentSiteLabel: string | null;
   clockInAt: string | null;
   clockOutAt: string | null;
@@ -80,8 +81,9 @@ export class EmployeesFacade {
   private readonly querySignal: WritableSignal<string> = signal('');
   private readonly statusFilterSignal: WritableSignal<EmployeeStatusFilter> =
     signal<EmployeeStatusFilter>('all');
-  private readonly rosterSignal: WritableSignal<EmployeeRosterRecord[]> =
-    signal<EmployeeRosterRecord[]>([]);
+  private readonly rosterSignal: WritableSignal<EmployeeRosterRecord[]> = signal<
+    EmployeeRosterRecord[]
+  >([]);
   private readonly loadStateSignal: WritableSignal<EmployeeLoadState> =
     signal<EmployeeLoadState>('loading');
   private readonly roleSignal: WritableSignal<EmployeeOperatorRole> =
@@ -93,10 +95,12 @@ export class EmployeesFacade {
     null,
   );
   private readonly profileErrorsSignal: WritableSignal<string[]> = signal<string[]>([]);
-  private readonly hoursEntriesSignal: WritableSignal<EmployeeHoursRecord[]> =
-    signal<EmployeeHoursRecord[]>([]);
-  private readonly jobHistoryEntriesSignal: WritableSignal<EmployeeJobHistoryRecord[]> =
-    signal<EmployeeJobHistoryRecord[]>([]);
+  private readonly hoursEntriesSignal: WritableSignal<EmployeeHoursRecord[]> = signal<
+    EmployeeHoursRecord[]
+  >([]);
+  private readonly jobHistoryEntriesSignal: WritableSignal<EmployeeJobHistoryRecord[]> = signal<
+    EmployeeJobHistoryRecord[]
+  >([]);
   private readonly startNextJobReadinessSignal: WritableSignal<EmployeeStartNextJobReadiness[]> =
     signal<EmployeeStartNextJobReadiness[]>([]);
   private readonly selectedHoursEmployeeIdSignal: WritableSignal<string | null> = signal<
@@ -109,6 +113,7 @@ export class EmployeesFacade {
     null,
   );
   private readonly hoursErrorsSignal: WritableSignal<string[]> = signal<string[]>([]);
+  private readonly hoursSuccessSignal: WritableSignal<string | null> = signal<string | null>(null);
   private readonly workspaceNoticeSignal: WritableSignal<string | null> = signal<string | null>(
     null,
   );
@@ -127,7 +132,8 @@ export class EmployeesFacade {
     this.computeStats(this.rosterSignal()),
   );
   readonly profileEditorOpen: Signal<boolean> = this.profileEditorOpenSignal.asReadonly();
-  readonly profileEditorMode: Signal<EmployeeEditorMode> = this.profileEditorModeSignal.asReadonly();
+  readonly profileEditorMode: Signal<EmployeeEditorMode> =
+    this.profileEditorModeSignal.asReadonly();
   readonly editingEmployeeId: Signal<string | null> = this.editingEmployeeIdSignal.asReadonly();
   readonly profileErrors: Signal<string[]> = this.profileErrorsSignal.asReadonly();
   readonly activeEmployee: Signal<EmployeeRosterRecord | null> = computed(() => {
@@ -156,16 +162,19 @@ export class EmployeesFacade {
     entries.sort(sortHoursByDateDesc);
     return entries;
   });
-  readonly selectedHoursTotals: Signal<{ totalHours: string; entryCount: number; lastUpdated: string }> =
-    computed(() => {
-      const entries = this.selectedHoursEntries();
-      const total = entries.reduce((sum, entry) => sum + entry.hours, 0);
-      return {
-        totalHours: formatHours(total),
-        entryCount: entries.length,
-        lastUpdated: entries[0]?.updatedAt ?? '--',
-      };
-    });
+  readonly selectedHoursTotals: Signal<{
+    totalHours: string;
+    entryCount: number;
+    lastUpdated: string;
+  }> = computed(() => {
+    const entries = this.selectedHoursEntries();
+    const total = entries.reduce((sum, entry) => sum + entry.hours, 0);
+    return {
+      totalHours: formatHours(total),
+      entryCount: entries.length,
+      lastUpdated: entries[0]?.updatedAt ?? '--',
+    };
+  });
   readonly editingHoursEntry: Signal<EmployeeHoursRecord | null> = computed(() => {
     const editingId = this.editingHoursEntryIdSignal();
     if (!editingId) {
@@ -174,6 +183,7 @@ export class EmployeesFacade {
     return this.selectedHoursEntries().find((entry) => entry.id === editingId) ?? null;
   });
   readonly hoursErrors: Signal<string[]> = this.hoursErrorsSignal.asReadonly();
+  readonly hoursSuccess: Signal<string | null> = this.hoursSuccessSignal.asReadonly();
   readonly historyPanelOpen: Signal<boolean> = computed(
     () => this.selectedHistoryEmployeeIdSignal() !== null,
   );
@@ -189,7 +199,9 @@ export class EmployeesFacade {
     if (!selectedId) {
       return [];
     }
-    const entries = this.jobHistoryEntriesSignal().filter((entry) => entry.employeeId === selectedId);
+    const entries = this.jobHistoryEntriesSignal().filter(
+      (entry) => entry.employeeId === selectedId,
+    );
     entries.sort(sortHistoryByStartDesc);
     return entries;
   });
@@ -211,8 +223,8 @@ export class EmployeesFacade {
       scheduledCount,
       totalHours: formatHours(totalHours),
       recentSite,
-      };
-    });
+    };
+  });
   readonly startNextJobReadiness: Signal<EmployeeStartNextJobReadiness[]> =
     this.startNextJobReadinessSignal.asReadonly();
   readonly clockSummaries: Signal<EmployeeClockSummary[]> = computed(() =>
@@ -255,6 +267,10 @@ export class EmployeesFacade {
 
   hoursErrorsSnapshot(): string[] {
     return this.hoursErrors();
+  }
+
+  hoursSuccessSnapshot(): string | null {
+    return this.hoursSuccess();
   }
 
   selectedEmployeeJobHistorySnapshot(): EmployeeJobHistoryRecord[] {
@@ -358,7 +374,9 @@ export class EmployeesFacade {
       await this.loadRoster();
       return true;
     } catch (error) {
-      this.profileErrorsSignal.set([this.readApiErrorMessage(error, 'Unable to save employee profile.')]);
+      this.profileErrorsSignal.set([
+        this.readApiErrorMessage(error, 'Unable to save employee profile.'),
+      ]);
       return false;
     }
   }
@@ -375,7 +393,9 @@ export class EmployeesFacade {
       await this.data.archiveEmployee(employeeId, this.roleSignal());
       await this.loadRoster();
     } catch (error) {
-      this.workspaceNoticeSignal.set(this.readApiErrorMessage(error, 'Unable to archive employee.'));
+      this.workspaceNoticeSignal.set(
+        this.readApiErrorMessage(error, 'Unable to archive employee.'),
+      );
     }
   }
 
@@ -389,6 +409,7 @@ export class EmployeesFacade {
     this.selectedHoursEmployeeIdSignal.set(employee.id);
     this.editingHoursEntryIdSignal.set(null);
     this.hoursErrorsSignal.set([]);
+    this.hoursSuccessSignal.set(null);
     this.hoursForm.setValue({
       workDate: toIsoDate(new Date()),
       siteLabel: '',
@@ -413,6 +434,7 @@ export class EmployeesFacade {
     this.selectedHoursEmployeeIdSignal.set(null);
     this.editingHoursEntryIdSignal.set(null);
     this.hoursErrorsSignal.set([]);
+    this.hoursSuccessSignal.set(null);
   }
 
   editHoursEntry(entryId: string): void {
@@ -423,6 +445,7 @@ export class EmployeesFacade {
     }
     this.editingHoursEntryIdSignal.set(entry.id);
     this.hoursErrorsSignal.set([]);
+    this.hoursSuccessSignal.set(null);
     this.hoursForm.setValue({
       workDate: entry.workDate,
       siteLabel: entry.siteLabel,
@@ -438,9 +461,13 @@ export class EmployeesFacade {
         this.editingHoursEntryIdSignal.set(null);
         this.hoursForm.patchValue({ siteLabel: '', hours: '' });
       }
+      this.hoursSuccessSignal.set('Hours entry removed.');
       await this.loadRoster();
     } catch (error) {
-      this.hoursErrorsSignal.set([this.readApiErrorMessage(error, 'Unable to remove hours entry.')]);
+      this.hoursSuccessSignal.set(null);
+      this.hoursErrorsSignal.set([
+        this.readApiErrorMessage(error, 'Unable to remove hours entry.'),
+      ]);
     }
   }
 
@@ -448,22 +475,25 @@ export class EmployeesFacade {
     this.clearWorkspaceNotice();
     const selectedEmployee = this.selectedHoursEmployee();
     if (!selectedEmployee) {
+      this.hoursSuccessSignal.set(null);
       this.hoursErrorsSignal.set(['Select an employee before editing hours.']);
       return false;
     }
 
-    const draft = this.readHoursDraftFromForm();
-    const errors = this.validateHoursDraft(draft);
-    if (errors.length) {
-      this.hoursErrorsSignal.set(errors);
-      return false;
-    }
-
-    const payload = this.toHoursMutationPayload(selectedEmployee.id, draft);
     try {
+      const draft = this.readHoursDraftFromForm();
+      const errors = this.validateHoursDraft(draft);
+      if (errors.length) {
+        this.hoursSuccessSignal.set(null);
+        this.hoursErrorsSignal.set(errors);
+        return false;
+      }
+
+      const payload = this.toHoursMutationPayload(selectedEmployee.id, draft);
       const editingId = this.editingHoursEntryIdSignal();
+      let savedEntry: EmployeeHoursRecord;
       if (editingId) {
-        await this.data.updateHoursEntry(
+        savedEntry = await this.data.updateHoursEntry(
           editingId,
           {
             workDate: payload.workDate,
@@ -472,16 +502,30 @@ export class EmployeesFacade {
           },
           this.roleSignal(),
         );
+        this.hoursEntriesSignal.update((entries) =>
+          entries.map((entry) => (entry.id === savedEntry.id ? savedEntry : entry)),
+        );
       } else {
-        await this.data.createHoursEntry(payload, this.roleSignal());
+        savedEntry = await this.data.createHoursEntry(payload, this.roleSignal());
+        this.hoursEntriesSignal.update((entries) => [savedEntry, ...entries]);
       }
+      const now = new Date().toISOString();
+      this.rosterSignal.update((roster) =>
+        roster.map((record) =>
+          record.id === selectedEmployee.id ? { ...record, lastActivityAt: now } : record,
+        ),
+      );
 
       this.editingHoursEntryIdSignal.set(null);
       this.hoursErrorsSignal.set([]);
+      this.hoursSuccessSignal.set(
+        editingId ? 'Hours entry updated successfully.' : 'Hours entry saved successfully.',
+      );
       this.hoursForm.patchValue({ siteLabel: '', hours: '' });
       await this.loadRoster();
       return true;
     } catch (error) {
+      this.hoursSuccessSignal.set(null);
       this.hoursErrorsSignal.set([this.readApiErrorMessage(error, 'Unable to save hours entry.')]);
       return false;
     }
@@ -500,7 +544,9 @@ export class EmployeesFacade {
       await this.loadRoster();
       return true;
     } catch (error) {
-      this.workspaceNoticeSignal.set(this.readApiErrorMessage(error, 'Unable to clock in employee.'));
+      this.workspaceNoticeSignal.set(
+        this.readApiErrorMessage(error, 'Unable to clock in employee.'),
+      );
       return false;
     }
   }
@@ -518,7 +564,9 @@ export class EmployeesFacade {
       await this.loadRoster();
       return true;
     } catch (error) {
-      this.workspaceNoticeSignal.set(this.readApiErrorMessage(error, 'Unable to clock out employee.'));
+      this.workspaceNoticeSignal.set(
+        this.readApiErrorMessage(error, 'Unable to clock out employee.'),
+      );
       return false;
     }
   }
@@ -606,7 +654,8 @@ export class EmployeesFacade {
           .filter((entry) => entry.employeeId === employee.id && this.isClockSource(entry.source))
           .sort(sortByUpdatedAtDesc);
         const openClockSession =
-          employeeClockEntries.find((entry) => Boolean(entry.clockInAt) && !entry.clockOutAt) ?? null;
+          employeeClockEntries.find((entry) => Boolean(entry.clockInAt) && !entry.clockOutAt) ??
+          null;
         const latestClockSession = employeeClockEntries[0] ?? null;
 
         const state: EmployeeClockState =
@@ -625,6 +674,7 @@ export class EmployeesFacade {
           employeeId: employee.id,
           fullName: employee.fullName,
           state,
+          lastActivityAt: employee.lastActivityAt,
           currentSiteLabel: openClockSession?.siteLabel ?? latestClockSession?.siteLabel ?? null,
           clockInAt: openClockSession?.clockInAt ?? null,
           clockOutAt: latestClockSession?.clockOutAt ?? null,
@@ -735,28 +785,32 @@ export class EmployeesFacade {
     return {
       workDate: this.hoursForm.controls.workDate.value,
       siteLabel: this.hoursForm.controls.siteLabel.value,
-      hours: this.hoursForm.controls.hours.value,
+      hours: this.hoursForm.controls.hours.value as string | number,
     };
   }
 
   private validateHoursDraft(draft: EmployeeHoursDraft): string[] {
     const errors: string[] = [];
     const missingLabels: string[] = [];
+    const normalizedHours = this.normalizeHoursInput(draft.hours).trim();
     if (!draft.workDate.trim()) {
       missingLabels.push('Work date');
     }
     if (!draft.siteLabel.trim()) {
       missingLabels.push('Site / address');
     }
-    if (!draft.hours.trim()) {
+    if (!normalizedHours) {
       missingLabels.push('Hours');
     }
     if (missingLabels.length) {
       errors.push(`Required fields missing: ${missingLabels.join(', ')}.`);
     }
 
-    const parsedHours = Number.parseFloat(draft.hours.trim());
-    if (draft.hours.trim() && (!Number.isFinite(parsedHours) || parsedHours <= 0 || parsedHours > 24)) {
+    const parsedHours = Number.parseFloat(normalizedHours);
+    if (
+      normalizedHours &&
+      (!Number.isFinite(parsedHours) || parsedHours <= 0 || parsedHours > 24)
+    ) {
       errors.push('Hours must be a number greater than 0 and less than or equal to 24.');
     }
 
@@ -767,12 +821,17 @@ export class EmployeesFacade {
     employeeId: string,
     draft: EmployeeHoursDraft,
   ): EmployeeHoursMutationPayload {
+    const normalizedHours = this.normalizeHoursInput(draft.hours).trim();
     return {
       employeeId,
       workDate: draft.workDate.trim(),
       siteLabel: draft.siteLabel.trim(),
-      hours: Number.parseFloat(draft.hours.trim()),
+      hours: Number.parseFloat(normalizedHours),
     };
+  }
+
+  private normalizeHoursInput(value: string | number): string {
+    return typeof value === 'number' ? `${value}` : value;
   }
 
   private readApiErrorMessage(error: unknown, fallback: string): string {

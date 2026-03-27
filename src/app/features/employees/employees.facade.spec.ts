@@ -181,10 +181,10 @@ class EmployeesDataServiceStub {
     return this.readinessRecords.map((entry) =>
       entry.employeeId === 'active-1' && activeNow
         ? {
-          ...entry,
-          readinessState: 'scheduled',
-          nextAvailableAt: activeNow.scheduledEnd,
-        }
+            ...entry,
+            readinessState: 'scheduled',
+            nextAvailableAt: activeNow.scheduledEnd,
+          }
         : { ...entry },
     );
   }
@@ -320,7 +320,8 @@ class EmployeesDataServiceStub {
     }
 
     const openSession = this.hoursRecords.find(
-      (entry) => entry.employeeId === payload.employeeId && entry.source === 'clock' && !entry.clockOutAt,
+      (entry) =>
+        entry.employeeId === payload.employeeId && entry.source === 'clock' && !entry.clockOutAt,
     );
     if (!openSession) {
       throw new Error('No open session');
@@ -340,7 +341,10 @@ describe('EmployeesFacade', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [EmployeesFacade, { provide: EmployeesDataService, useClass: EmployeesDataServiceStub }],
+      providers: [
+        EmployeesFacade,
+        { provide: EmployeesDataService, useClass: EmployeesDataServiceStub },
+      ],
     });
 
     facade = TestBed.inject(EmployeesFacade);
@@ -499,6 +503,7 @@ describe('EmployeesFacade', () => {
   it('opens hours editor and validates new entries', async () => {
     await facade.loadRoster();
     facade.openHoursEditor('active-1');
+    expect(facade.hoursSuccessSnapshot()).toBeNull();
 
     facade.hoursForm.setValue({ workDate: '', siteLabel: '', hours: '' });
     await expect(facade.saveHoursEntry()).resolves.toBe(false);
@@ -513,27 +518,39 @@ describe('EmployeesFacade', () => {
     facade.roleControl.setValue('manager');
     facade.hoursForm.setValue({ workDate: '2026-03-21', siteLabel: 'Laval', hours: '7.25' });
     await expect(facade.saveHoursEntry()).resolves.toBe(true);
+    expect(facade.hoursSuccessSnapshot()).toBe('Hours entry saved successfully.');
     expect(
-      facade
-        .selectedHoursEntriesSnapshot()
-        .find((entry) => entry.id === 'hours-created')?.updatedByRole,
+      facade.selectedHoursEntriesSnapshot().find((entry) => entry.id === 'hours-created')
+        ?.updatedByRole,
     ).toBe('manager');
+
+    // Runtime <input type="number"> can provide a numeric value.
+    facade.hoursForm.controls.workDate.setValue('2026-03-22');
+    facade.hoursForm.controls.siteLabel.setValue('Outremont');
+    (facade.hoursForm.controls.hours as unknown as { setValue: (value: number) => void }).setValue(
+      6.5,
+    );
+    await expect(facade.saveHoursEntry()).resolves.toBe(true);
   });
 
   it('supports editing and removing existing hours entries', async () => {
     await facade.loadRoster();
     facade.openHoursEditor('active-1');
     facade.editHoursEntry('hours-active-2');
+    expect(facade.hoursSuccessSnapshot()).toBeNull();
     expect(facade.editingHoursEntry()?.siteLabel).toBe('NDG');
 
     facade.hoursForm.controls.siteLabel.setValue('NDG - Updated');
     facade.hoursForm.controls.hours.setValue('7');
     await expect(facade.saveHoursEntry()).resolves.toBe(true);
+    expect(facade.hoursSuccessSnapshot()).toBe('Hours entry updated successfully.');
     expect(
-      facade.selectedHoursEntriesSnapshot().find((entry) => entry.id === 'hours-active-2')?.siteLabel,
+      facade.selectedHoursEntriesSnapshot().find((entry) => entry.id === 'hours-active-2')
+        ?.siteLabel,
     ).toBe('NDG - Updated');
 
     await facade.removeHoursEntry('hours-active-2');
+    expect(facade.hoursSuccessSnapshot()).toBe('Hours entry removed.');
     expect(
       facade.selectedHoursEntriesSnapshot().some((entry) => entry.id === 'hours-active-2'),
     ).toBe(false);
@@ -542,6 +559,7 @@ describe('EmployeesFacade', () => {
     expect(facade.hoursForm.controls.hours.value).toBe('');
 
     facade.closeHoursEditor();
+    expect(facade.hoursSuccessSnapshot()).toBeNull();
     expect(facade.hoursEditorOpen()).toBe(false);
   });
 
@@ -626,16 +644,19 @@ describe('EmployeesFacade', () => {
       error: { message: ['Hours conflict.', 'Try another slot.'] },
     });
     await expect(facade.saveHoursEntry()).resolves.toBe(false);
+    expect(facade.hoursSuccessSnapshot()).toBeNull();
     expect(facade.hoursErrorsSnapshot()[0]).toBe('Hours conflict. Try another slot.');
 
     vi.spyOn(service, 'createHoursEntry').mockRejectedValueOnce({ error: { message: 12 } });
     await expect(facade.saveHoursEntry()).resolves.toBe(false);
+    expect(facade.hoursSuccessSnapshot()).toBeNull();
     expect(facade.hoursErrorsSnapshot()[0]).toBe('Unable to save hours entry.');
 
     vi.spyOn(service, 'createHoursEntry').mockRejectedValueOnce({
       error: { message: [1, 2] },
     });
     await expect(facade.saveHoursEntry()).resolves.toBe(false);
+    expect(facade.hoursSuccessSnapshot()).toBeNull();
     expect(facade.hoursErrorsSnapshot()[0]).toBe('Unable to save hours entry.');
   });
 
@@ -643,6 +664,7 @@ describe('EmployeesFacade', () => {
     await facade.loadRoster();
     facade.closeHoursEditor();
     await expect(facade.saveHoursEntry()).resolves.toBe(false);
+    expect(facade.hoursSuccessSnapshot()).toBeNull();
     expect(facade.hoursErrorsSnapshot()[0]).toContain('Select an employee before editing hours.');
   });
 
@@ -718,7 +740,9 @@ describe('EmployeesFacade', () => {
     });
 
     await facade.loadRoster();
-    const readiness = facade.startNextJobReadinessSnapshot().find((entry) => entry.employeeId === 'active-1');
+    const readiness = facade
+      .startNextJobReadinessSnapshot()
+      .find((entry) => entry.employeeId === 'active-1');
     expect(readiness?.readinessState).toBe('scheduled');
     expect(readiness?.nextAvailableAt).toBe(endsAt);
   });
@@ -726,18 +750,22 @@ describe('EmployeesFacade', () => {
   it('builds clock summaries and supports clock in/out actions', async () => {
     await facade.loadRoster();
 
-    const initial = facade.clockSummariesSnapshot().find((entry) => entry.employeeId === 'active-1');
+    const initial = facade
+      .clockSummariesSnapshot()
+      .find((entry) => entry.employeeId === 'active-1');
     expect(initial?.state).toBe('clocked_out');
 
     await expect(facade.clockIn('active-1')).resolves.toBe(true);
-    const afterClockIn = facade.clockSummariesSnapshot().find((entry) => entry.employeeId === 'active-1');
+    const afterClockIn = facade
+      .clockSummariesSnapshot()
+      .find((entry) => entry.employeeId === 'active-1');
     expect(afterClockIn?.state).toBe('clocked_in');
     expect(afterClockIn?.clockInAt).toBeTruthy();
 
     await expect(facade.clockOut('active-1')).resolves.toBe(true);
-    const afterClockOut = facade.clockSummariesSnapshot().find(
-      (entry) => entry.employeeId === 'active-1',
-    );
+    const afterClockOut = facade
+      .clockSummariesSnapshot()
+      .find((entry) => entry.employeeId === 'active-1');
     expect(afterClockOut?.state).toBe('clocked_out');
     expect(afterClockOut?.lastDurationHours).toBe('2');
   });

@@ -93,7 +93,7 @@ export interface EmployeeStartNextJobAssignmentResult {
 export interface EmployeeHoursDraft {
   workDate: string;
   siteLabel: string;
-  hours: string;
+  hours: string | number;
 }
 
 export interface EmployeeHoursMutationPayload {

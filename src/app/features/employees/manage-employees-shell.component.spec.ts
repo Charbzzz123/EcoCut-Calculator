@@ -111,6 +111,7 @@ class EmployeesFacadeStub {
   private readonly clockSignal = signal<EmployeeClockSummary[]>([]);
   private readonly editingHoursEntryIdSignal = signal<string | null>(null);
   private readonly hoursErrorsSignal = signal<string[]>([]);
+  private readonly hoursSuccessSignal = signal<string | null>(null);
   private stats = { total: 0, active: 0, inactive: 0 };
 
   readonly rosterSnapshot = vi.fn(() => this.rosterSignal());
@@ -135,6 +136,7 @@ class EmployeesFacadeStub {
     this.selectedHoursEntries().find((entry) => entry.id === this.editingHoursEntryIdSignal()) ??
     null;
   readonly hoursErrors = this.hoursErrorsSignal.asReadonly();
+  readonly hoursSuccess = this.hoursSuccessSignal.asReadonly();
   readonly historyPanelOpen = () => this.selectedHistoryEmployeeIdSignal() !== null;
   readonly selectedHistoryEmployee = () =>
     this.rosterSignal().find(
@@ -178,6 +180,7 @@ class EmployeesFacadeStub {
     clockSummaries?: EmployeeClockSummary[];
     editingHoursEntryId?: string | null;
     hoursErrors?: string[];
+    hoursSuccess?: string | null;
   }): void {
     if (options.loadState) {
       this.loadStateSignal.set(options.loadState);
@@ -236,6 +239,9 @@ class EmployeesFacadeStub {
     }
     if (options.hoursErrors) {
       this.hoursErrorsSignal.set(options.hoursErrors);
+    }
+    if (options.hoursSuccess !== undefined) {
+      this.hoursSuccessSignal.set(options.hoursSuccess);
     }
   }
 }
@@ -333,6 +339,7 @@ const clockSummaryRecord: EmployeeClockSummary = {
   employeeId: 'emp-1',
   fullName: 'Alex Karam',
   state: 'clocked_out',
+  lastActivityAt: '2026-03-21T12:10:00Z',
   currentSiteLabel: 'Westmount',
   clockInAt: null,
   clockOutAt: '2026-03-21T12:00:00Z',
@@ -589,6 +596,7 @@ describe('ManageEmployeesShellComponent', () => {
       hoursEntries: [],
       editingHoursEntryId: null,
       hoursErrors: [],
+      hoursSuccess: 'Hours entry saved successfully.',
     });
 
     const fixture = TestBed.createComponent(ManageEmployeesShellComponent);
@@ -597,6 +605,9 @@ describe('ManageEmployeesShellComponent', () => {
 
     expect(native.querySelector('.hours-list .hours-card')).toBeNull();
     expect(native.querySelector('.error-summary')).toBeNull();
+    expect(native.querySelector('.success-summary')?.textContent).toContain(
+      'Hours entry saved successfully.',
+    );
     expect(native.querySelector('.hours-form button[type="submit"]')?.textContent).toContain(
       'Save hours',
     );
