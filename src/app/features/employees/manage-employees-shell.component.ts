@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@ang
 import { ReactiveFormsModule } from '@angular/forms';
 import { BackChipComponent } from '@shared/ui/back-chip/back-chip.component.js';
 import { BrandBannerComponent } from '@shared/ui/brand-banner/brand-banner.component.js';
+import type { EmployeeHoursRecord, EmployeeLoggedJobOption } from './employees.types.js';
 import { EmployeesFacade } from './employees.facade.js';
 
 @Component({
@@ -198,6 +199,17 @@ export class ManageEmployeesShellComponent implements OnInit {
       event.preventDefault();
       this.toggleEmployeeExpansion(employeeId);
     }
+  }
+
+  protected resolveHoursLinkedJob(entry: EmployeeHoursRecord): EmployeeLoggedJobOption | null {
+    if (!entry.jobEntryId) {
+      return null;
+    }
+    return this.loggedJobOptions().find((job) => job.entryId === entry.jobEntryId) ?? null;
+  }
+
+  protected isLinkedHoursEntry(entry: EmployeeHoursRecord): boolean {
+    return Boolean(entry.jobEntryId);
   }
 
   private scrollToSection(sectionId: string): void {

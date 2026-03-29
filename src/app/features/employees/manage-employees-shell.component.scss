@@ -673,13 +673,55 @@ h1 {
   align-items: flex-start;
 }
 
+.hours-card__details {
+  display: grid;
+  gap: 0.22rem;
+}
+
+.hours-card__context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
 .hours-card__date {
   font-weight: 600;
 }
 
+.hours-card__source-badge {
+  border-radius: 999px;
+  border: 1px solid var(--workspace-chip-border);
+  background: var(--workspace-chip-bg);
+  color: var(--workspace-chip-text);
+  font-size: 0.74rem;
+  letter-spacing: 0.02em;
+  padding: 0.15rem 0.55rem;
+}
+
+.hours-card__source-badge--manual {
+  border-color: var(--workspace-chip-muted-border);
+  background: var(--workspace-chip-muted-bg);
+  color: var(--workspace-chip-muted-text);
+}
+
 .hours-card__site {
   color: var(--text-accent-soft);
-  margin-top: 0.2rem;
+}
+
+.hours-card__linked,
+.hours-card__slot,
+.hours-card__note {
+  color: var(--text-muted);
+  font-size: 0.83rem;
+}
+
+.hours-card__linked--missing {
+  color: var(--text-warning);
+}
+
+.hours-card__note {
+  color: var(--text-accent-soft);
 }
 
 .hours-card__meta {

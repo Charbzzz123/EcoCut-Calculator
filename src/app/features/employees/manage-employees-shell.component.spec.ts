@@ -298,10 +298,29 @@ const hoursEntry: EmployeeHoursRecord = {
   siteLabel: 'Westmount',
   hours: 8,
   source: 'manual',
+  jobEntryId: 'job-entry-1',
+  correctionNote: null,
   clockInAt: null,
   clockOutAt: null,
   updatedByRole: 'owner',
   updatedAt: '2026-03-20T17:30:00Z',
+};
+
+const manualHoursEntry: EmployeeHoursRecord = {
+  ...hoursEntry,
+  id: 'hours-2',
+  siteLabel: 'Payroll correction',
+  jobEntryId: null,
+  correctionNote: 'Adjusted after missed clock-out.',
+};
+
+const loggedJobOption: EmployeeLoggedJobOption = {
+  entryId: 'job-entry-1',
+  clientName: 'CJ AbiNassif',
+  siteLabel: 'Westmount',
+  address: '1450 Pine Ave W',
+  scheduledStart: '2026-03-20T13:00:00Z',
+  scheduledEnd: '2026-03-20T17:00:00Z',
 };
 
 const historyEntry: EmployeeJobHistoryRecord = {
@@ -612,6 +631,7 @@ describe('ManageEmployeesShellComponent', () => {
       filteredRoster: [activeRecord],
       selectedHoursEmployeeId: activeRecord.id,
       hoursEntries: [hoursEntry],
+      jobOptions: [loggedJobOption],
       editingHoursEntryId: hoursEntry.id,
       hoursErrors: ['Required fields missing: Hours.'],
     });
@@ -635,6 +655,9 @@ describe('ManageEmployeesShellComponent', () => {
       'Hours editor',
     );
     expect(native.querySelector('.hours-list .hours-card')).toBeTruthy();
+    expect(native.querySelector('.hours-card__source-badge')?.textContent).toContain('Linked job');
+    expect(native.querySelector('.hours-card__linked')?.textContent).toContain('CJ AbiNassif');
+    expect(native.querySelector('.hours-card__slot')?.textContent).toContain('Scheduled:');
     expect(native.querySelector('.error-summary')?.textContent).toContain('Fix the following');
 
     const hoursActions = native.querySelectorAll('.hours-card .employee-action');
@@ -685,6 +708,36 @@ describe('ManageEmployeesShellComponent', () => {
     expect(native.querySelector('.hours-form button[type="submit"]')?.textContent).toContain(
       'Save hours',
     );
+  });
+
+  it('renders manual correction metadata in hours cards', () => {
+    facade.setViewModel({
+      loadState: 'ready',
+      role: 'owner',
+      roster: [activeRecord],
+      filteredRoster: [activeRecord],
+      selectedHoursEmployeeId: activeRecord.id,
+      hoursEntries: [manualHoursEntry],
+      editingHoursEntryId: null,
+      hoursErrors: [],
+    });
+
+    const fixture = TestBed.createComponent(ManageEmployeesShellComponent);
+    fixture.detectChanges();
+    const native = fixture.nativeElement as HTMLElement;
+    (native.querySelector('.employees-roster .employee-card') as HTMLElement).click();
+    fixture.detectChanges();
+    const cardActions = native.querySelectorAll('.employee-card__actions .employee-action');
+    (cardActions[1] as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(native.querySelector('.hours-card__source-badge')?.textContent).toContain(
+      'Manual correction',
+    );
+    expect(native.querySelector('.hours-card__note')?.textContent).toContain(
+      'Adjusted after missed clock-out.',
+    );
+    expect(native.querySelector('.hours-card__linked')).toBeNull();
   });
 
   it('renders history timeline and forwards close action', () => {

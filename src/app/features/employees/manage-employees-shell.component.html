@@ -493,10 +493,35 @@
 
                 <ul class="hours-list">
                   @for (entry of selectedHoursEntries(); track trackByHoursEntryId($index, entry)) {
+                    @let linkedJob = resolveHoursLinkedJob(entry);
                     <li class="hours-card">
-                      <div>
-                        <p class="hours-card__date">{{ entry.workDate | date: 'MMM d, y' }}</p>
+                      <div class="hours-card__details">
+                        <div class="hours-card__context">
+                          <p class="hours-card__date">{{ entry.workDate | date: 'MMM d, y' }}</p>
+                          <span
+                            class="hours-card__source-badge"
+                            [class.hours-card__source-badge--manual]="!isLinkedHoursEntry(entry)"
+                          >
+                            {{ isLinkedHoursEntry(entry) ? 'Linked job' : 'Manual correction' }}
+                          </span>
+                        </div>
                         <p class="hours-card__site">{{ entry.siteLabel }}</p>
+                        @if (linkedJob) {
+                          <p class="hours-card__linked">
+                            Client: {{ linkedJob.clientName }} | Address: {{ linkedJob.address }}
+                          </p>
+                          <p class="hours-card__slot">
+                            Scheduled:
+                            {{ linkedJob.scheduledStart | date: 'MMM d, y, h:mm a' }} -
+                            {{ linkedJob.scheduledEnd | date: 'h:mm a' }}
+                          </p>
+                        } @else if (isLinkedHoursEntry(entry)) {
+                          <p class="hours-card__linked hours-card__linked--missing">
+                            Linked job details unavailable.
+                          </p>
+                        } @else if (entry.correctionNote) {
+                          <p class="hours-card__note">Note: {{ entry.correctionNote }}</p>
+                        }
                         <p class="hours-card__meta">
                           {{ entry.hours }}h | Updated by {{ entry.updatedByRole }} |
                           {{ entry.updatedAt | date: 'MMM d, y, h:mm a' }}
@@ -950,10 +975,35 @@
 
         <ul class="hours-list">
           @for (entry of selectedHoursEntries(); track trackByHoursEntryId($index, entry)) {
+            @let linkedJob = resolveHoursLinkedJob(entry);
             <li class="hours-card">
-              <div>
-                <p class="hours-card__date">{{ entry.workDate | date: 'MMM d, y' }}</p>
+              <div class="hours-card__details">
+                <div class="hours-card__context">
+                  <p class="hours-card__date">{{ entry.workDate | date: 'MMM d, y' }}</p>
+                  <span
+                    class="hours-card__source-badge"
+                    [class.hours-card__source-badge--manual]="!isLinkedHoursEntry(entry)"
+                  >
+                    {{ isLinkedHoursEntry(entry) ? 'Linked job' : 'Manual correction' }}
+                  </span>
+                </div>
                 <p class="hours-card__site">{{ entry.siteLabel }}</p>
+                @if (linkedJob) {
+                  <p class="hours-card__linked">
+                    Client: {{ linkedJob.clientName }} | Address: {{ linkedJob.address }}
+                  </p>
+                  <p class="hours-card__slot">
+                    Scheduled:
+                    {{ linkedJob.scheduledStart | date: 'MMM d, y, h:mm a' }} -
+                    {{ linkedJob.scheduledEnd | date: 'h:mm a' }}
+                  </p>
+                } @else if (isLinkedHoursEntry(entry)) {
+                  <p class="hours-card__linked hours-card__linked--missing">
+                    Linked job details unavailable.
+                  </p>
+                } @else if (entry.correctionNote) {
+                  <p class="hours-card__note">Note: {{ entry.correctionNote }}</p>
+                }
                 <p class="hours-card__meta">
                   {{ entry.hours }}h | Updated by {{ entry.updatedByRole }} |
                   {{ entry.updatedAt | date: 'MMM d, y, h:mm a' }}
