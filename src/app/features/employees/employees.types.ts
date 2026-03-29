@@ -82,6 +82,7 @@ export interface EmployeeStartNextJobAssignmentPayload {
   scheduledStart: string;
   scheduledEnd: string;
   employeeIds: string[];
+  jobEntryId?: string | null;
 }
 
 export interface EmployeeScheduledHistoryUpdatePayload {

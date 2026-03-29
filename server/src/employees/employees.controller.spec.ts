@@ -136,6 +136,7 @@ describe('EmployeesController', () => {
         scheduledStart: '2026-03-24T12:00:00.000Z',
         scheduledEnd: '2026-03-24T15:00:00.000Z',
         employeeIds: ['emp-1'],
+        jobEntryId: 'entry-1',
       },
       'manager',
     );
@@ -192,6 +193,7 @@ describe('EmployeesController', () => {
         scheduledStart: '2026-03-24T12:00:00.000Z',
         scheduledEnd: '2026-03-24T15:00:00.000Z',
         employeeIds: ['emp-1'],
+        jobEntryId: 'entry-1',
       },
       'manager',
     );

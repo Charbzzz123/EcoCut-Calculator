@@ -178,7 +178,7 @@
 ### Start Next Job Assignment Board (Current Release)
 
 - **Route**: `/jobs/start` (triggered by the home quick action `Start Next Job`).
-- **Inputs**: job label, site/address, scheduled start/end, crew search filter.
+- **Inputs**: linked client job selector (optional), job label, site/address, scheduled start/end, crew search filter.
 - **Crew picker**: operators can select/deselect employees from live readiness records (`/employees/readiness`) with status badges (`Available`, `Scheduled`, `Inactive`).
 - **Conflict checks**: selection validates inactive members, existing readiness conflicts, next-available constraints, and overlap against upcoming windows before draft can proceed.
 - **Draft readiness**: panel shows blocking reasons until required fields + crew are valid and conflict-free.
@@ -188,6 +188,7 @@
 - **Progressive CTAs**: `Continue to Step 2` appears in the crew panel and `Continue to Step 3` appears in the draft panel so schedulers can move forward without scanning the full page.
 - **Crew history context**: selected crew history list is sourced from `/employees/history` so schedulers can verify recent assignments before confirming.
 - **Persistence wiring**: `Save assignment` now calls `/employees/assignments/start-next-job`, which writes scheduled history rows plus assignment-source hours entries for each selected employee and refreshes readiness/history immediately after save.
+- **Linked job sync**: Step 2 now supports selecting a saved client job from `/employees/job-options`. When linked, draft site/address/schedule auto-fill from the entry and the saved assignment persists `jobEntryId` into both history + assignment hours records so employee operations stay tied to the source client job.
 - **Completion workflow**: scheduled history cards now expose `Mark completed`, which calls `/employees/history/:entryId/complete` so crews can close an assignment directly from the board and instantly update readiness counts.
 - **Lifecycle controls**: scheduled history cards now support `Edit schedule` and `Cancel assignment` actions. Edits call `/employees/history/:entryId/schedule`; cancel calls `/employees/history/:entryId/cancel`. Both flows refresh readiness/history and keep linked assignment-hours entries aligned with schedule changes.
 - **Reassignment controls**: scheduled cards support `Reassign to ...` when exactly one different active crew member is selected. Reassign calls `/employees/history/:entryId/reassign`, runs overlap checks, and moves linked assignment-hours entries to the new employee.

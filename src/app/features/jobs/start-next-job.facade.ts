@@ -3,6 +3,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { EmployeesDataService } from '../employees/employees-data.service.js';
 import type {
+  EmployeeLoggedJobOption,
   EmployeeJobHistoryRecord,
   EmployeeOperatorRole,
   EmployeeStartNextJobAssignmentPayload,
@@ -37,12 +38,8 @@ const toTimestamp = (value: string): number | null => {
   const timestamp = Date.parse(value);
   return Number.isNaN(timestamp) ? null : timestamp;
 };
-const overlapsRange = (
-  startA: number,
-  endA: number,
-  startB: number,
-  endB: number,
-): boolean => startA < endB && endA > startB;
+const overlapsRange = (startA: number, endA: number, startB: number, endB: number): boolean =>
+  startA < endB && endA > startB;
 const toIsoDateTime = (value: string): string => new Date(value).toISOString();
 const sortHistoryByStartDesc = (
   left: EmployeeJobHistoryRecord,
@@ -79,16 +76,16 @@ export class StartNextJobFacade {
   readonly headingId = 'start-next-job-heading';
 
   readonly queryControl = new FormControl('', { nonNullable: true });
+  readonly linkedJobEntryIdControl = new FormControl('', { nonNullable: true });
   readonly jobLabelControl = new FormControl('', { nonNullable: true });
   readonly addressControl = new FormControl('', { nonNullable: true });
   readonly scheduledStartControl = new FormControl('', { nonNullable: true });
   readonly scheduledEndControl = new FormControl('', { nonNullable: true });
   readonly analyticsStartDateControl = new FormControl('', { nonNullable: true });
   readonly analyticsEndDateControl = new FormControl('', { nonNullable: true });
-  private readonly analyticsStartDateValue = toSignal(
-    this.analyticsStartDateControl.valueChanges,
-    { initialValue: this.analyticsStartDateControl.value },
-  );
+  private readonly analyticsStartDateValue = toSignal(this.analyticsStartDateControl.valueChanges, {
+    initialValue: this.analyticsStartDateControl.value,
+  });
   private readonly analyticsEndDateValue = toSignal(this.analyticsEndDateControl.valueChanges, {
     initialValue: this.analyticsEndDateControl.value,
   });
@@ -102,6 +99,7 @@ export class StartNextJobFacade {
 
   private readonly readinessSignal = signal<EmployeeStartNextJobReadiness[]>([]);
   private readonly historySignal = signal<EmployeeJobHistoryRecord[]>([]);
+  private readonly loggedJobOptionsSignal = signal<EmployeeLoggedJobOption[]>([]);
   private readonly selectedEmployeeIdsSignal = signal<string[]>([]);
   private readonly selectedHistoryEntryIdsSignal = signal<string[]>([]);
 
@@ -110,6 +108,15 @@ export class StartNextJobFacade {
   }
 
   readonly readinessSnapshot = computed(() => this.readinessSignal());
+  readonly loggedJobOptions = computed(() => this.loggedJobOptionsSignal());
+  readonly selectedLinkedJob = computed(() => {
+    const entryId = this.linkedJobEntryIdControl.value.trim();
+    if (!entryId) {
+      return null;
+    }
+    return this.loggedJobOptions().find((option) => option.entryId === entryId) ?? null;
+  });
+  readonly hasLinkedJobSelection = computed(() => Boolean(this.selectedLinkedJob()));
   readonly selectedEmployeeIds = computed(() => this.selectedEmployeeIdsSignal());
   readonly selectedHistoryEntryIds = computed(() => this.selectedHistoryEntryIdsSignal());
 
@@ -127,7 +134,9 @@ export class StartNextJobFacade {
   });
 
   readonly selectedCrew = computed(() => {
-    const lookup = new Map(this.readinessSnapshot().map((employee) => [employee.employeeId, employee]));
+    const lookup = new Map(
+      this.readinessSnapshot().map((employee) => [employee.employeeId, employee]),
+    );
     return this.selectedEmployeeIds()
       .map((employeeId) => lookup.get(employeeId))
       .filter((employee): employee is EmployeeStartNextJobReadiness => Boolean(employee));
@@ -433,28 +442,39 @@ export class StartNextJobFacade {
     this.loadState.set('loading');
     this.errorMessage.set('');
     try {
-      const [readiness, history] = await Promise.all([
+      const [readiness, history, loggedJobOptions] = await Promise.all([
         this.employeesData.listStartNextJobReadiness(),
         this.employeesData.listJobHistoryEntries(),
+        this.employeesData.listLoggedJobOptions(),
       ]);
       const sortedReadiness = [...readiness].sort((left, right) =>
         left.fullName.localeCompare(right.fullName),
       );
       const sortedHistory = [...history].sort(sortHistoryByStartDesc);
+      const sortedJobOptions = [...loggedJobOptions].sort((left, right) =>
+        right.scheduledStart.localeCompare(left.scheduledStart),
+      );
       this.readinessSignal.set(sortedReadiness);
       this.historySignal.set(sortedHistory);
+      this.loggedJobOptionsSignal.set(sortedJobOptions);
       const allowedIds = new Set(sortedReadiness.map((employee) => employee.employeeId));
       this.selectedEmployeeIdsSignal.update((selectedIds) =>
         selectedIds.filter((employeeId) => allowedIds.has(employeeId)),
       );
       const allowedHistoryIds = new Set(
-        sortedHistory
-          .filter((entry) => entry.status === 'scheduled')
-          .map((entry) => entry.id),
+        sortedHistory.filter((entry) => entry.status === 'scheduled').map((entry) => entry.id),
       );
       this.selectedHistoryEntryIdsSignal.update((selectedIds) =>
         selectedIds.filter((entryId) => allowedHistoryIds.has(entryId)),
       );
+      if (this.linkedJobEntryIdControl.value.trim()) {
+        const hasLinkedJob = sortedJobOptions.some(
+          (option) => option.entryId === this.linkedJobEntryIdControl.value.trim(),
+        );
+        if (!hasLinkedJob) {
+          this.linkedJobEntryIdControl.setValue('', { emitEvent: false });
+        }
+      }
       this.loadState.set('ready');
     } catch {
       this.loadState.set('error');
@@ -481,6 +501,22 @@ export class StartNextJobFacade {
     this.clearSaveFeedback();
     this.selectedEmployeeIdsSignal.set([]);
     this.selectedHistoryEntryIdsSignal.set([]);
+  }
+
+  applyLinkedJobSelection(): void {
+    this.clearSaveFeedback();
+    const selectedJob = this.selectedLinkedJob();
+    if (!selectedJob) {
+      return;
+    }
+    this.jobLabelControl.setValue(selectedJob.siteLabel, { emitEvent: false });
+    this.addressControl.setValue(selectedJob.address, { emitEvent: false });
+    this.scheduledStartControl.setValue(toDateTimeLocal(selectedJob.scheduledStart), {
+      emitEvent: false,
+    });
+    this.scheduledEndControl.setValue(toDateTimeLocal(selectedJob.scheduledEnd), {
+      emitEvent: false,
+    });
   }
 
   isHistoryEntrySelected(entryId: string): boolean {
@@ -545,9 +581,7 @@ export class StartNextJobFacade {
       const result = await this.employeesData.createStartNextJobAssignment(payload, actorRole);
       this.applyHistoryUpserts(result.createdHistory);
       this.saveState.set('success');
-      this.saveMessage.set(
-        `Assignment saved for ${result.createdHistory.length} crew member(s).`,
-      );
+      this.saveMessage.set(`Assignment saved for ${result.createdHistory.length} crew member(s).`);
       this.resetDraftAfterSave();
       return true;
     } catch {
@@ -562,6 +596,7 @@ export class StartNextJobFacade {
       return;
     }
     this.editingHistoryEntryId.set(entry.id);
+    this.linkedJobEntryIdControl.setValue(entry.jobEntryId ?? '', { emitEvent: false });
     this.jobLabelControl.setValue(entry.siteLabel, { emitEvent: false });
     this.addressControl.setValue(entry.address, { emitEvent: false });
     this.scheduledStartControl.setValue(toDateTimeLocal(entry.scheduledStart), {
@@ -815,9 +850,7 @@ export class StartNextJobFacade {
       })),
     );
     const results = await Promise.allSettled(
-      entries.map((entry) =>
-        this.employeesData.completeJobHistoryEntry(entry.id, actorRole),
-      ),
+      entries.map((entry) => this.employeesData.completeJobHistoryEntry(entry.id, actorRole)),
     );
     const succeededRecords = results
       .filter(
@@ -848,9 +881,7 @@ export class StartNextJobFacade {
     return false;
   }
 
-  async cancelSelectedHistoryEntries(
-    actorRole: EmployeeOperatorRole = 'owner',
-  ): Promise<boolean> {
+  async cancelSelectedHistoryEntries(actorRole: EmployeeOperatorRole = 'owner'): Promise<boolean> {
     const entries = this.selectedScheduledHistoryEntries();
     if (!entries.length) {
       this.saveState.set('error');
@@ -870,9 +901,7 @@ export class StartNextJobFacade {
       })),
     );
     const results = await Promise.allSettled(
-      entries.map((entry) =>
-        this.employeesData.cancelScheduledHistoryEntry(entry.id, actorRole),
-      ),
+      entries.map((entry) => this.employeesData.cancelScheduledHistoryEntry(entry.id, actorRole)),
     );
     const succeededRecords = results
       .filter(
@@ -935,9 +964,7 @@ export class StartNextJobFacade {
     const startDate = this.analyticsStartDateValue();
     const endDate = this.analyticsEndDateValue();
     const analyticsWindow =
-      startDate || endDate
-        ? `${startDate || 'Any'} -> ${endDate || 'Any'}`
-        : 'All dates';
+      startDate || endDate ? `${startDate || 'Any'} -> ${endDate || 'Any'}` : 'All dates';
     const employeeTrends = this.employeeTrendAnalytics();
     const routeVariance = this.routeVarianceAnalytics();
     const crossRunTrends = this.crossRunTrends();
@@ -1142,12 +1169,14 @@ export class StartNextJobFacade {
   }
 
   private buildAssignmentPayload(): EmployeeStartNextJobAssignmentPayload {
+    const linkedEntryId = this.linkedJobEntryIdControl.value.trim();
     return {
       jobLabel: this.jobLabelControl.value.trim(),
       address: this.addressControl.value.trim(),
       scheduledStart: toIsoDateTime(this.scheduledStartControl.value),
       scheduledEnd: toIsoDateTime(this.scheduledEndControl.value),
       employeeIds: this.selectedEmployeeIds(),
+      jobEntryId: linkedEntryId || null,
     };
   }
 
@@ -1157,10 +1186,7 @@ export class StartNextJobFacade {
     if (!startTimestamp || !endTimestamp || endTimestamp <= startTimestamp) {
       return 0;
     }
-    return Math.max(
-      0.25,
-      Math.round(((endTimestamp - startTimestamp) / 3_600_000) * 4) / 4,
-    );
+    return Math.max(0.25, Math.round(((endTimestamp - startTimestamp) / 3_600_000) * 4) / 4);
   }
 
   private captureBoardSnapshot(): OptimisticBoardSnapshot {
@@ -1202,9 +1228,7 @@ export class StartNextJobFacade {
     }
     const restoreIds = new Set(entryIds);
     const snapshotLookup = new Map(
-      snapshotHistory
-        .filter((entry) => restoreIds.has(entry.id))
-        .map((entry) => [entry.id, entry]),
+      snapshotHistory.filter((entry) => restoreIds.has(entry.id)).map((entry) => [entry.id, entry]),
     );
     this.applyHistoryUpserts(Array.from(snapshotLookup.values()));
   }
@@ -1214,9 +1238,7 @@ export class StartNextJobFacade {
   ): EmployeeStartNextJobReadiness[] {
     return [...this.readinessSignal()]
       .map((record) => {
-        const employeeHistory = history.filter(
-          (entry) => entry.employeeId === record.employeeId,
-        );
+        const employeeHistory = history.filter((entry) => entry.employeeId === record.employeeId);
         const scheduledEntries = employeeHistory
           .filter((entry) => entry.status === 'scheduled')
           .sort((left, right) => left.scheduledStart.localeCompare(right.scheduledStart));
@@ -1250,18 +1272,12 @@ export class StartNextJobFacade {
           readinessState,
           scheduledJobsCount: scheduledEntries.length,
           completedJobsCount: completedEntries.length,
-          scheduledHours: scheduledEntries.reduce(
-            (sum, entry) => sum + entry.hoursWorked,
-            0,
-          ),
-          completedHours: completedEntries.reduce(
-            (sum, entry) => sum + entry.hoursWorked,
-            0,
-          ),
+          scheduledHours: scheduledEntries.reduce((sum, entry) => sum + entry.hoursWorked, 0),
+          completedHours: completedEntries.reduce((sum, entry) => sum + entry.hoursWorked, 0),
           nextScheduledStart: nextScheduled?.scheduledStart ?? null,
           nextScheduledEnd: nextScheduled?.scheduledEnd ?? null,
           nextAvailableAt:
-            record.status === 'inactive' ? null : nextScheduled?.scheduledEnd ?? null,
+            record.status === 'inactive' ? null : (nextScheduled?.scheduledEnd ?? null),
           lastCompletedAt: lastCompleted?.scheduledEnd ?? null,
           lastCompletedSite: lastCompleted?.siteLabel ?? null,
           hasScheduleConflict: hasConflict,
@@ -1281,6 +1297,7 @@ export class StartNextJobFacade {
     this.selectedEmployeeIdsSignal.set([]);
     this.selectedHistoryEntryIdsSignal.set([]);
     this.queryControl.setValue('', { emitEvent: false });
+    this.linkedJobEntryIdControl.setValue('', { emitEvent: false });
     this.jobLabelControl.setValue('', { emitEvent: false });
     this.addressControl.setValue('', { emitEvent: false });
     this.scheduledStartControl.setValue('', { emitEvent: false });
@@ -1305,4 +1322,3 @@ export class StartNextJobFacade {
     );
   }
 }
-

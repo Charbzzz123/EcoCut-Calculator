@@ -4,4 +4,5 @@ export interface CreateStartNextJobAssignmentDto {
   scheduledStart: string;
   scheduledEnd: string;
   employeeIds: string[];
+  jobEntryId?: string | null;
 }

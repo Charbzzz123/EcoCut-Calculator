@@ -206,9 +206,17 @@ export class EmployeesService implements OnModuleInit {
   ): Promise<EmployeeStartNextJobAssignmentResult> {
     this.assertOwnerOrManager(actorRole);
     const normalized = this.normalizeStartNextJobPayload(payload);
-    this.validateStartNextJobPayload(normalized);
-    const startTimestamp = toTimestamp(normalized.scheduledStart);
-    const endTimestamp = toTimestamp(normalized.scheduledEnd);
+    const selectedJob = this.resolveJobSelection(normalized.jobEntryId);
+    const assignmentWindow = this.resolveAssignmentWindow(
+      normalized,
+      selectedJob,
+    );
+    this.validateStartNextJobPayload({
+      ...normalized,
+      ...assignmentWindow,
+    });
+    const startTimestamp = toTimestamp(assignmentWindow.scheduledStart);
+    const endTimestamp = toTimestamp(assignmentWindow.scheduledEnd);
 
     const conflicts = this.collectAssignmentConflicts(
       normalized.employeeIds,
@@ -231,22 +239,24 @@ export class EmployeesService implements OnModuleInit {
     const createdHistory = normalized.employeeIds.map((employeeId, index) => ({
       id: `${assignmentId}-history-${index + 1}`,
       employeeId,
-      siteLabel: normalized.jobLabel,
-      address: normalized.address,
-      scheduledStart: normalized.scheduledStart,
-      scheduledEnd: normalized.scheduledEnd,
+      siteLabel: assignmentWindow.jobLabel,
+      address: assignmentWindow.address,
+      scheduledStart: assignmentWindow.scheduledStart,
+      scheduledEnd: assignmentWindow.scheduledEnd,
       hoursWorked: durationHours,
       status: 'scheduled' as const,
+      jobEntryId: selectedJob?.entryId ?? null,
       assignmentId,
     }));
 
     const createdHours = createdHistory.map((entry, index) => ({
       id: `${assignmentId}-hours-${index + 1}`,
       employeeId: entry.employeeId,
-      workDate: normalized.scheduledStart.slice(0, 10),
-      siteLabel: normalized.jobLabel,
+      workDate: assignmentWindow.scheduledStart.slice(0, 10),
+      siteLabel: assignmentWindow.jobLabel,
       hours: durationHours,
       source: 'assignment' as const,
+      jobEntryId: selectedJob?.entryId ?? null,
       assignmentId,
       historyEntryId: entry.id,
       clockInAt: null,
@@ -1022,6 +1032,7 @@ export class EmployeesService implements OnModuleInit {
   private normalizeStartNextJobPayload(
     payload: CreateStartNextJobAssignmentDto,
   ): CreateStartNextJobAssignmentDto {
+    const normalizedJobEntryId = payload.jobEntryId?.trim() ?? '';
     return {
       jobLabel: payload.jobLabel.trim(),
       address: payload.address.trim(),
@@ -1034,6 +1045,30 @@ export class EmployeesService implements OnModuleInit {
             .filter(Boolean),
         ),
       ),
+      jobEntryId: normalizedJobEntryId || null,
+    };
+  }
+
+  private resolveAssignmentWindow(
+    payload: CreateStartNextJobAssignmentDto,
+    selectedJob: EmployeeLoggedJobOption | null,
+  ): Pick<
+    CreateStartNextJobAssignmentDto,
+    'jobLabel' | 'address' | 'scheduledStart' | 'scheduledEnd'
+  > {
+    if (!selectedJob) {
+      return {
+        jobLabel: payload.jobLabel,
+        address: payload.address,
+        scheduledStart: payload.scheduledStart,
+        scheduledEnd: payload.scheduledEnd,
+      };
+    }
+    return {
+      jobLabel: selectedJob.siteLabel,
+      address: selectedJob.address,
+      scheduledStart: selectedJob.scheduledStart,
+      scheduledEnd: selectedJob.scheduledEnd,
     };
   }
 

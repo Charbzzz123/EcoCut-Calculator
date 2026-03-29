@@ -395,6 +395,32 @@ describe('EmployeesService', () => {
     );
   });
 
+  it('links start-next-job assignments to a saved client job when jobEntryId is provided', async () => {
+    const result = await service.createStartNextJobAssignment(
+      {
+        jobLabel: 'Manual label should be ignored',
+        address: 'Manual address should be ignored',
+        scheduledStart: '2099-03-25T09:00:00.000Z',
+        scheduledEnd: '2099-03-25T11:00:00.000Z',
+        employeeIds: ['emp-owner'],
+        jobEntryId: 'entry-1',
+      },
+      'owner',
+    );
+
+    const createdHistory = result.createdHistory[0];
+    const createdHours = result.createdHours[0];
+    expect(createdHistory?.jobEntryId).toBe('entry-1');
+    expect(createdHistory?.siteLabel).toBe('Westmount Cedar Hedge');
+    expect(createdHistory?.address).toBe('1450 Pine Ave W');
+    expect(createdHistory?.scheduledStart).toBe('2026-03-20T13:00:00.000Z');
+    expect(createdHistory?.scheduledEnd).toBe('2026-03-20T17:00:00.000Z');
+
+    expect(createdHours?.jobEntryId).toBe('entry-1');
+    expect(createdHours?.siteLabel).toBe('Westmount Cedar Hedge');
+    expect(createdHours?.workDate).toBe('2026-03-20');
+  });
+
   it('rejects conflicting or invalid start-next-job assignment payloads', async () => {
     await expect(
       service.createStartNextJobAssignment(
@@ -434,6 +460,20 @@ describe('EmployeesService', () => {
         'owner',
       ),
     ).rejects.toBeInstanceOf(ConflictException);
+
+    await expect(
+      service.createStartNextJobAssignment(
+        {
+          jobLabel: 'Linked route',
+          address: '4100 Daniel-Johnson',
+          scheduledStart: '2099-03-25T12:00:00.000Z',
+          scheduledEnd: '2099-03-25T14:00:00.000Z',
+          employeeIds: ['emp-owner'],
+          jobEntryId: 'missing-entry',
+        },
+        'owner',
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('marks scheduled history entries as completed and refreshes readiness totals', async () => {

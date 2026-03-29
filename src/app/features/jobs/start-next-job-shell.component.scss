@@ -172,6 +172,17 @@
   padding: 0.72rem 0.82rem;
 }
 
+.field__input:read-only {
+  border-color: rgba(111, 212, 183, 0.38);
+  background: rgba(8, 31, 24, 0.88);
+}
+
+.field__hint {
+  margin: 0.6rem 0 0;
+  font-size: 0.84rem;
+  color: rgba(190, 223, 210, 0.82);
+}
+
 .draft-actions {
   margin-top: 0.95rem;
   display: flex;

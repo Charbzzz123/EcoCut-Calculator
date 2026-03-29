@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { StartNextJobFacade } from './start-next-job.facade.js';
 import { EmployeesDataService } from '../employees/employees-data.service.js';
 import type {
+  EmployeeLoggedJobOption,
   EmployeeJobHistoryRecord,
   EmployeeStartNextJobReadiness,
 } from '../employees/employees.types.js';
@@ -9,6 +10,7 @@ import type {
 class EmployeesDataServiceStub {
   readiness: EmployeeStartNextJobReadiness[] = [];
   history: EmployeeJobHistoryRecord[] = [];
+  loggedJobOptions: EmployeeLoggedJobOption[] = [];
   shouldFail = false;
   shouldFailCreate = false;
   shouldFailComplete = false;
@@ -17,6 +19,7 @@ class EmployeesDataServiceStub {
   shouldFailReassign = false;
   shouldFailCompleteIds = new Set<string>();
   shouldFailCancelIds = new Set<string>();
+  assignmentPayloads: unknown[] = [];
   completeCalls: string[] = [];
   updateCalls: string[] = [];
   cancelCalls: string[] = [];
@@ -36,10 +39,18 @@ class EmployeesDataServiceStub {
     return this.history;
   }
 
-  async createStartNextJobAssignment() {
+  async listLoggedJobOptions(): Promise<EmployeeLoggedJobOption[]> {
+    if (this.shouldFail) {
+      throw new Error('failure');
+    }
+    return this.loggedJobOptions;
+  }
+
+  async createStartNextJobAssignment(payload: unknown) {
     if (this.shouldFailCreate) {
       throw new Error('save-failure');
     }
+    this.assignmentPayloads.push(payload);
     return {
       assignmentId: 'assign-1',
       createdHistory: [
@@ -117,10 +128,7 @@ class EmployeesDataServiceStub {
     };
   }
 
-  async reassignScheduledHistoryEntry(
-    entryId: string,
-    payload: { employeeId: string },
-  ) {
+  async reassignScheduledHistoryEntry(entryId: string, payload: { employeeId: string }) {
     this.reassignCalls.push({ entryId, employeeId: payload.employeeId });
     if (this.shouldFailReassign) {
       throw new Error('reassign-failure');
@@ -231,6 +239,16 @@ describe('StartNextJobFacade', () => {
     dataService = new EmployeesDataServiceStub();
     dataService.readiness = mockReadiness;
     dataService.history = mockHistory;
+    dataService.loggedJobOptions = [
+      {
+        entryId: 'entry-1',
+        clientName: 'Alex North',
+        siteLabel: 'Westmount Cedar Hedge',
+        address: '1450 Pine Ave W',
+        scheduledStart: '2026-03-20T13:00:00.000Z',
+        scheduledEnd: '2026-03-20T17:00:00.000Z',
+      },
+    ];
 
     TestBed.configureTestingModule({
       providers: [StartNextJobFacade, { provide: EmployeesDataService, useValue: dataService }],
@@ -248,6 +266,21 @@ describe('StartNextJobFacade', () => {
       'Bruno East',
       'Carmen South',
     ]);
+  });
+
+  it('loads linked job options and autofills draft details when a linked job is selected', async () => {
+    await facade.loadBoard();
+
+    expect(facade.loggedJobOptions()).toHaveLength(1);
+    facade.linkedJobEntryIdControl.setValue('entry-1');
+    facade.applyLinkedJobSelection();
+
+    expect(facade.selectedLinkedJob()?.entryId).toBe('entry-1');
+    expect(facade.hasLinkedJobSelection()).toBe(true);
+    expect(facade.jobLabelControl.value).toBe('Westmount Cedar Hedge');
+    expect(facade.addressControl.value).toBe('1450 Pine Ave W');
+    expect(facade.scheduledStartControl.value).toContain('2026-03-20T');
+    expect(facade.scheduledEndControl.value).toContain('2026-03-20T');
   });
 
   it('filters readiness by query and toggles selected crew', async () => {
@@ -710,9 +743,7 @@ describe('StartNextJobFacade', () => {
     facade.analyticsStartDateControl.setValue('2026-03-22');
     facade.analyticsEndDateControl.setValue('2026-03-21');
 
-    expect(facade.analyticsRangeError()).toBe(
-      'Analytics start date must be before the end date.',
-    );
+    expect(facade.analyticsRangeError()).toBe('Analytics start date must be before the end date.');
     expect(facade.assignmentAnalytics().totalTracked).toBe(0);
     expect(facade.canExportAssignmentAnalytics()).toBe(false);
     expect(facade.createAssignmentAnalyticsExport()).toBeNull();
@@ -763,15 +794,31 @@ describe('StartNextJobFacade', () => {
   it('submits assignment, resets draft, and keeps save success feedback', async () => {
     await facade.loadBoard();
     facade.toggleEmployeeSelection('emp-a');
+    facade.linkedJobEntryIdControl.setValue('entry-1');
+    facade.applyLinkedJobSelection();
     facade.jobLabelControl.setValue('Morning trim');
     facade.addressControl.setValue('12 Crew St');
     facade.scheduledStartControl.setValue('2026-03-21T09:00');
     facade.scheduledEndControl.setValue('2026-03-21T10:00');
 
     await expect(facade.submitAssignment('manager')).resolves.toBe(true);
+    expect(dataService.assignmentPayloads).toHaveLength(1);
+    expect(dataService.assignmentPayloads[0]).toMatchObject({
+      jobLabel: 'Morning trim',
+      address: '12 Crew St',
+      employeeIds: ['emp-a'],
+      jobEntryId: 'entry-1',
+    });
+    expect(dataService.assignmentPayloads[0]).toEqual(
+      expect.objectContaining({
+        scheduledStart: expect.any(String),
+        scheduledEnd: expect.any(String),
+      }),
+    );
     expect(facade.saveState()).toBe('success');
     expect(facade.saveMessage()).toContain('Assignment saved for 1 crew member');
     expect(facade.selectedEmployeeIds()).toEqual([]);
+    expect(facade.linkedJobEntryIdControl.value).toBe('');
     expect(facade.jobLabelControl.value).toBe('');
     expect(facade.addressControl.value).toBe('');
   });
@@ -1006,9 +1053,7 @@ describe('StartNextJobFacade', () => {
     };
 
     await expect(facade.reassignHistoryEntry(entry, 'manager')).resolves.toBe(true);
-    expect(dataService.reassignCalls).toEqual([
-      { entryId: 'hist-2', employeeId: 'emp-a' },
-    ]);
+    expect(dataService.reassignCalls).toEqual([{ entryId: 'hist-2', employeeId: 'emp-a' }]);
     expect(facade.saveState()).toBe('success');
     expect(facade.saveMessage()).toContain('Alex North');
   });

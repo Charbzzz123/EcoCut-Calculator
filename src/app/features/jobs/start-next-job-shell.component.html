@@ -103,12 +103,29 @@
       <section class="draft-group draft-group--primary" aria-label="Primary draft details">
         <p class="draft-group__label">Primary details</p>
         <div class="draft-grid">
+          <label class="field field--wide">
+            <span class="field__label">Linked client job (optional)</span>
+            <select
+              class="field__input"
+              [formControl]="facade.linkedJobEntryIdControl"
+              (change)="facade.applyLinkedJobSelection()"
+            >
+              <option value="">No linked client job</option>
+              @for (option of facade.loggedJobOptions(); track option.entryId) {
+                <option [value]="option.entryId">
+                  {{ option.clientName }} - {{ option.siteLabel }} -
+                  {{ option.scheduledStart | date: 'MMM d, y, h:mm a' }}
+                </option>
+              }
+            </select>
+          </label>
           <label class="field">
             <span class="field__label">Job label *</span>
             <input
               class="field__input"
               type="text"
               [formControl]="facade.jobLabelControl"
+              [readOnly]="facade.hasLinkedJobSelection()"
               required
               aria-required="true"
             />
@@ -119,6 +136,7 @@
               class="field__input"
               type="text"
               [formControl]="facade.addressControl"
+              [readOnly]="facade.hasLinkedJobSelection()"
               required
               aria-required="true"
             />
@@ -129,6 +147,7 @@
               class="field__input"
               type="datetime-local"
               [formControl]="facade.scheduledStartControl"
+              [readOnly]="facade.hasLinkedJobSelection()"
               required
               aria-required="true"
             />
@@ -139,11 +158,20 @@
               class="field__input"
               type="datetime-local"
               [formControl]="facade.scheduledEndControl"
+              [readOnly]="facade.hasLinkedJobSelection()"
               required
               aria-required="true"
             />
           </label>
         </div>
+        @if (facade.selectedLinkedJob(); as linkedJob) {
+          <p class="field__hint">
+            Linked job selected: {{ linkedJob.clientName }} - {{ linkedJob.siteLabel }} ({{
+              linkedJob.scheduledStart | date: 'MMM d, y, h:mm a'
+            }}
+            to {{ linkedJob.scheduledEnd | date: 'h:mm a' }}).
+          </p>
+        }
       </section>
 
       <section class="draft-group draft-group--advanced" aria-label="Advanced draft controls">

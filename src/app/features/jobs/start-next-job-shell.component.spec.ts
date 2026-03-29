@@ -52,6 +52,7 @@ const conflict: CrewConflict = {
 const createFacadeStub = () => ({
   headingId: 'start-next-job-heading',
   queryControl: new FormControl('', { nonNullable: true }),
+  linkedJobEntryIdControl: new FormControl('', { nonNullable: true }),
   jobLabelControl: new FormControl('', { nonNullable: true }),
   addressControl: new FormControl('', { nonNullable: true }),
   scheduledStartControl: new FormControl('', { nonNullable: true }),
@@ -64,6 +65,25 @@ const createFacadeStub = () => ({
   saveState: signal<'idle' | 'saving' | 'success' | 'error'>('idle'),
   saveMessage: signal(''),
   editingHistoryEntryId: signal<string | null>(null),
+  loggedJobOptions: signal([
+    {
+      entryId: 'entry-1',
+      clientName: 'Alex North',
+      siteLabel: 'Downtown',
+      address: '1 Main St',
+      scheduledStart: '2026-03-21T14:00:00.000Z',
+      scheduledEnd: '2026-03-21T15:00:00.000Z',
+    },
+  ]),
+  selectedLinkedJob: signal<{
+    entryId: string;
+    clientName: string;
+    siteLabel: string;
+    address: string;
+    scheduledStart: string;
+    scheduledEnd: string;
+  } | null>(null),
+  hasLinkedJobSelection: signal(false),
   filteredReadiness: signal<EmployeeStartNextJobReadiness[]>([]),
   selectedCrew: signal<EmployeeStartNextJobReadiness[]>([]),
   selectedCrewConflicts: signal<CrewConflict[]>([]),
@@ -141,6 +161,7 @@ const createFacadeStub = () => ({
   clearAnalyticsDateRange: vi.fn(),
   setAnalyticsWindow: vi.fn(),
   markAnalyticsWindowCustom: vi.fn(),
+  applyLinkedJobSelection: vi.fn(),
   loadBoard: vi.fn().mockResolvedValue(undefined),
   submitAssignment: vi.fn().mockResolvedValue(true),
   completeHistoryEntry: vi.fn().mockResolvedValue(true),
@@ -202,8 +223,12 @@ describe('StartNextJobShellComponent', () => {
     facade.loadState.set('error');
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain('Unable to load Start Next Job data right now.');
-    const retry = fixture.nativeElement.querySelector('.state--error .ghost-btn') as HTMLButtonElement;
+    expect(fixture.nativeElement.textContent).toContain(
+      'Unable to load Start Next Job data right now.',
+    );
+    const retry = fixture.nativeElement.querySelector(
+      '.state--error .ghost-btn',
+    ) as HTMLButtonElement;
     retry.click();
     expect(facade.loadBoard).toHaveBeenCalledTimes(2);
   });
@@ -488,9 +513,34 @@ describe('StartNextJobShellComponent', () => {
     saveButton.click();
     expect(facade.submitAssignment).toHaveBeenCalled();
 
-    const clearButton = fixture.nativeElement.querySelector('.draft-actions .ghost-btn') as HTMLButtonElement;
+    const clearButton = fixture.nativeElement.querySelector(
+      '.draft-actions .ghost-btn',
+    ) as HTMLButtonElement;
     clearButton.click();
     expect(facade.clearCrewSelection).toHaveBeenCalled();
+  });
+
+  it('renders linked job selector in draft step and forwards linked-job changes', () => {
+    facade.loadState.set('ready');
+    facade.selectedCrew.set([employee]);
+    facade.hasLinkedJobSelection.set(true);
+    facade.selectedLinkedJob.set({
+      entryId: 'entry-1',
+      clientName: 'Alex North',
+      siteLabel: 'Downtown',
+      address: '1 Main St',
+      scheduledStart: '2026-03-21T14:00:00.000Z',
+      scheduledEnd: '2026-03-21T15:00:00.000Z',
+    });
+    fixture.detectChanges();
+
+    const linkedJobSelect = fixture.nativeElement.querySelector(
+      '#start-next-draft select',
+    ) as HTMLSelectElement;
+    linkedJobSelect.value = linkedJobSelect.options[1]?.value ?? 'entry-1';
+    linkedJobSelect.dispatchEvent(new Event('change'));
+    expect(facade.applyLinkedJobSelection).toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain('Linked job selected:');
   });
 
   it('renders saving and feedback states for assignment submit', () => {
