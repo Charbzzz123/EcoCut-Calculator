@@ -587,7 +587,7 @@ describe('EmployeesFacade', () => {
 
     facade.roleControl.setValue('manager');
     facade.hoursForm.setValue({
-      workDate: '2026-03-21',
+      workDate: '',
       jobEntryId: 'entry-westmount',
       correctionNote: '',
       hours: '7.25',
@@ -602,6 +602,10 @@ describe('EmployeesFacade', () => {
       facade.selectedHoursEntriesSnapshot().find((entry) => entry.id === 'hours-created')
         ?.updatedByRole,
     ).toBe('manager');
+    expect(
+      facade.selectedHoursEntriesSnapshot().find((entry) => entry.id === 'hours-created')
+        ?.workDate,
+    ).toBe('2026-03-20');
 
     // Runtime <input type="number"> can provide a numeric value.
     facade.hoursForm.controls.workDate.setValue('2026-03-22');

@@ -419,16 +419,28 @@
                   }
 
                   <div class="hours-grid">
-                    <label class="field">
-                      <span class="field__label">Work date *</span>
-                      <input
-                        class="field__input"
-                        type="date"
-                        formControlName="workDate"
-                        required
-                        aria-required="true"
-                      />
-                    </label>
+                    @if (isManualHoursSelection()) {
+                      <label class="field">
+                        <span class="field__label">Work date *</span>
+                        <input
+                          class="field__input"
+                          type="date"
+                          formControlName="workDate"
+                          required
+                          aria-required="true"
+                        />
+                      </label>
+                    } @else {
+                      <div class="field">
+                        <span class="field__label">Linked work date</span>
+                        <input
+                          class="field__input"
+                          type="text"
+                          [value]="selectedHoursJobOption()?.scheduledStart | date: 'MMM d, y'"
+                          readonly
+                        />
+                      </div>
+                    }
                     <label class="field">
                       <span class="field__label">Hours *</span>
                       <input
@@ -901,16 +913,28 @@
           }
 
           <div class="hours-grid">
-            <label class="field">
-              <span class="field__label">Work date *</span>
-              <input
-                class="field__input"
-                type="date"
-                formControlName="workDate"
-                required
-                aria-required="true"
-              />
-            </label>
+            @if (isManualHoursSelection()) {
+              <label class="field">
+                <span class="field__label">Work date *</span>
+                <input
+                  class="field__input"
+                  type="date"
+                  formControlName="workDate"
+                  required
+                  aria-required="true"
+                />
+              </label>
+            } @else {
+              <div class="field">
+                <span class="field__label">Linked work date</span>
+                <input
+                  class="field__input"
+                  type="text"
+                  [value]="selectedHoursJobOption()?.scheduledStart | date: 'MMM d, y'"
+                  readonly
+                />
+              </div>
+            }
             <label class="field">
               <span class="field__label">Hours *</span>
               <input

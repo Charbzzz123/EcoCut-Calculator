@@ -24,6 +24,13 @@ const normalizeText = (value: string): string => value.trim().toLowerCase();
 const normalizeName = (firstName: string, lastName: string): string =>
   `${normalizeText(firstName)}|${normalizeText(lastName)}`;
 const toIsoDate = (value: Date): string => value.toISOString().slice(0, 10);
+const toIsoDateFromDateTime = (value: string): string | null => {
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) {
+    return null;
+  }
+  return new Date(parsed).toISOString().slice(0, 10);
+};
 const formatHours = (hours: number): string =>
   Number.isInteger(hours) ? `${hours}` : hours.toFixed(2).replace(/\.?0+$/, '');
 const sortHoursByDateDesc = (left: EmployeeHoursRecord, right: EmployeeHoursRecord): number => {
@@ -856,7 +863,8 @@ export class EmployeesFacade {
     const linkedJobExists = hasLinkedJob
       ? this.jobOptionsSignal().some((option) => option.entryId === selectedJobId)
       : false;
-    if (!draft.workDate.trim()) {
+    const isManual = !hasLinkedJob;
+    if (isManual && !draft.workDate.trim()) {
       missingLabels.push('Work date');
     }
     if (!selectedJobId) {
@@ -892,9 +900,10 @@ export class EmployeesFacade {
     const linkedJob = this.jobOptionsSignal().find((option) => option.entryId === selectedJobId);
     const normalizedNote = draft.correctionNote.trim();
     const isManual = selectedJobId === MANUAL_CORRECTION_JOB_ID || !linkedJob;
+    const linkedWorkDate = linkedJob ? toIsoDateFromDateTime(linkedJob.scheduledStart) : null;
     return {
       employeeId,
-      workDate: draft.workDate.trim(),
+      workDate: linkedWorkDate ?? draft.workDate.trim(),
       correctionNote: isManual && normalizedNote ? normalizedNote : undefined,
       jobEntryId: linkedJob?.entryId ?? null,
       hours: Number.parseFloat(normalizedHours),
