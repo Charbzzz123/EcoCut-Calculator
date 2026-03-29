@@ -83,7 +83,8 @@ describe('EmployeesDataService', () => {
       {
         employeeId: 'emp-1',
         workDate: '2026-03-21',
-        siteLabel: 'Laval',
+        correctionNote: 'Manual correction',
+        jobEntryId: null,
         hours: 7,
       },
       'manager',
@@ -92,7 +93,8 @@ describe('EmployeesDataService', () => {
       'hours-1',
       {
         workDate: '2026-03-21',
-        siteLabel: 'Laval',
+        correctionNote: 'Updated correction',
+        jobEntryId: null,
         hours: 8,
       },
       'owner',

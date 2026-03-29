@@ -42,6 +42,7 @@ export class ManageEmployeesShellComponent implements OnInit {
   readonly selectedHoursTotals = this.facade.selectedHoursTotals;
   readonly loggedJobOptions = this.facade.loggedJobOptions;
   readonly selectedHoursJobOption = this.facade.selectedHoursJobOption;
+  readonly isManualHoursSelection = this.facade.isManualHoursSelection;
   readonly editingHoursEntry = this.facade.editingHoursEntry;
   readonly hoursErrors = this.facade.hoursErrors;
   readonly hoursSuccess = this.facade.hoursSuccess;
@@ -143,8 +144,11 @@ export class ManageEmployeesShellComponent implements OnInit {
     void this.facade.removeHoursEntry(entryId);
   }
 
-  protected saveProfile(): void {
-    void this.facade.saveProfile();
+  protected async saveProfile(): Promise<void> {
+    const saved = await this.facade.saveProfile();
+    if (saved) {
+      this.inlinePanel.set(null);
+    }
   }
 
   protected saveHoursEntry(): void {
@@ -183,6 +187,13 @@ export class ManageEmployeesShellComponent implements OnInit {
   }
 
   protected handleEmployeeCardKeydown(event: KeyboardEvent, employeeId: string): void {
+    const target = event.target as HTMLElement | null;
+    if (
+      target?.closest('.employee-inline-panel') ||
+      target?.closest('input, textarea, select, button')
+    ) {
+      return;
+    }
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       this.toggleEmployeeExpansion(employeeId);

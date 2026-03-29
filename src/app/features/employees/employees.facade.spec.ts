@@ -292,8 +292,8 @@ class EmployeesDataServiceStub {
   async createHoursEntry(payload: {
     employeeId: string;
     workDate: string;
-    siteLabel?: string;
-    jobEntryId?: string;
+    correctionNote?: string;
+    jobEntryId?: string | null;
     hours: number;
   }) {
     const linkedJob = this.jobOptions.find((option) => option.entryId === payload.jobEntryId);
@@ -301,10 +301,11 @@ class EmployeesDataServiceStub {
       id: 'hours-created',
       employeeId: payload.employeeId,
       workDate: payload.workDate,
-      siteLabel: linkedJob?.siteLabel ?? payload.siteLabel ?? 'Manual correction',
+      siteLabel: linkedJob?.siteLabel ?? 'Manual correction',
       hours: payload.hours,
       source: 'manual',
       jobEntryId: linkedJob?.entryId ?? null,
+      correctionNote: linkedJob ? null : payload.correctionNote ?? null,
       clockInAt: null,
       clockOutAt: null,
       updatedByRole: 'manager',
@@ -316,7 +317,12 @@ class EmployeesDataServiceStub {
 
   async updateHoursEntry(
     entryId: string,
-    payload: { workDate: string; siteLabel?: string; jobEntryId?: string | null; hours: number },
+    payload: {
+      workDate: string;
+      correctionNote?: string;
+      jobEntryId?: string | null;
+      hours: number;
+    },
   ) {
     const current = this.hoursRecords.find((entry) => entry.id === entryId);
     if (!current) {
@@ -324,8 +330,9 @@ class EmployeesDataServiceStub {
     }
     const linkedJob = this.jobOptions.find((option) => option.entryId === payload.jobEntryId);
     Object.assign(current, payload, {
-      siteLabel: linkedJob?.siteLabel ?? payload.siteLabel ?? current.siteLabel,
+      siteLabel: linkedJob?.siteLabel ?? 'Manual correction',
       jobEntryId: linkedJob?.entryId ?? payload.jobEntryId ?? null,
+      correctionNote: linkedJob ? null : payload.correctionNote ?? null,
       source: current.source,
       clockInAt: current.clockInAt,
       clockOutAt: current.clockOutAt,
@@ -558,16 +565,21 @@ describe('EmployeesFacade', () => {
     facade.openHoursEditor('active-1');
     expect(facade.hoursSuccessSnapshot()).toBeNull();
 
-    facade.hoursForm.setValue({ workDate: '', jobEntryId: '', siteLabel: '', hours: '' });
+    facade.hoursForm.setValue({
+      workDate: '',
+      jobEntryId: '',
+      correctionNote: '',
+      hours: '',
+    });
     await expect(facade.saveHoursEntry()).resolves.toBe(false);
     expect(facade.hoursErrorsSnapshot()[0]).toContain(
-      'Required fields missing: Work date, Site / address, Hours.',
+      'Required fields missing: Work date, Linked client job, Hours.',
     );
 
     facade.hoursForm.setValue({
       workDate: '2026-03-21',
-      jobEntryId: '',
-      siteLabel: 'Laval',
+      jobEntryId: '__manual__',
+      correctionNote: '',
       hours: '26',
     });
     await expect(facade.saveHoursEntry()).resolves.toBe(false);
@@ -577,7 +589,7 @@ describe('EmployeesFacade', () => {
     facade.hoursForm.setValue({
       workDate: '2026-03-21',
       jobEntryId: 'entry-westmount',
-      siteLabel: '',
+      correctionNote: '',
       hours: '7.25',
     });
     await expect(facade.saveHoursEntry()).resolves.toBe(true);
@@ -593,8 +605,8 @@ describe('EmployeesFacade', () => {
 
     // Runtime <input type="number"> can provide a numeric value.
     facade.hoursForm.controls.workDate.setValue('2026-03-22');
-    facade.hoursForm.controls.jobEntryId.setValue('');
-    facade.hoursForm.controls.siteLabel.setValue('Outremont');
+    facade.hoursForm.controls.jobEntryId.setValue('__manual__');
+    facade.hoursForm.controls.correctionNote.setValue('Manual update');
     (facade.hoursForm.controls.hours as unknown as { setValue: (value: number) => void }).setValue(
       6.5,
     );
@@ -608,15 +620,15 @@ describe('EmployeesFacade', () => {
     expect(facade.hoursSuccessSnapshot()).toBeNull();
     expect(facade.editingHoursEntry()?.siteLabel).toBe('NDG');
 
-    facade.hoursForm.controls.jobEntryId.setValue('');
-    facade.hoursForm.controls.siteLabel.setValue('NDG - Updated');
+    facade.hoursForm.controls.jobEntryId.setValue('__manual__');
+    facade.hoursForm.controls.correctionNote.setValue('Updated correction');
     facade.hoursForm.controls.hours.setValue('7');
     await expect(facade.saveHoursEntry()).resolves.toBe(true);
     expect(facade.hoursSuccessSnapshot()).toBe('Hours entry updated successfully.');
     expect(
       facade.selectedHoursEntriesSnapshot().find((entry) => entry.id === 'hours-active-2')
-        ?.siteLabel,
-    ).toBe('NDG - Updated');
+        ?.correctionNote,
+    ).toBe('Updated correction');
 
     await facade.removeHoursEntry('hours-active-2');
     expect(facade.hoursSuccessSnapshot()).toBe('Hours entry removed.');
@@ -624,7 +636,7 @@ describe('EmployeesFacade', () => {
       facade.selectedHoursEntriesSnapshot().some((entry) => entry.id === 'hours-active-2'),
     ).toBe(false);
     expect(facade.editingHoursEntry()).toBeNull();
-    expect(facade.hoursForm.controls.siteLabel.value).toBe('');
+    expect(facade.hoursForm.controls.correctionNote.value).toBe('');
     expect(facade.hoursForm.controls.hours.value).toBe('');
 
     facade.closeHoursEditor();
@@ -686,7 +698,7 @@ describe('EmployeesFacade', () => {
     facade.editHoursEntry('hours-active-1');
     await facade.removeHoursEntry('hours-active-1');
     expect(facade.editingHoursEntry()).toBeNull();
-    expect(facade.hoursForm.controls.siteLabel.value).toBe('');
+    expect(facade.hoursForm.controls.correctionNote.value).toBe('');
     expect(facade.hoursForm.controls.hours.value).toBe('');
 
     // Error branch with nested string message.
@@ -709,8 +721,8 @@ describe('EmployeesFacade', () => {
     facade.openHoursEditor('active-1');
     facade.hoursForm.setValue({
       workDate: '2026-03-21',
-      jobEntryId: '',
-      siteLabel: 'Laval',
+      jobEntryId: '__manual__',
+      correctionNote: '',
       hours: '7.25',
     });
 

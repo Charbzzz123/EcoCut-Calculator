@@ -90,7 +90,7 @@ root/
   - `GET /employees/readiness` - list Start Next Job readiness contract data (availability state, upcoming windows, conflict flags, totals).
   - `POST /employees/assignments/start-next-job` - persist selected Start Next Job crew into scheduled history entries plus assignment-source hours rows.
   - `POST /employees/roster`, `PATCH /employees/roster/:employeeId`, `POST /employees/roster/:employeeId/archive` - profile writes with role guardrails (`owner` required for update/archive; `owner` or `manager` for create).
-  - `POST /employees/hours`, `PATCH /employees/hours/:entryId`, `DELETE /employees/hours/:entryId` - hours mutations allowed for `owner` and `manager`; linked-job hours can generate/update/remove matching completed history rows for the same employee.
+  - `POST /employees/hours`, `PATCH /employees/hours/:entryId`, `DELETE /employees/hours/:entryId` - hours mutations allowed for `owner` and `manager`; linked-job hours can generate/update/remove matching completed history rows for the same employee. Manual-correction mode supports optional `correctionNote`.
   - `POST /employees/hours/clock` - role-guarded clock in/out action that writes audit-ready clock sessions into the hours stream (`source=clock`, `clockInAt`, `clockOutAt`, actor/timestamp).
   - Role is supplied through `x-operator-role` request header (`owner` default, `manager` optional). Unauthorized operations are rejected server-side with `403`.
   - Snapshot persistence is stored in SQLite at `EMPLOYEES_DB_PATH` (default `server/data/employees.db`).

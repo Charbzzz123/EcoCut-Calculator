@@ -41,6 +41,7 @@ export interface EmployeeHoursRecord {
   hours: number;
   source: EmployeeHoursSource;
   jobEntryId?: string | null;
+  correctionNote?: string | null;
   assignmentId?: string | null;
   historyEntryId?: string | null;
   clockInAt: string | null;

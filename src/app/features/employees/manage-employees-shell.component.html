@@ -442,9 +442,9 @@
                       />
                     </label>
                     <label class="field field--wide">
-                      <span class="field__label">Linked client job (optional)</span>
+                      <span class="field__label">Linked client job *</span>
                       <select class="field__input" formControlName="jobEntryId">
-                        <option value="">No linked job (manual correction)</option>
+                        <option value="__manual__">No linked job (manual correction)</option>
                         @for (job of loggedJobOptions(); track job.entryId) {
                           <option [value]="job.entryId">
                             {{ job.clientName }} — {{ job.siteLabel }} ({{ job.address }})
@@ -452,8 +452,8 @@
                         }
                       </select>
                     </label>
-                    <div class="field field--wide">
-                      @if (selectedHoursJobOption()) {
+                    @if (selectedHoursJobOption()) {
+                      <div class="field field--wide">
                         <span class="field__label">Linked site / address</span>
                         <input
                           class="field__input"
@@ -465,17 +465,19 @@
                           "
                           readonly
                         />
-                      } @else {
-                        <span class="field__label">Site / address *</span>
-                        <input
-                          class="field__input"
-                          type="text"
-                          formControlName="siteLabel"
-                          required
-                          aria-required="true"
-                        />
-                      }
-                    </div>
+                      </div>
+                    }
+                    @if (isManualHoursSelection()) {
+                      <label class="field field--wide">
+                        <span class="field__label">Manual correction note (optional)</span>
+                        <textarea
+                          class="field__input field__textarea"
+                          rows="2"
+                          formControlName="correctionNote"
+                          placeholder="Optional context for payroll correction."
+                        ></textarea>
+                      </label>
+                    }
                   </div>
 
                   <div class="editor-actions">
@@ -896,9 +898,9 @@
               />
             </label>
             <label class="field field--wide">
-              <span class="field__label">Linked client job (optional)</span>
+              <span class="field__label">Linked client job *</span>
               <select class="field__input" formControlName="jobEntryId">
-                <option value="">No linked job (manual correction)</option>
+                <option value="__manual__">No linked job (manual correction)</option>
                 @for (job of loggedJobOptions(); track job.entryId) {
                   <option [value]="job.entryId">
                     {{ job.clientName }} — {{ job.siteLabel }} ({{ job.address }})
@@ -906,8 +908,8 @@
                 }
               </select>
             </label>
-            <div class="field field--wide">
-              @if (selectedHoursJobOption()) {
+            @if (selectedHoursJobOption()) {
+              <div class="field field--wide">
                 <span class="field__label">Linked site / address</span>
                 <input
                   class="field__input"
@@ -917,17 +919,19 @@
                   "
                   readonly
                 />
-              } @else {
-                <span class="field__label">Site / address *</span>
-                <input
-                  class="field__input"
-                  type="text"
-                  formControlName="siteLabel"
-                  required
-                  aria-required="true"
-                />
-              }
-            </div>
+              </div>
+            }
+            @if (isManualHoursSelection()) {
+              <label class="field field--wide">
+                <span class="field__label">Manual correction note (optional)</span>
+                <textarea
+                  class="field__input field__textarea"
+                  rows="2"
+                  formControlName="correctionNote"
+                  placeholder="Optional context for payroll correction."
+                ></textarea>
+              </label>
+            }
           </div>
 
           <div class="editor-actions">

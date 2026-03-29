@@ -61,6 +61,7 @@ export interface EmployeeHoursRecord {
   hours: number;
   source: EmployeeHoursSource;
   jobEntryId?: string | null;
+  correctionNote?: string | null;
   assignmentId?: string | null;
   historyEntryId?: string | null;
   clockInAt: string | null;
@@ -103,14 +104,14 @@ export interface EmployeeStartNextJobAssignmentResult {
 export interface EmployeeHoursDraft {
   workDate: string;
   jobEntryId: string;
-  siteLabel: string;
+  correctionNote: string;
   hours: string | number;
 }
 
 export interface EmployeeHoursMutationPayload {
   employeeId: string;
   workDate: string;
-  siteLabel?: string;
+  correctionNote?: string;
   jobEntryId?: string | null;
   hours: number;
 }

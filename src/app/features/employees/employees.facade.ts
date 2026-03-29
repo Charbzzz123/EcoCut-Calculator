@@ -41,6 +41,7 @@ const sortHistoryByStartDesc = (
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phonePattern = /^\(\d{3}\)\s\d{3}-\d{4}$/;
+const MANUAL_CORRECTION_JOB_ID = '__manual__';
 
 type EmployeeClockState = 'clocked_in' | 'clocked_out' | 'inactive';
 
@@ -75,8 +76,8 @@ export class EmployeesFacade {
 
   readonly hoursForm = new FormGroup({
     workDate: new FormControl(toIsoDate(new Date()), { nonNullable: true }),
-    jobEntryId: new FormControl('', { nonNullable: true }),
-    siteLabel: new FormControl('', { nonNullable: true }),
+    jobEntryId: new FormControl(MANUAL_CORRECTION_JOB_ID, { nonNullable: true }),
+    correctionNote: new FormControl('', { nonNullable: true }),
     hours: new FormControl('', { nonNullable: true }),
   });
 
@@ -192,11 +193,14 @@ export class EmployeesFacade {
   readonly loggedJobOptions: Signal<EmployeeLoggedJobOption[]> = this.jobOptionsSignal.asReadonly();
   readonly selectedHoursJobOption: Signal<EmployeeLoggedJobOption | null> = computed(() => {
     const selectedEntryId = this.hoursForm.controls.jobEntryId.value;
-    if (!selectedEntryId) {
+    if (!selectedEntryId || selectedEntryId === MANUAL_CORRECTION_JOB_ID) {
       return null;
     }
     return this.jobOptionsSignal().find((option) => option.entryId === selectedEntryId) ?? null;
   });
+  readonly isManualHoursSelection: Signal<boolean> = computed(
+    () => this.hoursForm.controls.jobEntryId.value === MANUAL_CORRECTION_JOB_ID,
+  );
   readonly historyPanelOpen: Signal<boolean> = computed(
     () => this.selectedHistoryEmployeeIdSignal() !== null,
   );
@@ -443,8 +447,8 @@ export class EmployeesFacade {
     this.hoursSuccessSignal.set(null);
     this.hoursForm.setValue({
       workDate: toIsoDate(new Date()),
-      jobEntryId: '',
-      siteLabel: '',
+      jobEntryId: MANUAL_CORRECTION_JOB_ID,
+      correctionNote: '',
       hours: '',
     });
   }
@@ -480,8 +484,8 @@ export class EmployeesFacade {
     this.hoursSuccessSignal.set(null);
     this.hoursForm.setValue({
       workDate: entry.workDate,
-      jobEntryId: entry.jobEntryId ?? '',
-      siteLabel: entry.siteLabel,
+      jobEntryId: entry.jobEntryId ?? MANUAL_CORRECTION_JOB_ID,
+      correctionNote: entry.correctionNote ?? '',
       hours: formatHours(entry.hours),
     });
   }
@@ -492,7 +496,11 @@ export class EmployeesFacade {
       await this.data.removeHoursEntry(entryId, this.roleSignal());
       if (this.editingHoursEntryIdSignal() === entryId) {
         this.editingHoursEntryIdSignal.set(null);
-        this.hoursForm.patchValue({ jobEntryId: '', siteLabel: '', hours: '' });
+        this.hoursForm.patchValue({
+          jobEntryId: MANUAL_CORRECTION_JOB_ID,
+          correctionNote: '',
+          hours: '',
+        });
       }
       this.hoursSuccessSignal.set('Hours entry removed.');
       await this.loadRoster();
@@ -530,7 +538,7 @@ export class EmployeesFacade {
           editingId,
           {
             workDate: payload.workDate,
-            siteLabel: payload.siteLabel,
+            correctionNote: payload.correctionNote,
             jobEntryId: payload.jobEntryId ?? null,
             hours: payload.hours,
           },
@@ -555,7 +563,11 @@ export class EmployeesFacade {
       this.hoursSuccessSignal.set(
         editingId ? 'Hours entry updated successfully.' : 'Hours entry saved successfully.',
       );
-      this.hoursForm.patchValue({ jobEntryId: '', siteLabel: '', hours: '' });
+      this.hoursForm.patchValue({
+        jobEntryId: MANUAL_CORRECTION_JOB_ID,
+        correctionNote: '',
+        hours: '',
+      });
       await this.loadRoster();
       return true;
     } catch (error) {
@@ -822,7 +834,7 @@ export class EmployeesFacade {
     return {
       workDate: this.hoursForm.controls.workDate.value,
       jobEntryId: this.hoursForm.controls.jobEntryId.value,
-      siteLabel: this.hoursForm.controls.siteLabel.value,
+      correctionNote: this.hoursForm.controls.correctionNote.value,
       hours: this.hoursForm.controls.hours.value as string | number,
     };
   }
@@ -831,15 +843,17 @@ export class EmployeesFacade {
     const errors: string[] = [];
     const missingLabels: string[] = [];
     const normalizedHours = this.normalizeHoursInput(draft.hours).trim();
-    const hasLinkedJob = draft.jobEntryId.trim().length > 0;
+    const selectedJobId = draft.jobEntryId.trim();
+    const hasLinkedJob =
+      selectedJobId.length > 0 && selectedJobId !== MANUAL_CORRECTION_JOB_ID;
     const linkedJobExists = hasLinkedJob
-      ? this.jobOptionsSignal().some((option) => option.entryId === draft.jobEntryId)
+      ? this.jobOptionsSignal().some((option) => option.entryId === selectedJobId)
       : false;
     if (!draft.workDate.trim()) {
       missingLabels.push('Work date');
     }
-    if (!hasLinkedJob && !draft.siteLabel.trim()) {
-      missingLabels.push('Site / address');
+    if (!selectedJobId) {
+      missingLabels.push('Linked client job');
     }
     if (!normalizedHours) {
       missingLabels.push('Hours');
@@ -867,13 +881,15 @@ export class EmployeesFacade {
     draft: EmployeeHoursDraft,
   ): EmployeeHoursMutationPayload {
     const normalizedHours = this.normalizeHoursInput(draft.hours).trim();
-    const linkedJob = this.jobOptionsSignal().find((option) => option.entryId === draft.jobEntryId);
-    const manualSiteLabel = draft.siteLabel.trim();
+    const selectedJobId = draft.jobEntryId.trim();
+    const linkedJob = this.jobOptionsSignal().find((option) => option.entryId === selectedJobId);
+    const normalizedNote = draft.correctionNote.trim();
+    const isManual = selectedJobId === MANUAL_CORRECTION_JOB_ID || !linkedJob;
     return {
       employeeId,
       workDate: draft.workDate.trim(),
-      siteLabel: linkedJob ? undefined : manualSiteLabel,
-      jobEntryId: linkedJob?.entryId,
+      correctionNote: isManual && normalizedNote ? normalizedNote : undefined,
+      jobEntryId: linkedJob?.entryId ?? null,
       hours: Number.parseFloat(normalizedHours),
     };
   }

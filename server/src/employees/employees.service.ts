@@ -57,6 +57,7 @@ const overlapsRange = (
 
 const phonePattern = /^\(\d{3}\)\s\d{3}-\d{4}$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MANUAL_CORRECTION_SITE_LABEL = 'Manual correction';
 
 @Injectable()
 export class EmployeesService implements OnModuleInit {
@@ -660,7 +661,12 @@ export class EmployeesService implements OnModuleInit {
     this.assertOwnerOrManager(actorRole);
     const employee = this.requireEmployee(payload.employeeId);
     const selectedJob = this.resolveJobSelection(payload.jobEntryId);
-    const draft = this.normalizeHoursDraft(payload, selectedJob?.siteLabel);
+    const draft = this.normalizeHoursDraft({
+      workDate: payload.workDate,
+      siteLabel: payload.siteLabel,
+      hours: payload.hours,
+      correctionNote: payload.correctionNote,
+    });
     this.validateHoursDraft(draft);
     const now = new Date().toISOString();
     const createdId = this.createHoursEntryId(payload.employeeId);
@@ -674,10 +680,11 @@ export class EmployeesService implements OnModuleInit {
       id: createdId,
       employeeId: payload.employeeId,
       workDate: draft.workDate,
-      siteLabel: draft.siteLabel,
+      siteLabel: selectedJob?.siteLabel ?? draft.siteLabel,
       hours: draft.hours,
       source: 'manual',
       jobEntryId: selectedJob?.entryId ?? null,
+      correctionNote: selectedJob ? null : draft.correctionNote,
       historyEntryId: linkedHistory?.id ?? null,
       clockInAt: null,
       clockOutAt: null,
@@ -710,14 +717,13 @@ export class EmployeesService implements OnModuleInit {
     }
 
     const selectedJob = this.resolveJobSelection(payload.jobEntryId);
-    const draft = this.normalizeHoursDraft(
-      {
-        workDate: payload.workDate ?? existing.workDate,
-        siteLabel: payload.siteLabel ?? existing.siteLabel,
-        hours: payload.hours ?? existing.hours,
-      },
-      selectedJob?.siteLabel ?? undefined,
-    );
+    const draft = this.normalizeHoursDraft({
+      workDate: payload.workDate ?? existing.workDate,
+      siteLabel: payload.siteLabel ?? existing.siteLabel,
+      hours: payload.hours ?? existing.hours,
+      correctionNote:
+        payload.correctionNote ?? existing.correctionNote ?? undefined,
+    });
     this.validateHoursDraft(draft);
     const now = new Date().toISOString();
     const nextJobEntryId = selectedJob?.entryId ?? null;
@@ -744,10 +750,11 @@ export class EmployeesService implements OnModuleInit {
     const updated: EmployeeHoursRecord = {
       ...existing,
       workDate: draft.workDate,
-      siteLabel: draft.siteLabel,
+      siteLabel: selectedJob?.siteLabel ?? draft.siteLabel,
       hours: draft.hours,
       source: existing.source ?? 'manual',
       jobEntryId: nextJobEntryId,
+      correctionNote: shouldLinkToJob ? null : draft.correctionNote,
       historyEntryId: updatedLinkedHistory?.id ?? null,
       clockInAt: existing.clockInAt ?? null,
       clockOutAt: existing.clockOutAt ?? null,
@@ -905,19 +912,23 @@ export class EmployeesService implements OnModuleInit {
     }
   }
 
-  private normalizeHoursDraft(
-    payload: {
-      workDate: string;
-      siteLabel?: string;
-      hours: number;
-    },
-    selectedJobSiteLabel?: string,
-  ): { workDate: string; siteLabel: string; hours: number } {
+  private normalizeHoursDraft(payload: {
+    workDate: string;
+    siteLabel?: string;
+    hours: number;
+    correctionNote?: string;
+  }): {
+    workDate: string;
+    siteLabel: string;
+    hours: number;
+    correctionNote: string | null;
+  } {
     const normalizedSiteLabel = payload.siteLabel?.trim() ?? '';
     return {
       workDate: payload.workDate.trim(),
-      siteLabel: normalizedSiteLabel || selectedJobSiteLabel?.trim() || '',
+      siteLabel: normalizedSiteLabel || MANUAL_CORRECTION_SITE_LABEL,
       hours: Number(payload.hours),
+      correctionNote: payload.correctionNote?.trim() || null,
     };
   }
 
@@ -925,6 +936,7 @@ export class EmployeesService implements OnModuleInit {
     workDate: string;
     siteLabel: string;
     hours: number;
+    correctionNote: string | null;
   }): void {
     const missingFields: string[] = [];
     if (!payload.workDate) {
@@ -992,6 +1004,7 @@ export class EmployeesService implements OnModuleInit {
         ...entry,
         source: entry.source ?? 'manual',
         jobEntryId: entry.jobEntryId ?? null,
+        correctionNote: entry.correctionNote ?? null,
         assignmentId: entry.assignmentId ?? null,
         historyEntryId: entry.historyEntryId ?? null,
         clockInAt: entry.clockInAt ?? null,

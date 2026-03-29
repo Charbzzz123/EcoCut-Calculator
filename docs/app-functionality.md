@@ -137,8 +137,9 @@
 - **Hours management**
   - Managers can update hours entries; Owners can edit all staffing/compensation fields.
   - Every hours edit records actor, timestamp, previous value, and new value.
-  - Hours editor now supports **linked job selection** from saved client jobs (with a `No linked job (manual correction)` fallback when fixing payroll mistakes).
-  - When a linked job is selected, site/address is derived from that job and the saved hours entry keeps the job reference.
+  - Hours editor now requires choosing a **linked job mode**: either a saved client job or `No linked job (manual correction)`.
+  - When a linked job is selected, site/address is always derived from that job (read-only) and saved hours keep the job reference.
+  - Manual-correction mode hides site/address entry and allows an optional correction note for payroll context.
 - **Clock in / Clock out**
   - Managers and Owners can clock active employees in/out directly from the workspace.
   - Clock sessions persist into `/employees/hours` with `source=clock`, `clockInAt`, `clockOutAt`, `updatedByRole`, and `updatedAt` audit fields.

@@ -33,8 +33,8 @@ class EmployeesFacadeStub {
   });
   readonly hoursForm = new FormGroup({
     workDate: new FormControl('2026-03-21', { nonNullable: true }),
-    jobEntryId: new FormControl('', { nonNullable: true }),
-    siteLabel: new FormControl('', { nonNullable: true }),
+    jobEntryId: new FormControl('__manual__', { nonNullable: true }),
+    correctionNote: new FormControl('', { nonNullable: true }),
     hours: new FormControl('', { nonNullable: true }),
   });
 
@@ -144,11 +144,12 @@ class EmployeesFacadeStub {
   readonly loggedJobOptions = this.jobOptionsSignal.asReadonly();
   readonly selectedHoursJobOption = () => {
     const selectedId = this.hoursForm.controls.jobEntryId.value;
-    if (!selectedId) {
+    if (!selectedId || selectedId === '__manual__') {
       return null;
     }
     return this.jobOptionsSignal().find((option) => option.entryId === selectedId) ?? null;
   };
+  readonly isManualHoursSelection = () => this.hoursForm.controls.jobEntryId.value === '__manual__';
   readonly historyPanelOpen = () => this.selectedHistoryEmployeeIdSignal() !== null;
   readonly selectedHistoryEmployee = () =>
     this.rosterSignal().find(
@@ -614,7 +615,12 @@ describe('ManageEmployeesShellComponent', () => {
       editingHoursEntryId: hoursEntry.id,
       hoursErrors: ['Required fields missing: Hours.'],
     });
-    facade.hoursForm.patchValue({ workDate: '2026-03-20', siteLabel: 'Westmount', hours: '8' });
+    facade.hoursForm.patchValue({
+      workDate: '2026-03-20',
+      jobEntryId: '__manual__',
+      correctionNote: 'Payroll correction',
+      hours: '8',
+    });
 
     const fixture = TestBed.createComponent(ManageEmployeesShellComponent);
     fixture.detectChanges();
