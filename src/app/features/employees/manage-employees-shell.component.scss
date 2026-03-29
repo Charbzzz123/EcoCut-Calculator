@@ -348,6 +348,58 @@ h1 {
   padding: 0.8rem 0.9rem;
   display: grid;
   gap: 0.35rem;
+  cursor: pointer;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 140ms ease;
+}
+
+.employee-card:hover {
+  border-color: var(--border-accent-soft);
+}
+
+.employee-card:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.employee-card--expanded {
+  border-color: var(--border-accent-medium);
+  box-shadow: 0 10px 24px rgba(2, 15, 11, 0.42);
+}
+
+.employee-card__hint {
+  color: var(--text-muted);
+  font-size: 0.86rem;
+}
+
+.employee-inline-panel {
+  margin-top: 0.35rem;
+  border-radius: 0.95rem;
+  border: 1px solid var(--border-soft);
+  background: rgba(4, 20, 15, 0.72);
+  padding: 0.75rem 0.8rem;
+  display: grid;
+  gap: 0.7rem;
+  cursor: default;
+}
+
+.employee-inline-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.employee-inline-panel__header h4 {
+  margin: 0;
+  font-size: 0.98rem;
+}
+
+.employee-inline-panel__meta {
+  color: var(--text-accent-soft);
+  font-size: 0.88rem;
 }
 
 .employee-card__header {

@@ -425,9 +425,9 @@ describe('ManageEmployeesShellComponent', () => {
     (roleButtons[1] as HTMLButtonElement).click();
     expect(facade.roleControl.value).toBe('manager');
 
-    const employeeActions = native.querySelectorAll(
-      '.employees-roster .employee-card__actions .employee-action',
-    );
+    (native.querySelector('.employees-roster .employee-card') as HTMLElement).click();
+    fixture.detectChanges();
+    const employeeActions = native.querySelectorAll('.employee-card__actions .employee-action');
     (employeeActions[0] as HTMLButtonElement).click();
     (employeeActions[1] as HTMLButtonElement).click();
     (employeeActions[2] as HTMLButtonElement).click();
@@ -470,8 +470,10 @@ describe('ManageEmployeesShellComponent', () => {
     const fixture = TestBed.createComponent(ManageEmployeesShellComponent);
     fixture.detectChanges();
     const native = fixture.nativeElement as HTMLElement;
+    (native.querySelector('.employees-roster .employee-card') as HTMLElement).click();
+    fixture.detectChanges();
     const actions = native.querySelectorAll(
-      '.employees-roster .employee-card__actions .employee-action',
+      '.employee-card__actions .employee-action',
     ) as NodeListOf<HTMLButtonElement>;
 
     expect(actions[3]?.textContent).toContain('Restore');
@@ -494,6 +496,9 @@ describe('ManageEmployeesShellComponent', () => {
     const native = fixture.nativeElement as HTMLElement;
     expect(native.querySelector('.workspace-notice')?.textContent).toContain('Manager mode');
 
+    const cards = native.querySelectorAll('.employee-card');
+    (cards[0] as HTMLElement).click();
+    fixture.detectChanges();
     const cardActions = native.querySelectorAll('.employee-card__actions');
     const firstEdit = cardActions[0]?.querySelectorAll('.employee-action')[2] as HTMLButtonElement;
     const firstArchive = cardActions[0]?.querySelectorAll(
@@ -536,15 +541,25 @@ describe('ManageEmployeesShellComponent', () => {
     fixture.detectChanges();
 
     const native = fixture.nativeElement as HTMLElement;
-    expect(native.querySelector('.error-summary')?.textContent).toContain('Fix the following');
-    expect(native.querySelector('.editing-note')?.textContent).toContain('Alex Karam');
+    (native.querySelector('.employees-roster .employee-card') as HTMLElement).click();
+    fixture.detectChanges();
+    const actions = native.querySelectorAll('.employee-card__actions .employee-action');
+    (actions[2] as HTMLButtonElement).click();
+    fixture.detectChanges();
 
-    const cancelButton = Array.from(native.querySelectorAll('.employee-action')).find((button) =>
-      button.textContent?.includes('Cancel'),
+    expect(native.querySelector('.error-summary')?.textContent).toContain('Fix the following');
+    expect(native.querySelector('.employee-inline-panel h4')?.textContent).toContain(
+      'Profile editor',
+    );
+
+    const closeButton = native.querySelector(
+      '.employee-inline-panel__header .employee-action',
     ) as HTMLButtonElement;
-    cancelButton.click();
+    closeButton.click();
     expect(facade.cancelProfileEditor).toHaveBeenCalled();
 
+    (actions[2] as HTMLButtonElement).click();
+    fixture.detectChanges();
     const form = native.querySelector('.profile-form') as HTMLFormElement;
     form.dispatchEvent(new Event('submit'));
     fixture.detectChanges();
@@ -562,6 +577,10 @@ describe('ManageEmployeesShellComponent', () => {
     });
 
     const fixture = TestBed.createComponent(ManageEmployeesShellComponent);
+    fixture.detectChanges();
+    (
+      fixture.componentInstance as unknown as { setWorkspaceFocus: (focus: string) => void }
+    ).setWorkspaceFocus('profile');
     fixture.detectChanges();
 
     const native = fixture.nativeElement as HTMLElement;
@@ -585,8 +604,15 @@ describe('ManageEmployeesShellComponent', () => {
     const fixture = TestBed.createComponent(ManageEmployeesShellComponent);
     fixture.detectChanges();
     const native = fixture.nativeElement as HTMLElement;
+    (native.querySelector('.employees-roster .employee-card') as HTMLElement).click();
+    fixture.detectChanges();
+    const cardActions = native.querySelectorAll('.employee-card__actions .employee-action');
+    (cardActions[1] as HTMLButtonElement).click();
+    fixture.detectChanges();
 
-    expect(native.querySelector('.hours-context__employee')?.textContent).toContain('Alex Karam');
+    expect(native.querySelector('.employee-inline-panel h4')?.textContent).toContain(
+      'Hours editor',
+    );
     expect(native.querySelector('.hours-list .hours-card')).toBeTruthy();
     expect(native.querySelector('.error-summary')?.textContent).toContain('Fix the following');
 
@@ -602,7 +628,7 @@ describe('ManageEmployeesShellComponent', () => {
     expect(facade.saveHoursEntry).toHaveBeenCalled();
 
     const closeButton = native.querySelector(
-      '.employees-hours__header .employee-action',
+      '.employee-inline-panel__header .employee-action',
     ) as HTMLButtonElement;
     closeButton.click();
     expect(facade.closeHoursEditor).toHaveBeenCalled();
@@ -624,6 +650,11 @@ describe('ManageEmployeesShellComponent', () => {
     const fixture = TestBed.createComponent(ManageEmployeesShellComponent);
     fixture.detectChanges();
     const native = fixture.nativeElement as HTMLElement;
+    (native.querySelector('.employees-roster .employee-card') as HTMLElement).click();
+    fixture.detectChanges();
+    const cardActions = native.querySelectorAll('.employee-card__actions .employee-action');
+    (cardActions[1] as HTMLButtonElement).click();
+    fixture.detectChanges();
 
     expect(native.querySelector('.hours-list .hours-card')).toBeNull();
     expect(native.querySelector('.error-summary')).toBeNull();
@@ -647,13 +678,20 @@ describe('ManageEmployeesShellComponent', () => {
     const fixture = TestBed.createComponent(ManageEmployeesShellComponent);
     fixture.detectChanges();
     const native = fixture.nativeElement as HTMLElement;
+    (native.querySelector('.employees-roster .employee-card') as HTMLElement).click();
+    fixture.detectChanges();
+    const cardActions = native.querySelectorAll('.employee-card__actions .employee-action');
+    (cardActions[0] as HTMLButtonElement).click();
+    fixture.detectChanges();
 
-    expect(native.querySelector('.history-context__employee')?.textContent).toContain('Alex Karam');
+    expect(native.querySelector('.employee-inline-panel h4')?.textContent).toContain(
+      'Job history timeline',
+    );
     expect(native.querySelector('.history-list .history-card')).toBeTruthy();
-    expect(native.querySelector('.history-summary')).toBeTruthy();
+    expect(native.querySelector('.employee-inline-panel__meta')).toBeTruthy();
 
     const closeButton = native.querySelector(
-      '.employees-history__header .employee-action',
+      '.employee-inline-panel__header .employee-action',
     ) as HTMLButtonElement;
     closeButton.click();
     expect(facade.closeJobHistory).toHaveBeenCalled();
@@ -671,6 +709,11 @@ describe('ManageEmployeesShellComponent', () => {
     const fixture = TestBed.createComponent(ManageEmployeesShellComponent);
     fixture.detectChanges();
     const native = fixture.nativeElement as HTMLElement;
+    (native.querySelector('.employees-roster .employee-card') as HTMLElement).click();
+    fixture.detectChanges();
+    const cardActions = native.querySelectorAll('.employee-card__actions .employee-action');
+    (cardActions[0] as HTMLButtonElement).click();
+    fixture.detectChanges();
 
     expect(native.querySelector('.history-card .status-chip')?.textContent).toContain('Scheduled');
   });
@@ -687,8 +730,13 @@ describe('ManageEmployeesShellComponent', () => {
     const fixture = TestBed.createComponent(ManageEmployeesShellComponent);
     fixture.detectChanges();
     const native = fixture.nativeElement as HTMLElement;
+    (native.querySelector('.employees-roster .employee-card') as HTMLElement).click();
+    fixture.detectChanges();
+    const cardActions = native.querySelectorAll('.employee-card__actions .employee-action');
+    (cardActions[0] as HTMLButtonElement).click();
+    fixture.detectChanges();
 
-    expect(native.querySelector('.employees-history .roster-state')?.textContent).toContain(
+    expect(native.querySelector('.employee-inline-panel .roster-state')?.textContent).toContain(
       'No job history found for this employee yet.',
     );
   });

@@ -18,6 +18,8 @@ export class ManageEmployeesShellComponent implements OnInit {
   protected readonly workspaceFocus = signal<
     'roster' | 'clock' | 'profile' | 'hours' | 'history' | 'readiness'
   >('roster');
+  protected readonly expandedEmployeeId = signal<string | null>(null);
+  protected readonly inlinePanel = signal<'profile' | 'hours' | 'history' | null>(null);
 
   readonly headingId = this.facade.headingId;
   readonly queryControl = this.facade.queryControl;
@@ -76,12 +78,16 @@ export class ManageEmployeesShellComponent implements OnInit {
   }
 
   protected openCreateProfile(): void {
+    this.expandedEmployeeId.set(null);
+    this.inlinePanel.set(null);
     this.workspaceFocus.set('profile');
     this.facade.openCreateProfile();
   }
 
   protected openEditProfile(employeeId: string): void {
-    this.workspaceFocus.set('profile');
+    this.expandedEmployeeId.set(employeeId);
+    this.inlinePanel.set('profile');
+    this.workspaceFocus.set('roster');
     this.facade.openEditProfile(employeeId);
   }
 
@@ -94,22 +100,26 @@ export class ManageEmployeesShellComponent implements OnInit {
   }
 
   protected openHoursEditor(employeeId: string): void {
-    this.workspaceFocus.set('hours');
+    this.expandedEmployeeId.set(employeeId);
+    this.inlinePanel.set('hours');
+    this.workspaceFocus.set('roster');
     this.facade.openHoursEditor(employeeId);
   }
 
   protected openJobHistory(employeeId: string): void {
-    this.workspaceFocus.set('history');
+    this.expandedEmployeeId.set(employeeId);
+    this.inlinePanel.set('history');
+    this.workspaceFocus.set('roster');
     this.facade.openJobHistory(employeeId);
   }
 
   protected closeHoursEditor(): void {
-    this.workspaceFocus.set('roster');
+    this.inlinePanel.set(null);
     this.facade.closeHoursEditor();
   }
 
   protected closeJobHistory(): void {
-    this.workspaceFocus.set('roster');
+    this.inlinePanel.set(null);
     this.facade.closeJobHistory();
   }
 
@@ -140,8 +150,41 @@ export class ManageEmployeesShellComponent implements OnInit {
   }
 
   protected cancelProfileEditor(): void {
+    this.inlinePanel.set(null);
     this.workspaceFocus.set('roster');
     this.facade.cancelProfileEditor();
+  }
+
+  protected toggleEmployeeExpansion(employeeId: string, event?: Event): void {
+    const target = event?.target as HTMLElement | null;
+    if (target?.closest('.employee-inline-panel') || target?.closest('.employee-card__actions')) {
+      return;
+    }
+    if (this.expandedEmployeeId() === employeeId) {
+      this.expandedEmployeeId.set(null);
+      this.inlinePanel.set(null);
+      this.facade.closeHoursEditor();
+      this.facade.closeJobHistory();
+      this.facade.cancelProfileEditor();
+      return;
+    }
+    this.expandedEmployeeId.set(employeeId);
+    this.inlinePanel.set(null);
+  }
+
+  protected isEmployeeExpanded(employeeId: string): boolean {
+    return this.expandedEmployeeId() === employeeId;
+  }
+
+  protected isInlinePanelOpen(employeeId: string, panel: 'profile' | 'hours' | 'history'): boolean {
+    return this.expandedEmployeeId() === employeeId && this.inlinePanel() === panel;
+  }
+
+  protected handleEmployeeCardKeydown(event: KeyboardEvent, employeeId: string): void {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      this.toggleEmployeeExpansion(employeeId);
+    }
   }
 
   private scrollToSection(sectionId: string): void {
