@@ -615,6 +615,29 @@ export class EmployeesService implements OnModuleInit {
     return archived;
   }
 
+  async restoreEmployee(
+    employeeId: string,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeProfileRecord> {
+    this.assertOwner(actorRole);
+    const existing = this.requireEmployee(employeeId);
+    const restored: EmployeeProfileRecord =
+      existing.status === 'active'
+        ? existing
+        : {
+            ...existing,
+            status: 'active',
+          };
+    this.snapshot = {
+      ...this.snapshot,
+      roster: this.snapshot.roster.map((employee) =>
+        employee.id === employeeId ? restored : employee,
+      ),
+    };
+    await this.persistSnapshot();
+    return restored;
+  }
+
   async createHoursEntry(
     payload: CreateHoursEntryDto,
     actorRole: EmployeeOperatorRole,

@@ -78,6 +78,17 @@ export class EmployeesController {
     );
   }
 
+  @Post('roster/:employeeId/restore')
+  restoreEmployee(
+    @Param('employeeId') employeeId: string,
+    @Headers('x-operator-role') operatorRole?: string,
+  ) {
+    return this.employees.restoreEmployee(
+      employeeId,
+      this.parseOperatorRole(operatorRole),
+    );
+  }
+
   @Post('hours')
   createHoursEntry(
     @Body() body: CreateHoursEntryDto,

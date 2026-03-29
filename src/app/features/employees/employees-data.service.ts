@@ -91,13 +91,9 @@ export class EmployeesDataService {
     actorRole: EmployeeOperatorRole,
   ): Promise<EmployeeJobHistoryRecord> {
     return firstValueFrom(
-      this.http.post<EmployeeJobHistoryRecord>(
-        `${this.baseUrl}/history/${entryId}/cancel`,
-        null,
-        {
-          headers: this.operatorHeaders(actorRole),
-        },
-      ),
+      this.http.post<EmployeeJobHistoryRecord>(`${this.baseUrl}/history/${entryId}/cancel`, null, {
+        headers: this.operatorHeaders(actorRole),
+      }),
     );
   }
 
@@ -146,6 +142,17 @@ export class EmployeesDataService {
   ): Promise<EmployeeRosterRecord> {
     return firstValueFrom(
       this.http.post<EmployeeRosterRecord>(`${this.baseUrl}/roster/${employeeId}/archive`, null, {
+        headers: this.operatorHeaders(actorRole),
+      }),
+    );
+  }
+
+  async restoreEmployee(
+    employeeId: string,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeRosterRecord> {
+    return firstValueFrom(
+      this.http.post<EmployeeRosterRecord>(`${this.baseUrl}/roster/${employeeId}/restore`, null, {
         headers: this.operatorHeaders(actorRole),
       }),
     );

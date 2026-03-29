@@ -73,6 +73,7 @@ describe('EmployeesDataService', () => {
       'owner',
     );
     const archivePromise = service.archiveEmployee('emp-1', 'owner');
+    const restorePromise = service.restoreEmployee('emp-1', 'owner');
     const createHoursPromise = service.createHoursEntry(
       {
         employeeId: 'emp-1',
@@ -131,6 +132,7 @@ describe('EmployeesDataService', () => {
     const createProfileReq = httpMock.expectOne(`${baseUrl}/roster`);
     const updateProfileReq = httpMock.expectOne(`${baseUrl}/roster/emp-1`);
     const archiveReq = httpMock.expectOne(`${baseUrl}/roster/emp-1/archive`);
+    const restoreReq = httpMock.expectOne(`${baseUrl}/roster/emp-1/restore`);
     const createHoursReq = httpMock.expectOne(`${baseUrl}/hours`);
     const clockReq = httpMock.expectOne(`${baseUrl}/hours/clock`);
     const assignmentReq = httpMock.expectOne(`${baseUrl}/assignments/start-next-job`);
@@ -146,6 +148,7 @@ describe('EmployeesDataService', () => {
     expect(createProfileReq.request.method).toBe('POST');
     expect(updateProfileReq.request.method).toBe('PATCH');
     expect(archiveReq.request.method).toBe('POST');
+    expect(restoreReq.request.method).toBe('POST');
     expect(createHoursReq.request.method).toBe('POST');
     expect(clockReq.request.method).toBe('POST');
     expect(assignmentReq.request.method).toBe('POST');
@@ -159,6 +162,7 @@ describe('EmployeesDataService', () => {
     expect(createProfileReq.request.headers.get('x-operator-role')).toBe('manager');
     expect(updateProfileReq.request.headers.get('x-operator-role')).toBe('owner');
     expect(archiveReq.request.headers.get('x-operator-role')).toBe('owner');
+    expect(restoreReq.request.headers.get('x-operator-role')).toBe('owner');
     expect(createHoursReq.request.headers.get('x-operator-role')).toBe('manager');
     expect(clockReq.request.headers.get('x-operator-role')).toBe('manager');
     expect(assignmentReq.request.headers.get('x-operator-role')).toBe('owner');
@@ -172,6 +176,7 @@ describe('EmployeesDataService', () => {
     createProfileReq.flush({ id: 'emp-1' });
     updateProfileReq.flush({ id: 'emp-1' });
     archiveReq.flush({ id: 'emp-1', status: 'inactive' });
+    restoreReq.flush({ id: 'emp-1', status: 'active' });
     createHoursReq.flush({ id: 'hours-1' });
     clockReq.flush({ id: 'clock-1' });
     assignmentReq.flush({ assignmentId: 'assign-1', createdHistory: [], createdHours: [] });
@@ -185,6 +190,7 @@ describe('EmployeesDataService', () => {
     await expect(createProfilePromise).resolves.toMatchObject({ id: 'emp-1' });
     await expect(updateProfilePromise).resolves.toMatchObject({ id: 'emp-1' });
     await expect(archivePromise).resolves.toMatchObject({ id: 'emp-1' });
+    await expect(restorePromise).resolves.toMatchObject({ id: 'emp-1' });
     await expect(createHoursPromise).resolves.toMatchObject({ id: 'hours-1' });
     await expect(clockInPromise).resolves.toMatchObject({ id: 'clock-1' });
     await expect(assignmentPromise).resolves.toMatchObject({ assignmentId: 'assign-1' });

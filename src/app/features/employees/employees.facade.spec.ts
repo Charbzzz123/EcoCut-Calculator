@@ -253,6 +253,15 @@ class EmployeesDataServiceStub {
     return current;
   }
 
+  async restoreEmployee(employeeId: string) {
+    const current = this.records.find((entry) => entry.id === employeeId);
+    if (!current) {
+      throw new Error('missing');
+    }
+    current.status = 'active';
+    return current;
+  }
+
   async createHoursEntry(payload: {
     employeeId: string;
     workDate: string;
@@ -398,7 +407,7 @@ describe('EmployeesFacade', () => {
     expect(facade.filteredRosterSnapshot().map((employee) => employee.id)).toEqual(['inactive-1']);
   });
 
-  it('blocks profile edit/archive in manager mode', async () => {
+  it('blocks profile edit/archive/restore in manager mode', async () => {
     await facade.loadRoster();
 
     facade.roleControl.setValue('manager');
@@ -411,14 +420,25 @@ describe('EmployeesFacade', () => {
       'active',
     );
     expect(facade.workspaceNotice()).toContain('cannot archive employees');
+
+    facade.restoreEmployee('inactive-1');
+    expect(facade.rosterSnapshot().find((employee) => employee.id === 'inactive-1')?.status).toBe(
+      'inactive',
+    );
+    expect(facade.workspaceNotice()).toContain('cannot restore employees');
   });
 
-  it('archives an employee in owner mode and refreshes roster state', async () => {
+  it('archives/restores an employee in owner mode and refreshes roster state', async () => {
     await facade.loadRoster();
     await facade.archiveEmployee('active-1');
 
     expect(facade.rosterSnapshot().find((employee) => employee.id === 'active-1')?.status).toBe(
       'inactive',
+    );
+
+    await facade.restoreEmployee('inactive-1');
+    expect(facade.rosterSnapshot().find((employee) => employee.id === 'inactive-1')?.status).toBe(
+      'active',
     );
     expect(facade.workspaceNotice()).toBeNull();
   });
@@ -699,7 +719,7 @@ describe('EmployeesFacade', () => {
     expect(facade.selectedHistoryEmployee()).toBeNull();
   });
 
-  it('surfaces nested and top-level API messages for profile/archive failures', async () => {
+  it('surfaces nested and top-level API messages for profile/archive/restore failures', async () => {
     await facade.loadRoster();
     facade.openCreateProfile();
     facade.profileForm.setValue({
@@ -722,6 +742,10 @@ describe('EmployeesFacade', () => {
     vi.spyOn(service, 'archiveEmployee').mockRejectedValueOnce('boom');
     await facade.archiveEmployee('active-1');
     expect(facade.workspaceNotice()).toBe('Unable to archive employee.');
+
+    vi.spyOn(service, 'restoreEmployee').mockRejectedValueOnce('boom');
+    await facade.restoreEmployee('inactive-1');
+    expect(facade.workspaceNotice()).toBe('Unable to restore employee.');
   });
 
   it('marks employees as scheduled when an active booking overlaps now', async () => {

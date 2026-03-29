@@ -50,6 +50,7 @@ class EmployeesFacadeStub {
     this.profileEditorModeSignal.set('edit');
   });
   readonly archiveEmployee = vi.fn();
+  readonly restoreEmployee = vi.fn();
   readonly saveProfile = vi.fn(async () => true);
   readonly cancelProfileEditor = vi.fn(() => this.profileEditorOpenSignal.set(false));
   readonly openHoursEditor = vi.fn((employeeId: string) => {
@@ -455,6 +456,27 @@ describe('ManageEmployeesShellComponent', () => {
     (clockButtons[3] as HTMLButtonElement).click();
     expect(facade.clockIn).toHaveBeenCalledWith('emp-1');
     expect(facade.clockOut).toHaveBeenCalledWith('emp-2');
+  });
+
+  it('renders restore action for inactive employees', () => {
+    facade.setViewModel({
+      loadState: 'ready',
+      role: 'owner',
+      roster: [inactiveRecord],
+      filteredRoster: [inactiveRecord],
+      stats: { total: 1, active: 0, inactive: 1 },
+    });
+
+    const fixture = TestBed.createComponent(ManageEmployeesShellComponent);
+    fixture.detectChanges();
+    const native = fixture.nativeElement as HTMLElement;
+    const actions = native.querySelectorAll(
+      '.employees-roster .employee-card__actions .employee-action',
+    ) as NodeListOf<HTMLButtonElement>;
+
+    expect(actions[3]?.textContent).toContain('Restore');
+    actions[3]?.click();
+    expect(facade.restoreEmployee).toHaveBeenCalledWith('emp-2');
   });
 
   it('disables owner-only actions in manager mode', () => {

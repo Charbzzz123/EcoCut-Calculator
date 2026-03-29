@@ -399,6 +399,24 @@ export class EmployeesFacade {
     }
   }
 
+  async restoreEmployee(employeeId: string): Promise<void> {
+    this.clearWorkspaceNotice();
+    if (!this.canArchiveProfiles()) {
+      this.workspaceNoticeSignal.set(
+        'Manager mode cannot restore employees. Switch to Owner mode for restore actions.',
+      );
+      return;
+    }
+    try {
+      await this.data.restoreEmployee(employeeId, this.roleSignal());
+      await this.loadRoster();
+    } catch (error) {
+      this.workspaceNoticeSignal.set(
+        this.readApiErrorMessage(error, 'Unable to restore employee.'),
+      );
+    }
+  }
+
   openHoursEditor(employeeId: string): void {
     this.clearWorkspaceNotice();
     const employee = this.rosterSignal().find((record) => record.id === employeeId);

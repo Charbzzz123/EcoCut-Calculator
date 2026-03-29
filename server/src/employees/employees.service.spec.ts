@@ -169,9 +169,12 @@ describe('EmployeesService', () => {
     await expect(
       service.archiveEmployee('emp-owner', 'manager'),
     ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      service.restoreEmployee('emp-owner', 'manager'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('updates and archives profiles for owner', async () => {
+  it('updates, archives, and restores profiles for owner', async () => {
     const updated = await service.updateEmployeeProfile(
       'emp-owner',
       { role: 'Ops lead' },
@@ -181,6 +184,9 @@ describe('EmployeesService', () => {
 
     const archived = await service.archiveEmployee('emp-owner', 'owner');
     expect(archived.status).toBe('inactive');
+
+    const restored = await service.restoreEmployee('emp-owner', 'owner');
+    expect(restored.status).toBe('active');
   });
 
   it('prevents duplicate employee creation', async () => {

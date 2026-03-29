@@ -420,6 +420,12 @@ h1 {
   background: var(--workspace-action-primary-bg);
 }
 
+.employee-action--restore {
+  border-color: var(--border-accent-strong);
+  color: var(--text-accent-strong);
+  background: rgba(18, 63, 45, 0.86);
+}
+
 .employees-editor {
   border-radius: 1.5rem;
   border: 1px solid var(--border-soft);

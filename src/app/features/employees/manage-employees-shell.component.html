@@ -331,14 +331,25 @@
               >
                 Edit
               </button>
-              <button
-                type="button"
-                class="employee-action employee-action--danger"
-                [disabled]="employee.status === 'inactive' || !canArchiveProfiles()"
-                (click)="archiveEmployee(employee.id)"
-              >
-                Archive
-              </button>
+              @if (employee.status === 'active') {
+                <button
+                  type="button"
+                  class="employee-action employee-action--danger"
+                  [disabled]="!canArchiveProfiles()"
+                  (click)="archiveEmployee(employee.id)"
+                >
+                  Archive
+                </button>
+              } @else {
+                <button
+                  type="button"
+                  class="employee-action employee-action--restore"
+                  [disabled]="!canArchiveProfiles()"
+                  (click)="restoreEmployee(employee.id)"
+                >
+                  Restore
+                </button>
+              }
             </div>
           </li>
         }

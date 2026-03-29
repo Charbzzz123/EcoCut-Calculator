@@ -89,6 +89,10 @@ export class ManageEmployeesShellComponent implements OnInit {
     void this.facade.archiveEmployee(employeeId);
   }
 
+  protected restoreEmployee(employeeId: string): void {
+    void this.facade.restoreEmployee(employeeId);
+  }
+
   protected openHoursEditor(employeeId: string): void {
     this.workspaceFocus.set('hours');
     this.facade.openHoursEditor(employeeId);
