@@ -519,7 +519,8 @@
                           <p class="hours-card__linked hours-card__linked--missing">
                             Linked job details unavailable.
                           </p>
-                        } @else if (entry.correctionNote) {
+                        }
+                        @if (entry.correctionNote) {
                           <p class="hours-card__note">Note: {{ entry.correctionNote }}</p>
                         }
                         <p class="hours-card__meta">
@@ -1001,7 +1002,8 @@
                   <p class="hours-card__linked hours-card__linked--missing">
                     Linked job details unavailable.
                   </p>
-                } @else if (entry.correctionNote) {
+                }
+                @if (entry.correctionNote) {
                   <p class="hours-card__note">Note: {{ entry.correctionNote }}</p>
                 }
                 <p class="hours-card__meta">

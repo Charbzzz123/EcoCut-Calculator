@@ -299,7 +299,7 @@ const hoursEntry: EmployeeHoursRecord = {
   hours: 8,
   source: 'manual',
   jobEntryId: 'job-entry-1',
-  correctionNote: null,
+  correctionNote: 'Crew finished earlier than estimate.',
   clockInAt: null,
   clockOutAt: null,
   updatedByRole: 'owner',
@@ -658,6 +658,9 @@ describe('ManageEmployeesShellComponent', () => {
     expect(native.querySelector('.hours-card__source-badge')?.textContent).toContain('Linked job');
     expect(native.querySelector('.hours-card__linked')?.textContent).toContain('CJ AbiNassif');
     expect(native.querySelector('.hours-card__slot')?.textContent).toContain('Scheduled:');
+    expect(native.querySelector('.hours-card__note')?.textContent).toContain(
+      'Crew finished earlier than estimate.',
+    );
     expect(native.querySelector('.error-summary')?.textContent).toContain('Fix the following');
 
     const hoursActions = native.querySelectorAll('.hours-card .employee-action');

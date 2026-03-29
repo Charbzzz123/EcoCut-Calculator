@@ -115,6 +115,9 @@ export class EmployeesFacade {
   private readonly selectedHistoryEmployeeIdSignal: WritableSignal<string | null> = signal<
     string | null
   >(null);
+  private readonly selectedHoursJobEntryIdSignal: WritableSignal<string> = signal(
+    MANUAL_CORRECTION_JOB_ID,
+  );
   private readonly editingHoursEntryIdSignal: WritableSignal<string | null> = signal<string | null>(
     null,
   );
@@ -192,14 +195,14 @@ export class EmployeesFacade {
   readonly hoursSuccess: Signal<string | null> = this.hoursSuccessSignal.asReadonly();
   readonly loggedJobOptions: Signal<EmployeeLoggedJobOption[]> = this.jobOptionsSignal.asReadonly();
   readonly selectedHoursJobOption: Signal<EmployeeLoggedJobOption | null> = computed(() => {
-    const selectedEntryId = this.hoursForm.controls.jobEntryId.value;
+    const selectedEntryId = this.selectedHoursJobEntryIdSignal();
     if (!selectedEntryId || selectedEntryId === MANUAL_CORRECTION_JOB_ID) {
       return null;
     }
     return this.jobOptionsSignal().find((option) => option.entryId === selectedEntryId) ?? null;
   });
   readonly isManualHoursSelection: Signal<boolean> = computed(
-    () => this.hoursForm.controls.jobEntryId.value === MANUAL_CORRECTION_JOB_ID,
+    () => this.selectedHoursJobEntryIdSignal() === MANUAL_CORRECTION_JOB_ID,
   );
   readonly historyPanelOpen: Signal<boolean> = computed(
     () => this.selectedHistoryEmployeeIdSignal() !== null,
@@ -256,6 +259,10 @@ export class EmployeesFacade {
     this.roleControl.valueChanges
       .pipe(startWith(this.roleControl.value), distinctUntilChanged())
       .subscribe((value) => this.roleSignal.set(value));
+
+    this.hoursForm.controls.jobEntryId.valueChanges
+      .pipe(startWith(this.hoursForm.controls.jobEntryId.value), distinctUntilChanged())
+      .subscribe((value) => this.selectedHoursJobEntryIdSignal.set(value));
   }
 
   setStatusFilter(filter: EmployeeStatusFilter): void {

@@ -644,6 +644,22 @@ describe('EmployeesFacade', () => {
     expect(facade.hoursEditorOpen()).toBe(false);
   });
 
+  it('reacts to linked-job selector changes for manual-note visibility state', async () => {
+    await facade.loadRoster();
+    facade.openHoursEditor('active-1');
+
+    expect(facade.isManualHoursSelection()).toBe(true);
+    expect(facade.selectedHoursJobOption()).toBeNull();
+
+    facade.hoursForm.controls.jobEntryId.setValue('entry-westmount');
+    expect(facade.isManualHoursSelection()).toBe(false);
+    expect(facade.selectedHoursJobOption()?.entryId).toBe('entry-westmount');
+
+    facade.hoursForm.controls.jobEntryId.setValue('__manual__');
+    expect(facade.isManualHoursSelection()).toBe(true);
+    expect(facade.selectedHoursJobOption()).toBeNull();
+  });
+
   it('covers fallback branches for non-happy-path editor interactions', async () => {
     // Same-day entries should sort by latest update first.
     service.hoursRecords.push({
