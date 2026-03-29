@@ -80,6 +80,7 @@ root/
   - Implementation lives in `server/src/entries/` (service, repository, controller, module). The repository persists to SQLite today (`ENTRIES_DB_PATH`) and can later be swapped for Postgres without changing the public API.
 - **Employees module**:
   - `GET /employees/roster` - list employee profiles used by the Manage Employees roster.
+  - `GET /employees/job-options` - list saved client jobs (from Entries) that can be linked during manual hours logging.
   - `GET /employees/hours` - list per-employee hours entries.
   - `GET /employees/history` - list employee job-history timeline entries.
   - `POST /employees/history/:entryId/complete` - mark a scheduled history entry as completed (owner/manager role) and refresh readiness rollups.
@@ -89,7 +90,7 @@ root/
   - `GET /employees/readiness` - list Start Next Job readiness contract data (availability state, upcoming windows, conflict flags, totals).
   - `POST /employees/assignments/start-next-job` - persist selected Start Next Job crew into scheduled history entries plus assignment-source hours rows.
   - `POST /employees/roster`, `PATCH /employees/roster/:employeeId`, `POST /employees/roster/:employeeId/archive` - profile writes with role guardrails (`owner` required for update/archive; `owner` or `manager` for create).
-  - `POST /employees/hours`, `PATCH /employees/hours/:entryId`, `DELETE /employees/hours/:entryId` - hours mutations allowed for `owner` and `manager`.
+  - `POST /employees/hours`, `PATCH /employees/hours/:entryId`, `DELETE /employees/hours/:entryId` - hours mutations allowed for `owner` and `manager`; linked-job hours can generate/update/remove matching completed history rows for the same employee.
   - `POST /employees/hours/clock` - role-guarded clock in/out action that writes audit-ready clock sessions into the hours stream (`source=clock`, `clockInAt`, `clockOutAt`, actor/timestamp).
   - Role is supplied through `x-operator-role` request header (`owner` default, `manager` optional). Unauthorized operations are rejected server-side with `403`.
   - Snapshot persistence is stored in SQLite at `EMPLOYEES_DB_PATH` (default `server/data/employees.db`).

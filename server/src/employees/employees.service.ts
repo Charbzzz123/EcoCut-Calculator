@@ -15,9 +15,12 @@ import type { UpdateScheduledHistoryDto } from './dto/update-scheduled-history.d
 import type { UpdateEmployeeDto } from './dto/update-employee.dto';
 import type { UpdateHoursEntryDto } from './dto/update-hours-entry.dto';
 import { EmployeesRepository } from './employees.repository';
+import { EntriesService } from '../entries/entries.service';
+import type { StoredEntry } from '../entries/entries.types';
 import type {
   EmployeeAvailabilityWindow,
   EmployeeClockAction,
+  EmployeeLoggedJobOption,
   EmployeeHoursRecord,
   EmployeeJobHistoryRecord,
   EmployeeOperatorRole,
@@ -63,7 +66,10 @@ export class EmployeesService implements OnModuleInit {
     history: [],
   };
 
-  constructor(private readonly repository: EmployeesRepository) {}
+  constructor(
+    private readonly repository: EmployeesRepository,
+    private readonly entriesService: EntriesService,
+  ) {}
 
   async onModuleInit(): Promise<void> {
     this.snapshot = this.normalizeSnapshot(
@@ -182,6 +188,15 @@ export class EmployeesService implements OnModuleInit {
 
   listStartNextJobReadiness(): EmployeeStartNextJobReadiness[] {
     return this.computeReadiness(this.snapshot.roster, this.snapshot.history);
+  }
+
+  listLoggedJobOptions(): EmployeeLoggedJobOption[] {
+    return this.entriesService
+      .listEntries()
+      .map((entry) => this.toLoggedJobOption(entry))
+      .sort((left, right) =>
+        right.scheduledStart.localeCompare(left.scheduledStart),
+      );
   }
 
   async createStartNextJobAssignment(
@@ -644,16 +659,26 @@ export class EmployeesService implements OnModuleInit {
   ): Promise<EmployeeHoursRecord> {
     this.assertOwnerOrManager(actorRole);
     const employee = this.requireEmployee(payload.employeeId);
-    const draft = this.normalizeHoursDraft(payload);
+    const selectedJob = this.resolveJobSelection(payload.jobEntryId);
+    const draft = this.normalizeHoursDraft(payload, selectedJob?.siteLabel);
     this.validateHoursDraft(draft);
     const now = new Date().toISOString();
+    const createdId = this.createHoursEntryId(payload.employeeId);
+    const linkedHistory = this.buildLinkedHistoryForHoursEntry({
+      hoursEntryId: createdId,
+      employeeId: payload.employeeId,
+      draft,
+      selectedJob,
+    });
     const created: EmployeeHoursRecord = {
-      id: this.createHoursEntryId(payload.employeeId),
+      id: createdId,
       employeeId: payload.employeeId,
       workDate: draft.workDate,
       siteLabel: draft.siteLabel,
       hours: draft.hours,
       source: 'manual',
+      jobEntryId: selectedJob?.entryId ?? null,
+      historyEntryId: linkedHistory?.id ?? null,
       clockInAt: null,
       clockOutAt: null,
       updatedByRole: actorRole,
@@ -662,6 +687,9 @@ export class EmployeesService implements OnModuleInit {
     this.snapshot = {
       ...this.snapshot,
       hours: [created, ...this.snapshot.hours],
+      history: linkedHistory
+        ? [linkedHistory, ...this.snapshot.history]
+        : this.snapshot.history,
       roster: this.snapshot.roster.map((record) =>
         record.id === employee.id ? { ...record, lastActivityAt: now } : record,
       ),
@@ -681,19 +709,46 @@ export class EmployeesService implements OnModuleInit {
       throw new NotFoundException(`Hours entry "${entryId}" not found.`);
     }
 
-    const draft = this.normalizeHoursDraft({
-      workDate: payload.workDate ?? existing.workDate,
-      siteLabel: payload.siteLabel ?? existing.siteLabel,
-      hours: payload.hours ?? existing.hours,
-    });
+    const selectedJob = this.resolveJobSelection(payload.jobEntryId);
+    const draft = this.normalizeHoursDraft(
+      {
+        workDate: payload.workDate ?? existing.workDate,
+        siteLabel: payload.siteLabel ?? existing.siteLabel,
+        hours: payload.hours ?? existing.hours,
+      },
+      selectedJob?.siteLabel ?? undefined,
+    );
     this.validateHoursDraft(draft);
     const now = new Date().toISOString();
+    const nextJobEntryId = selectedJob?.entryId ?? null;
+    const shouldLinkToJob = Boolean(selectedJob);
+    const existingLinkedHistory = existing.historyEntryId
+      ? (this.snapshot.history.find(
+          (entry) => entry.id === existing.historyEntryId,
+        ) ?? null)
+      : null;
+    const shouldDetachLinkedHistory =
+      Boolean(existingLinkedHistory?.linkedHoursEntryId === existing.id) &&
+      !shouldLinkToJob;
+    const updatedLinkedHistory = shouldLinkToJob
+      ? this.buildLinkedHistoryForHoursEntry({
+          hoursEntryId: existing.id,
+          employeeId: existing.employeeId,
+          draft,
+          selectedJob: selectedJob ?? null,
+          currentHistoryId: existingLinkedHistory?.id ?? undefined,
+        })
+      : existingLinkedHistory?.linkedHoursEntryId === existing.id
+        ? null
+        : existingLinkedHistory;
     const updated: EmployeeHoursRecord = {
       ...existing,
       workDate: draft.workDate,
       siteLabel: draft.siteLabel,
       hours: draft.hours,
       source: existing.source ?? 'manual',
+      jobEntryId: nextJobEntryId,
+      historyEntryId: updatedLinkedHistory?.id ?? null,
       clockInAt: existing.clockInAt ?? null,
       clockOutAt: existing.clockOutAt ?? null,
       updatedByRole: actorRole,
@@ -705,6 +760,25 @@ export class EmployeesService implements OnModuleInit {
       hours: this.snapshot.hours.map((entry) =>
         entry.id === entryId ? updated : entry,
       ),
+      history: this.snapshot.history
+        .filter((entry) =>
+          shouldDetachLinkedHistory
+            ? entry.id !== existingLinkedHistory?.id
+            : true,
+        )
+        .map((entry) =>
+          updatedLinkedHistory && entry.id === updatedLinkedHistory.id
+            ? updatedLinkedHistory
+            : entry,
+        )
+        .concat(
+          updatedLinkedHistory &&
+            !this.snapshot.history.some(
+              (entry) => entry.id === updatedLinkedHistory.id,
+            )
+            ? [updatedLinkedHistory]
+            : [],
+        ),
       roster: this.snapshot.roster.map((record) =>
         record.id === existing.employeeId
           ? { ...record, lastActivityAt: now }
@@ -727,6 +801,9 @@ export class EmployeesService implements OnModuleInit {
     this.snapshot = {
       ...this.snapshot,
       hours: this.snapshot.hours.filter((entry) => entry.id !== entryId),
+      history: this.snapshot.history.filter(
+        (entry) => entry.linkedHoursEntryId !== existing.id,
+      ),
     };
     await this.persistSnapshot();
   }
@@ -828,14 +905,18 @@ export class EmployeesService implements OnModuleInit {
     }
   }
 
-  private normalizeHoursDraft(payload: {
-    workDate: string;
-    siteLabel: string;
-    hours: number;
-  }): { workDate: string; siteLabel: string; hours: number } {
+  private normalizeHoursDraft(
+    payload: {
+      workDate: string;
+      siteLabel?: string;
+      hours: number;
+    },
+    selectedJobSiteLabel?: string,
+  ): { workDate: string; siteLabel: string; hours: number } {
+    const normalizedSiteLabel = payload.siteLabel?.trim() ?? '';
     return {
       workDate: payload.workDate.trim(),
-      siteLabel: payload.siteLabel.trim(),
+      siteLabel: normalizedSiteLabel || selectedJobSiteLabel?.trim() || '',
       hours: Number(payload.hours),
     };
   }
@@ -910,6 +991,7 @@ export class EmployeesService implements OnModuleInit {
       hours: snapshot.hours.map((entry) => ({
         ...entry,
         source: entry.source ?? 'manual',
+        jobEntryId: entry.jobEntryId ?? null,
         assignmentId: entry.assignmentId ?? null,
         historyEntryId: entry.historyEntryId ?? null,
         clockInAt: entry.clockInAt ?? null,
@@ -917,6 +999,8 @@ export class EmployeesService implements OnModuleInit {
       })),
       history: snapshot.history.map((entry) => ({
         ...entry,
+        linkedHoursEntryId: entry.linkedHoursEntryId ?? null,
+        jobEntryId: entry.jobEntryId ?? null,
         assignmentId: entry.assignmentId ?? null,
       })),
     };
@@ -1091,6 +1175,120 @@ export class EmployeesService implements OnModuleInit {
       }
     }
     return linkedIds;
+  }
+
+  private resolveJobSelection(
+    jobEntryId: string | null | undefined,
+  ): EmployeeLoggedJobOption | null {
+    const normalizedEntryId = jobEntryId?.trim() ?? '';
+    if (!normalizedEntryId) {
+      return null;
+    }
+    const entry = this.entriesService
+      .listEntries()
+      .find((record) => record.id === normalizedEntryId);
+    if (!entry) {
+      throw new NotFoundException(
+        `Linked job "${normalizedEntryId}" not found.`,
+      );
+    }
+    return this.toLoggedJobOption(entry);
+  }
+
+  private toLoggedJobOption(entry: StoredEntry): EmployeeLoggedJobOption {
+    const scheduledStart = entry.calendar?.start ?? entry.createdAt;
+    const scheduledEnd =
+      entry.calendar?.end ?? this.deriveDefaultEndTimestamp(scheduledStart);
+    const clientName =
+      `${entry.form.firstName} ${entry.form.lastName}`.trim() ||
+      'Unknown client';
+    return {
+      entryId: entry.id,
+      clientName,
+      siteLabel: this.resolveJobSiteLabel(entry),
+      address: entry.form.address.trim(),
+      scheduledStart,
+      scheduledEnd,
+    };
+  }
+
+  private resolveJobSiteLabel(entry: StoredEntry): string {
+    const jobType = entry.form.jobType?.trim();
+    if (jobType) {
+      return jobType;
+    }
+    const fallbackName =
+      `${entry.form.firstName} ${entry.form.lastName}`.trim();
+    return fallbackName ? `${fallbackName} job` : 'Client job';
+  }
+
+  private deriveDefaultEndTimestamp(startIso: string): string {
+    const startTimestamp = toTimestamp(startIso);
+    if (!startTimestamp) {
+      return startIso;
+    }
+    return new Date(startTimestamp + 3_600_000).toISOString();
+  }
+
+  private buildLinkedHistoryForHoursEntry(input: {
+    hoursEntryId: string;
+    employeeId: string;
+    draft: { workDate: string; siteLabel: string; hours: number };
+    selectedJob: EmployeeLoggedJobOption | null;
+    currentHistoryId?: string;
+  }): EmployeeJobHistoryRecord | null {
+    if (!input.selectedJob) {
+      return null;
+    }
+    const selectedJob = input.selectedJob;
+    const startDate = this.resolveHistoryStartFromHours(
+      input.draft.workDate,
+      selectedJob.scheduledStart,
+    );
+    const endDate = this.resolveHistoryEndFromHours(
+      startDate,
+      input.draft.hours,
+    );
+    return {
+      id:
+        input.currentHistoryId ?? `job-hours-${input.employeeId}-${Date.now()}`,
+      employeeId: input.employeeId,
+      siteLabel: selectedJob.siteLabel,
+      address: selectedJob.address,
+      scheduledStart: startDate,
+      scheduledEnd: endDate,
+      hoursWorked: input.draft.hours,
+      status: 'completed',
+      linkedHoursEntryId: input.hoursEntryId,
+      jobEntryId: selectedJob.entryId,
+      assignmentId: null,
+    };
+  }
+
+  private resolveHistoryStartFromHours(
+    workDate: string,
+    scheduledStart: string,
+  ): string {
+    const normalizedScheduledStart = toTimestamp(scheduledStart)
+      ? scheduledStart
+      : `${workDate}T12:00:00.000Z`;
+    if (!workDate) {
+      return normalizedScheduledStart;
+    }
+    if (!normalizedScheduledStart.startsWith(workDate)) {
+      return `${workDate}T12:00:00.000Z`;
+    }
+    return normalizedScheduledStart;
+  }
+
+  private resolveHistoryEndFromHours(startIso: string, hours: number): string {
+    const startTimestamp = toTimestamp(startIso);
+    if (!startTimestamp) {
+      return startIso;
+    }
+    return new Date(
+      startTimestamp + Math.max(0.25, hours) * 3_600_000,
+    ).toISOString();
   }
 
   private computeReadiness(

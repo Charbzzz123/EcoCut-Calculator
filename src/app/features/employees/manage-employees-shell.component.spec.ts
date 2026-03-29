@@ -6,6 +6,7 @@ import { vi } from 'vitest';
 import type {
   EmployeeEditorMode,
   EmployeeHoursRecord,
+  EmployeeLoggedJobOption,
   EmployeeJobHistoryRecord,
   EmployeeLoadState,
   EmployeeOperatorRole,
@@ -32,6 +33,7 @@ class EmployeesFacadeStub {
   });
   readonly hoursForm = new FormGroup({
     workDate: new FormControl('2026-03-21', { nonNullable: true }),
+    jobEntryId: new FormControl('', { nonNullable: true }),
     siteLabel: new FormControl('', { nonNullable: true }),
     hours: new FormControl('', { nonNullable: true }),
   });
@@ -106,6 +108,7 @@ class EmployeesFacadeStub {
   private readonly filteredRosterSignal = signal<EmployeeRosterRecord[]>([]);
   private readonly selectedHoursEmployeeIdSignal = signal<string | null>(null);
   private readonly hoursEntriesSignal = signal<EmployeeHoursRecord[]>([]);
+  private readonly jobOptionsSignal = signal<EmployeeLoggedJobOption[]>([]);
   private readonly selectedHistoryEmployeeIdSignal = signal<string | null>(null);
   private readonly historyEntriesSignal = signal<EmployeeJobHistoryRecord[]>([]);
   private readonly readinessSignal = signal<EmployeeStartNextJobReadiness[]>([]);
@@ -138,6 +141,14 @@ class EmployeesFacadeStub {
     null;
   readonly hoursErrors = this.hoursErrorsSignal.asReadonly();
   readonly hoursSuccess = this.hoursSuccessSignal.asReadonly();
+  readonly loggedJobOptions = this.jobOptionsSignal.asReadonly();
+  readonly selectedHoursJobOption = () => {
+    const selectedId = this.hoursForm.controls.jobEntryId.value;
+    if (!selectedId) {
+      return null;
+    }
+    return this.jobOptionsSignal().find((option) => option.entryId === selectedId) ?? null;
+  };
   readonly historyPanelOpen = () => this.selectedHistoryEmployeeIdSignal() !== null;
   readonly selectedHistoryEmployee = () =>
     this.rosterSignal().find(
@@ -175,6 +186,7 @@ class EmployeesFacadeStub {
     stats?: { total: number; active: number; inactive: number };
     selectedHoursEmployeeId?: string | null;
     hoursEntries?: EmployeeHoursRecord[];
+    jobOptions?: EmployeeLoggedJobOption[];
     selectedHistoryEmployeeId?: string | null;
     historyEntries?: EmployeeJobHistoryRecord[];
     readiness?: EmployeeStartNextJobReadiness[];
@@ -222,6 +234,9 @@ class EmployeesFacadeStub {
     }
     if (options.hoursEntries) {
       this.hoursEntriesSignal.set(options.hoursEntries);
+    }
+    if (options.jobOptions) {
+      this.jobOptionsSignal.set(options.jobOptions);
     }
     if (options.selectedHistoryEmployeeId !== undefined) {
       this.selectedHistoryEmployeeIdSignal.set(options.selectedHistoryEmployeeId);

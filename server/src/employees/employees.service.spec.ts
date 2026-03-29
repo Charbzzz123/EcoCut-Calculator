@@ -7,6 +7,8 @@ import {
 import type { EmployeesRepository } from './employees.repository';
 import { EmployeesService } from './employees.service';
 import type { EmployeesSnapshot } from './employees.types';
+import type { EntriesService } from '../entries/entries.service';
+import type { StoredEntry } from '../entries/entries.types';
 
 class FakeEmployeesRepository {
   snapshot: EmployeesSnapshot = {
@@ -98,14 +100,47 @@ class FakeEmployeesRepository {
   }
 }
 
+class FakeEntriesService {
+  readonly entries: StoredEntry[] = [
+    {
+      id: 'entry-1',
+      createdAt: '2026-03-20T10:00:00.000Z',
+      variant: 'customer',
+      form: {
+        firstName: 'Alex',
+        lastName: 'Nassif',
+        address: '1450 Pine Ave W',
+        phone: '(438) 111-1111',
+        email: 'alex@ecocutqc.com',
+        jobType: 'Westmount Cedar Hedge',
+        jobValue: '420',
+      },
+      hedges: {},
+      calendar: {
+        start: '2026-03-20T13:00:00.000Z',
+        end: '2026-03-20T17:00:00.000Z',
+      },
+    },
+  ];
+
+  listEntries(): StoredEntry[] {
+    return this.entries.map(
+      (entry) => JSON.parse(JSON.stringify(entry)) as StoredEntry,
+    );
+  }
+}
+
 describe('EmployeesService', () => {
   let service: EmployeesService;
   let repository: FakeEmployeesRepository;
+  let entriesService: FakeEntriesService;
 
   beforeEach(async () => {
     repository = new FakeEmployeesRepository();
+    entriesService = new FakeEntriesService();
     service = new EmployeesService(
       repository as unknown as EmployeesRepository,
+      entriesService as unknown as EntriesService,
     );
     await service.onModuleInit();
   });
@@ -127,6 +162,14 @@ describe('EmployeesService', () => {
     );
     expect(inactive?.readinessState).toBe('inactive');
     expect(inactive?.nextAvailableAt).toBeNull();
+  });
+
+  it('returns logged job options from entries', () => {
+    const options = service.listLoggedJobOptions();
+    expect(options).toHaveLength(1);
+    expect(options[0]?.entryId).toBe('entry-1');
+    expect(options[0]?.siteLabel).toBe('Westmount Cedar Hedge');
+    expect(options[0]?.address).toBe('1450 Pine Ave W');
   });
 
   it('allows manager to create profile and hours', async () => {
@@ -160,6 +203,55 @@ describe('EmployeesService', () => {
     expect(
       service.listHoursEntries().some((entry) => entry.id === hours.id),
     ).toBe(true);
+  });
+
+  it('links manual hours to selected client jobs and mirrors them in history', async () => {
+    const linked = await service.createHoursEntry(
+      {
+        employeeId: 'emp-owner',
+        workDate: '2026-03-20',
+        jobEntryId: 'entry-1',
+        hours: 4,
+      },
+      'owner',
+    );
+
+    expect(linked.jobEntryId).toBe('entry-1');
+    expect(linked.historyEntryId).toBeTruthy();
+
+    const linkedHistory = service
+      .listJobHistoryEntries()
+      .find((entry) => entry.id === linked.historyEntryId);
+    expect(linkedHistory?.linkedHoursEntryId).toBe(linked.id);
+    expect(linkedHistory?.jobEntryId).toBe('entry-1');
+    expect(linkedHistory?.status).toBe('completed');
+    expect(linkedHistory?.hoursWorked).toBe(4);
+
+    const updated = await service.updateHoursEntry(
+      linked.id,
+      {
+        workDate: '2026-03-20',
+        jobEntryId: 'entry-1',
+        hours: 5.5,
+      },
+      'owner',
+    );
+
+    expect(updated.hours).toBe(5.5);
+    const refreshedHistory = service
+      .listJobHistoryEntries()
+      .find((entry) => entry.id === linked.historyEntryId);
+    expect(refreshedHistory?.hoursWorked).toBe(5.5);
+
+    await service.removeHoursEntry(linked.id, 'owner');
+    expect(
+      service.listHoursEntries().some((entry) => entry.id === linked.id),
+    ).toBe(false);
+    expect(
+      service
+        .listJobHistoryEntries()
+        .some((entry) => entry.linkedHoursEntryId === linked.id),
+    ).toBe(false);
   });
 
   it('blocks manager from owner-only profile edits/archive', async () => {

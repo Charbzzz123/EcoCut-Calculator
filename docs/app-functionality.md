@@ -137,6 +137,8 @@
 - **Hours management**
   - Managers can update hours entries; Owners can edit all staffing/compensation fields.
   - Every hours edit records actor, timestamp, previous value, and new value.
+  - Hours editor now supports **linked job selection** from saved client jobs (with a `No linked job (manual correction)` fallback when fixing payroll mistakes).
+  - When a linked job is selected, site/address is derived from that job and the saved hours entry keeps the job reference.
 - **Clock in / Clock out**
   - Managers and Owners can clock active employees in/out directly from the workspace.
   - Clock sessions persist into `/employees/hours` with `source=clock`, `clockInAt`, `clockOutAt`, `updatedByRole`, and `updatedAt` audit fields.
@@ -144,6 +146,7 @@
 - **Employee job history**
   - Per-employee timeline of assigned jobs showing site/address, date, scheduled window, status, and hours worked on that job.
   - Totals rollups: jobs tracked, completed vs scheduled counts, total hours, and recent site summary.
+  - Linked manual hours now generate/update a corresponding completed timeline row, so hours logging and history stay synchronized.
   - This history becomes the data source for future assignment suggestions in `Start Next Job`.
 - **Start Next Job readiness contract**
   - For each employee we now expose: readiness state (`available`, `scheduled`, `inactive`), upcoming scheduled windows, next scheduled slot, next available time, completed/scheduled job counts, completed/scheduled hours, last completed site/date, and overlap/conflict flag.

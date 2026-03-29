@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import type {
   EmployeeClockActionPayload,
+  EmployeeLoggedJobOption,
   EmployeeHoursMutationPayload,
   EmployeeHoursRecord,
   EmployeeJobHistoryRecord,
@@ -37,6 +38,12 @@ export class EmployeesDataService {
   async listStartNextJobReadiness(): Promise<EmployeeStartNextJobReadiness[]> {
     return firstValueFrom(
       this.http.get<EmployeeStartNextJobReadiness[]>(`${this.baseUrl}/readiness`),
+    );
+  }
+
+  async listLoggedJobOptions(): Promise<EmployeeLoggedJobOption[]> {
+    return firstValueFrom(
+      this.http.get<EmployeeLoggedJobOption[]>(`${this.baseUrl}/job-options`),
     );
   }
 

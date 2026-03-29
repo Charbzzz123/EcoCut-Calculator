@@ -7,6 +7,7 @@ describe('EmployeesController', () => {
   const listHoursEntries = jest.fn();
   const listJobHistoryEntries = jest.fn();
   const listStartNextJobReadiness = jest.fn();
+  const listLoggedJobOptions = jest.fn();
   const createEmployeeProfile = jest.fn();
   const updateEmployeeProfile = jest.fn();
   const archiveEmployee = jest.fn();
@@ -32,6 +33,7 @@ describe('EmployeesController', () => {
             listHoursEntries,
             listJobHistoryEntries,
             listStartNextJobReadiness,
+            listLoggedJobOptions,
             createEmployeeProfile,
             updateEmployeeProfile,
             archiveEmployee,
@@ -62,6 +64,7 @@ describe('EmployeesController', () => {
     listHoursEntries.mockReturnValue([{ id: 'hours-1' }]);
     listJobHistoryEntries.mockReturnValue([{ id: 'job-1' }]);
     listStartNextJobReadiness.mockReturnValue([{ employeeId: 'emp-1' }]);
+    listLoggedJobOptions.mockReturnValue([{ entryId: 'entry-1' }]);
     const controller = await createController();
 
     expect(controller.listRoster()).toEqual([{ id: 'emp-1' }]);
@@ -70,6 +73,7 @@ describe('EmployeesController', () => {
     expect(controller.listStartNextJobReadiness()).toEqual([
       { employeeId: 'emp-1' },
     ]);
+    expect(controller.listLoggedJobOptions()).toEqual([{ entryId: 'entry-1' }]);
   });
 
   it('parses manager role from headers for mutating endpoints', async () => {

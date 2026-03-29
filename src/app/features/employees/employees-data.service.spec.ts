@@ -26,26 +26,31 @@ describe('EmployeesDataService', () => {
     const hoursPromise = service.listHoursEntries();
     const historyPromise = service.listJobHistoryEntries();
     const readinessPromise = service.listStartNextJobReadiness();
+    const jobsPromise = service.listLoggedJobOptions();
 
     const rosterReq = httpMock.expectOne(`${baseUrl}/roster`);
     const hoursReq = httpMock.expectOne(`${baseUrl}/hours`);
     const historyReq = httpMock.expectOne(`${baseUrl}/history`);
     const readinessReq = httpMock.expectOne(`${baseUrl}/readiness`);
+    const jobsReq = httpMock.expectOne(`${baseUrl}/job-options`);
 
     expect(rosterReq.request.method).toBe('GET');
     expect(hoursReq.request.method).toBe('GET');
     expect(historyReq.request.method).toBe('GET');
     expect(readinessReq.request.method).toBe('GET');
+    expect(jobsReq.request.method).toBe('GET');
 
     rosterReq.flush([{ id: 'emp-1' }]);
     hoursReq.flush([{ id: 'hours-1' }]);
     historyReq.flush([{ id: 'job-1' }]);
     readinessReq.flush([{ employeeId: 'emp-1' }]);
+    jobsReq.flush([{ entryId: 'entry-1' }]);
 
     await expect(rosterPromise).resolves.toHaveLength(1);
     await expect(hoursPromise).resolves.toHaveLength(1);
     await expect(historyPromise).resolves.toHaveLength(1);
     await expect(readinessPromise).resolves.toHaveLength(1);
+    await expect(jobsPromise).resolves.toHaveLength(1);
   });
 
   it('sends operator role headers for mutating endpoints', async () => {

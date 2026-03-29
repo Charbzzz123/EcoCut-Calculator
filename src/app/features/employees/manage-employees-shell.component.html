@@ -442,15 +442,40 @@
                       />
                     </label>
                     <label class="field field--wide">
-                      <span class="field__label">Site / address *</span>
-                      <input
-                        class="field__input"
-                        type="text"
-                        formControlName="siteLabel"
-                        required
-                        aria-required="true"
-                      />
+                      <span class="field__label">Linked client job (optional)</span>
+                      <select class="field__input" formControlName="jobEntryId">
+                        <option value="">No linked job (manual correction)</option>
+                        @for (job of loggedJobOptions(); track job.entryId) {
+                          <option [value]="job.entryId">
+                            {{ job.clientName }} — {{ job.siteLabel }} ({{ job.address }})
+                          </option>
+                        }
+                      </select>
                     </label>
+                    <div class="field field--wide">
+                      @if (selectedHoursJobOption()) {
+                        <span class="field__label">Linked site / address</span>
+                        <input
+                          class="field__input"
+                          type="text"
+                          [value]="
+                            selectedHoursJobOption()!.siteLabel +
+                            ' — ' +
+                            selectedHoursJobOption()!.address
+                          "
+                          readonly
+                        />
+                      } @else {
+                        <span class="field__label">Site / address *</span>
+                        <input
+                          class="field__input"
+                          type="text"
+                          formControlName="siteLabel"
+                          required
+                          aria-required="true"
+                        />
+                      }
+                    </div>
                   </div>
 
                   <div class="editor-actions">
@@ -871,15 +896,38 @@
               />
             </label>
             <label class="field field--wide">
-              <span class="field__label">Site / address *</span>
-              <input
-                class="field__input"
-                type="text"
-                formControlName="siteLabel"
-                required
-                aria-required="true"
-              />
+              <span class="field__label">Linked client job (optional)</span>
+              <select class="field__input" formControlName="jobEntryId">
+                <option value="">No linked job (manual correction)</option>
+                @for (job of loggedJobOptions(); track job.entryId) {
+                  <option [value]="job.entryId">
+                    {{ job.clientName }} — {{ job.siteLabel }} ({{ job.address }})
+                  </option>
+                }
+              </select>
             </label>
+            <div class="field field--wide">
+              @if (selectedHoursJobOption()) {
+                <span class="field__label">Linked site / address</span>
+                <input
+                  class="field__input"
+                  type="text"
+                  [value]="
+                    selectedHoursJobOption()!.siteLabel + ' — ' + selectedHoursJobOption()!.address
+                  "
+                  readonly
+                />
+              } @else {
+                <span class="field__label">Site / address *</span>
+                <input
+                  class="field__input"
+                  type="text"
+                  formControlName="siteLabel"
+                  required
+                  aria-required="true"
+                />
+              }
+            </div>
           </div>
 
           <div class="editor-actions">

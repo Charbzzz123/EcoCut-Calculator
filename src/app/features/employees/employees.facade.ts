@@ -8,6 +8,7 @@ import type {
   EmployeeHoursDraft,
   EmployeeHoursRecord,
   EmployeeHoursSource,
+  EmployeeLoggedJobOption,
   EmployeeJobHistoryRecord,
   EmployeeLoadState,
   EmployeeOperatorRole,
@@ -74,6 +75,7 @@ export class EmployeesFacade {
 
   readonly hoursForm = new FormGroup({
     workDate: new FormControl(toIsoDate(new Date()), { nonNullable: true }),
+    jobEntryId: new FormControl('', { nonNullable: true }),
     siteLabel: new FormControl('', { nonNullable: true }),
     hours: new FormControl('', { nonNullable: true }),
   });
@@ -100,6 +102,9 @@ export class EmployeesFacade {
   >([]);
   private readonly jobHistoryEntriesSignal: WritableSignal<EmployeeJobHistoryRecord[]> = signal<
     EmployeeJobHistoryRecord[]
+  >([]);
+  private readonly jobOptionsSignal: WritableSignal<EmployeeLoggedJobOption[]> = signal<
+    EmployeeLoggedJobOption[]
   >([]);
   private readonly startNextJobReadinessSignal: WritableSignal<EmployeeStartNextJobReadiness[]> =
     signal<EmployeeStartNextJobReadiness[]>([]);
@@ -184,6 +189,14 @@ export class EmployeesFacade {
   });
   readonly hoursErrors: Signal<string[]> = this.hoursErrorsSignal.asReadonly();
   readonly hoursSuccess: Signal<string | null> = this.hoursSuccessSignal.asReadonly();
+  readonly loggedJobOptions: Signal<EmployeeLoggedJobOption[]> = this.jobOptionsSignal.asReadonly();
+  readonly selectedHoursJobOption: Signal<EmployeeLoggedJobOption | null> = computed(() => {
+    const selectedEntryId = this.hoursForm.controls.jobEntryId.value;
+    if (!selectedEntryId) {
+      return null;
+    }
+    return this.jobOptionsSignal().find((option) => option.entryId === selectedEntryId) ?? null;
+  });
   readonly historyPanelOpen: Signal<boolean> = computed(
     () => this.selectedHistoryEmployeeIdSignal() !== null,
   );
@@ -430,6 +443,7 @@ export class EmployeesFacade {
     this.hoursSuccessSignal.set(null);
     this.hoursForm.setValue({
       workDate: toIsoDate(new Date()),
+      jobEntryId: '',
       siteLabel: '',
       hours: '',
     });
@@ -466,6 +480,7 @@ export class EmployeesFacade {
     this.hoursSuccessSignal.set(null);
     this.hoursForm.setValue({
       workDate: entry.workDate,
+      jobEntryId: entry.jobEntryId ?? '',
       siteLabel: entry.siteLabel,
       hours: formatHours(entry.hours),
     });
@@ -477,7 +492,7 @@ export class EmployeesFacade {
       await this.data.removeHoursEntry(entryId, this.roleSignal());
       if (this.editingHoursEntryIdSignal() === entryId) {
         this.editingHoursEntryIdSignal.set(null);
-        this.hoursForm.patchValue({ siteLabel: '', hours: '' });
+        this.hoursForm.patchValue({ jobEntryId: '', siteLabel: '', hours: '' });
       }
       this.hoursSuccessSignal.set('Hours entry removed.');
       await this.loadRoster();
@@ -516,6 +531,7 @@ export class EmployeesFacade {
           {
             workDate: payload.workDate,
             siteLabel: payload.siteLabel,
+            jobEntryId: payload.jobEntryId ?? null,
             hours: payload.hours,
           },
           this.roleSignal(),
@@ -539,7 +555,7 @@ export class EmployeesFacade {
       this.hoursSuccessSignal.set(
         editingId ? 'Hours entry updated successfully.' : 'Hours entry saved successfully.',
       );
-      this.hoursForm.patchValue({ siteLabel: '', hours: '' });
+      this.hoursForm.patchValue({ jobEntryId: '', siteLabel: '', hours: '' });
       await this.loadRoster();
       return true;
     } catch (error) {
@@ -602,19 +618,22 @@ export class EmployeesFacade {
   async loadRoster(): Promise<void> {
     this.loadStateSignal.set('loading');
     try {
-      const [roster, hours, history, readiness] = await Promise.all([
+      const [roster, hours, history, readiness, jobOptions] = await Promise.all([
         this.data.listEmployees(),
         this.data.listHoursEntries(),
         this.data.listJobHistoryEntries(),
         this.data.listStartNextJobReadiness(),
+        this.data.listLoggedJobOptions(),
       ]);
       this.rosterSignal.set(roster);
       this.hoursEntriesSignal.set(hours);
       this.jobHistoryEntriesSignal.set(history);
       this.startNextJobReadinessSignal.set(readiness);
+      this.jobOptionsSignal.set(jobOptions);
       this.loadStateSignal.set('ready');
     } catch (error) {
       console.warn('Failed to load employee roster', error);
+      this.jobOptionsSignal.set([]);
       this.startNextJobReadinessSignal.set([]);
       this.loadStateSignal.set('error');
     }
@@ -802,6 +821,7 @@ export class EmployeesFacade {
   private readHoursDraftFromForm(): EmployeeHoursDraft {
     return {
       workDate: this.hoursForm.controls.workDate.value,
+      jobEntryId: this.hoursForm.controls.jobEntryId.value,
       siteLabel: this.hoursForm.controls.siteLabel.value,
       hours: this.hoursForm.controls.hours.value as string | number,
     };
@@ -811,10 +831,14 @@ export class EmployeesFacade {
     const errors: string[] = [];
     const missingLabels: string[] = [];
     const normalizedHours = this.normalizeHoursInput(draft.hours).trim();
+    const hasLinkedJob = draft.jobEntryId.trim().length > 0;
+    const linkedJobExists = hasLinkedJob
+      ? this.jobOptionsSignal().some((option) => option.entryId === draft.jobEntryId)
+      : false;
     if (!draft.workDate.trim()) {
       missingLabels.push('Work date');
     }
-    if (!draft.siteLabel.trim()) {
+    if (!hasLinkedJob && !draft.siteLabel.trim()) {
       missingLabels.push('Site / address');
     }
     if (!normalizedHours) {
@@ -822,6 +846,9 @@ export class EmployeesFacade {
     }
     if (missingLabels.length) {
       errors.push(`Required fields missing: ${missingLabels.join(', ')}.`);
+    }
+    if (hasLinkedJob && !linkedJobExists) {
+      errors.push('Selected linked job is unavailable. Refresh roster and try again.');
     }
 
     const parsedHours = Number.parseFloat(normalizedHours);
@@ -840,10 +867,13 @@ export class EmployeesFacade {
     draft: EmployeeHoursDraft,
   ): EmployeeHoursMutationPayload {
     const normalizedHours = this.normalizeHoursInput(draft.hours).trim();
+    const linkedJob = this.jobOptionsSignal().find((option) => option.entryId === draft.jobEntryId);
+    const manualSiteLabel = draft.siteLabel.trim();
     return {
       employeeId,
       workDate: draft.workDate.trim(),
-      siteLabel: draft.siteLabel.trim(),
+      siteLabel: linkedJob ? undefined : manualSiteLabel,
+      jobEntryId: linkedJob?.entryId,
       hours: Number.parseFloat(normalizedHours),
     };
   }

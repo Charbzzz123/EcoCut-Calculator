@@ -4,6 +4,7 @@ import { EmployeesFacade } from './employees.facade.js';
 import { EmployeesDataService } from './employees-data.service.js';
 import type {
   EmployeeHoursRecord,
+  EmployeeLoggedJobOption,
   EmployeeJobHistoryRecord,
   EmployeeStartNextJobReadiness,
   EmployeeRosterRecord,
@@ -145,6 +146,25 @@ class EmployeesDataServiceStub {
     },
   ];
 
+  readonly jobOptions: EmployeeLoggedJobOption[] = [
+    {
+      entryId: 'entry-westmount',
+      clientName: 'Alex Nassif',
+      siteLabel: 'Westmount Cedar Hedge',
+      address: '1450 Pine Ave W',
+      scheduledStart: '2026-03-20T13:00:00Z',
+      scheduledEnd: '2026-03-20T17:00:00Z',
+    },
+    {
+      entryId: 'entry-ndg',
+      clientName: 'Nora Bitar',
+      siteLabel: 'NDG Maple Court',
+      address: '2331 Sherbrooke St W',
+      scheduledStart: '2026-03-18T11:00:00Z',
+      scheduledEnd: '2026-03-18T14:00:00Z',
+    },
+  ];
+
   async listEmployees(): Promise<EmployeeRosterRecord[]> {
     if (this.shouldFail) {
       throw new Error('boom');
@@ -187,6 +207,13 @@ class EmployeesDataServiceStub {
           }
         : { ...entry },
     );
+  }
+
+  async listLoggedJobOptions(): Promise<EmployeeLoggedJobOption[]> {
+    if (this.shouldFail) {
+      throw new Error('boom');
+    }
+    return this.jobOptions.map((option) => ({ ...option }));
   }
 
   async createEmployeeProfile(payload: {
@@ -265,16 +292,19 @@ class EmployeesDataServiceStub {
   async createHoursEntry(payload: {
     employeeId: string;
     workDate: string;
-    siteLabel: string;
+    siteLabel?: string;
+    jobEntryId?: string;
     hours: number;
   }) {
+    const linkedJob = this.jobOptions.find((option) => option.entryId === payload.jobEntryId);
     const created = {
       id: 'hours-created',
       employeeId: payload.employeeId,
       workDate: payload.workDate,
-      siteLabel: payload.siteLabel,
+      siteLabel: linkedJob?.siteLabel ?? payload.siteLabel ?? 'Manual correction',
       hours: payload.hours,
       source: 'manual',
+      jobEntryId: linkedJob?.entryId ?? null,
       clockInAt: null,
       clockOutAt: null,
       updatedByRole: 'manager',
@@ -286,13 +316,16 @@ class EmployeesDataServiceStub {
 
   async updateHoursEntry(
     entryId: string,
-    payload: { workDate: string; siteLabel: string; hours: number },
+    payload: { workDate: string; siteLabel?: string; jobEntryId?: string | null; hours: number },
   ) {
     const current = this.hoursRecords.find((entry) => entry.id === entryId);
     if (!current) {
       throw new Error('missing');
     }
+    const linkedJob = this.jobOptions.find((option) => option.entryId === payload.jobEntryId);
     Object.assign(current, payload, {
+      siteLabel: linkedJob?.siteLabel ?? payload.siteLabel ?? current.siteLabel,
+      jobEntryId: linkedJob?.entryId ?? payload.jobEntryId ?? null,
       source: current.source,
       clockInAt: current.clockInAt,
       clockOutAt: current.clockOutAt,
@@ -525,20 +558,34 @@ describe('EmployeesFacade', () => {
     facade.openHoursEditor('active-1');
     expect(facade.hoursSuccessSnapshot()).toBeNull();
 
-    facade.hoursForm.setValue({ workDate: '', siteLabel: '', hours: '' });
+    facade.hoursForm.setValue({ workDate: '', jobEntryId: '', siteLabel: '', hours: '' });
     await expect(facade.saveHoursEntry()).resolves.toBe(false);
     expect(facade.hoursErrorsSnapshot()[0]).toContain(
       'Required fields missing: Work date, Site / address, Hours.',
     );
 
-    facade.hoursForm.setValue({ workDate: '2026-03-21', siteLabel: 'Laval', hours: '26' });
+    facade.hoursForm.setValue({
+      workDate: '2026-03-21',
+      jobEntryId: '',
+      siteLabel: 'Laval',
+      hours: '26',
+    });
     await expect(facade.saveHoursEntry()).resolves.toBe(false);
     expect(facade.hoursErrorsSnapshot()[0]).toContain('Hours must be a number greater than 0');
 
     facade.roleControl.setValue('manager');
-    facade.hoursForm.setValue({ workDate: '2026-03-21', siteLabel: 'Laval', hours: '7.25' });
+    facade.hoursForm.setValue({
+      workDate: '2026-03-21',
+      jobEntryId: 'entry-westmount',
+      siteLabel: '',
+      hours: '7.25',
+    });
     await expect(facade.saveHoursEntry()).resolves.toBe(true);
     expect(facade.hoursSuccessSnapshot()).toBe('Hours entry saved successfully.');
+    expect(
+      facade.selectedHoursEntriesSnapshot().find((entry) => entry.id === 'hours-created')
+        ?.jobEntryId,
+    ).toBe('entry-westmount');
     expect(
       facade.selectedHoursEntriesSnapshot().find((entry) => entry.id === 'hours-created')
         ?.updatedByRole,
@@ -546,6 +593,7 @@ describe('EmployeesFacade', () => {
 
     // Runtime <input type="number"> can provide a numeric value.
     facade.hoursForm.controls.workDate.setValue('2026-03-22');
+    facade.hoursForm.controls.jobEntryId.setValue('');
     facade.hoursForm.controls.siteLabel.setValue('Outremont');
     (facade.hoursForm.controls.hours as unknown as { setValue: (value: number) => void }).setValue(
       6.5,
@@ -560,6 +608,7 @@ describe('EmployeesFacade', () => {
     expect(facade.hoursSuccessSnapshot()).toBeNull();
     expect(facade.editingHoursEntry()?.siteLabel).toBe('NDG');
 
+    facade.hoursForm.controls.jobEntryId.setValue('');
     facade.hoursForm.controls.siteLabel.setValue('NDG - Updated');
     facade.hoursForm.controls.hours.setValue('7');
     await expect(facade.saveHoursEntry()).resolves.toBe(true);
@@ -658,7 +707,12 @@ describe('EmployeesFacade', () => {
   it('surfaces API error messages for hours mutations and falls back when missing', async () => {
     await facade.loadRoster();
     facade.openHoursEditor('active-1');
-    facade.hoursForm.setValue({ workDate: '2026-03-21', siteLabel: 'Laval', hours: '7.25' });
+    facade.hoursForm.setValue({
+      workDate: '2026-03-21',
+      jobEntryId: '',
+      siteLabel: 'Laval',
+      hours: '7.25',
+    });
 
     vi.spyOn(service, 'createHoursEntry').mockRejectedValueOnce({
       error: { message: ['Hours conflict.', 'Try another slot.'] },

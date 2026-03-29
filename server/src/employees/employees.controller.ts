@@ -43,6 +43,11 @@ export class EmployeesController {
     return this.employees.listStartNextJobReadiness();
   }
 
+  @Get('job-options')
+  listLoggedJobOptions() {
+    return this.employees.listLoggedJobOptions();
+  }
+
   @Post('roster')
   createEmployeeProfile(
     @Body() body: CreateEmployeeDto,

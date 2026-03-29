@@ -40,6 +40,8 @@ export class ManageEmployeesShellComponent implements OnInit {
   readonly selectedHoursEmployee = this.facade.selectedHoursEmployee;
   readonly selectedHoursEntries = this.facade.selectedHoursEntries;
   readonly selectedHoursTotals = this.facade.selectedHoursTotals;
+  readonly loggedJobOptions = this.facade.loggedJobOptions;
+  readonly selectedHoursJobOption = this.facade.selectedHoursJobOption;
   readonly editingHoursEntry = this.facade.editingHoursEntry;
   readonly hoursErrors = this.facade.hoursErrors;
   readonly hoursSuccess = this.facade.hoursSuccess;

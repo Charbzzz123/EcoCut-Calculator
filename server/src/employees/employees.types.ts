@@ -10,6 +10,15 @@ export type EmployeeHoursSource = 'manual' | 'clock' | 'assignment';
 
 export type EmployeeClockAction = 'clock_in' | 'clock_out';
 
+export interface EmployeeLoggedJobOption {
+  entryId: string;
+  clientName: string;
+  siteLabel: string;
+  address: string;
+  scheduledStart: string;
+  scheduledEnd: string;
+}
+
 export interface EmployeeProfileRecord {
   id: string;
   firstName: string;
@@ -31,6 +40,7 @@ export interface EmployeeHoursRecord {
   siteLabel: string;
   hours: number;
   source: EmployeeHoursSource;
+  jobEntryId?: string | null;
   assignmentId?: string | null;
   historyEntryId?: string | null;
   clockInAt: string | null;
@@ -48,6 +58,8 @@ export interface EmployeeJobHistoryRecord {
   scheduledEnd: string;
   hoursWorked: number;
   status: EmployeeJobStatus;
+  linkedHoursEntryId?: string | null;
+  jobEntryId?: string | null;
   assignmentId?: string | null;
 }
 
