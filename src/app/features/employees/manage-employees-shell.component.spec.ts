@@ -605,7 +605,7 @@ describe('ManageEmployeesShellComponent', () => {
 
     expect(native.querySelector('.hours-list .hours-card')).toBeNull();
     expect(native.querySelector('.error-summary')).toBeNull();
-    expect(native.querySelector('.success-summary')?.textContent).toContain(
+    expect(native.querySelector('.workspace-notice--success')?.textContent).toContain(
       'Hours entry saved successfully.',
     );
     expect(native.querySelector('.hours-form button[type="submit"]')?.textContent).toContain(

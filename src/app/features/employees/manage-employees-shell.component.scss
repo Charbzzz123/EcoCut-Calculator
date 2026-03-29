@@ -257,6 +257,21 @@ h1 {
   padding: 0.62rem 0.85rem;
 }
 
+.workspace-notice--success {
+  border-color: var(--border-accent-soft);
+  background: var(--surface-chip-selected);
+  color: var(--text-accent);
+}
+
+.success-summary {
+  margin: 0;
+  border-radius: 0.9rem;
+  border: 1px solid var(--border-accent-soft);
+  background: var(--surface-chip-selected);
+  color: var(--text-accent);
+  padding: 0.55rem 0.75rem;
+}
+
 .summary-card {
   border-radius: 1rem;
   border: 1px solid var(--border-soft);
@@ -759,15 +774,6 @@ h1 {
 .error-summary ul {
   margin: 0;
   padding-left: 1.1rem;
-}
-
-.success-summary {
-  border-radius: 0.9rem;
-  border: 1px solid var(--border-accent-soft);
-  background: var(--surface-chip-selected);
-  color: var(--text-accent);
-  padding: 0.55rem 0.75rem;
-  margin: 0;
 }
 
 .editor-actions {

@@ -165,6 +165,11 @@
   @if (workspaceNotice()) {
     <p class="workspace-notice" role="status" aria-live="polite">{{ workspaceNotice() }}</p>
   }
+  @if (hoursSuccess()) {
+    <p class="workspace-notice workspace-notice--success" role="status" aria-live="polite">
+      {{ hoursSuccess() }}
+    </p>
+  }
 
   @if (workspaceFocus() === 'clock') {
     <article id="employees-clock" class="employees-clock" aria-label="Clock in and clock out">
@@ -509,10 +514,6 @@
               </ul>
             </div>
           }
-          @if (hoursSuccess()) {
-            <p class="success-summary" role="status" aria-live="polite">{{ hoursSuccess() }}</p>
-          }
-
           @if (editingHoursEntry()) {
             <p class="editing-note">
               Editing hours entry from {{ editingHoursEntry()!.workDate }} at
@@ -564,6 +565,9 @@
               {{ editingHoursEntry() ? 'Update hours' : 'Save hours' }}
             </button>
           </div>
+          @if (hoursSuccess()) {
+            <p class="success-summary" role="status" aria-live="polite">{{ hoursSuccess() }}</p>
+          }
         </form>
 
         <ul class="hours-list">
