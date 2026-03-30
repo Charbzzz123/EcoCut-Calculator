@@ -685,6 +685,10 @@ describe('StartNextJobFacade', () => {
       scheduledCount: 1,
       completedCount: 1,
       cancelledCount: 1,
+      completedOnTimeCount: 1,
+      completedLateCount: 0,
+      scheduledLateCount: 1,
+      continuityCount: 0,
       totalHours: 7,
       averageHours: 2.33,
       completionRate: 33.3,
@@ -706,6 +710,8 @@ describe('StartNextJobFacade', () => {
     expect(exportPayload?.rowCount).toBe(1);
     expect(exportPayload?.csvContent).toContain('"Metric","Value"');
     expect(exportPayload?.csvContent).toContain('"Total tracked","1"');
+    expect(exportPayload?.csvContent).toContain('"Completed on time","0"');
+    expect(exportPayload?.csvContent).toContain('"Scheduled late","1"');
     expect(exportPayload?.csvContent).toContain('"hist-2","Bruno East","scheduled"');
     expect(exportPayload?.csvContent).toContain('"Employee","Tracked","Scheduled"');
     expect(exportPayload?.csvContent).toContain('"Bruno East","1","1","0","0","3.00"');
@@ -755,6 +761,10 @@ describe('StartNextJobFacade', () => {
       scheduledCount: 0,
       completedCount: 1,
       cancelledCount: 0,
+      completedOnTimeCount: 1,
+      completedLateCount: 0,
+      scheduledLateCount: 0,
+      continuityCount: 0,
       totalHours: 2,
       averageHours: 2,
       completionRate: 100,

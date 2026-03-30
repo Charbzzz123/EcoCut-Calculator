@@ -1203,6 +1203,12 @@
           <p class="history-context__meta">
             Scheduled and completed entries can be edited. Cancelled entries stay read-only.
           </p>
+          <p class="history-context__meta">
+            On-time: {{ selectedHistoryLifecycleSummary().completedOnTime }} | Late:
+            {{ selectedHistoryLifecycleSummary().completedLate }} | Scheduled late:
+            {{ selectedHistoryLifecycleSummary().scheduledLate }} | Continuity:
+            {{ selectedHistoryLifecycleSummary().continuity }}
+          </p>
           @if (selectedHistorySummary().jobsCount > 0) {
             <div class="history-quick-actions">
               <button

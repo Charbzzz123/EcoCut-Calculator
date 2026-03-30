@@ -32,6 +32,10 @@ export interface AssignmentAnalyticsSnapshot {
   readonly scheduledCount: number;
   readonly completedCount: number;
   readonly cancelledCount: number;
+  readonly completedOnTimeCount: number;
+  readonly completedLateCount: number;
+  readonly scheduledLateCount: number;
+  readonly continuityCount: number;
   readonly totalHours: number;
   readonly averageHours: number;
   readonly completionRate: number;

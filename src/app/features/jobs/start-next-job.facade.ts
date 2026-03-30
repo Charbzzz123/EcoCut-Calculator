@@ -24,6 +24,7 @@ import type {
   StartNextJobLoadState,
   StartNextJobSaveState,
 } from './start-next-job.types.js';
+import { computeHistoryLifecycleSummary } from '../../shared/domain/employees/history-lifecycle-metrics.js';
 
 interface OptimisticBoardSnapshot {
   readonly history: EmployeeJobHistoryRecord[];
@@ -290,6 +291,7 @@ export class StartNextJobFacade {
     const scheduledCount = history.filter((entry) => entry.status === 'scheduled').length;
     const completedCount = history.filter((entry) => entry.status === 'completed').length;
     const cancelledCount = history.filter((entry) => entry.status === 'cancelled').length;
+    const lifecycle = computeHistoryLifecycleSummary(history);
     const totalHours = history.reduce((sum, entry) => sum + entry.hoursWorked, 0);
     const averageHours = totalTracked ? Number((totalHours / totalTracked).toFixed(2)) : 0;
     const completionRate = totalTracked
@@ -307,6 +309,10 @@ export class StartNextJobFacade {
       scheduledCount,
       completedCount,
       cancelledCount,
+      completedOnTimeCount: lifecycle.completedOnTime,
+      completedLateCount: lifecycle.completedLate,
+      scheduledLateCount: lifecycle.scheduledLate,
+      continuityCount: lifecycle.continuity,
       totalHours,
       averageHours,
       completionRate,
@@ -1260,6 +1266,10 @@ export class StartNextJobFacade {
       `${escapeCsvCell('Scheduled')},${escapeCsvCell(analytics.scheduledCount)}`,
       `${escapeCsvCell('Completed')},${escapeCsvCell(analytics.completedCount)}`,
       `${escapeCsvCell('Cancelled')},${escapeCsvCell(analytics.cancelledCount)}`,
+      `${escapeCsvCell('Completed on time')},${escapeCsvCell(analytics.completedOnTimeCount)}`,
+      `${escapeCsvCell('Completed late')},${escapeCsvCell(analytics.completedLateCount)}`,
+      `${escapeCsvCell('Scheduled late')},${escapeCsvCell(analytics.scheduledLateCount)}`,
+      `${escapeCsvCell('Continuity segments')},${escapeCsvCell(analytics.continuityCount)}`,
       `${escapeCsvCell('Total hours')},${escapeCsvCell(analytics.totalHours.toFixed(2))}`,
       `${escapeCsvCell('Average hours / entry')},${escapeCsvCell(analytics.averageHours.toFixed(2))}`,
       `${escapeCsvCell('Completion rate')},${escapeCsvCell(`${analytics.completionRate.toFixed(1)}%`)}`,

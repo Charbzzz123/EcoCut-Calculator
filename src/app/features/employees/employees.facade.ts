@@ -2,6 +2,7 @@ import { Injectable, Signal, WritableSignal, computed, inject, signal } from '@a
 import { FormControl, FormGroup } from '@angular/forms';
 import { debounceTime, distinctUntilChanged, startWith } from 'rxjs';
 import { EmployeesDataService } from './employees-data.service.js';
+import { computeHistoryLifecycleSummary } from '../../shared/domain/employees/history-lifecycle-metrics.js';
 import type {
   EmployeeEditorMode,
   EmployeeHoursMutationPayload,
@@ -320,6 +321,12 @@ export class EmployeesFacade {
       recentSite,
     };
   });
+  readonly selectedHistoryLifecycleSummary: Signal<{
+    completedOnTime: number;
+    completedLate: number;
+    scheduledLate: number;
+    continuity: number;
+  }> = computed(() => computeHistoryLifecycleSummary(this.selectedEmployeeJobHistory()));
   readonly startNextJobReadiness: Signal<EmployeeStartNextJobReadiness[]> =
     this.startNextJobReadinessSignal.asReadonly();
   readonly clockSummaries: Signal<EmployeeClockSummary[]> = computed(() =>

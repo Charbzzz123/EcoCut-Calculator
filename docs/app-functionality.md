@@ -147,6 +147,7 @@
 - **Employee job history**
   - Per-employee timeline of assigned jobs showing site/address, date, scheduled window, status, and hours worked on that job.
   - Totals rollups: jobs tracked, completed vs scheduled counts, total hours, and recent site summary.
+  - Lifecycle rollups now also include completed-on-time, completed-late, scheduled-late, and continuity counts.
   - Linked manual hours now generate/update a corresponding completed timeline row, so hours logging and history stay synchronized.
   - This history becomes the data source for future assignment suggestions in `Start Next Job`.
 - **Start Next Job readiness contract**
@@ -216,7 +217,7 @@
 - **Bulk lifecycle controls**: schedulers can multi-select scheduled history entries and run `Complete selected` or `Cancel selected` actions from the same panel. The board reports partial failures (for example, 3 of 4 succeeded) and keeps failed rows selected for quick retry.
 - **Optimistic board updates**: schedule edits and lifecycle actions now patch board state immediately (history + readiness summaries) with rollback when an API call fails, so operators get instant feedback without waiting for full board reloads.
 - **Post-mutation canonical refresh**: after assignment and lifecycle mutations succeed, the board re-syncs readiness/history/job-options from `/api/employees/*` to prevent stale optimistic drift between Start Next Job and Manage Employees modules.
-- **Assignment analytics panel**: the summary column now shows selected-crew analytics (tracked, scheduled, completed, cancelled, total/average hours, completion/cancellation rates, unique sites) so dispatch decisions stay data-driven during scheduling.
+- **Assignment analytics panel**: the summary column now shows selected-crew analytics (tracked, scheduled, completed, cancelled, completed-on-time, completed-late, scheduled-late, continuity segments, total/average hours, completion/cancellation rates, unique sites) so dispatch decisions stay data-driven during scheduling.
 - **Analytics export**: Step 2 now includes `Export CSV`, which downloads selected-crew analytics plus detailed history rows (employee, status, site/address, scheduled window, and hours) for handoff/reporting.
 - **Date-range analytics window**: Step 2 now supports `From`/`To` filters for analytics; invalid ranges are blocked with inline guidance, and both panel metrics + CSV export respect the selected window.
 - **Per-employee trend drill-down**: Step 2 now renders employee-level trend cards (status counts, total/average hours, completion/cancellation rates, last site, last scheduled slot) so supervisors can compare crew members before finalizing dispatch.

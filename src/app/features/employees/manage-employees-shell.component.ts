@@ -52,6 +52,7 @@ export class ManageEmployeesShellComponent implements OnInit {
   readonly selectedHistoryEmployee = this.facade.selectedHistoryEmployee;
   readonly selectedEmployeeJobHistory = this.facade.selectedEmployeeJobHistory;
   readonly selectedHistorySummary = this.facade.selectedHistorySummary;
+  readonly selectedHistoryLifecycleSummary = this.facade.selectedHistoryLifecycleSummary;
   readonly historyEditorOpen = this.facade.historyEditorOpen;
   readonly editingHistoryEntry = this.facade.editingHistoryEntry;
   readonly historyErrors = this.facade.historyErrors;

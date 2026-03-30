@@ -667,6 +667,22 @@
                       <dd>{{ facade.assignmentAnalytics().cancelledCount }}</dd>
                     </div>
                     <div>
+                      <dt>Completed on time</dt>
+                      <dd>{{ facade.assignmentAnalytics().completedOnTimeCount }}</dd>
+                    </div>
+                    <div>
+                      <dt>Completed late</dt>
+                      <dd>{{ facade.assignmentAnalytics().completedLateCount }}</dd>
+                    </div>
+                    <div>
+                      <dt>Scheduled late</dt>
+                      <dd>{{ facade.assignmentAnalytics().scheduledLateCount }}</dd>
+                    </div>
+                    <div>
+                      <dt>Continuity segments</dt>
+                      <dd>{{ facade.assignmentAnalytics().continuityCount }}</dd>
+                    </div>
+                    <div>
                       <dt>Total hours</dt>
                       <dd>{{ facade.assignmentAnalytics().totalHours | number: '1.0-2' }}</dd>
                     </div>

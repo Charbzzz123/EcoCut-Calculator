@@ -198,6 +198,12 @@ class EmployeesFacadeStub {
       recentSite: entries[0]?.siteLabel ?? '--',
     };
   };
+  readonly selectedHistoryLifecycleSummary = () => ({
+    completedOnTime: 0,
+    completedLate: 0,
+    scheduledLate: 0,
+    continuity: 0,
+  });
   readonly startNextJobReadiness = this.readinessSignal.asReadonly();
   readonly clockSummaries = this.clockSignal.asReadonly();
 
