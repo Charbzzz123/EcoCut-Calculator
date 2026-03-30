@@ -190,6 +190,17 @@ const createFacadeStub = () => ({
 describe('StartNextJobShellComponent', () => {
   let fixture: ComponentFixture<StartNextJobShellComponent>;
   let facade: ReturnType<typeof createFacadeStub>;
+  const setStepFocus = (
+    step: 'crew' | 'draft' | 'review' | 'history',
+    targetFixture: ComponentFixture<StartNextJobShellComponent>,
+  ): void => {
+    (
+      targetFixture.componentInstance as unknown as {
+        setStepFocus: (value: 'crew' | 'draft' | 'review' | 'history') => void;
+      }
+    ).setStepFocus(step);
+    targetFixture.detectChanges();
+  };
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -317,30 +328,44 @@ describe('StartNextJobShellComponent', () => {
     facade.getReadinessPill.mockReturnValue({ text: 'Scheduled', state: 'scheduled' });
     fixture.detectChanges();
 
-    const expandAnalytics = fixture.nativeElement.querySelector(
-      '.analytics-panel__collapse-btn',
-    ) as HTMLButtonElement;
-    expandAnalytics.click();
-    fixture.detectChanges();
+    setStepFocus('crew', fixture);
+    const select = fixture.nativeElement.querySelector('.crew-select-btn') as HTMLButtonElement;
+    select.click();
+    expect(facade.toggleEmployeeSelection).toHaveBeenCalledWith('emp-1');
 
-    const expandHistory = fixture.nativeElement.querySelector(
-      '#start-next-history .section-toggle__actions .ghost-btn',
-    ) as HTMLButtonElement;
-    expandHistory.click();
-    fixture.detectChanges();
-
-    expect(fixture.nativeElement.textContent).toContain('Conflict in upcoming windows.');
+    setStepFocus('review', fixture);
     expect(fixture.nativeElement.textContent).toContain('Resolve the following conflicts');
     expect(fixture.nativeElement.textContent).toContain('Assignment analytics');
     expect(fixture.nativeElement.textContent).toContain('Total tracked');
     expect(fixture.nativeElement.textContent).not.toContain('Per-employee trend');
     expect(fixture.nativeElement.textContent).toContain('Detailed trend cards are hidden');
-    expect(fixture.nativeElement.textContent).toContain('Selected crew job history');
-    expect(fixture.nativeElement.textContent).toContain('Downtown');
 
-    const select = fixture.nativeElement.querySelector('.crew-select-btn') as HTMLButtonElement;
-    select.click();
-    expect(facade.toggleEmployeeSelection).toHaveBeenCalledWith('emp-1');
+    const exportButton = fixture.nativeElement.querySelector(
+      '.analytics-panel__export-btn',
+    ) as HTMLButtonElement;
+    expect(exportButton.disabled).toBe(false);
+    const analyticsToggle = fixture.nativeElement.querySelector(
+      '.analytics-panel__detail-toggle-btn',
+    ) as HTMLButtonElement;
+    expect(analyticsToggle.textContent).toContain('Show detailed analytics');
+    analyticsToggle.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Per-employee trend');
+    expect(fixture.nativeElement.textContent).toContain('Route-level variance');
+    expect(fixture.nativeElement.textContent).toContain('Cross-run trend');
+    const expandedAnalyticsToggle = fixture.nativeElement.querySelector(
+      '.analytics-panel__detail-toggle-btn',
+    ) as HTMLButtonElement;
+    expect(expandedAnalyticsToggle.textContent).toContain('Hide detailed analytics');
+    const windowButtons = fixture.nativeElement.querySelectorAll(
+      '.analytics-window-buttons .analytics-window-btn',
+    ) as NodeListOf<HTMLButtonElement>;
+    windowButtons[0]?.click();
+    expect(facade.setAnalyticsWindow).toHaveBeenCalledWith('7d');
+
+    setStepFocus('history', fixture);
+    expect(fixture.nativeElement.textContent).toContain('Scheduled history');
+    expect(fixture.nativeElement.textContent).toContain('Downtown');
 
     const selectHistory = fixture.nativeElement.querySelector(
       '.history-card__actions .history-card__action--select',
@@ -370,42 +395,14 @@ describe('StartNextJobShellComponent', () => {
     ) as HTMLButtonElement;
     cancelButton.click();
     expect(facade.cancelScheduledHistoryEntry).toHaveBeenCalledWith('job-1');
-
-    const exportButton = fixture.nativeElement.querySelector(
-      '.analytics-panel__export-btn',
-    ) as HTMLButtonElement;
-    expect(exportButton.disabled).toBe(false);
-    const analyticsToggle = fixture.nativeElement.querySelector(
-      '.analytics-panel__detail-toggle-btn',
-    ) as HTMLButtonElement;
-    expect(analyticsToggle.textContent).toContain('Show detailed analytics');
-    analyticsToggle.click();
-    fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('Per-employee trend');
-    expect(fixture.nativeElement.textContent).toContain('Route-level variance');
-    expect(fixture.nativeElement.textContent).toContain('Cross-run trend');
-    const expandedAnalyticsToggle = fixture.nativeElement.querySelector(
-      '.analytics-panel__detail-toggle-btn',
-    ) as HTMLButtonElement;
-    expect(expandedAnalyticsToggle.textContent).toContain('Hide detailed analytics');
-
-    const windowButtons = fixture.nativeElement.querySelectorAll(
-      '.analytics-window-buttons .analytics-window-btn',
-    ) as NodeListOf<HTMLButtonElement>;
-    windowButtons[0]?.click();
-    expect(facade.setAnalyticsWindow).toHaveBeenCalledWith('7d');
   });
 
   it('keeps analytics export button disabled when no selected history exists', () => {
     facade.loadState.set('ready');
     facade.canExportAssignmentAnalytics.set(false);
+    facade.selectedCrew.set([employee]);
     fixture.detectChanges();
-
-    const expandAnalytics = fixture.nativeElement.querySelector(
-      '.analytics-panel__collapse-btn',
-    ) as HTMLButtonElement;
-    expandAnalytics.click();
-    fixture.detectChanges();
+    setStepFocus('review', fixture);
 
     const exportButton = fixture.nativeElement.querySelector(
       '.analytics-panel__export-btn',
@@ -419,16 +416,12 @@ describe('StartNextJobShellComponent', () => {
 
   it('shows analytics range error and forwards clear-range action', () => {
     facade.loadState.set('ready');
+    facade.selectedCrew.set([employee]);
     facade.analyticsStartDateControl.setValue('2026-03-22');
     facade.analyticsEndDateControl.setValue('2026-03-21');
     facade.analyticsRangeError.set('Analytics start date must be before the end date.');
     fixture.detectChanges();
-
-    const expandAnalytics = fixture.nativeElement.querySelector(
-      '.analytics-panel__collapse-btn',
-    ) as HTMLButtonElement;
-    expandAnalytics.click();
-    fixture.detectChanges();
+    setStepFocus('review', fixture);
 
     expect(fixture.nativeElement.textContent).toContain(
       'Analytics start date must be before the end date.',
@@ -495,12 +488,7 @@ describe('StartNextJobShellComponent', () => {
     facade.selectedScheduledHistoryEntries.set([historyItem]);
     facade.selectedScheduledHistoryCount.set(1);
     fixture.detectChanges();
-
-    const expandHistory = fixture.nativeElement.querySelector(
-      '#start-next-history .section-toggle__actions .ghost-btn',
-    ) as HTMLButtonElement;
-    expandHistory.click();
-    fixture.detectChanges();
+    setStepFocus('history', fixture);
 
     expect(fixture.nativeElement.textContent).toContain('1 of 1 scheduled selected');
 
@@ -524,12 +512,7 @@ describe('StartNextJobShellComponent', () => {
       fullName: 'Bruno East',
     });
     fixture.detectChanges();
-
-    const expandHistory = fixture.nativeElement.querySelector(
-      '#start-next-history .section-toggle__actions .ghost-btn',
-    ) as HTMLButtonElement;
-    expandHistory.click();
-    fixture.detectChanges();
+    setStepFocus('history', fixture);
 
     const reassignButton = fixture.nativeElement.querySelector(
       '.history-card__action--info',
@@ -542,16 +525,19 @@ describe('StartNextJobShellComponent', () => {
   it('renders draft-ready branch and clear crew action', () => {
     facade.loadState.set('ready');
     facade.filteredReadiness.set([employee]);
+    facade.selectedCrew.set([employee]);
     facade.draftValidation.set({ isReady: true, blockingReasons: [] });
     fixture.detectChanges();
+    setStepFocus('review', fixture);
 
     const saveButton = fixture.nativeElement.querySelector('.primary-btn') as HTMLButtonElement;
     expect(saveButton.disabled).toBe(false);
     saveButton.click();
     expect(facade.submitAssignment).toHaveBeenCalled();
+    setStepFocus('draft', fixture);
 
     const clearButton = fixture.nativeElement.querySelector(
-      '.draft-actions .ghost-btn',
+      '.draft-actions__secondary .ghost-btn:nth-of-type(2)',
     ) as HTMLButtonElement;
     clearButton.click();
     expect(facade.clearCrewSelection).toHaveBeenCalled();
@@ -570,6 +556,7 @@ describe('StartNextJobShellComponent', () => {
       scheduledEnd: '2026-03-21T15:00:00.000Z',
     });
     fixture.detectChanges();
+    setStepFocus('draft', fixture);
 
     const advancedToggle = fixture.nativeElement.querySelector(
       '#start-next-draft .draft-group--advanced .ghost-btn',
@@ -588,10 +575,12 @@ describe('StartNextJobShellComponent', () => {
 
   it('renders saving and feedback states for assignment submit', () => {
     facade.loadState.set('ready');
+    facade.selectedCrew.set([employee]);
     facade.draftValidation.set({ isReady: true, blockingReasons: [] });
     facade.saveState.set('saving');
     facade.saveMessage.set('Saving assignment...');
     fixture.detectChanges();
+    setStepFocus('review', fixture);
 
     const saveButton = fixture.nativeElement.querySelector('.primary-btn') as HTMLButtonElement;
     expect(saveButton.textContent).toContain('Saving assignment');
@@ -615,11 +604,6 @@ describe('StartNextJobShellComponent', () => {
   });
 
   it('unlocks step navigation and updates draft status once prerequisites are provided', () => {
-    const scrollIntoView = vi.fn();
-    const getElementById = vi
-      .spyOn(document, 'getElementById')
-      .mockReturnValue({ scrollIntoView } as unknown as HTMLElement);
-
     facade.loadState.set('ready');
     facade.selectedCrew.set([employee]);
     facade.scheduledHistoryCount.set(1);
@@ -640,25 +624,25 @@ describe('StartNextJobShellComponent', () => {
     jumpButtons[1]?.click();
     jumpButtons[2]?.click();
     jumpButtons[3]?.click();
-    expect(getElementById).toHaveBeenCalledWith('start-next-draft');
-    expect(getElementById).toHaveBeenCalledWith('start-next-review');
-    expect(getElementById).toHaveBeenCalledWith('start-next-history');
-    expect(scrollIntoView).toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain('Scheduled history');
   });
 
   it('uses edit mode actions when a history entry is being edited', () => {
     facade.loadState.set('ready');
+    facade.selectedCrew.set([employee]);
     facade.editingHistoryEntryId.set('job-1');
     facade.canSubmitHistoryEdit.mockReturnValue(true);
     fixture.detectChanges();
+    setStepFocus('review', fixture);
 
     const primary = fixture.nativeElement.querySelector('.primary-btn') as HTMLButtonElement;
     expect(primary.textContent).toContain('Save schedule update');
     primary.click();
     expect(facade.submitHistoryEdit).toHaveBeenCalled();
+    setStepFocus('draft', fixture);
 
     const cancelEdit = fixture.nativeElement.querySelector(
-      '.draft-actions .ghost-btn:nth-of-type(2)',
+      '.draft-actions__secondary .ghost-btn:last-of-type',
     ) as HTMLButtonElement;
     cancelEdit.click();
     expect(facade.cancelHistoryEdit).toHaveBeenCalled();

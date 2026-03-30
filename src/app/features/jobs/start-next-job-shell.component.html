@@ -14,33 +14,14 @@
     </header>
   </article>
 
-  <article class="start-next-flow" aria-label="Start Next Job workflow">
-    <div class="section-toggle">
-      <p class="start-next-flow__eyebrow">Workflow</p>
-      <button
-        type="button"
-        class="ghost-btn"
-        [attr.aria-expanded]="workflowExpanded()"
-        aria-controls="start-next-flow-steps"
-        (click)="toggleWorkflowExpanded()"
-      >
-        {{ workflowExpanded() ? 'Hide details' : 'Show details' }}
-      </button>
-    </div>
-
-    @if (workflowExpanded()) {
-      <ol id="start-next-flow-steps" class="start-next-flow__steps">
-        <li><strong>1.</strong> Select crew from readiness cards.</li>
-        <li><strong>2.</strong> Set job label, site, and schedule.</li>
-        <li><strong>3.</strong> Review conflicts/analytics, then save.</li>
-      </ol>
-    } @else {
-      <p class="panel-collapse-hint">Expand workflow if you need a quick refresher.</p>
-    }
-  </article>
-
   <article class="start-next-jump" aria-label="Start Next Job quick navigation">
-    <p class="start-next-jump__label">Jump to step</p>
+    <div class="section-toggle">
+      <p class="start-next-jump__label">Guided workflow</p>
+      <p class="start-next-jump__meta">
+        Crew selected: {{ facade.selectedCrew().length }} | Scheduled history:
+        {{ facade.scheduledHistoryCount() }}
+      </p>
+    </div>
     <div class="start-next-jump__actions">
       <button
         type="button"
@@ -50,7 +31,7 @@
         aria-controls="start-next-crew"
         (click)="setStepFocus('crew')"
       >
-        Step 1 - Crew ({{ facade.selectedCrew().length }} selected)
+        Step 1 - Crew
       </button>
       <button
         type="button"
@@ -83,7 +64,7 @@
         [disabled]="!canOpenHistoryStep()"
         (click)="setStepFocus('history')"
       >
-        Scheduled history ({{ facade.scheduledHistoryCount() }})
+        Scheduled history
       </button>
     </div>
     <ul class="start-next-jump__status">
@@ -110,750 +91,778 @@
     </ul>
   </article>
 
-  <article id="start-next-draft" class="draft-panel" aria-label="Assignment draft">
-    <header class="panel-header draft-panel__header">
-      <h2>Step 2 - Draft details</h2>
-      <p>Set job metadata and schedule window</p>
-    </header>
+  @if (stepFocus() === 'draft') {
+    <article id="start-next-draft" class="draft-panel" aria-label="Assignment draft">
+      <header class="panel-header draft-panel__header">
+        <h2>Step 2 - Draft details</h2>
+        <p>Set job metadata and schedule window</p>
+      </header>
 
-    <div class="draft-groups">
-      <section class="draft-group draft-group--primary" aria-label="Primary draft details">
-        <p class="draft-group__label">Primary details</p>
-        <div class="draft-grid">
-          <label class="field">
-            <span class="field__label">Job label *</span>
-            <input
-              class="field__input"
-              type="text"
-              [formControl]="facade.jobLabelControl"
-              [readOnly]="facade.hasLinkedJobSelection()"
-              required
-              aria-required="true"
-            />
-          </label>
-          <label class="field">
-            <span class="field__label">Site / address *</span>
-            <input
-              class="field__input"
-              type="text"
-              [formControl]="facade.addressControl"
-              [readOnly]="facade.hasLinkedJobSelection()"
-              required
-              aria-required="true"
-            />
-          </label>
-          <label class="field">
-            <span class="field__label">Scheduled start *</span>
-            <input
-              class="field__input"
-              type="datetime-local"
-              [formControl]="facade.scheduledStartControl"
-              [readOnly]="facade.hasLinkedJobSelection()"
-              required
-              aria-required="true"
-            />
-          </label>
-          <label class="field">
-            <span class="field__label">Scheduled end *</span>
-            <input
-              class="field__input"
-              type="datetime-local"
-              [formControl]="facade.scheduledEndControl"
-              [readOnly]="facade.hasLinkedJobSelection()"
-              required
-              aria-required="true"
-            />
-          </label>
-        </div>
-      </section>
-
-      <section class="draft-group draft-group--advanced" aria-label="Advanced draft controls">
-        <div class="section-toggle">
-          <p class="draft-group__label">Advanced controls</p>
-          <button
-            type="button"
-            class="ghost-btn"
-            [attr.aria-expanded]="draftAdvancedExpanded()"
-            aria-controls="start-next-draft-advanced"
-            (click)="toggleDraftAdvancedExpanded()"
-          >
-            {{ draftAdvancedExpanded() ? 'Hide advanced' : 'Show advanced' }}
-          </button>
-        </div>
-
-        @if (draftAdvancedExpanded()) {
-          <div id="start-next-draft-advanced" class="draft-advanced-content">
-            <label class="field field--wide">
-              <span class="field__label">Linked client job (optional)</span>
-              <select
+      <div class="draft-groups">
+        <section class="draft-group draft-group--primary" aria-label="Primary draft details">
+          <p class="draft-group__label">Primary details</p>
+          <div class="draft-grid">
+            <label class="field">
+              <span class="field__label">Job label *</span>
+              <input
                 class="field__input"
-                [formControl]="facade.linkedJobEntryIdControl"
-                (change)="facade.applyLinkedJobSelection()"
-              >
-                <option value="">No linked client job</option>
-                @for (option of facade.loggedJobOptions(); track option.entryId) {
-                  <option [value]="option.entryId">
-                    {{ option.clientName }} - {{ option.siteLabel }} -
-                    {{ option.scheduledStart | date: 'MMM d, y, h:mm a' }}
-                  </option>
-                }
-              </select>
+                type="text"
+                [formControl]="facade.jobLabelControl"
+                [readOnly]="facade.hasLinkedJobSelection()"
+                required
+                aria-required="true"
+              />
             </label>
-
-            @if (facade.selectedLinkedJob(); as linkedJob) {
-              <p class="field__hint">
-                Linked job selected: {{ linkedJob.clientName }} - {{ linkedJob.siteLabel }} ({{
-                  linkedJob.scheduledStart | date: 'MMM d, y, h:mm a'
-                }}
-                to {{ linkedJob.scheduledEnd | date: 'h:mm a' }}).
-              </p>
-            }
+            <label class="field">
+              <span class="field__label">Site / address *</span>
+              <input
+                class="field__input"
+                type="text"
+                [formControl]="facade.addressControl"
+                [readOnly]="facade.hasLinkedJobSelection()"
+                required
+                aria-required="true"
+              />
+            </label>
+            <label class="field">
+              <span class="field__label">Scheduled start *</span>
+              <input
+                class="field__input"
+                type="datetime-local"
+                [formControl]="facade.scheduledStartControl"
+                [readOnly]="facade.hasLinkedJobSelection()"
+                required
+                aria-required="true"
+              />
+            </label>
+            <label class="field">
+              <span class="field__label">Scheduled end *</span>
+              <input
+                class="field__input"
+                type="datetime-local"
+                [formControl]="facade.scheduledEndControl"
+                [readOnly]="facade.hasLinkedJobSelection()"
+                required
+                aria-required="true"
+              />
+            </label>
           </div>
-        }
-      </section>
-    </div>
+        </section>
 
-    <div class="draft-actions">
-      <div class="draft-actions__secondary">
-        <button type="button" class="ghost-btn" (click)="facade.clearCrewSelection()">
-          Clear crew selection
-        </button>
-        @if (facade.editingHistoryEntryId()) {
-          <button type="button" class="ghost-btn" (click)="facade.cancelHistoryEdit()">
-            Cancel edit
-          </button>
-        }
-      </div>
+        <section class="draft-group draft-group--advanced" aria-label="Advanced draft controls">
+          <div class="section-toggle">
+            <p class="draft-group__label">Advanced controls</p>
+            <button
+              type="button"
+              class="ghost-btn"
+              [attr.aria-expanded]="draftAdvancedExpanded()"
+              aria-controls="start-next-draft-advanced"
+              (click)="toggleDraftAdvancedExpanded()"
+            >
+              {{ draftAdvancedExpanded() ? 'Hide advanced' : 'Show advanced' }}
+            </button>
+          </div>
 
-      <div class="draft-actions__primary">
-        <button
-          type="button"
-          class="ghost-btn"
-          [disabled]="!canOpenReviewStep()"
-          (click)="setStepFocus('review')"
-        >
-          Continue to Step 3
-        </button>
-      </div>
-    </div>
-  </article>
-
-  <article class="board-grid">
-    <section id="start-next-crew" class="crew-pool" aria-live="polite">
-      <header class="panel-header">
-        <h2>Step 1 - Crew pool</h2>
-        <p>{{ facade.filteredReadiness().length }} employee(s)</p>
-      </header>
-
-      <label class="field field--wide crew-pool__search">
-        <span class="field__label">Search crew</span>
-        <input
-          class="field__input"
-          type="search"
-          [formControl]="facade.queryControl"
-          placeholder="Filter by employee, last site, or upcoming slot"
-        />
-      </label>
-
-      @if (facade.loadState() === 'loading') {
-        <p class="state workspace-state">Loading readiness data...</p>
-      } @else if (facade.loadState() === 'error') {
-        <div class="state state--error workspace-state workspace-state--error">
-          <p>{{ facade.errorMessage() }}</p>
-          <button type="button" class="ghost-btn" (click)="facade.loadBoard()">Retry</button>
-        </div>
-      } @else if (!facade.filteredReadiness().length) {
-        <p class="state workspace-state">No employees match this filter.</p>
-      } @else {
-        <ul class="crew-list">
-          @for (
-            employee of facade.filteredReadiness();
-            track facade.trackByEmployeeId($index, employee)
-          ) {
-            <li class="crew-card">
-              <header class="crew-card__header">
-                <h3>{{ employee.fullName }}</h3>
-                <span
-                  class="readiness-pill readiness-pill--{{
-                    facade.getReadinessPill(employee).state
-                  }}"
+          @if (draftAdvancedExpanded()) {
+            <div id="start-next-draft-advanced" class="draft-advanced-content">
+              <label class="field field--wide">
+                <span class="field__label">Linked client job (optional)</span>
+                <select
+                  class="field__input"
+                  [formControl]="facade.linkedJobEntryIdControl"
+                  (change)="facade.applyLinkedJobSelection()"
                 >
-                  {{ facade.getReadinessPill(employee).text }}
-                </span>
-              </header>
-              <p class="crew-card__meta">
-                Scheduled: {{ employee.scheduledJobsCount }} jobs ({{ employee.scheduledHours }}h)
-              </p>
-              <p class="crew-card__meta">
-                Completed: {{ employee.completedJobsCount }} jobs ({{ employee.completedHours }}h)
-              </p>
-              <p class="crew-card__meta">
-                Next available:
-                @if (employee.nextAvailableAt) {
-                  {{ employee.nextAvailableAt | date: 'MMM d, y, h:mm a' }}
-                } @else {
-                  &mdash;
-                }
-              </p>
-              @if (employee.hasScheduleConflict) {
-                <p class="crew-card__warning">Conflict in upcoming windows.</p>
+                  <option value="">No linked client job</option>
+                  @for (option of facade.loggedJobOptions(); track option.entryId) {
+                    <option [value]="option.entryId">
+                      {{ option.clientName }} - {{ option.siteLabel }} -
+                      {{ option.scheduledStart | date: 'MMM d, y, h:mm a' }}
+                    </option>
+                  }
+                </select>
+              </label>
+
+              @if (facade.selectedLinkedJob(); as linkedJob) {
+                <p class="field__hint">
+                  Linked job selected: {{ linkedJob.clientName }} - {{ linkedJob.siteLabel }} ({{
+                    linkedJob.scheduledStart | date: 'MMM d, y, h:mm a'
+                  }}
+                  to {{ linkedJob.scheduledEnd | date: 'h:mm a' }}).
+                </p>
               }
-              <button
-                type="button"
-                class="crew-select-btn"
-                [class.crew-select-btn--selected]="facade.isEmployeeSelected(employee.employeeId)"
-                (click)="facade.toggleEmployeeSelection(employee.employeeId)"
-              >
-                {{ facade.isEmployeeSelected(employee.employeeId) ? 'Selected' : 'Select' }}
-              </button>
-            </li>
+            </div>
           }
-        </ul>
-        <div class="step-continue">
-          <button
-            type="button"
-            class="ghost-btn"
-            [disabled]="!canOpenDraftStep()"
-            (click)="setStepFocus('draft')"
-          >
-            Continue to Step 2
+        </section>
+      </div>
+
+      <div class="draft-actions">
+        <div class="draft-actions__secondary">
+          <button type="button" class="ghost-btn" (click)="setStepFocus('crew')">
+            Back to Step 1
           </button>
-        </div>
-      }
-    </section>
-
-    <section id="start-next-review" class="assignment-summary">
-      <header class="panel-header">
-        <h2>Step 3 - Assignment summary</h2>
-        <p>{{ facade.selectedCrew().length }} selected</p>
-      </header>
-
-      @if (!facade.selectedCrew().length) {
-        <p class="state workspace-state">
-          Select employees from the crew pool to build the assignment draft.
-        </p>
-      } @else {
-        <ul class="selected-list">
-          @for (
-            employee of facade.selectedCrew();
-            track facade.trackByEmployeeId($index, employee)
-          ) {
-            <li>{{ employee.fullName }}</li>
+          <button type="button" class="ghost-btn" (click)="facade.clearCrewSelection()">
+            Clear crew selection
+          </button>
+          @if (facade.editingHistoryEntryId()) {
+            <button type="button" class="ghost-btn" (click)="facade.cancelHistoryEdit()">
+              Cancel edit
+            </button>
           }
-        </ul>
-      }
-
-      @if (facade.selectedCrewConflicts().length) {
-        <div class="conflict-box" role="alert">
-          <p>Resolve the following conflicts:</p>
-          <ul>
-            @for (
-              conflict of facade.selectedCrewConflicts();
-              track facade.trackByCrewConflict($index, conflict)
-            ) {
-              <li>
-                <strong>{{ conflict.employeeName }}:</strong> {{ conflict.reason }}
-              </li>
-            }
-          </ul>
         </div>
-      }
 
-      @if (!facade.draftValidation().isReady) {
-        <div
-          id="start-next-draft-blockers"
-          class="validation-box"
-          role="alert"
-          aria-live="assertive"
-        >
-          <p>Draft is blocked until these are fixed:</p>
-          <ul>
-            @for (reason of facade.draftValidation().blockingReasons; track reason) {
-              <li>{{ reason }}</li>
-            }
-          </ul>
-        </div>
-      }
-
-      <div class="draft-actions review-actions">
         <div class="draft-actions__primary">
           <button
             type="button"
-            class="primary-btn"
-            [disabled]="
-              (facade.editingHistoryEntryId()
-                ? !facade.canSubmitHistoryEdit()
-                : !facade.draftValidation().isReady) || facade.saveState() === 'saving'
-            "
-            aria-describedby="start-next-draft-blockers"
-            (click)="
-              facade.editingHistoryEntryId()
-                ? facade.submitHistoryEdit()
-                : facade.submitAssignment()
-            "
+            class="ghost-btn"
+            [disabled]="!canOpenReviewStep()"
+            (click)="setStepFocus('review')"
           >
-            @if (facade.saveState() === 'saving') {
-              @if (facade.editingHistoryEntryId()) {
-                Saving schedule...
-              } @else {
-                Saving assignment...
-              }
-            } @else {
-              @if (facade.editingHistoryEntryId()) {
-                Save schedule update
-              } @else {
-                Save assignment
-              }
-            }
+            Continue to Step 3
           </button>
         </div>
       </div>
+    </article>
+  }
 
-      @if (facade.saveState() !== 'idle' && facade.saveMessage()) {
-        <p
-          class="save-feedback"
-          [class.save-feedback--success]="facade.saveState() === 'success'"
-          [class.save-feedback--error]="facade.saveState() === 'error'"
-          role="status"
-          aria-live="polite"
-        >
-          {{ facade.saveMessage() }}
-        </p>
+  @if (stepFocus() === 'crew' || stepFocus() === 'review') {
+    <article class="board-grid">
+      @if (stepFocus() === 'crew') {
+        <section id="start-next-crew" class="crew-pool" aria-live="polite">
+          <header class="panel-header">
+            <h2>Step 1 - Crew pool</h2>
+            <p>{{ facade.filteredReadiness().length }} employee(s)</p>
+          </header>
+
+          <label class="field field--wide crew-pool__search">
+            <span class="field__label">Search crew</span>
+            <input
+              class="field__input"
+              type="search"
+              [formControl]="facade.queryControl"
+              placeholder="Filter by employee, last site, or upcoming slot"
+            />
+          </label>
+
+          @if (facade.loadState() === 'loading') {
+            <p class="state workspace-state">Loading readiness data...</p>
+          } @else if (facade.loadState() === 'error') {
+            <div class="state state--error workspace-state workspace-state--error">
+              <p>{{ facade.errorMessage() }}</p>
+              <button type="button" class="ghost-btn" (click)="facade.loadBoard()">Retry</button>
+            </div>
+          } @else if (!facade.filteredReadiness().length) {
+            <p class="state workspace-state">No employees match this filter.</p>
+          } @else {
+            <ul class="crew-list">
+              @for (
+                employee of facade.filteredReadiness();
+                track facade.trackByEmployeeId($index, employee)
+              ) {
+                <li class="crew-card">
+                  <header class="crew-card__header">
+                    <h3>{{ employee.fullName }}</h3>
+                    <span
+                      class="readiness-pill readiness-pill--{{
+                        facade.getReadinessPill(employee).state
+                      }}"
+                    >
+                      {{ facade.getReadinessPill(employee).text }}
+                    </span>
+                  </header>
+                  <p class="crew-card__meta">
+                    Scheduled: {{ employee.scheduledJobsCount }} jobs ({{
+                      employee.scheduledHours
+                    }}h)
+                  </p>
+                  <p class="crew-card__meta">
+                    Completed: {{ employee.completedJobsCount }} jobs ({{
+                      employee.completedHours
+                    }}h)
+                  </p>
+                  <p class="crew-card__meta">
+                    Next available:
+                    @if (employee.nextAvailableAt) {
+                      {{ employee.nextAvailableAt | date: 'MMM d, y, h:mm a' }}
+                    } @else {
+                      &mdash;
+                    }
+                  </p>
+                  @if (employee.hasScheduleConflict) {
+                    <p class="crew-card__warning">Conflict in upcoming windows.</p>
+                  }
+                  <button
+                    type="button"
+                    class="crew-select-btn"
+                    [class.crew-select-btn--selected]="
+                      facade.isEmployeeSelected(employee.employeeId)
+                    "
+                    (click)="facade.toggleEmployeeSelection(employee.employeeId)"
+                  >
+                    {{ facade.isEmployeeSelected(employee.employeeId) ? 'Selected' : 'Select' }}
+                  </button>
+                </li>
+              }
+            </ul>
+            <div class="step-continue">
+              <button
+                type="button"
+                class="ghost-btn"
+                [disabled]="!canOpenDraftStep()"
+                (click)="setStepFocus('draft')"
+              >
+                Continue to Step 2
+              </button>
+            </div>
+          }
+        </section>
       }
 
-      <div class="analytics-panel">
-        <div class="analytics-panel__header">
-          <h3>Assignment analytics</h3>
-          <div class="analytics-panel__actions">
+      @if (stepFocus() === 'review') {
+        <section id="start-next-review" class="assignment-summary">
+          <header class="panel-header">
+            <h2>Step 3 - Assignment summary</h2>
+            <p>{{ facade.selectedCrew().length }} selected</p>
+          </header>
+
+          @if (!facade.selectedCrew().length) {
+            <p class="state workspace-state">
+              Select employees from the crew pool to build the assignment draft.
+            </p>
+          } @else {
+            <ul class="selected-list">
+              @for (
+                employee of facade.selectedCrew();
+                track facade.trackByEmployeeId($index, employee)
+              ) {
+                <li>{{ employee.fullName }}</li>
+              }
+            </ul>
+          }
+
+          @if (facade.selectedCrewConflicts().length) {
+            <div class="conflict-box" role="alert">
+              <p>Resolve the following conflicts:</p>
+              <ul>
+                @for (
+                  conflict of facade.selectedCrewConflicts();
+                  track facade.trackByCrewConflict($index, conflict)
+                ) {
+                  <li>
+                    <strong>{{ conflict.employeeName }}:</strong> {{ conflict.reason }}
+                  </li>
+                }
+              </ul>
+            </div>
+          }
+
+          @if (!facade.draftValidation().isReady) {
+            <div
+              id="start-next-draft-blockers"
+              class="validation-box"
+              role="alert"
+              aria-live="assertive"
+            >
+              <p>Draft is blocked until these are fixed:</p>
+              <ul>
+                @for (reason of facade.draftValidation().blockingReasons; track reason) {
+                  <li>{{ reason }}</li>
+                }
+              </ul>
+            </div>
+          }
+
+          <div class="draft-actions review-actions">
+            <div class="draft-actions__secondary">
+              <button type="button" class="ghost-btn" (click)="setStepFocus('draft')">
+                Back to Step 2
+              </button>
+              <button
+                type="button"
+                class="ghost-btn"
+                [disabled]="!canOpenHistoryStep()"
+                (click)="setStepFocus('history')"
+              >
+                Open scheduled history
+              </button>
+            </div>
+            <div class="draft-actions__primary">
+              <button
+                type="button"
+                class="primary-btn"
+                [disabled]="
+                  (facade.editingHistoryEntryId()
+                    ? !facade.canSubmitHistoryEdit()
+                    : !facade.draftValidation().isReady) || facade.saveState() === 'saving'
+                "
+                aria-describedby="start-next-draft-blockers"
+                (click)="
+                  facade.editingHistoryEntryId()
+                    ? facade.submitHistoryEdit()
+                    : facade.submitAssignment()
+                "
+              >
+                @if (facade.saveState() === 'saving') {
+                  @if (facade.editingHistoryEntryId()) {
+                    Saving schedule...
+                  } @else {
+                    Saving assignment...
+                  }
+                } @else {
+                  @if (facade.editingHistoryEntryId()) {
+                    Save schedule update
+                  } @else {
+                    Save assignment
+                  }
+                }
+              </button>
+            </div>
+          </div>
+
+          @if (facade.saveState() !== 'idle' && facade.saveMessage()) {
+            <p
+              class="save-feedback"
+              [class.save-feedback--success]="facade.saveState() === 'success'"
+              [class.save-feedback--error]="facade.saveState() === 'error'"
+              role="status"
+              aria-live="polite"
+            >
+              {{ facade.saveMessage() }}
+            </p>
+          }
+
+          <div class="analytics-panel">
+            <div class="analytics-panel__header">
+              <h3>Assignment analytics</h3>
+              <div class="analytics-panel__actions">
+                <button
+                  type="button"
+                  class="ghost-btn analytics-panel__collapse-btn analytics-panel__secondary-btn"
+                  [attr.aria-expanded]="analyticsPanelExpanded()"
+                  aria-controls="start-next-analytics-content"
+                  (click)="toggleAnalyticsPanelExpanded()"
+                >
+                  {{ analyticsPanelExpanded() ? 'Hide analytics' : 'Show analytics' }}
+                </button>
+              </div>
+            </div>
+
+            @if (analyticsPanelExpanded()) {
+              <div id="start-next-analytics-content">
+                <div class="analytics-panel__actions">
+                  <button
+                    type="button"
+                    class="ghost-btn analytics-panel__export-btn analytics-panel__secondary-btn"
+                    [disabled]="!facade.canExportAssignmentAnalytics()"
+                    (click)="exportAssignmentAnalytics()"
+                  >
+                    Export CSV
+                  </button>
+                  <button
+                    type="button"
+                    class="ghost-btn analytics-panel__detail-toggle-btn analytics-panel__secondary-btn"
+                    [disabled]="!facade.assignmentAnalytics().totalTracked"
+                    [attr.aria-expanded]="analyticsExpanded()"
+                    aria-controls="start-next-analytics-details"
+                    (click)="toggleAnalyticsExpanded()"
+                  >
+                    {{
+                      analyticsExpanded() ? 'Hide detailed analytics' : 'Show detailed analytics'
+                    }}
+                  </button>
+                </div>
+
+                <div class="analytics-panel__filters">
+                  <div class="analytics-window-buttons" role="group" aria-label="Analytics windows">
+                    <button
+                      type="button"
+                      class="ghost-btn analytics-window-btn"
+                      [class.analytics-window-btn--active]="facade.analyticsWindow() === '7d'"
+                      (click)="facade.setAnalyticsWindow('7d')"
+                    >
+                      7 days
+                    </button>
+                    <button
+                      type="button"
+                      class="ghost-btn analytics-window-btn"
+                      [class.analytics-window-btn--active]="facade.analyticsWindow() === '30d'"
+                      (click)="facade.setAnalyticsWindow('30d')"
+                    >
+                      30 days
+                    </button>
+                    <button
+                      type="button"
+                      class="ghost-btn analytics-window-btn"
+                      [class.analytics-window-btn--active]="facade.analyticsWindow() === '90d'"
+                      (click)="facade.setAnalyticsWindow('90d')"
+                    >
+                      90 days
+                    </button>
+                    <button
+                      type="button"
+                      class="ghost-btn analytics-window-btn"
+                      [class.analytics-window-btn--active]="facade.analyticsWindow() === 'custom'"
+                      (click)="facade.setAnalyticsWindow('custom')"
+                    >
+                      Custom
+                    </button>
+                  </div>
+
+                  <label class="analytics-filter-field">
+                    <span>From</span>
+                    <input
+                      class="field__input"
+                      type="date"
+                      [formControl]="facade.analyticsStartDateControl"
+                      (change)="facade.markAnalyticsWindowCustom()"
+                    />
+                  </label>
+                  <label class="analytics-filter-field">
+                    <span>To</span>
+                    <input
+                      class="field__input"
+                      type="date"
+                      [formControl]="facade.analyticsEndDateControl"
+                      (change)="facade.markAnalyticsWindowCustom()"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    class="ghost-btn analytics-panel__clear-btn"
+                    [disabled]="
+                      !facade.analyticsStartDateControl.value &&
+                      !facade.analyticsEndDateControl.value
+                    "
+                    (click)="facade.clearAnalyticsDateRange()"
+                  >
+                    Clear range
+                  </button>
+                </div>
+
+                @if (facade.analyticsRangeError(); as analyticsRangeError) {
+                  <p class="analytics-panel__error" role="alert">
+                    {{ analyticsRangeError }}
+                  </p>
+                }
+
+                @if (!facade.assignmentAnalytics().totalTracked) {
+                  <p class="analytics-panel__empty">
+                    @if (facade.analyticsRangeError()) {
+                      Fix the analytics date range to view metrics.
+                    } @else {
+                      Select crew members and adjust the date range to populate assignment
+                      analytics.
+                    }
+                  </p>
+                } @else {
+                  <dl class="analytics-grid">
+                    <div>
+                      <dt>Total tracked</dt>
+                      <dd>{{ facade.assignmentAnalytics().totalTracked }}</dd>
+                    </div>
+                    <div>
+                      <dt>Scheduled</dt>
+                      <dd>{{ facade.assignmentAnalytics().scheduledCount }}</dd>
+                    </div>
+                    <div>
+                      <dt>Completed</dt>
+                      <dd>{{ facade.assignmentAnalytics().completedCount }}</dd>
+                    </div>
+                    <div>
+                      <dt>Cancelled</dt>
+                      <dd>{{ facade.assignmentAnalytics().cancelledCount }}</dd>
+                    </div>
+                    <div>
+                      <dt>Total hours</dt>
+                      <dd>{{ facade.assignmentAnalytics().totalHours | number: '1.0-2' }}</dd>
+                    </div>
+                    <div>
+                      <dt>Avg hours / entry</dt>
+                      <dd>{{ facade.assignmentAnalytics().averageHours | number: '1.0-2' }}</dd>
+                    </div>
+                    <div>
+                      <dt>Completion rate</dt>
+                      <dd>{{ facade.assignmentAnalytics().completionRate | number: '1.0-1' }}%</dd>
+                    </div>
+                    <div>
+                      <dt>Cancellation rate</dt>
+                      <dd>
+                        {{ facade.assignmentAnalytics().cancellationRate | number: '1.0-1' }}%
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Unique sites</dt>
+                      <dd>{{ facade.assignmentAnalytics().uniqueSites }}</dd>
+                    </div>
+                  </dl>
+
+                  <div id="start-next-analytics-details">
+                    @if (analyticsExpanded()) {
+                      <div class="analytics-panel__details">
+                        <div class="employee-trend-panel">
+                          <h4>Per-employee trend</h4>
+                          <ul class="employee-trend-list">
+                            @for (
+                              trend of facade.employeeTrendAnalytics();
+                              track trend.employeeId
+                            ) {
+                              <li class="employee-trend-card">
+                                <header>
+                                  <h5>{{ trend.employeeName }}</h5>
+                                  <p>{{ trend.totalHours | number: '1.0-2' }}h tracked</p>
+                                </header>
+                                <p>
+                                  {{ trend.completedCount }} completed �
+                                  {{ trend.scheduledCount }} scheduled �
+                                  {{ trend.cancelledCount }} cancelled
+                                </p>
+                                <p>
+                                  Completion {{ trend.completionRate | number: '1.0-1' }}% �
+                                  Cancellation {{ trend.cancellationRate | number: '1.0-1' }}%
+                                </p>
+                                <p>
+                                  Last site:
+                                  @if (trend.lastSiteLabel && trend.lastAddress) {
+                                    {{ trend.lastSiteLabel }} � {{ trend.lastAddress }}
+                                  } @else {
+                                    &mdash;
+                                  }
+                                </p>
+                                <p>
+                                  Last scheduled:
+                                  @if (trend.lastScheduledStart) {
+                                    {{ trend.lastScheduledStart | date: 'MMM d, y, h:mm a' }}
+                                  } @else {
+                                    &mdash;
+                                  }
+                                </p>
+                              </li>
+                            }
+                          </ul>
+                        </div>
+
+                        <div class="route-variance-panel">
+                          <h4>Route-level variance</h4>
+                          <ul class="route-variance-list">
+                            @for (route of facade.routeVarianceAnalytics(); track route.routeId) {
+                              <li class="route-variance-card">
+                                <header>
+                                  <h5>{{ route.siteLabel }}</h5>
+                                  <p>{{ route.address }}</p>
+                                </header>
+                                <p>
+                                  {{ route.completedCount }} completed -
+                                  {{ route.scheduledCount }} scheduled -
+                                  {{ route.cancelledCount }} cancelled
+                                </p>
+                                <p>
+                                  Avg {{ route.averageHours | number: '1.0-2' }}h
+                                  @if (route.averageHoursVariance >= 0) {
+                                    (+{{ route.averageHoursVariance | number: '1.0-2' }}h vs crew
+                                    avg)
+                                  } @else {
+                                    ({{ route.averageHoursVariance | number: '1.0-2' }}h vs crew
+                                    avg)
+                                  }
+                                </p>
+                                <p>
+                                  Completion {{ route.completionRate | number: '1.0-1' }}% -
+                                  Cancellation {{ route.cancellationRate | number: '1.0-1' }}%
+                                </p>
+                                <p>
+                                  Last scheduled:
+                                  @if (route.lastScheduledStart) {
+                                    {{ route.lastScheduledStart | date: 'MMM d, y, h:mm a' }}
+                                  } @else {
+                                    --
+                                  }
+                                </p>
+                              </li>
+                            }
+                          </ul>
+                        </div>
+
+                        <div class="cross-run-panel">
+                          <h4>Cross-run trend</h4>
+                          <ul class="cross-run-list">
+                            @for (point of facade.crossRunTrends(); track point.periodStart) {
+                              <li class="cross-run-card">
+                                <header>
+                                  <h5>{{ point.periodLabel }}</h5>
+                                  <p>{{ point.totalHours | number: '1.0-2' }}h</p>
+                                </header>
+                                <div class="cross-run-bar">
+                                  <span [style.width.%]="point.hoursShare"></span>
+                                </div>
+                                <p>
+                                  {{ point.completedCount }} completed -
+                                  {{ point.scheduledCount }} scheduled -
+                                  {{ point.cancelledCount }} cancelled
+                                </p>
+                                <p>
+                                  Completion {{ point.completionRate | number: '1.0-1' }}% -
+                                  Cancellation {{ point.cancellationRate | number: '1.0-1' }}%
+                                </p>
+                              </li>
+                            }
+                          </ul>
+                        </div>
+                      </div>
+                    } @else {
+                      <p class="analytics-panel__details-hint">
+                        Detailed trend cards are hidden. Use "Show detailed analytics" when you need
+                        deeper breakdowns.
+                      </p>
+                    }
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="panel-collapse-hint">
+                Analytics are collapsed by default to keep scheduling actions focused.
+              </p>
+            }
+          </div>
+        </section>
+      }
+    </article>
+  }
+
+  @if (stepFocus() === 'history') {
+    <article id="start-next-history" class="history-panel" aria-label="Selected crew history">
+      <header class="panel-header">
+        <h2>Scheduled history</h2>
+        <div class="section-toggle__actions">
+          <p>{{ facade.selectedCrewHistory().length }} recent entries</p>
+          <button type="button" class="ghost-btn" (click)="setStepFocus('review')">
+            Back to Step 3
+          </button>
+        </div>
+      </header>
+
+      @if (facade.scheduledHistoryCount()) {
+        <div class="history-bulk-actions">
+          <p>
+            {{ facade.selectedScheduledHistoryCount() }} of {{ facade.scheduledHistoryCount() }}
+            scheduled selected
+          </p>
+          <div class="history-bulk-actions__buttons">
             <button
               type="button"
-              class="ghost-btn analytics-panel__collapse-btn analytics-panel__secondary-btn"
-              [attr.aria-expanded]="analyticsPanelExpanded()"
-              aria-controls="start-next-analytics-content"
-              (click)="toggleAnalyticsPanelExpanded()"
+              class="ghost-btn"
+              [disabled]="
+                !facade.selectedScheduledHistoryCount() || facade.saveState() === 'saving'
+              "
+              (click)="facade.clearHistorySelection()"
             >
-              {{ analyticsPanelExpanded() ? 'Hide analytics' : 'Show analytics' }}
+              Clear selected
+            </button>
+            <button
+              type="button"
+              class="ghost-btn"
+              [disabled]="
+                !facade.selectedScheduledHistoryCount() || facade.saveState() === 'saving'
+              "
+              (click)="facade.completeSelectedHistoryEntries()"
+            >
+              Complete selected
+            </button>
+            <button
+              type="button"
+              class="ghost-btn history-card__action--danger"
+              [disabled]="
+                !facade.selectedScheduledHistoryCount() || facade.saveState() === 'saving'
+              "
+              (click)="facade.cancelSelectedHistoryEntries()"
+            >
+              Cancel selected
             </button>
           </div>
         </div>
+      }
 
-        @if (analyticsPanelExpanded()) {
-          <div id="start-next-analytics-content">
-            <div class="analytics-panel__actions">
-              <button
-                type="button"
-                class="ghost-btn analytics-panel__export-btn analytics-panel__secondary-btn"
-                [disabled]="!facade.canExportAssignmentAnalytics()"
-                (click)="exportAssignmentAnalytics()"
-              >
-                Export CSV
-              </button>
-              <button
-                type="button"
-                class="ghost-btn analytics-panel__detail-toggle-btn analytics-panel__secondary-btn"
-                [disabled]="!facade.assignmentAnalytics().totalTracked"
-                [attr.aria-expanded]="analyticsExpanded()"
-                aria-controls="start-next-analytics-details"
-                (click)="toggleAnalyticsExpanded()"
-              >
-                {{ analyticsExpanded() ? 'Hide detailed analytics' : 'Show detailed analytics' }}
-              </button>
-            </div>
-
-            <div class="analytics-panel__filters">
-              <div class="analytics-window-buttons" role="group" aria-label="Analytics windows">
-                <button
-                  type="button"
-                  class="ghost-btn analytics-window-btn"
-                  [class.analytics-window-btn--active]="facade.analyticsWindow() === '7d'"
-                  (click)="facade.setAnalyticsWindow('7d')"
-                >
-                  7 days
-                </button>
-                <button
-                  type="button"
-                  class="ghost-btn analytics-window-btn"
-                  [class.analytics-window-btn--active]="facade.analyticsWindow() === '30d'"
-                  (click)="facade.setAnalyticsWindow('30d')"
-                >
-                  30 days
-                </button>
-                <button
-                  type="button"
-                  class="ghost-btn analytics-window-btn"
-                  [class.analytics-window-btn--active]="facade.analyticsWindow() === '90d'"
-                  (click)="facade.setAnalyticsWindow('90d')"
-                >
-                  90 days
-                </button>
-                <button
-                  type="button"
-                  class="ghost-btn analytics-window-btn"
-                  [class.analytics-window-btn--active]="facade.analyticsWindow() === 'custom'"
-                  (click)="facade.setAnalyticsWindow('custom')"
-                >
-                  Custom
-                </button>
-              </div>
-
-              <label class="analytics-filter-field">
-                <span>From</span>
-                <input
-                  class="field__input"
-                  type="date"
-                  [formControl]="facade.analyticsStartDateControl"
-                  (change)="facade.markAnalyticsWindowCustom()"
-                />
-              </label>
-              <label class="analytics-filter-field">
-                <span>To</span>
-                <input
-                  class="field__input"
-                  type="date"
-                  [formControl]="facade.analyticsEndDateControl"
-                  (change)="facade.markAnalyticsWindowCustom()"
-                />
-              </label>
-              <button
-                type="button"
-                class="ghost-btn analytics-panel__clear-btn"
-                [disabled]="
-                  !facade.analyticsStartDateControl.value && !facade.analyticsEndDateControl.value
-                "
-                (click)="facade.clearAnalyticsDateRange()"
-              >
-                Clear range
-              </button>
-            </div>
-
-            @if (facade.analyticsRangeError(); as analyticsRangeError) {
-              <p class="analytics-panel__error" role="alert">
-                {{ analyticsRangeError }}
+      @if (!facade.selectedCrewHistory().length) {
+        <p class="state workspace-state">
+          Select crew members to inspect their recent job windows and sites.
+        </p>
+      } @else {
+        <ul class="history-list">
+          @for (
+            item of facade.selectedCrewHistory();
+            track facade.trackByHistoryEntry($index, item)
+          ) {
+            <li class="history-card">
+              <p class="history-card__employee">{{ item.employeeName }}</p>
+              <p class="history-card__site">{{ item.siteLabel }} | {{ item.address }}</p>
+              <p class="history-card__window">
+                {{ item.scheduledStart | date: 'MMM d, y, h:mm a' }} -
+                {{ item.scheduledEnd | date: 'h:mm a' }}
               </p>
-            }
-
-            @if (!facade.assignmentAnalytics().totalTracked) {
-              <p class="analytics-panel__empty">
-                @if (facade.analyticsRangeError()) {
-                  Fix the analytics date range to view metrics.
-                } @else {
-                  Select crew members and adjust the date range to populate assignment analytics.
-                }
-              </p>
-            } @else {
-              <dl class="analytics-grid">
-                <div>
-                  <dt>Total tracked</dt>
-                  <dd>{{ facade.assignmentAnalytics().totalTracked }}</dd>
-                </div>
-                <div>
-                  <dt>Scheduled</dt>
-                  <dd>{{ facade.assignmentAnalytics().scheduledCount }}</dd>
-                </div>
-                <div>
-                  <dt>Completed</dt>
-                  <dd>{{ facade.assignmentAnalytics().completedCount }}</dd>
-                </div>
-                <div>
-                  <dt>Cancelled</dt>
-                  <dd>{{ facade.assignmentAnalytics().cancelledCount }}</dd>
-                </div>
-                <div>
-                  <dt>Total hours</dt>
-                  <dd>{{ facade.assignmentAnalytics().totalHours | number: '1.0-2' }}</dd>
-                </div>
-                <div>
-                  <dt>Avg hours / entry</dt>
-                  <dd>{{ facade.assignmentAnalytics().averageHours | number: '1.0-2' }}</dd>
-                </div>
-                <div>
-                  <dt>Completion rate</dt>
-                  <dd>{{ facade.assignmentAnalytics().completionRate | number: '1.0-1' }}%</dd>
-                </div>
-                <div>
-                  <dt>Cancellation rate</dt>
-                  <dd>{{ facade.assignmentAnalytics().cancellationRate | number: '1.0-1' }}%</dd>
-                </div>
-                <div>
-                  <dt>Unique sites</dt>
-                  <dd>{{ facade.assignmentAnalytics().uniqueSites }}</dd>
-                </div>
-              </dl>
-
-              <div id="start-next-analytics-details">
-                @if (analyticsExpanded()) {
-                  <div class="analytics-panel__details">
-                    <div class="employee-trend-panel">
-                      <h4>Per-employee trend</h4>
-                      <ul class="employee-trend-list">
-                        @for (trend of facade.employeeTrendAnalytics(); track trend.employeeId) {
-                          <li class="employee-trend-card">
-                            <header>
-                              <h5>{{ trend.employeeName }}</h5>
-                              <p>{{ trend.totalHours | number: '1.0-2' }}h tracked</p>
-                            </header>
-                            <p>
-                              {{ trend.completedCount }} completed �
-                              {{ trend.scheduledCount }} scheduled �
-                              {{ trend.cancelledCount }} cancelled
-                            </p>
-                            <p>
-                              Completion {{ trend.completionRate | number: '1.0-1' }}% �
-                              Cancellation {{ trend.cancellationRate | number: '1.0-1' }}%
-                            </p>
-                            <p>
-                              Last site:
-                              @if (trend.lastSiteLabel && trend.lastAddress) {
-                                {{ trend.lastSiteLabel }} � {{ trend.lastAddress }}
-                              } @else {
-                                &mdash;
-                              }
-                            </p>
-                            <p>
-                              Last scheduled:
-                              @if (trend.lastScheduledStart) {
-                                {{ trend.lastScheduledStart | date: 'MMM d, y, h:mm a' }}
-                              } @else {
-                                &mdash;
-                              }
-                            </p>
-                          </li>
-                        }
-                      </ul>
-                    </div>
-
-                    <div class="route-variance-panel">
-                      <h4>Route-level variance</h4>
-                      <ul class="route-variance-list">
-                        @for (route of facade.routeVarianceAnalytics(); track route.routeId) {
-                          <li class="route-variance-card">
-                            <header>
-                              <h5>{{ route.siteLabel }}</h5>
-                              <p>{{ route.address }}</p>
-                            </header>
-                            <p>
-                              {{ route.completedCount }} completed -
-                              {{ route.scheduledCount }} scheduled -
-                              {{ route.cancelledCount }} cancelled
-                            </p>
-                            <p>
-                              Avg {{ route.averageHours | number: '1.0-2' }}h
-                              @if (route.averageHoursVariance >= 0) {
-                                (+{{ route.averageHoursVariance | number: '1.0-2' }}h vs crew avg)
-                              } @else {
-                                ({{ route.averageHoursVariance | number: '1.0-2' }}h vs crew avg)
-                              }
-                            </p>
-                            <p>
-                              Completion {{ route.completionRate | number: '1.0-1' }}% -
-                              Cancellation {{ route.cancellationRate | number: '1.0-1' }}%
-                            </p>
-                            <p>
-                              Last scheduled:
-                              @if (route.lastScheduledStart) {
-                                {{ route.lastScheduledStart | date: 'MMM d, y, h:mm a' }}
-                              } @else {
-                                --
-                              }
-                            </p>
-                          </li>
-                        }
-                      </ul>
-                    </div>
-
-                    <div class="cross-run-panel">
-                      <h4>Cross-run trend</h4>
-                      <ul class="cross-run-list">
-                        @for (point of facade.crossRunTrends(); track point.periodStart) {
-                          <li class="cross-run-card">
-                            <header>
-                              <h5>{{ point.periodLabel }}</h5>
-                              <p>{{ point.totalHours | number: '1.0-2' }}h</p>
-                            </header>
-                            <div class="cross-run-bar">
-                              <span [style.width.%]="point.hoursShare"></span>
-                            </div>
-                            <p>
-                              {{ point.completedCount }} completed -
-                              {{ point.scheduledCount }} scheduled -
-                              {{ point.cancelledCount }} cancelled
-                            </p>
-                            <p>
-                              Completion {{ point.completionRate | number: '1.0-1' }}% -
-                              Cancellation {{ point.cancellationRate | number: '1.0-1' }}%
-                            </p>
-                          </li>
-                        }
-                      </ul>
-                    </div>
-                  </div>
-                } @else {
-                  <p class="analytics-panel__details-hint">
-                    Detailed trend cards are hidden. Use "Show detailed analytics" when you need
-                    deeper breakdowns.
-                  </p>
-                }
-              </div>
-            }
-          </div>
-        } @else {
-          <p class="panel-collapse-hint">
-            Analytics are collapsed by default to keep scheduling actions focused.
-          </p>
-        }
-      </div>
-    </section>
-  </article>
-
-  <article id="start-next-history" class="history-panel" aria-label="Selected crew history">
-    <header class="panel-header">
-      <h2>Selected crew job history</h2>
-      <div class="section-toggle__actions">
-        <p>{{ facade.selectedCrewHistory().length }} recent entries</p>
-        <button
-          type="button"
-          class="ghost-btn"
-          [disabled]="!canOpenHistoryStep()"
-          [attr.aria-expanded]="historyExpanded()"
-          aria-controls="start-next-history-content"
-          (click)="toggleHistoryExpanded()"
-        >
-          {{ historyExpanded() ? 'Hide history' : 'Show history' }}
-        </button>
-      </div>
-    </header>
-
-    @if (!historyExpanded()) {
-      <p class="panel-collapse-hint">
-        Expand history when you need lifecycle actions (edit, complete, cancel, reassign).
-      </p>
-    } @else {
-      <div id="start-next-history-content">
-        @if (facade.scheduledHistoryCount()) {
-          <div class="history-bulk-actions">
-            <p>
-              {{ facade.selectedScheduledHistoryCount() }} of {{ facade.scheduledHistoryCount() }}
-              scheduled selected
-            </p>
-            <div class="history-bulk-actions__buttons">
-              <button
-                type="button"
-                class="ghost-btn"
-                [disabled]="
-                  !facade.selectedScheduledHistoryCount() || facade.saveState() === 'saving'
-                "
-                (click)="facade.clearHistorySelection()"
-              >
-                Clear selected
-              </button>
-              <button
-                type="button"
-                class="ghost-btn"
-                [disabled]="
-                  !facade.selectedScheduledHistoryCount() || facade.saveState() === 'saving'
-                "
-                (click)="facade.completeSelectedHistoryEntries()"
-              >
-                Complete selected
-              </button>
-              <button
-                type="button"
-                class="ghost-btn history-card__action--danger"
-                [disabled]="
-                  !facade.selectedScheduledHistoryCount() || facade.saveState() === 'saving'
-                "
-                (click)="facade.cancelSelectedHistoryEntries()"
-              >
-                Cancel selected
-              </button>
-            </div>
-          </div>
-        }
-
-        @if (!facade.selectedCrewHistory().length) {
-          <p class="state workspace-state">
-            Select crew members to inspect their recent job windows and sites.
-          </p>
-        } @else {
-          <ul class="history-list">
-            @for (
-              item of facade.selectedCrewHistory();
-              track facade.trackByHistoryEntry($index, item)
-            ) {
-              <li class="history-card">
-                <p class="history-card__employee">{{ item.employeeName }}</p>
-                <p class="history-card__site">{{ item.siteLabel }} | {{ item.address }}</p>
-                <p class="history-card__window">
-                  {{ item.scheduledStart | date: 'MMM d, y, h:mm a' }} -
-                  {{ item.scheduledEnd | date: 'h:mm a' }}
-                </p>
-                <p class="history-card__meta">{{ item.status }} | {{ item.hoursWorked }}h</p>
-                @if (item.status === 'scheduled') {
-                  <div class="history-card__actions">
-                    <button
-                      type="button"
-                      class="history-card__action history-card__action--select"
-                      [class.history-card__action--select-active]="
-                        facade.isHistoryEntrySelected(item.id)
-                      "
-                      [disabled]="facade.saveState() === 'saving'"
-                      (click)="facade.toggleHistoryEntrySelection(item.id)"
-                    >
-                      {{ facade.isHistoryEntrySelected(item.id) ? 'Selected' : 'Select' }}
-                    </button>
-                    <button
-                      type="button"
-                      class="history-card__action"
-                      [disabled]="facade.saveState() === 'saving'"
-                      (click)="facade.beginHistoryEdit(item)"
-                    >
-                      @if (facade.isEditingHistoryEntry(item.id)) {
-                        Editing
-                      } @else {
-                        Edit schedule
-                      }
-                    </button>
-                    <button
-                      type="button"
-                      class="history-card__action"
-                      [disabled]="facade.saveState() === 'saving'"
-                      (click)="facade.completeHistoryEntry(item.id)"
-                    >
-                      Mark completed
-                    </button>
-                    @if (facade.resolveReassignTarget(item); as target) {
-                      <button
-                        type="button"
-                        class="history-card__action history-card__action--info"
-                        [disabled]="facade.saveState() === 'saving'"
-                        (click)="facade.reassignHistoryEntry(item)"
-                      >
-                        Reassign to {{ target.fullName }}
-                      </button>
+              <p class="history-card__meta">{{ item.status }} | {{ item.hoursWorked }}h</p>
+              @if (item.status === 'scheduled') {
+                <div class="history-card__actions">
+                  <button
+                    type="button"
+                    class="history-card__action history-card__action--select"
+                    [class.history-card__action--select-active]="
+                      facade.isHistoryEntrySelected(item.id)
+                    "
+                    [disabled]="facade.saveState() === 'saving'"
+                    (click)="facade.toggleHistoryEntrySelection(item.id)"
+                  >
+                    {{ facade.isHistoryEntrySelected(item.id) ? 'Selected' : 'Select' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="history-card__action"
+                    [disabled]="facade.saveState() === 'saving'"
+                    (click)="facade.beginHistoryEdit(item); setStepFocus('draft')"
+                  >
+                    @if (facade.isEditingHistoryEntry(item.id)) {
+                      Editing
                     } @else {
-                      <button
-                        type="button"
-                        class="history-card__action history-card__action--info"
-                        [disabled]="true"
-                      >
-                        Reassign (select one other crew member)
-                      </button>
+                      Edit schedule
                     }
+                  </button>
+                  <button
+                    type="button"
+                    class="history-card__action"
+                    [disabled]="facade.saveState() === 'saving'"
+                    (click)="facade.completeHistoryEntry(item.id)"
+                  >
+                    Mark completed
+                  </button>
+                  @if (facade.resolveReassignTarget(item); as target) {
                     <button
                       type="button"
-                      class="history-card__action history-card__action--danger"
+                      class="history-card__action history-card__action--info"
                       [disabled]="facade.saveState() === 'saving'"
-                      (click)="facade.cancelScheduledHistoryEntry(item.id)"
+                      (click)="facade.reassignHistoryEntry(item)"
                     >
-                      Cancel assignment
+                      Reassign to {{ target.fullName }}
                     </button>
-                  </div>
-                }
-              </li>
-            }
-          </ul>
-        }
-      </div>
-    }
-  </article>
+                  } @else {
+                    <button
+                      type="button"
+                      class="history-card__action history-card__action--info"
+                      [disabled]="true"
+                    >
+                      Reassign (select one other crew member)
+                    </button>
+                  }
+                  <button
+                    type="button"
+                    class="history-card__action history-card__action--danger"
+                    [disabled]="facade.saveState() === 'saving'"
+                    (click)="facade.cancelScheduledHistoryEntry(item.id)"
+                  >
+                    Cancel assignment
+                  </button>
+                </div>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </article>
+  }
 </section>

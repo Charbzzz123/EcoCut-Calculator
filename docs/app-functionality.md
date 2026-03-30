@@ -182,11 +182,11 @@
 - **Crew picker**: operators can select/deselect employees from live readiness records (`/employees/readiness`) with status badges (`Available`, `Scheduled`, `Inactive`).
 - **Conflict checks**: selection validates inactive members, existing readiness conflicts, next-available constraints, and overlap against upcoming windows before draft can proceed.
 - **Draft readiness**: panel shows blocking reasons until required fields + crew are valid and conflict-free.
-- **Workflow guidance strip**: top-of-page 3-step helper (`select crew -> set schedule -> review/save`) now anchors the primary flow before secondary analytics.
-- **Step jump row**: quick navigation buttons (`Step 1 crew`, `Step 2 draft`, `Step 3 review`, `Scheduled history`) now scroll operators directly to the matching board section.
+- **Workflow guidance strip**: top-of-page guided strip keeps one row of step actions (`Step 1 crew`, `Step 2 draft`, `Step 3 review`, `Scheduled history`) plus live readiness messaging.
+- **Single-step workspace flow**: only one major board panel is rendered at a time (Crew, Draft, Review, or Scheduled history) to cut page clutter and keep operator focus on the current task.
 - **Step locks + readiness messaging**: draft/review/history jump controls stay disabled until prerequisites are met, and inline status rows explicitly call out what is still missing (`select crew`, `capture draft details`, `resolve blockers`).
-- **Progressive CTAs**: `Continue to Step 2` appears in the crew panel and `Continue to Step 3` appears in the draft panel so schedulers can move forward without scanning the full page.
-- **Progressive disclosure refresh**: workflow details, Step 2 advanced controls, assignment analytics, and selected-crew history are collapsible by default to reduce overload while keeping full controls one tap away.
+- **Progressive CTAs**: `Continue to Step 2` appears in the crew panel, `Continue to Step 3` appears in draft, and explicit `Back to Step ...` actions are present in Draft/Review/History to keep navigation predictable.
+- **Progressive disclosure refresh**: Step 2 advanced controls and Step 3 analytics details stay collapsible, while scheduled-history lifecycle actions live in their own dedicated history step.
 - **Review-first save action**: primary `Save assignment` now sits in Step 3 review so validation blockers, conflicts, and analytics context are visible when confirming.
 - **Crew history context**: selected crew history list is sourced from `/employees/history` so schedulers can verify recent assignments before confirming.
 - **Persistence wiring**: `Save assignment` now calls `/employees/assignments/start-next-job`, which writes scheduled history rows plus assignment-source hours entries for each selected employee and refreshes readiness/history immediately after save.

@@ -25,10 +25,8 @@ import { StartNextJobFacade } from './start-next-job.facade.js';
 export class StartNextJobShellComponent implements OnInit {
   protected readonly facade = inject(StartNextJobFacade);
   protected readonly stepFocus = signal<'crew' | 'draft' | 'review' | 'history'>('crew');
-  protected readonly workflowExpanded = signal(false);
   protected readonly draftAdvancedExpanded = signal(false);
   protected readonly analyticsPanelExpanded = signal(false);
-  protected readonly historyExpanded = signal(false);
   protected readonly analyticsExpanded = signal(false);
   protected readonly canOpenDraftStep = computed(() => this.facade.selectedCrew().length > 0);
   protected readonly canOpenReviewStep = computed(() => this.facade.selectedCrew().length > 0);
@@ -71,9 +69,6 @@ export class StartNextJobShellComponent implements OnInit {
       return;
     }
     this.stepFocus.set(step);
-    if (step === 'history') {
-      this.historyExpanded.set(true);
-    }
     if (step === 'review') {
       this.analyticsPanelExpanded.set(true);
     }
@@ -98,10 +93,6 @@ export class StartNextJobShellComponent implements OnInit {
     this.analyticsExpanded.update((expanded) => !expanded);
   }
 
-  protected toggleWorkflowExpanded(): void {
-    this.workflowExpanded.update((expanded) => !expanded);
-  }
-
   protected toggleDraftAdvancedExpanded(): void {
     this.draftAdvancedExpanded.update((expanded) => !expanded);
   }
@@ -110,14 +101,12 @@ export class StartNextJobShellComponent implements OnInit {
     this.analyticsPanelExpanded.update((expanded) => !expanded);
   }
 
-  protected toggleHistoryExpanded(): void {
-    this.historyExpanded.update((expanded) => !expanded);
-  }
-
   private scrollToSection(sectionId: string): void {
-    const section = document.getElementById(sectionId);
-    if (section && typeof section.scrollIntoView === 'function') {
-      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    setTimeout(() => {
+      const section = document.getElementById(sectionId);
+      if (section && typeof section.scrollIntoView === 'function') {
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
   }
 }
