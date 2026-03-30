@@ -104,6 +104,14 @@ export interface EmployeeStartNextJobAssignmentResult {
   createdHours: EmployeeHoursRecord[];
 }
 
+export interface EmployeeAssignmentRunLifecycleResult {
+  assignmentId: string;
+  runStartedAt: string | null;
+  runEndedAt: string | null;
+  updatedHistory: EmployeeJobHistoryRecord[];
+  updatedHours: EmployeeHoursRecord[];
+}
+
 export interface EmployeeHoursDraft {
   workDate: string;
   jobEntryId: string;
@@ -130,6 +138,8 @@ export interface EmployeeJobHistoryRecord {
   scheduledEnd: string;
   hoursWorked: number;
   status: EmployeeJobStatus;
+  runStartedAt?: string | null;
+  runEndedAt?: string | null;
   linkedHoursEntryId?: string | null;
   jobEntryId?: string | null;
   assignmentId?: string | null;

@@ -858,6 +858,12 @@
                 {{ item.scheduledEnd | date: 'h:mm a' }}
               </p>
               <p class="history-card__meta">{{ item.status }} | {{ item.hoursWorked }}h</p>
+              @if (facade.isRunActive(item)) {
+                <p class="history-card__meta">
+                  Run active since
+                  {{ item.runStartedAt | date: 'MMM d, y, h:mm a' }}
+                </p>
+              }
               @if (item.status === 'scheduled') {
                 <div class="history-card__actions">
                   <button
@@ -871,10 +877,29 @@
                   >
                     {{ facade.isHistoryEntrySelected(item.id) ? 'Selected' : 'Select' }}
                   </button>
+                  @if (facade.canStartHistoryRun(item)) {
+                    <button
+                      type="button"
+                      class="history-card__action history-card__action--primary"
+                      [disabled]="facade.saveState() === 'saving'"
+                      (click)="facade.startHistoryRun(item.id)"
+                    >
+                      Start job
+                    </button>
+                  } @else if (facade.canEndHistoryRun(item)) {
+                    <button
+                      type="button"
+                      class="history-card__action history-card__action--primary"
+                      [disabled]="facade.saveState() === 'saving'"
+                      (click)="facade.endHistoryRun(item.id)"
+                    >
+                      End job
+                    </button>
+                  }
                   <button
                     type="button"
                     class="history-card__action"
-                    [disabled]="facade.saveState() === 'saving'"
+                    [disabled]="facade.saveState() === 'saving' || facade.canEndHistoryRun(item)"
                     (click)="facade.beginHistoryEdit(item); setStepFocus('draft')"
                   >
                     @if (facade.isEditingHistoryEntry(item.id)) {
@@ -882,14 +907,6 @@
                     } @else {
                       Edit schedule
                     }
-                  </button>
-                  <button
-                    type="button"
-                    class="history-card__action"
-                    [disabled]="facade.saveState() === 'saving'"
-                    (click)="facade.completeHistoryEntry(item.id)"
-                  >
-                    Mark completed
                   </button>
                   @if (facade.resolveReassignTarget(item); as target) {
                     <button

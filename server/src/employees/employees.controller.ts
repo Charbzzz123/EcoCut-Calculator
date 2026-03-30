@@ -199,6 +199,28 @@ export class EmployeesController {
     );
   }
 
+  @Post('history/:entryId/start')
+  startAssignmentRun(
+    @Param('entryId') entryId: string,
+    @Headers('x-operator-role') operatorRole?: string,
+  ) {
+    return this.employees.startAssignmentRun(
+      entryId,
+      this.parseOperatorRole(operatorRole),
+    );
+  }
+
+  @Post('history/:entryId/end')
+  endAssignmentRun(
+    @Param('entryId') entryId: string,
+    @Headers('x-operator-role') operatorRole?: string,
+  ) {
+    return this.employees.endAssignmentRun(
+      entryId,
+      this.parseOperatorRole(operatorRole),
+    );
+  }
+
   private parseOperatorRole(rawRole: string | undefined): EmployeeOperatorRole {
     return rawRole?.toLowerCase() === 'manager' ? 'manager' : 'owner';
   }

@@ -580,6 +580,21 @@ export class StartNextJobFacade {
     this.showCompletedJobOptions.update((current) => !current);
   }
 
+  isRunActive(entry: Pick<EmployeeJobHistoryRecord, 'status' | 'runStartedAt' | 'runEndedAt'>): boolean {
+    if (entry.status !== 'scheduled') {
+      return false;
+    }
+    return Boolean(entry.runStartedAt && !entry.runEndedAt);
+  }
+
+  canStartHistoryRun(entry: Pick<EmployeeJobHistoryRecord, 'status' | 'runStartedAt' | 'runEndedAt'>): boolean {
+    return entry.status === 'scheduled' && !this.isRunActive(entry);
+  }
+
+  canEndHistoryRun(entry: Pick<EmployeeJobHistoryRecord, 'status' | 'runStartedAt' | 'runEndedAt'>): boolean {
+    return this.isRunActive(entry);
+  }
+
   isHistoryEntrySelected(entryId: string): boolean {
     return this.selectedHistoryEntryIds().includes(entryId);
   }
@@ -653,7 +668,7 @@ export class StartNextJobFacade {
   }
 
   beginHistoryEdit(entry: SelectedCrewHistoryItem): void {
-    if (entry.status !== 'scheduled') {
+    if (entry.status !== 'scheduled' || this.isRunActive(entry)) {
       return;
     }
     this.editingHistoryEntryId.set(entry.id);
@@ -683,6 +698,12 @@ export class StartNextJobFacade {
 
   canSubmitHistoryEdit(): boolean {
     if (!this.editingHistoryEntryId()) {
+      return false;
+    }
+    const editingEntry = this.historySignal().find(
+      (entry) => entry.id === this.editingHistoryEntryId(),
+    );
+    if (editingEntry && this.isRunActive(editingEntry)) {
       return false;
     }
     if (!this.jobLabelControl.value.trim() || !this.addressControl.value.trim()) {
@@ -788,11 +809,102 @@ export class StartNextJobFacade {
     }
   }
 
+  async startHistoryRun(
+    entryId: string,
+    actorRole: EmployeeOperatorRole = 'owner',
+  ): Promise<boolean> {
+    const existing = this.historySignal().find((entry) => entry.id === entryId);
+    if (!existing) {
+      this.saveState.set('error');
+      this.saveMessage.set('Unable to find this scheduled assignment anymore.');
+      return false;
+    }
+    if (!this.canStartHistoryRun(existing)) {
+      this.saveState.set('error');
+      this.saveMessage.set('Run is already active or cannot be started.');
+      return false;
+    }
+
+    const nowIso = new Date().toISOString();
+    const snapshot = this.captureBoardSnapshot();
+    this.saveState.set('saving');
+    this.saveMessage.set('Starting run...');
+    this.applyHistoryUpserts([
+      {
+        ...existing,
+        runStartedAt: nowIso,
+        runEndedAt: null,
+      },
+    ]);
+    try {
+      const lifecycle = await this.employeesData.startAssignmentRun(entryId, actorRole);
+      this.applyHistoryUpserts(lifecycle.updatedHistory);
+      this.saveState.set('success');
+      this.saveMessage.set('Run started. Crew clock-in is now active.');
+      return true;
+    } catch {
+      this.restoreBoardSnapshot(snapshot);
+      this.saveState.set('error');
+      this.saveMessage.set('Unable to start this run right now.');
+      return false;
+    }
+  }
+
+  async endHistoryRun(
+    entryId: string,
+    actorRole: EmployeeOperatorRole = 'owner',
+  ): Promise<boolean> {
+    const existing = this.historySignal().find((entry) => entry.id === entryId);
+    if (!existing) {
+      this.saveState.set('error');
+      this.saveMessage.set('Unable to find this scheduled assignment anymore.');
+      return false;
+    }
+    if (!this.canEndHistoryRun(existing)) {
+      this.saveState.set('error');
+      this.saveMessage.set('Run is not active yet.');
+      return false;
+    }
+
+    const snapshot = this.captureBoardSnapshot();
+    const nowIso = new Date().toISOString();
+    const startIso = existing.runStartedAt ?? existing.scheduledStart;
+    const startedTimestamp = toTimestamp(startIso) ?? Date.now();
+    const endedTimestamp = toTimestamp(nowIso) ?? Date.now();
+    const durationHours = Math.max(
+      0.25,
+      Math.round(((endedTimestamp - startedTimestamp) / 3_600_000) * 4) / 4,
+    );
+    this.saveState.set('saving');
+    this.saveMessage.set('Ending run and clocking out crew...');
+    this.removeSelectedHistoryIds([entryId]);
+    this.applyHistoryUpserts([
+      {
+        ...existing,
+        status: 'completed',
+        runEndedAt: nowIso,
+        hoursWorked: durationHours,
+      },
+    ]);
+    try {
+      const lifecycle = await this.employeesData.endAssignmentRun(entryId, actorRole);
+      this.applyHistoryUpserts(lifecycle.updatedHistory);
+      this.saveState.set('success');
+      this.saveMessage.set('Run ended. Remaining crew members were clocked out.');
+      return true;
+    } catch {
+      this.restoreBoardSnapshot(snapshot);
+      this.saveState.set('error');
+      this.saveMessage.set('Unable to end this run right now.');
+      return false;
+    }
+  }
+
   resolveReassignTarget(entry: SelectedCrewHistoryItem): {
     employeeId: string;
     fullName: string;
   } | null {
-    if (entry.status !== 'scheduled') {
+    if (entry.status !== 'scheduled' || this.isRunActive(entry)) {
       return null;
     }
     const selected = this.selectedCrew();
@@ -1198,6 +1310,16 @@ export class StartNextJobFacade {
         reason: 'Existing overlap detected in upcoming schedule.',
       });
     }
+    const activeRun = this.historySignal().find(
+      (entry) => entry.employeeId === employee.employeeId && this.isRunActive(entry),
+    );
+    if (activeRun) {
+      conflicts.push({
+        employeeId: employee.employeeId,
+        employeeName: employee.fullName,
+        reason: `Active on "${activeRun.siteLabel}" until ended.`,
+      });
+    }
     if (!startTimestamp || !endTimestamp) {
       return conflicts;
     }
@@ -1299,19 +1421,31 @@ export class StartNextJobFacade {
   private rebuildReadinessFromHistory(
     history: readonly EmployeeJobHistoryRecord[],
   ): EmployeeStartNextJobReadiness[] {
+    const nowIso = new Date().toISOString();
+    const nowTimestamp = Date.now();
     return [...this.readinessSignal()]
       .map((record) => {
         const employeeHistory = history.filter((entry) => entry.employeeId === record.employeeId);
         const scheduledEntries = employeeHistory
           .filter((entry) => entry.status === 'scheduled')
           .sort((left, right) => left.scheduledStart.localeCompare(right.scheduledStart));
+        const activeRunEntries = scheduledEntries.filter((entry) => this.isRunActive(entry));
+        const upcomingEntries = scheduledEntries.filter(
+          (entry) =>
+            this.isRunActive(entry) || ((toTimestamp(entry.scheduledEnd) ?? 0) > nowTimestamp),
+        );
+        const activeEntries = activeRunEntries.length
+          ? activeRunEntries
+          : upcomingEntries.filter(
+              (entry) => (toTimestamp(entry.scheduledStart) ?? 0) <= nowTimestamp,
+            );
         const completedEntries = employeeHistory
           .filter((entry) => entry.status === 'completed')
           .sort((left, right) => right.scheduledEnd.localeCompare(left.scheduledEnd));
 
-        const nextScheduled = scheduledEntries[0];
-        const hasConflict = scheduledEntries.some((entry, index) => {
-          const nextEntry = scheduledEntries[index + 1];
+        const nextScheduled = upcomingEntries[0];
+        const hasConflict = upcomingEntries.some((entry, index) => {
+          const nextEntry = upcomingEntries[index + 1];
           if (!nextEntry) {
             return false;
           }
@@ -1326,25 +1460,29 @@ export class StartNextJobFacade {
         const readinessState: EmployeeStartNextJobReadiness['readinessState'] =
           record.status === 'inactive'
             ? 'inactive'
-            : scheduledEntries.length
+            : activeEntries.length
               ? 'scheduled'
               : 'available';
 
         return {
           ...record,
           readinessState,
-          scheduledJobsCount: scheduledEntries.length,
+          scheduledJobsCount: upcomingEntries.length,
           completedJobsCount: completedEntries.length,
-          scheduledHours: scheduledEntries.reduce((sum, entry) => sum + entry.hoursWorked, 0),
+          scheduledHours: upcomingEntries.reduce((sum, entry) => sum + entry.hoursWorked, 0),
           completedHours: completedEntries.reduce((sum, entry) => sum + entry.hoursWorked, 0),
           nextScheduledStart: nextScheduled?.scheduledStart ?? null,
           nextScheduledEnd: nextScheduled?.scheduledEnd ?? null,
           nextAvailableAt:
-            record.status === 'inactive' ? null : (nextScheduled?.scheduledEnd ?? null),
+            record.status === 'inactive'
+              ? null
+              : activeEntries.length
+                ? this.computeNextAvailabilityFromEntries(activeEntries)
+                : nowIso,
           lastCompletedAt: lastCompleted?.scheduledEnd ?? null,
           lastCompletedSite: lastCompleted?.siteLabel ?? null,
           hasScheduleConflict: hasConflict,
-          upcomingWindows: scheduledEntries.map((entry) => ({
+          upcomingWindows: upcomingEntries.map((entry) => ({
             jobId: entry.id,
             siteLabel: entry.siteLabel,
             address: entry.address,
@@ -1354,6 +1492,20 @@ export class StartNextJobFacade {
         };
       })
       .sort((left, right) => left.fullName.localeCompare(right.fullName));
+  }
+
+  private computeNextAvailabilityFromEntries(
+    entries: readonly EmployeeJobHistoryRecord[],
+  ): string {
+    const fallbackTimestamp = Date.now();
+    const latestEndTimestamp = entries.reduce((latest, entry) => {
+      const nextEnd = toTimestamp(entry.scheduledEnd) ?? 0;
+      return Math.max(latest, nextEnd);
+    }, 0);
+    const resolvedTimestamp = latestEndTimestamp
+      ? Math.max(latestEndTimestamp, fallbackTimestamp)
+      : fallbackTimestamp;
+    return new Date(resolvedTimestamp).toISOString();
   }
 
   private resetDraftAfterSave(): void {

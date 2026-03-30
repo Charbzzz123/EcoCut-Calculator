@@ -396,6 +396,78 @@ describe('EmployeesService', () => {
     );
   });
 
+  it('starts and ends an assignment run with auto clock-out updates', async () => {
+    const created = await service.createStartNextJobAssignment(
+      {
+        jobLabel: 'Run route',
+        address: '500 Main St',
+        scheduledStart: '2099-03-27T09:00:00.000Z',
+        scheduledEnd: '2099-03-27T11:00:00.000Z',
+        employeeIds: ['emp-owner'],
+      },
+      'owner',
+    );
+    const entryId = created.createdHistory[0]?.id ?? '';
+    const hoursId = created.createdHours[0]?.id ?? '';
+
+    const started = await service.startAssignmentRun(entryId, 'manager');
+    expect(started.assignmentId).toBe(created.assignmentId);
+    expect(started.runStartedAt).toBeTruthy();
+    expect(started.updatedHistory[0]?.status).toBe('scheduled');
+    expect(started.updatedHistory[0]?.runStartedAt).toBeTruthy();
+    expect(started.updatedHours[0]?.clockInAt).toBeTruthy();
+    expect(started.updatedHours[0]?.clockOutAt).toBeNull();
+
+    const ended = await service.endAssignmentRun(entryId, 'owner');
+    expect(ended.assignmentId).toBe(created.assignmentId);
+    expect(ended.runEndedAt).toBeTruthy();
+    expect(ended.updatedHistory[0]?.status).toBe('completed');
+    expect(ended.updatedHistory[0]?.runEndedAt).toBeTruthy();
+    expect(ended.updatedHours[0]?.clockOutAt).toBeTruthy();
+    expect(ended.updatedHours[0]?.hours).toBeGreaterThanOrEqual(0.25);
+
+    const persistedHistory = service
+      .listJobHistoryEntries()
+      .find((entry) => entry.id === entryId);
+    expect(persistedHistory?.status).toBe('completed');
+    expect(persistedHistory?.runStartedAt).toBeTruthy();
+    expect(persistedHistory?.runEndedAt).toBeTruthy();
+
+    const persistedHours = service
+      .listHoursEntries()
+      .find((entry) => entry.id === hoursId);
+    expect(persistedHours?.clockInAt).toBeTruthy();
+    expect(persistedHours?.clockOutAt).toBeTruthy();
+  });
+
+  it('blocks selecting employees already active on another run', async () => {
+    const activeRun = await service.createStartNextJobAssignment(
+      {
+        jobLabel: 'Active route',
+        address: '600 Main St',
+        scheduledStart: '2099-03-27T12:00:00.000Z',
+        scheduledEnd: '2099-03-27T14:00:00.000Z',
+        employeeIds: ['emp-owner'],
+      },
+      'owner',
+    );
+    const activeEntryId = activeRun.createdHistory[0]?.id ?? '';
+    await service.startAssignmentRun(activeEntryId, 'owner');
+
+    await expect(
+      service.createStartNextJobAssignment(
+        {
+          jobLabel: 'Second route',
+          address: '700 Main St',
+          scheduledStart: '2099-03-27T15:00:00.000Z',
+          scheduledEnd: '2099-03-27T17:00:00.000Z',
+          employeeIds: ['emp-owner'],
+        },
+        'owner',
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
   it('links start-next-job assignments to a saved client job when jobEntryId is provided', async () => {
     const result = await service.createStartNextJobAssignment(
       {

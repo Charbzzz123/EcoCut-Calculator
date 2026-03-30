@@ -17,6 +17,8 @@ class EmployeesDataServiceStub {
   shouldFailUpdate = false;
   shouldFailCancel = false;
   shouldFailReassign = false;
+  shouldFailStartRun = false;
+  shouldFailEndRun = false;
   shouldFailCompleteIds = new Set<string>();
   shouldFailCancelIds = new Set<string>();
   assignmentPayloads: unknown[] = [];
@@ -24,6 +26,8 @@ class EmployeesDataServiceStub {
   updateCalls: string[] = [];
   cancelCalls: string[] = [];
   reassignCalls: { entryId: string; employeeId: string }[] = [];
+  startRunCalls: string[] = [];
+  endRunCalls: string[] = [];
 
   async listStartNextJobReadiness(): Promise<EmployeeStartNextJobReadiness[]> {
     if (this.shouldFail) {
@@ -142,6 +146,62 @@ class EmployeesDataServiceStub {
       scheduledEnd: '2026-03-21T17:00:00.000Z',
       hoursWorked: 3,
       status: 'scheduled' as const,
+    };
+  }
+
+  async startAssignmentRun(entryId: string) {
+    this.startRunCalls.push(entryId);
+    if (this.shouldFailStartRun) {
+      throw new Error('start-run-failure');
+    }
+    return {
+      assignmentId: 'assign-1',
+      runStartedAt: '2026-03-21T14:05:00.000Z',
+      runEndedAt: null,
+      updatedHistory: [
+        {
+          id: entryId,
+          employeeId: 'emp-b',
+          siteLabel: 'Downtown',
+          address: '2 Main St',
+          scheduledStart: '2026-03-21T14:00:00.000Z',
+          scheduledEnd: '2026-03-21T17:00:00.000Z',
+          hoursWorked: 3,
+          status: 'scheduled' as const,
+          runStartedAt: '2026-03-21T14:05:00.000Z',
+          runEndedAt: null,
+          assignmentId: 'assign-1',
+        },
+      ],
+      updatedHours: [],
+    };
+  }
+
+  async endAssignmentRun(entryId: string) {
+    this.endRunCalls.push(entryId);
+    if (this.shouldFailEndRun) {
+      throw new Error('end-run-failure');
+    }
+    return {
+      assignmentId: 'assign-1',
+      runStartedAt: '2026-03-21T14:05:00.000Z',
+      runEndedAt: '2026-03-21T16:10:00.000Z',
+      updatedHistory: [
+        {
+          id: entryId,
+          employeeId: 'emp-b',
+          siteLabel: 'Downtown',
+          address: '2 Main St',
+          scheduledStart: '2026-03-21T14:00:00.000Z',
+          scheduledEnd: '2026-03-21T17:00:00.000Z',
+          hoursWorked: 2,
+          status: 'completed' as const,
+          runStartedAt: '2026-03-21T14:05:00.000Z',
+          runEndedAt: '2026-03-21T16:10:00.000Z',
+          assignmentId: 'assign-1',
+        },
+      ],
+      updatedHours: [],
     };
   }
 }
@@ -986,6 +1046,32 @@ describe('StartNextJobFacade', () => {
     await expect(facade.cancelScheduledHistoryEntry('hist-2')).resolves.toBe(false);
     expect(facade.saveState()).toBe('error');
     expect(facade.saveMessage()).toBe('Unable to cancel the scheduled assignment right now.');
+  });
+
+  it('starts and ends assignment runs from scheduled history entries', async () => {
+    await facade.loadBoard();
+
+    await expect(facade.startHistoryRun('hist-2', 'manager')).resolves.toBe(true);
+    expect(dataService.startRunCalls).toEqual(['hist-2']);
+    expect(facade.saveState()).toBe('success');
+    expect(facade.saveMessage()).toBe('Run started. Crew clock-in is now active.');
+
+    await expect(facade.endHistoryRun('hist-2', 'owner')).resolves.toBe(true);
+    expect(dataService.endRunCalls).toEqual(['hist-2']);
+    expect(facade.saveState()).toBe('success');
+    expect(facade.saveMessage()).toBe('Run ended. Remaining crew members were clocked out.');
+  });
+
+  it('blocks editing when a run is already active', async () => {
+    await facade.loadBoard();
+    facade.beginHistoryEdit({
+      ...mockHistory[1],
+      runStartedAt: '2026-03-21T14:05:00.000Z',
+      runEndedAt: null,
+      employeeName: 'Bruno East',
+    });
+
+    expect(facade.editingHistoryEntryId()).toBeNull();
   });
 
   it('runs bulk complete flow and clears successful selections', async () => {

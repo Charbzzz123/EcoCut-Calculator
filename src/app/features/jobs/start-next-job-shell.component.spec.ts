@@ -41,6 +41,8 @@ const historyItem: SelectedCrewHistoryItem = {
   scheduledEnd: '2026-03-21T15:00:00.000Z',
   hoursWorked: 1,
   status: 'scheduled',
+  runStartedAt: null,
+  runEndedAt: null,
 };
 
 const conflict: CrewConflict = {
@@ -196,6 +198,8 @@ const createFacadeStub = () => ({
   toggleCompletedJobOptions: vi.fn(),
   loadBoard: vi.fn().mockResolvedValue(undefined),
   submitAssignment: vi.fn().mockResolvedValue(true),
+  startHistoryRun: vi.fn().mockResolvedValue(true),
+  endHistoryRun: vi.fn().mockResolvedValue(true),
   completeHistoryEntry: vi.fn().mockResolvedValue(true),
   completeSelectedHistoryEntries: vi.fn().mockResolvedValue(true),
   beginHistoryEdit: vi.fn(),
@@ -205,8 +209,11 @@ const createFacadeStub = () => ({
   cancelSelectedHistoryEntries: vi.fn().mockResolvedValue(true),
   reassignHistoryEntry: vi.fn().mockResolvedValue(true),
   resolveReassignTarget: vi.fn().mockReturnValue(null),
+  canStartHistoryRun: vi.fn().mockReturnValue(true),
+  canEndHistoryRun: vi.fn().mockReturnValue(false),
   canSubmitHistoryEdit: vi.fn().mockReturnValue(true),
   isEditingHistoryEntry: vi.fn().mockReturnValue(false),
+  isRunActive: vi.fn().mockReturnValue(false),
   clearCrewSelection: vi.fn(),
   clearHistorySelection: vi.fn(),
   toggleEmployeeSelection: vi.fn(),
@@ -412,17 +419,17 @@ describe('StartNextJobShellComponent', () => {
     selectHistory.click();
     expect(facade.toggleHistoryEntrySelection).toHaveBeenCalledWith('job-1');
 
-    const edit = fixture.nativeElement.querySelectorAll(
-      '.history-card__actions .history-card__action',
-    )[1] as HTMLButtonElement;
+    const startButton = fixture.nativeElement.querySelector(
+      '.history-card__actions .history-card__action--primary',
+    ) as HTMLButtonElement;
+    startButton.click();
+    expect(facade.startHistoryRun).toHaveBeenCalledWith('job-1');
+
+    const edit = fixture.nativeElement.querySelector(
+      '.history-card__actions .history-card__action:nth-of-type(3)',
+    ) as HTMLButtonElement;
     edit.click();
     expect(facade.beginHistoryEdit).toHaveBeenCalledWith(historyItem);
-
-    const completeButton = fixture.nativeElement.querySelectorAll(
-      '.history-card__actions .history-card__action',
-    )[2] as HTMLButtonElement;
-    completeButton.click();
-    expect(facade.completeHistoryEntry).toHaveBeenCalledWith('job-1');
 
     const reassignHintButton = fixture.nativeElement.querySelector(
       '.history-card__action--info',

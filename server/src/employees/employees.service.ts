@@ -19,6 +19,7 @@ import { EntriesService } from '../entries/entries.service';
 import type { StoredEntry } from '../entries/entries.types';
 import type {
   EmployeeAvailabilityWindow,
+  EmployeeAssignmentRunLifecycleResult,
   EmployeeClockAction,
   EmployeeLoggedJobOption,
   EmployeeLoggedJobStatus,
@@ -256,6 +257,8 @@ export class EmployeesService implements OnModuleInit {
       scheduledEnd: assignmentWindow.scheduledEnd,
       hoursWorked: durationHours,
       status: 'scheduled' as const,
+      runStartedAt: null,
+      runEndedAt: null,
       jobEntryId: selectedJob?.entryId ?? null,
       assignmentId,
     }));
@@ -295,6 +298,210 @@ export class EmployeesService implements OnModuleInit {
     };
   }
 
+  async startAssignmentRun(
+    entryId: string,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeAssignmentRunLifecycleResult> {
+    this.assertOwnerOrManager(actorRole);
+    const existing = this.snapshot.history.find(
+      (entry) => entry.id === entryId,
+    );
+    if (!existing) {
+      throw new NotFoundException(`Job history entry "${entryId}" not found.`);
+    }
+    if (existing.status !== 'scheduled') {
+      throw new ConflictException(
+        `Only scheduled entries can be started (entry "${entryId}").`,
+      );
+    }
+    if (!existing.assignmentId) {
+      throw new ConflictException(
+        `Entry "${entryId}" is not part of an assignment run.`,
+      );
+    }
+
+    const assignmentEntries = this.snapshot.history.filter(
+      (entry) =>
+        entry.assignmentId === existing.assignmentId &&
+        entry.status === 'scheduled',
+    );
+    const activeEntries = assignmentEntries.filter((entry) =>
+      this.isRunActive(entry),
+    );
+    if (activeEntries.length) {
+      throw new ConflictException(
+        `Assignment "${existing.assignmentId}" is already active.`,
+      );
+    }
+
+    const assignmentEmployeeIds = new Set(
+      assignmentEntries.map((entry) => entry.employeeId),
+    );
+    const blockingActiveEntry = this.snapshot.history.find(
+      (entry) =>
+        this.isRunActive(entry) &&
+        entry.assignmentId !== existing.assignmentId &&
+        assignmentEmployeeIds.has(entry.employeeId),
+    );
+    if (blockingActiveEntry) {
+      const blockingEmployee = this.requireEmployee(
+        blockingActiveEntry.employeeId,
+      );
+      throw new ConflictException(
+        `Employee "${blockingEmployee.fullName}" is already active on another run.`,
+      );
+    }
+
+    const nowIso = new Date().toISOString();
+    const updatedHistory = assignmentEntries.map((entry) => ({
+      ...entry,
+      runStartedAt: nowIso,
+      runEndedAt: null,
+    }));
+    const updatedHistoryIds = new Set(updatedHistory.map((entry) => entry.id));
+    const updatedHours: EmployeeHoursRecord[] = [];
+
+    this.snapshot = {
+      ...this.snapshot,
+      history: this.snapshot.history.map((entry) => {
+        if (!updatedHistoryIds.has(entry.id)) {
+          return entry;
+        }
+        return updatedHistory.find((record) => record.id === entry.id) ?? entry;
+      }),
+      hours: this.snapshot.hours.map((entry) => {
+        if (entry.source !== 'assignment' || !entry.historyEntryId) {
+          return entry;
+        }
+        if (!updatedHistoryIds.has(entry.historyEntryId)) {
+          return entry;
+        }
+        const next: EmployeeHoursRecord = {
+          ...entry,
+          clockInAt: nowIso,
+          clockOutAt: null,
+          updatedByRole: actorRole,
+          updatedAt: nowIso,
+        };
+        updatedHours.push(next);
+        return next;
+      }),
+      roster: this.snapshot.roster.map((employee) =>
+        assignmentEmployeeIds.has(employee.id)
+          ? { ...employee, lastActivityAt: nowIso }
+          : employee,
+      ),
+    };
+    await this.persistSnapshot();
+
+    return {
+      assignmentId: existing.assignmentId,
+      runStartedAt: nowIso,
+      runEndedAt: null,
+      updatedHistory,
+      updatedHours,
+    };
+  }
+
+  async endAssignmentRun(
+    entryId: string,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeAssignmentRunLifecycleResult> {
+    this.assertOwnerOrManager(actorRole);
+    const existing = this.snapshot.history.find(
+      (entry) => entry.id === entryId,
+    );
+    if (!existing) {
+      throw new NotFoundException(`Job history entry "${entryId}" not found.`);
+    }
+    if (!existing.assignmentId) {
+      throw new ConflictException(
+        `Entry "${entryId}" is not part of an assignment run.`,
+      );
+    }
+
+    const activeRunEntries = this.snapshot.history.filter(
+      (entry) =>
+        entry.assignmentId === existing.assignmentId &&
+        entry.status === 'scheduled' &&
+        this.isRunActive(entry),
+    );
+    if (!activeRunEntries.length) {
+      throw new ConflictException(
+        `Assignment "${existing.assignmentId}" is not currently active.`,
+      );
+    }
+
+    const nowIso = new Date().toISOString();
+    const nowTimestamp = toTimestamp(nowIso);
+    const updatedHistory = activeRunEntries.map((entry) => {
+      const runStartTimestamp =
+        toTimestamp(entry.runStartedAt ?? '') ||
+        toTimestamp(entry.scheduledStart);
+      const durationHours = Math.max(
+        0.25,
+        Math.round(((nowTimestamp - runStartTimestamp) / 3_600_000) * 4) / 4,
+      );
+      return {
+        ...entry,
+        status: 'completed' as const,
+        runEndedAt: nowIso,
+        hoursWorked: durationHours,
+      };
+    });
+    const updatedHistoryIds = new Set(updatedHistory.map((entry) => entry.id));
+    const affectedEmployeeIds = new Set(
+      updatedHistory.map((entry) => entry.employeeId),
+    );
+    const updatedHours: EmployeeHoursRecord[] = [];
+
+    this.snapshot = {
+      ...this.snapshot,
+      history: this.snapshot.history.map((entry) => {
+        if (!updatedHistoryIds.has(entry.id)) {
+          return entry;
+        }
+        return updatedHistory.find((record) => record.id === entry.id) ?? entry;
+      }),
+      hours: this.snapshot.hours.map((entry) => {
+        if (entry.source !== 'assignment' || !entry.historyEntryId) {
+          return entry;
+        }
+        const historyUpdate = updatedHistory.find(
+          (historyEntry) => historyEntry.id === entry.historyEntryId,
+        );
+        if (!historyUpdate) {
+          return entry;
+        }
+        const next: EmployeeHoursRecord = {
+          ...entry,
+          workDate: historyUpdate.scheduledStart.slice(0, 10),
+          hours: historyUpdate.hoursWorked,
+          clockInAt: historyUpdate.runStartedAt ?? entry.clockInAt,
+          clockOutAt: nowIso,
+          updatedByRole: actorRole,
+          updatedAt: nowIso,
+        };
+        updatedHours.push(next);
+        return next;
+      }),
+      roster: this.snapshot.roster.map((employee) =>
+        affectedEmployeeIds.has(employee.id)
+          ? { ...employee, lastActivityAt: nowIso }
+          : employee,
+      ),
+    };
+    await this.persistSnapshot();
+
+    return {
+      assignmentId: existing.assignmentId,
+      runStartedAt: activeRunEntries[0]?.runStartedAt ?? null,
+      runEndedAt: nowIso,
+      updatedHistory,
+      updatedHours,
+    };
+  }
+
   async completeJobHistoryEntry(
     entryId: string,
     actorRole: EmployeeOperatorRole,
@@ -311,11 +518,17 @@ export class EmployeesService implements OnModuleInit {
         `Job history entry "${entryId}" is already completed.`,
       );
     }
+    if (this.isRunActive(existing)) {
+      throw new ConflictException(
+        `Entry "${entryId}" is active. Use end-run action instead.`,
+      );
+    }
 
     const now = new Date().toISOString();
     const completed: EmployeeJobHistoryRecord = {
       ...existing,
       status: 'completed',
+      runEndedAt: now,
     };
 
     this.snapshot = {
@@ -348,6 +561,11 @@ export class EmployeesService implements OnModuleInit {
     if (existing.status === 'cancelled') {
       throw new ConflictException(
         `Cancelled entries cannot be edited (entry "${entryId}").`,
+      );
+    }
+    if (this.isRunActive(existing)) {
+      throw new ConflictException(
+        `Active runs cannot be edited (entry "${entryId}"). End the run first.`,
       );
     }
 
@@ -439,6 +657,11 @@ export class EmployeesService implements OnModuleInit {
         `Only scheduled entries can be cancelled (entry "${entryId}").`,
       );
     }
+    if (this.isRunActive(existing)) {
+      throw new ConflictException(
+        `Active runs cannot be cancelled (entry "${entryId}"). End the run first.`,
+      );
+    }
 
     const cancelled: EmployeeJobHistoryRecord = {
       ...existing,
@@ -480,6 +703,11 @@ export class EmployeesService implements OnModuleInit {
     if (existing.status !== 'scheduled') {
       throw new ConflictException(
         `Only scheduled entries can be reassigned (entry "${entryId}").`,
+      );
+    }
+    if (this.isRunActive(existing)) {
+      throw new ConflictException(
+        `Active runs cannot be reassigned (entry "${entryId}"). End the run first.`,
       );
     }
 
@@ -1033,6 +1261,8 @@ export class EmployeesService implements OnModuleInit {
       })),
       history: snapshot.history.map((entry) => ({
         ...entry,
+        runStartedAt: entry.runStartedAt ?? null,
+        runEndedAt: entry.runEndedAt ?? null,
         linkedHoursEntryId: entry.linkedHoursEntryId ?? null,
         jobEntryId: entry.jobEntryId ?? null,
         assignmentId: entry.assignmentId ?? null,
@@ -1134,6 +1364,18 @@ export class EmployeesService implements OnModuleInit {
         conflicts.push(`${employee.fullName} is inactive`);
         continue;
       }
+      const activeRun = this.snapshot.history.find(
+        (entry) =>
+          entry.employeeId === employeeId &&
+          entry.assignmentId &&
+          this.isRunActive(entry),
+      );
+      if (activeRun) {
+        conflicts.push(
+          `${employee.fullName} is active on "${activeRun.siteLabel}"`,
+        );
+        continue;
+      }
 
       const overlappingScheduled = this.snapshot.history.find(
         (entry) =>
@@ -1154,6 +1396,16 @@ export class EmployeesService implements OnModuleInit {
       }
     }
     return conflicts;
+  }
+
+  private isRunActive(entry: EmployeeJobHistoryRecord): boolean {
+    if (entry.status !== 'scheduled') {
+      return false;
+    }
+    if (!entry.runStartedAt || entry.runEndedAt) {
+      return false;
+    }
+    return toTimestamp(entry.runStartedAt) > 0;
   }
 
   private toIsoDateTime(value: string): string {
@@ -1286,6 +1538,12 @@ export class EmployeesService implements OnModuleInit {
     linkedHistory: readonly EmployeeJobHistoryRecord[];
   }): EmployeeLoggedJobStatus {
     const nowTimestamp = Date.now();
+    const hasActiveRun = input.linkedHistory.some((entry) =>
+      this.isRunActive(entry),
+    );
+    if (hasActiveRun) {
+      return 'scheduled';
+    }
     const scheduledEntries = input.linkedHistory.filter(
       (entry) => entry.status === 'scheduled',
     );
@@ -1416,12 +1674,19 @@ export class EmployeesService implements OnModuleInit {
         const scheduledEntries = employeeHistory
           .filter((entry) => entry.status === 'scheduled')
           .sort(sortByHistoryStartAsc);
+        const activeRunEntries = scheduledEntries.filter((entry) =>
+          this.isRunActive(entry),
+        );
         const upcomingEntries = scheduledEntries.filter(
-          (entry) => toTimestamp(entry.scheduledEnd) > nowTimestamp,
+          (entry) =>
+            this.isRunActive(entry) ||
+            toTimestamp(entry.scheduledEnd) > nowTimestamp,
         );
-        const activeEntries = upcomingEntries.filter(
-          (entry) => toTimestamp(entry.scheduledStart) <= nowTimestamp,
-        );
+        const activeEntries = activeRunEntries.length
+          ? activeRunEntries
+          : upcomingEntries.filter(
+              (entry) => toTimestamp(entry.scheduledStart) <= nowTimestamp,
+            );
         const nextScheduledEntry = upcomingEntries[0];
 
         const readinessState =

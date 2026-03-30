@@ -200,9 +200,14 @@
 - **Crew history context**: selected crew history list is sourced from `/employees/history` so schedulers can verify recent assignments before confirming.
 - **Persistence wiring**: `Save assignment` now calls `/employees/assignments/start-next-job`, which writes scheduled history rows plus assignment-source hours entries for each selected employee and refreshes readiness/history immediately after save.
 - **Linked job sync**: Step 2 now supports selecting a saved client job from `/employees/job-options`. When linked, draft site/address/schedule auto-fill from the entry and the saved assignment persists `jobEntryId` into both history + assignment hours records so employee operations stay tied to the source client job.
-- **Completion workflow**: scheduled history cards now expose `Mark completed`, which calls `/employees/history/:entryId/complete` so crews can close an assignment directly from the board and instantly update readiness counts.
+- **Completion workflow**: scheduled history entries can still be marked complete through lifecycle controls (`/employees/history/:entryId/complete`) for exception handling, while day-to-day execution now follows `Start job` -> `End job`.
 - **Lifecycle controls**: scheduled history cards now support `Edit schedule` and `Cancel assignment` actions. Edits call `/employees/history/:entryId/schedule`; cancel calls `/employees/history/:entryId/cancel`. Both flows refresh readiness/history and keep linked assignment-hours entries aligned with schedule changes.
 - **Reassignment controls**: scheduled cards support `Reassign to ...` when exactly one different active crew member is selected. Reassign calls `/employees/history/:entryId/reassign`, runs overlap checks, and moves linked assignment-hours entries to the new employee.
+- **Run lifecycle controls**: scheduled history cards now expose explicit runtime controls: `Start job` (opens an active run) and `End job` (closes the run and auto-clocks out remaining crew for that assignment).
+- **Active-run guardrails**:
+  - Operators cannot select a crew member for a new assignment when that employee is already active on another run.
+  - Active runs cannot be edited/cancelled/reassigned until `End job` is executed.
+  - Multiple assignment runs can stay active in parallel as long as no employee is active in more than one run.
 - **Bulk lifecycle controls**: schedulers can multi-select scheduled history entries and run `Complete selected` or `Cancel selected` actions from the same panel. The board reports partial failures (for example, 3 of 4 succeeded) and keeps failed rows selected for quick retry.
 - **Optimistic board updates**: schedule edits and lifecycle actions now patch board state immediately (history + readiness summaries) with rollback when an API call fails, so operators get instant feedback without waiting for full board reloads.
 - **Assignment analytics panel**: the summary column now shows selected-crew analytics (tracked, scheduled, completed, cancelled, total/average hours, completion/cancellation rates, unique sites) so dispatch decisions stay data-driven during scheduling.
@@ -221,11 +226,6 @@
 
 - **Completed-job continuity guardrail**:
   - Completed jobs remain hidden in normal flow and can only be reused through a dedicated **manual continuity** action to track return visits/issues.
-- **Execution lifecycle model**:
-  - `Start job` begins a live run for the selected crew.
-  - `End job` closes the run and auto-clocks out all still-active crew members on that run.
-  - Multiple runs can be active at the same time (parallel teams allowed).
-  - Employees already active on another run are blocked from being selected again.
 - **Manual early leave control**:
   - While a run is active, each employee row supports `Clock out now` (mid-job exit).
   - Early clock-out supports an optional reason note for payroll/audit context.

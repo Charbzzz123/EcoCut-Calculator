@@ -61,9 +61,19 @@ export interface EmployeeJobHistoryRecord {
   scheduledEnd: string;
   hoursWorked: number;
   status: EmployeeJobStatus;
+  runStartedAt?: string | null;
+  runEndedAt?: string | null;
   linkedHoursEntryId?: string | null;
   jobEntryId?: string | null;
   assignmentId?: string | null;
+}
+
+export interface EmployeeAssignmentRunLifecycleResult {
+  assignmentId: string;
+  runStartedAt: string | null;
+  runEndedAt: string | null;
+  updatedHistory: EmployeeJobHistoryRecord[];
+  updatedHours: EmployeeHoursRecord[];
 }
 
 export interface EmployeeAvailabilityWindow {
