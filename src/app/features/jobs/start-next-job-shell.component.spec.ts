@@ -317,6 +317,18 @@ describe('StartNextJobShellComponent', () => {
     facade.getReadinessPill.mockReturnValue({ text: 'Scheduled', state: 'scheduled' });
     fixture.detectChanges();
 
+    const expandAnalytics = fixture.nativeElement.querySelector(
+      '.analytics-panel__collapse-btn',
+    ) as HTMLButtonElement;
+    expandAnalytics.click();
+    fixture.detectChanges();
+
+    const expandHistory = fixture.nativeElement.querySelector(
+      '#start-next-history .section-toggle__actions .ghost-btn',
+    ) as HTMLButtonElement;
+    expandHistory.click();
+    fixture.detectChanges();
+
     expect(fixture.nativeElement.textContent).toContain('Conflict in upcoming windows.');
     expect(fixture.nativeElement.textContent).toContain('Resolve the following conflicts');
     expect(fixture.nativeElement.textContent).toContain('Assignment analytics');
@@ -364,7 +376,7 @@ describe('StartNextJobShellComponent', () => {
     ) as HTMLButtonElement;
     expect(exportButton.disabled).toBe(false);
     const analyticsToggle = fixture.nativeElement.querySelector(
-      '.analytics-panel__toggle-btn',
+      '.analytics-panel__detail-toggle-btn',
     ) as HTMLButtonElement;
     expect(analyticsToggle.textContent).toContain('Show detailed analytics');
     analyticsToggle.click();
@@ -373,7 +385,7 @@ describe('StartNextJobShellComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Route-level variance');
     expect(fixture.nativeElement.textContent).toContain('Cross-run trend');
     const expandedAnalyticsToggle = fixture.nativeElement.querySelector(
-      '.analytics-panel__toggle-btn',
+      '.analytics-panel__detail-toggle-btn',
     ) as HTMLButtonElement;
     expect(expandedAnalyticsToggle.textContent).toContain('Hide detailed analytics');
 
@@ -389,12 +401,18 @@ describe('StartNextJobShellComponent', () => {
     facade.canExportAssignmentAnalytics.set(false);
     fixture.detectChanges();
 
+    const expandAnalytics = fixture.nativeElement.querySelector(
+      '.analytics-panel__collapse-btn',
+    ) as HTMLButtonElement;
+    expandAnalytics.click();
+    fixture.detectChanges();
+
     const exportButton = fixture.nativeElement.querySelector(
       '.analytics-panel__export-btn',
     ) as HTMLButtonElement;
     expect(exportButton.disabled).toBe(true);
     const analyticsToggle = fixture.nativeElement.querySelector(
-      '.analytics-panel__toggle-btn',
+      '.analytics-panel__detail-toggle-btn',
     ) as HTMLButtonElement;
     expect(analyticsToggle.disabled).toBe(true);
   });
@@ -404,6 +422,12 @@ describe('StartNextJobShellComponent', () => {
     facade.analyticsStartDateControl.setValue('2026-03-22');
     facade.analyticsEndDateControl.setValue('2026-03-21');
     facade.analyticsRangeError.set('Analytics start date must be before the end date.');
+    fixture.detectChanges();
+
+    const expandAnalytics = fixture.nativeElement.querySelector(
+      '.analytics-panel__collapse-btn',
+    ) as HTMLButtonElement;
+    expandAnalytics.click();
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain(
@@ -472,6 +496,12 @@ describe('StartNextJobShellComponent', () => {
     facade.selectedScheduledHistoryCount.set(1);
     fixture.detectChanges();
 
+    const expandHistory = fixture.nativeElement.querySelector(
+      '#start-next-history .section-toggle__actions .ghost-btn',
+    ) as HTMLButtonElement;
+    expandHistory.click();
+    fixture.detectChanges();
+
     expect(fixture.nativeElement.textContent).toContain('1 of 1 scheduled selected');
 
     const bulkButtons = fixture.nativeElement.querySelectorAll('.history-bulk-actions .ghost-btn');
@@ -487,11 +517,18 @@ describe('StartNextJobShellComponent', () => {
 
   it('triggers reassign action when a valid target is selected', () => {
     facade.loadState.set('ready');
+    facade.selectedCrew.set([employee]);
     facade.selectedCrewHistory.set([historyItem]);
     facade.resolveReassignTarget.mockReturnValue({
       employeeId: 'emp-2',
       fullName: 'Bruno East',
     });
+    fixture.detectChanges();
+
+    const expandHistory = fixture.nativeElement.querySelector(
+      '#start-next-history .section-toggle__actions .ghost-btn',
+    ) as HTMLButtonElement;
+    expandHistory.click();
     fixture.detectChanges();
 
     const reassignButton = fixture.nativeElement.querySelector(
@@ -532,6 +569,12 @@ describe('StartNextJobShellComponent', () => {
       scheduledStart: '2026-03-21T14:00:00.000Z',
       scheduledEnd: '2026-03-21T15:00:00.000Z',
     });
+    fixture.detectChanges();
+
+    const advancedToggle = fixture.nativeElement.querySelector(
+      '#start-next-draft .draft-group--advanced .ghost-btn',
+    ) as HTMLButtonElement;
+    advancedToggle.click();
     fixture.detectChanges();
 
     const linkedJobSelect = fixture.nativeElement.querySelector(

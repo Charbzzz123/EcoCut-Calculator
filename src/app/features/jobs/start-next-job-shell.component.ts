@@ -25,16 +25,15 @@ import { StartNextJobFacade } from './start-next-job.facade.js';
 export class StartNextJobShellComponent implements OnInit {
   protected readonly facade = inject(StartNextJobFacade);
   protected readonly stepFocus = signal<'crew' | 'draft' | 'review' | 'history'>('crew');
+  protected readonly workflowExpanded = signal(false);
+  protected readonly draftAdvancedExpanded = signal(false);
+  protected readonly analyticsPanelExpanded = signal(false);
+  protected readonly historyExpanded = signal(false);
   protected readonly analyticsExpanded = signal(false);
-  protected readonly canOpenDraftStep = computed(
-    () => this.facade.selectedCrew().length > 0,
-  );
-  protected readonly canOpenReviewStep = computed(
-    () => this.facade.selectedCrew().length > 0,
-  );
+  protected readonly canOpenDraftStep = computed(() => this.facade.selectedCrew().length > 0);
+  protected readonly canOpenReviewStep = computed(() => this.facade.selectedCrew().length > 0);
   protected readonly canOpenHistoryStep = computed(
-    () =>
-      this.facade.selectedCrew().length > 0 || this.facade.scheduledHistoryCount() > 0,
+    () => this.facade.selectedCrew().length > 0 || this.facade.scheduledHistoryCount() > 0,
   );
   private readonly jobLabelValue = toSignal(this.facade.jobLabelControl.valueChanges, {
     initialValue: this.facade.jobLabelControl.value,
@@ -42,12 +41,9 @@ export class StartNextJobShellComponent implements OnInit {
   private readonly addressValue = toSignal(this.facade.addressControl.valueChanges, {
     initialValue: this.facade.addressControl.value,
   });
-  private readonly scheduledStartValue = toSignal(
-    this.facade.scheduledStartControl.valueChanges,
-    {
-      initialValue: this.facade.scheduledStartControl.value,
-    },
-  );
+  private readonly scheduledStartValue = toSignal(this.facade.scheduledStartControl.valueChanges, {
+    initialValue: this.facade.scheduledStartControl.value,
+  });
   private readonly scheduledEndValue = toSignal(this.facade.scheduledEndControl.valueChanges, {
     initialValue: this.facade.scheduledEndControl.value,
   });
@@ -75,6 +71,12 @@ export class StartNextJobShellComponent implements OnInit {
       return;
     }
     this.stepFocus.set(step);
+    if (step === 'history') {
+      this.historyExpanded.set(true);
+    }
+    if (step === 'review') {
+      this.analyticsPanelExpanded.set(true);
+    }
     this.scrollToSection(`start-next-${step}`);
   }
 
@@ -94,6 +96,22 @@ export class StartNextJobShellComponent implements OnInit {
 
   protected toggleAnalyticsExpanded(): void {
     this.analyticsExpanded.update((expanded) => !expanded);
+  }
+
+  protected toggleWorkflowExpanded(): void {
+    this.workflowExpanded.update((expanded) => !expanded);
+  }
+
+  protected toggleDraftAdvancedExpanded(): void {
+    this.draftAdvancedExpanded.update((expanded) => !expanded);
+  }
+
+  protected toggleAnalyticsPanelExpanded(): void {
+    this.analyticsPanelExpanded.update((expanded) => !expanded);
+  }
+
+  protected toggleHistoryExpanded(): void {
+    this.historyExpanded.update((expanded) => !expanded);
   }
 
   private scrollToSection(sectionId: string): void {

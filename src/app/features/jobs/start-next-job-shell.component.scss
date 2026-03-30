@@ -49,6 +49,25 @@
   color: rgba(190, 223, 210, 0.7);
 }
 
+.section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.section-toggle__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.section-toggle__actions p {
+  margin: 0;
+}
+
 .start-next-flow__steps {
   margin: 0.55rem 0 0;
   padding: 0;
@@ -146,6 +165,10 @@
   color: rgba(190, 223, 210, 0.74);
 }
 
+.section-toggle .draft-group__label {
+  margin: 0;
+}
+
 .draft-panel__header {
   margin-bottom: 0.8rem;
 }
@@ -181,6 +204,12 @@
   margin: 0.6rem 0 0;
   font-size: 0.84rem;
   color: rgba(190, 223, 210, 0.82);
+}
+
+.draft-advanced-content {
+  margin-top: 0.6rem;
+  display: grid;
+  gap: 0.55rem;
 }
 
 .draft-actions {
@@ -220,6 +249,16 @@
   border-color: rgba(230, 114, 114, 0.45);
   background: rgba(56, 26, 26, 0.72);
   color: #ffd9d9;
+}
+
+.panel-collapse-hint {
+  margin: 0.65rem 0 0;
+  border: 1px dashed rgba(111, 212, 183, 0.24);
+  border-radius: 0.7rem;
+  background: rgba(6, 21, 17, 0.75);
+  color: rgba(190, 223, 210, 0.8);
+  padding: 0.5rem 0.6rem;
+  font-size: 0.84rem;
 }
 
 .ghost-btn,
@@ -269,6 +308,10 @@
 .panel-header p {
   margin: 0;
   color: rgba(190, 223, 210, 0.74);
+}
+
+.crew-pool__search {
+  margin-bottom: 0.8rem;
 }
 
 .state {
@@ -400,14 +443,16 @@
 .analytics-panel__actions {
   display: flex;
   gap: 0.45rem;
+  flex-wrap: wrap;
 }
 
+.analytics-panel__collapse-btn,
 .analytics-panel__export-btn {
   padding: 0.35rem 0.72rem;
   font-size: 0.8rem;
 }
 
-.analytics-panel__toggle-btn {
+.analytics-panel__detail-toggle-btn {
   padding: 0.35rem 0.72rem;
   font-size: 0.8rem;
 }

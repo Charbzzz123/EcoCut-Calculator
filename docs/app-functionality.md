@@ -186,6 +186,8 @@
 - **Step jump row**: quick navigation buttons (`Step 1 crew`, `Step 2 draft`, `Step 3 review`, `Scheduled history`) now scroll operators directly to the matching board section.
 - **Step locks + readiness messaging**: draft/review/history jump controls stay disabled until prerequisites are met, and inline status rows explicitly call out what is still missing (`select crew`, `capture draft details`, `resolve blockers`).
 - **Progressive CTAs**: `Continue to Step 2` appears in the crew panel and `Continue to Step 3` appears in the draft panel so schedulers can move forward without scanning the full page.
+- **Progressive disclosure refresh**: workflow details, Step 2 advanced controls, assignment analytics, and selected-crew history are collapsible by default to reduce overload while keeping full controls one tap away.
+- **Review-first save action**: primary `Save assignment` now sits in Step 3 review so validation blockers, conflicts, and analytics context are visible when confirming.
 - **Crew history context**: selected crew history list is sourced from `/employees/history` so schedulers can verify recent assignments before confirming.
 - **Persistence wiring**: `Save assignment` now calls `/employees/assignments/start-next-job`, which writes scheduled history rows plus assignment-source hours entries for each selected employee and refreshes readiness/history immediately after save.
 - **Linked job sync**: Step 2 now supports selecting a saved client job from `/employees/job-options`. When linked, draft site/address/schedule auto-fill from the entry and the saved assignment persists `jobEntryId` into both history + assignment hours records so employee operations stay tied to the source client job.
