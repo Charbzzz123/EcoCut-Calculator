@@ -283,6 +283,24 @@ describe('StartNextJobFacade', () => {
     expect(facade.scheduledEndControl.value).toContain('2026-03-20T');
   });
 
+  it('accepts explicit manual job mode and submits payload without linked job id', async () => {
+    await facade.loadBoard();
+
+    facade.toggleEmployeeSelection('emp-a');
+    facade.linkedJobEntryIdControl.setValue('__manual__');
+    facade.applyLinkedJobSelection();
+    facade.jobLabelControl.setValue('Manual follow-up');
+    facade.addressControl.setValue('12 Crew St');
+    facade.scheduledStartControl.setValue('2026-03-21T09:00');
+    facade.scheduledEndControl.setValue('2026-03-21T10:00');
+
+    await expect(facade.submitAssignment('owner')).resolves.toBe(true);
+    expect(dataService.assignmentPayloads[dataService.assignmentPayloads.length - 1]).toMatchObject({
+      jobLabel: 'Manual follow-up',
+      jobEntryId: null,
+    });
+  });
+
   it('filters readiness by query and toggles selected crew', async () => {
     await facade.loadBoard();
     facade.queryControl.setValue('bruno');
@@ -298,6 +316,9 @@ describe('StartNextJobFacade', () => {
     await facade.loadBoard();
     const validation = facade.draftValidation();
     expect(validation.isReady).toBe(false);
+    expect(validation.blockingReasons).toContain(
+      'Select a linked job mode (linked client job or manual mode).',
+    );
     expect(validation.blockingReasons).toContain('Job label is required.');
     expect(validation.blockingReasons).toContain('Select at least one employee for the crew.');
   });
@@ -317,6 +338,7 @@ describe('StartNextJobFacade', () => {
   it('marks draft ready when required fields are valid and no conflicts remain', async () => {
     await facade.loadBoard();
     facade.toggleEmployeeSelection('emp-a');
+    facade.linkedJobEntryIdControl.setValue('__manual__');
     facade.jobLabelControl.setValue('Morning trim');
     facade.addressControl.setValue('12 Crew St');
     facade.scheduledStartControl.setValue('2026-03-21T09:00');
@@ -827,6 +849,7 @@ describe('StartNextJobFacade', () => {
     await facade.loadBoard();
     dataService.shouldFailCreate = true;
     facade.toggleEmployeeSelection('emp-a');
+    facade.linkedJobEntryIdControl.setValue('__manual__');
     facade.jobLabelControl.setValue('Morning trim');
     facade.addressControl.setValue('12 Crew St');
     facade.scheduledStartControl.setValue('2026-03-21T09:00');

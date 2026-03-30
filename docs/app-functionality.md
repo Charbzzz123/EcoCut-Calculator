@@ -178,7 +178,12 @@
 ### Start Next Job Assignment Board (Current Release)
 
 - **Route**: `/jobs/start` (triggered by the home quick action `Start Next Job`).
-- **Inputs**: linked client job selector (optional), job label, site/address, scheduled start/end, crew search filter.
+- **Step order (current)**: `Step 1 Job -> Step 2 Crew -> Step 3 Review`, with Scheduled history as a separate workspace panel.
+- **Inputs**: linked client job mode (**required**), job label, site/address, scheduled start/end, crew search filter.
+- **Linked job mode requirement**:
+  - Operators must explicitly choose either a linked client job or `No specific client job (manual)`.
+  - Linked job mode auto-fills label/address/schedule and keeps those fields read-only.
+  - Manual mode keeps fields editable.
 - **Crew picker**: operators can select/deselect employees from live readiness records (`/employees/readiness`) with status badges (`Available`, `Scheduled`, `Inactive`).
 - **Conflict checks**: selection validates inactive members, existing readiness conflicts, next-available constraints, and overlap against upcoming windows before draft can proceed.
 - **Draft readiness**: panel shows blocking reasons until required fields + crew are valid and conflict-free.
@@ -207,6 +212,30 @@
 - **Button/chip consistency (completed)**: review/workflow actions and readiness/status chips now use the same visual token hierarchy used in Manage Employees (default, primary, danger emphasis).
 - **Validation + accessibility clarity (completed)**: required draft/profile/hours fields now expose explicit required semantics, validation blockers are announced in assertive live regions, and step/workspace controls expose ARIA pressed/expanded state for keyboard/screen-reader clarity.
 - **Step-2 hierarchy grouping (completed)**: Start Next Job draft now separates `Primary details` from `Advanced controls` so essential scheduling fields stay visually dominant.
+
+#### Start Next Job - Next Evolution (Planned)
+
+- **Job-first entry point**: operators select a linked client job before crew selection. `No specific client job (manual)` remains available for exception cases.
+- **Default job feed behavior**:
+  - Default list shows `Scheduled` and `Late` jobs first.
+  - `Completed` jobs are hidden unless an advanced toggle is enabled.
+  - Completed jobs can be reopened only through a **manual continuity** action to track return visits/issues.
+- **Draft autofill rules**:
+  - When a linked job is chosen, job label, address/site, and scheduled start are auto-filled from the source entry.
+  - Manual mode keeps editable fields visible (same as today).
+- **Execution lifecycle model**:
+  - `Start job` begins a live run for the selected crew.
+  - `End job` closes the run and auto-clocks out all still-active crew members on that run.
+  - Multiple runs can be active at the same time (parallel teams allowed).
+  - Employees already active on another run are blocked from being selected again.
+- **Manual early leave control**:
+  - While a run is active, each employee row supports `Clock out now` (mid-job exit).
+  - Early clock-out supports an optional reason note for payroll/audit context.
+- **Status + tracking outcomes**:
+  - Each run tracks planned window vs actual execution and flags `on schedule`, `late`, or `in advance`.
+  - Continuity segments append to the same client job lineage for issue-rate and repeat-visit statistics.
+- **Cross-module consistency requirement**:
+  - Start Next Job lifecycle events must stay synchronized with Manage Employees (clock board, hours log, history timeline, readiness), so payroll and operational analytics read from one coherent event stream.
 
 ## Calculation & Business Rules
 

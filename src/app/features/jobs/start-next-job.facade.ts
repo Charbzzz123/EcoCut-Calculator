@@ -68,12 +68,14 @@ const escapeCsvCell = (value: string | number): string => {
   const normalized = String(value).replace(/"/g, '""');
   return `"${normalized}"`;
 };
+const MANUAL_JOB_MODE = '__manual__';
 
 @Injectable()
 export class StartNextJobFacade {
   private readonly employeesData = inject(EmployeesDataService);
 
   readonly headingId = 'start-next-job-heading';
+  readonly manualJobModeValue = MANUAL_JOB_MODE;
 
   readonly queryControl = new FormControl('', { nonNullable: true });
   readonly linkedJobEntryIdControl = new FormControl('', { nonNullable: true });
@@ -111,11 +113,27 @@ export class StartNextJobFacade {
   readonly loggedJobOptions = computed(() => this.loggedJobOptionsSignal());
   readonly selectedLinkedJob = computed(() => {
     const entryId = this.linkedJobEntryIdControl.value.trim();
-    if (!entryId) {
+    if (!entryId || entryId === MANUAL_JOB_MODE) {
       return null;
     }
     return this.loggedJobOptions().find((option) => option.entryId === entryId) ?? null;
   });
+  readonly hasJobModeSelection = computed(() => {
+    if (this.editingHistoryEntryId()) {
+      return true;
+    }
+    const entryId = this.linkedJobEntryIdControl.value.trim();
+    if (!entryId) {
+      return false;
+    }
+    if (entryId === MANUAL_JOB_MODE) {
+      return true;
+    }
+    return this.loggedJobOptions().some((option) => option.entryId === entryId);
+  });
+  readonly isManualJobSelection = computed(
+    () => this.linkedJobEntryIdControl.value.trim() === MANUAL_JOB_MODE,
+  );
   readonly hasLinkedJobSelection = computed(() => Boolean(this.selectedLinkedJob()));
   readonly selectedEmployeeIds = computed(() => this.selectedEmployeeIdsSignal());
   readonly selectedHistoryEntryIds = computed(() => this.selectedHistoryEntryIdsSignal());
@@ -413,6 +431,9 @@ export class StartNextJobFacade {
 
   readonly draftValidation = computed<AssignmentDraftValidation>(() => {
     const blockingReasons: string[] = [];
+    if (!this.editingHistoryEntryId() && !this.hasJobModeSelection()) {
+      blockingReasons.push('Select a linked job mode (linked client job or manual mode).');
+    }
     if (!this.jobLabelControl.value.trim()) {
       blockingReasons.push('Job label is required.');
     }
@@ -468,9 +489,10 @@ export class StartNextJobFacade {
         selectedIds.filter((entryId) => allowedHistoryIds.has(entryId)),
       );
       if (this.linkedJobEntryIdControl.value.trim()) {
-        const hasLinkedJob = sortedJobOptions.some(
-          (option) => option.entryId === this.linkedJobEntryIdControl.value.trim(),
-        );
+        const selectedJobId = this.linkedJobEntryIdControl.value.trim();
+        const hasLinkedJob =
+          selectedJobId === MANUAL_JOB_MODE ||
+          sortedJobOptions.some((option) => option.entryId === selectedJobId);
         if (!hasLinkedJob) {
           this.linkedJobEntryIdControl.setValue('', { emitEvent: false });
         }
@@ -505,6 +527,10 @@ export class StartNextJobFacade {
 
   applyLinkedJobSelection(): void {
     this.clearSaveFeedback();
+    const selectedJobId = this.linkedJobEntryIdControl.value.trim();
+    if (!selectedJobId || selectedJobId === MANUAL_JOB_MODE) {
+      return;
+    }
     const selectedJob = this.selectedLinkedJob();
     if (!selectedJob) {
       return;
@@ -596,7 +622,9 @@ export class StartNextJobFacade {
       return;
     }
     this.editingHistoryEntryId.set(entry.id);
-    this.linkedJobEntryIdControl.setValue(entry.jobEntryId ?? '', { emitEvent: false });
+    this.linkedJobEntryIdControl.setValue(entry.jobEntryId ?? MANUAL_JOB_MODE, {
+      emitEvent: false,
+    });
     this.jobLabelControl.setValue(entry.siteLabel, { emitEvent: false });
     this.addressControl.setValue(entry.address, { emitEvent: false });
     this.scheduledStartControl.setValue(toDateTimeLocal(entry.scheduledStart), {
@@ -1176,7 +1204,7 @@ export class StartNextJobFacade {
       scheduledStart: toIsoDateTime(this.scheduledStartControl.value),
       scheduledEnd: toIsoDateTime(this.scheduledEndControl.value),
       employeeIds: this.selectedEmployeeIds(),
-      jobEntryId: linkedEntryId || null,
+      jobEntryId: linkedEntryId && linkedEntryId !== MANUAL_JOB_MODE ? linkedEntryId : null,
     };
   }
 

@@ -51,6 +51,7 @@ const conflict: CrewConflict = {
 
 const createFacadeStub = () => ({
   headingId: 'start-next-job-heading',
+  manualJobModeValue: '__manual__',
   queryControl: new FormControl('', { nonNullable: true }),
   linkedJobEntryIdControl: new FormControl('', { nonNullable: true }),
   jobLabelControl: new FormControl('', { nonNullable: true }),
@@ -83,6 +84,8 @@ const createFacadeStub = () => ({
     scheduledStart: string;
     scheduledEnd: string;
   } | null>(null),
+  hasJobModeSelection: signal(false),
+  isManualJobSelection: signal(false),
   hasLinkedJobSelection: signal(false),
   filteredReadiness: signal<EmployeeStartNextJobReadiness[]>([]),
   selectedCrew: signal<EmployeeStartNextJobReadiness[]>([]),
@@ -226,13 +229,17 @@ describe('StartNextJobShellComponent', () => {
 
   it('loads board data on init and renders loading state', () => {
     expect(facade.loadBoard).toHaveBeenCalledTimes(1);
+    facade.hasJobModeSelection.set(true);
+    setStepFocus('crew', fixture);
     expect(fixture.nativeElement.textContent).toContain('Start Next Job');
     expect(fixture.nativeElement.textContent).toContain('Loading readiness data');
   });
 
   it('renders error state and allows retry', () => {
     facade.loadState.set('error');
+    facade.hasJobModeSelection.set(true);
     fixture.detectChanges();
+    setStepFocus('crew', fixture);
 
     expect(fixture.nativeElement.textContent).toContain(
       'Unable to load Start Next Job data right now.',
@@ -246,7 +253,9 @@ describe('StartNextJobShellComponent', () => {
 
   it('renders ready state with empty crew list', () => {
     facade.loadState.set('ready');
+    facade.hasJobModeSelection.set(true);
     fixture.detectChanges();
+    setStepFocus('crew', fixture);
     expect(fixture.nativeElement.textContent).toContain('No employees match this filter.');
   });
 
@@ -324,6 +333,7 @@ describe('StartNextJobShellComponent', () => {
       rowCount: 1,
     });
     facade.draftValidation.set({ isReady: false, blockingReasons: ['Resolve conflicts'] });
+    facade.hasJobModeSelection.set(true);
     facade.isEmployeeSelected.mockReturnValue(true);
     facade.getReadinessPill.mockReturnValue({ text: 'Scheduled', state: 'scheduled' });
     fixture.detectChanges();
@@ -400,6 +410,7 @@ describe('StartNextJobShellComponent', () => {
   it('keeps analytics export button disabled when no selected history exists', () => {
     facade.loadState.set('ready');
     facade.canExportAssignmentAnalytics.set(false);
+    facade.hasJobModeSelection.set(true);
     facade.selectedCrew.set([employee]);
     fixture.detectChanges();
     setStepFocus('review', fixture);
@@ -416,6 +427,7 @@ describe('StartNextJobShellComponent', () => {
 
   it('shows analytics range error and forwards clear-range action', () => {
     facade.loadState.set('ready');
+    facade.hasJobModeSelection.set(true);
     facade.selectedCrew.set([employee]);
     facade.analyticsStartDateControl.setValue('2026-03-22');
     facade.analyticsEndDateControl.setValue('2026-03-21');
@@ -524,6 +536,7 @@ describe('StartNextJobShellComponent', () => {
 
   it('renders draft-ready branch and clear crew action', () => {
     facade.loadState.set('ready');
+    facade.hasJobModeSelection.set(true);
     facade.filteredReadiness.set([employee]);
     facade.selectedCrew.set([employee]);
     facade.draftValidation.set({ isReady: true, blockingReasons: [] });
@@ -545,7 +558,7 @@ describe('StartNextJobShellComponent', () => {
 
   it('renders linked job selector in draft step and forwards linked-job changes', () => {
     facade.loadState.set('ready');
-    facade.selectedCrew.set([employee]);
+    facade.hasJobModeSelection.set(true);
     facade.hasLinkedJobSelection.set(true);
     facade.selectedLinkedJob.set({
       entryId: 'entry-1',
@@ -558,16 +571,10 @@ describe('StartNextJobShellComponent', () => {
     fixture.detectChanges();
     setStepFocus('draft', fixture);
 
-    const advancedToggle = fixture.nativeElement.querySelector(
-      '#start-next-draft .draft-group--advanced .ghost-btn',
-    ) as HTMLButtonElement;
-    advancedToggle.click();
-    fixture.detectChanges();
-
     const linkedJobSelect = fixture.nativeElement.querySelector(
       '#start-next-draft select',
     ) as HTMLSelectElement;
-    linkedJobSelect.value = linkedJobSelect.options[1]?.value ?? 'entry-1';
+    linkedJobSelect.value = linkedJobSelect.options[2]?.value ?? 'entry-1';
     linkedJobSelect.dispatchEvent(new Event('change'));
     expect(facade.applyLinkedJobSelection).toHaveBeenCalled();
     expect(fixture.nativeElement.textContent).toContain('Linked job selected:');
@@ -575,6 +582,7 @@ describe('StartNextJobShellComponent', () => {
 
   it('renders saving and feedback states for assignment submit', () => {
     facade.loadState.set('ready');
+    facade.hasJobModeSelection.set(true);
     facade.selectedCrew.set([employee]);
     facade.draftValidation.set({ isReady: true, blockingReasons: [] });
     facade.saveState.set('saving');
@@ -600,17 +608,14 @@ describe('StartNextJobShellComponent', () => {
     expect(jumpButtons[1]?.disabled).toBe(true);
     expect(jumpButtons[2]?.disabled).toBe(true);
     expect(jumpButtons[3]?.disabled).toBe(true);
-    expect(fixture.nativeElement.textContent).toContain('Select at least 1 crew member');
+    expect(fixture.nativeElement.textContent).toContain('Choose linked job or manual mode');
   });
 
   it('unlocks step navigation and updates draft status once prerequisites are provided', () => {
     facade.loadState.set('ready');
+    facade.hasJobModeSelection.set(true);
     facade.selectedCrew.set([employee]);
     facade.scheduledHistoryCount.set(1);
-    facade.jobLabelControl.setValue('Route A');
-    facade.addressControl.setValue('1 Main St');
-    facade.scheduledStartControl.setValue('2026-03-22T09:00');
-    facade.scheduledEndControl.setValue('2026-03-22T10:00');
     fixture.detectChanges();
 
     const jumpButtons = fixture.nativeElement.querySelectorAll(
@@ -619,7 +624,7 @@ describe('StartNextJobShellComponent', () => {
     expect(jumpButtons[1]?.disabled).toBe(false);
     expect(jumpButtons[2]?.disabled).toBe(false);
     expect(jumpButtons[3]?.disabled).toBe(false);
-    expect(fixture.nativeElement.textContent).toContain('Draft details captured');
+    expect(fixture.nativeElement.textContent).toContain('Linked job mode selected');
 
     jumpButtons[1]?.click();
     jumpButtons[2]?.click();
@@ -629,6 +634,7 @@ describe('StartNextJobShellComponent', () => {
 
   it('uses edit mode actions when a history entry is being edited', () => {
     facade.loadState.set('ready');
+    facade.hasJobModeSelection.set(true);
     facade.selectedCrew.set([employee]);
     facade.editingHistoryEntryId.set('job-1');
     facade.canSubmitHistoryEdit.mockReturnValue(true);

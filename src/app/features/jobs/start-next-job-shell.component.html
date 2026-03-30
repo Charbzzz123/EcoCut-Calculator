@@ -26,23 +26,23 @@
       <button
         type="button"
         class="ghost-btn"
-        [class.start-next-jump__action--active]="stepFocus() === 'crew'"
-        [attr.aria-pressed]="stepFocus() === 'crew'"
-        aria-controls="start-next-crew"
-        (click)="setStepFocus('crew')"
+        [class.start-next-jump__action--active]="stepFocus() === 'draft'"
+        [attr.aria-pressed]="stepFocus() === 'draft'"
+        aria-controls="start-next-draft"
+        (click)="setStepFocus('draft')"
       >
-        Step 1 - Crew
+        Step 1 - Job
       </button>
       <button
         type="button"
         class="ghost-btn"
-        [class.start-next-jump__action--active]="stepFocus() === 'draft'"
-        [attr.aria-pressed]="stepFocus() === 'draft'"
-        aria-controls="start-next-draft"
-        [disabled]="!canOpenDraftStep()"
-        (click)="setStepFocus('draft')"
+        [class.start-next-jump__action--active]="stepFocus() === 'crew'"
+        [attr.aria-pressed]="stepFocus() === 'crew'"
+        aria-controls="start-next-crew"
+        [disabled]="!canOpenCrewStep()"
+        (click)="setStepFocus('crew')"
       >
-        Step 2 - Draft
+        Step 2 - Crew
       </button>
       <button
         type="button"
@@ -70,12 +70,16 @@
     <ul class="start-next-jump__status">
       <li>
         <span>Step 1</span>
-        <strong>{{ canOpenDraftStep() ? 'Complete' : 'Select at least 1 crew member' }}</strong>
+        <strong>{{
+          facade.hasJobModeSelection()
+            ? 'Linked job mode selected'
+            : 'Choose linked job or manual mode'
+        }}</strong>
       </li>
       <li>
         <span>Step 2</span>
         <strong>{{
-          hasDraftBasics() ? 'Draft details captured' : 'Add label, site, and schedule'
+          canOpenReviewStep() ? 'Crew selected' : 'Select at least 1 crew member'
         }}</strong>
       </li>
       <li>
@@ -94,14 +98,33 @@
   @if (stepFocus() === 'draft') {
     <article id="start-next-draft" class="draft-panel" aria-label="Assignment draft">
       <header class="panel-header draft-panel__header">
-        <h2>Step 2 - Draft details</h2>
-        <p>Set job metadata and schedule window</p>
+        <h2>Step 1 - Job details</h2>
+        <p>Select job mode and set schedule metadata</p>
       </header>
 
       <div class="draft-groups">
         <section class="draft-group draft-group--primary" aria-label="Primary draft details">
           <p class="draft-group__label">Primary details</p>
           <div class="draft-grid">
+            <label class="field">
+              <span class="field__label">Linked client job mode *</span>
+              <select
+                class="field__input"
+                [formControl]="facade.linkedJobEntryIdControl"
+                (change)="facade.applyLinkedJobSelection()"
+                required
+                aria-required="true"
+              >
+                <option value="">Select job mode</option>
+                <option [value]="facade.manualJobModeValue">No specific client job (manual)</option>
+                @for (option of facade.loggedJobOptions(); track option.entryId) {
+                  <option [value]="option.entryId">
+                    {{ option.clientName }} - {{ option.siteLabel }} -
+                    {{ option.scheduledStart | date: 'MMM d, y, h:mm a' }}
+                  </option>
+                }
+              </select>
+            </label>
             <label class="field">
               <span class="field__label">Job label *</span>
               <input
@@ -147,6 +170,19 @@
               />
             </label>
           </div>
+          @if (facade.selectedLinkedJob(); as linkedJob) {
+            <p class="field__hint">
+              Linked job selected: {{ linkedJob.clientName }} - {{ linkedJob.siteLabel }} ({{
+                linkedJob.scheduledStart | date: 'MMM d, y, h:mm a'
+              }}
+              to {{ linkedJob.scheduledEnd | date: 'h:mm a' }}).
+            </p>
+          }
+          @if (facade.isManualJobSelection()) {
+            <p class="field__hint">
+              Manual mode selected: provide label, address, and schedule values directly.
+            </p>
+          }
         </section>
 
         <section class="draft-group draft-group--advanced" aria-label="Advanced draft controls">
@@ -165,31 +201,9 @@
 
           @if (draftAdvancedExpanded()) {
             <div id="start-next-draft-advanced" class="draft-advanced-content">
-              <label class="field field--wide">
-                <span class="field__label">Linked client job (optional)</span>
-                <select
-                  class="field__input"
-                  [formControl]="facade.linkedJobEntryIdControl"
-                  (change)="facade.applyLinkedJobSelection()"
-                >
-                  <option value="">No linked client job</option>
-                  @for (option of facade.loggedJobOptions(); track option.entryId) {
-                    <option [value]="option.entryId">
-                      {{ option.clientName }} - {{ option.siteLabel }} -
-                      {{ option.scheduledStart | date: 'MMM d, y, h:mm a' }}
-                    </option>
-                  }
-                </select>
-              </label>
-
-              @if (facade.selectedLinkedJob(); as linkedJob) {
-                <p class="field__hint">
-                  Linked job selected: {{ linkedJob.clientName }} - {{ linkedJob.siteLabel }} ({{
-                    linkedJob.scheduledStart | date: 'MMM d, y, h:mm a'
-                  }}
-                  to {{ linkedJob.scheduledEnd | date: 'h:mm a' }}).
-                </p>
-              }
+              <p class="field__hint">
+                Advanced scheduling controls will be added in the next slices.
+              </p>
             </div>
           }
         </section>
@@ -197,8 +211,13 @@
 
       <div class="draft-actions">
         <div class="draft-actions__secondary">
-          <button type="button" class="ghost-btn" (click)="setStepFocus('crew')">
-            Back to Step 1
+          <button
+            type="button"
+            class="ghost-btn"
+            [disabled]="!canOpenCrewStep()"
+            (click)="setStepFocus('crew')"
+          >
+            Go to Step 2
           </button>
           <button type="button" class="ghost-btn" (click)="facade.clearCrewSelection()">
             Clear crew selection
@@ -214,10 +233,10 @@
           <button
             type="button"
             class="ghost-btn"
-            [disabled]="!canOpenReviewStep()"
-            (click)="setStepFocus('review')"
+            [disabled]="!canOpenCrewStep()"
+            (click)="setStepFocus('crew')"
           >
-            Continue to Step 3
+            Continue to Step 2
           </button>
         </div>
       </div>
@@ -229,7 +248,7 @@
       @if (stepFocus() === 'crew') {
         <section id="start-next-crew" class="crew-pool" aria-live="polite">
           <header class="panel-header">
-            <h2>Step 1 - Crew pool</h2>
+            <h2>Step 2 - Crew pool</h2>
             <p>{{ facade.filteredReadiness().length }} employee(s)</p>
           </header>
 
@@ -307,10 +326,10 @@
               <button
                 type="button"
                 class="ghost-btn"
-                [disabled]="!canOpenDraftStep()"
-                (click)="setStepFocus('draft')"
+                [disabled]="!canOpenReviewStep()"
+                (click)="setStepFocus('review')"
               >
-                Continue to Step 2
+                Continue to Step 3
               </button>
             </div>
           }
