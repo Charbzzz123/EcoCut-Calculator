@@ -43,6 +43,7 @@ export interface EmployeeProfileMutationPayload {
 export type EmployeeOperatorRole = 'owner' | 'manager';
 export type EmployeeHoursSource = 'manual' | 'clock' | 'assignment';
 export type EmployeeClockAction = 'clock_in' | 'clock_out';
+export type EmployeeLoggedJobStatus = 'scheduled' | 'late' | 'completed';
 
 export interface EmployeeLoggedJobOption {
   entryId: string;
@@ -51,6 +52,7 @@ export interface EmployeeLoggedJobOption {
   address: string;
   scheduledStart: string;
   scheduledEnd: string;
+  status: EmployeeLoggedJobStatus;
 }
 
 export interface EmployeeHoursRecord {

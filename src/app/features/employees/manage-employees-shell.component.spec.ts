@@ -361,6 +361,7 @@ const loggedJobOption: EmployeeLoggedJobOption = {
   address: '1450 Pine Ave W',
   scheduledStart: '2026-03-20T13:00:00Z',
   scheduledEnd: '2026-03-20T17:00:00Z',
+  status: 'late',
 };
 
 const historyEntry: EmployeeJobHistoryRecord = {

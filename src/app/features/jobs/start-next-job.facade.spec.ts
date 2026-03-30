@@ -247,6 +247,7 @@ describe('StartNextJobFacade', () => {
         address: '1450 Pine Ave W',
         scheduledStart: '2026-03-20T13:00:00.000Z',
         scheduledEnd: '2026-03-20T17:00:00.000Z',
+        status: 'scheduled',
       },
     ];
 
@@ -281,6 +282,56 @@ describe('StartNextJobFacade', () => {
     expect(facade.addressControl.value).toBe('1450 Pine Ave W');
     expect(facade.scheduledStartControl.value).toContain('2026-03-20T');
     expect(facade.scheduledEndControl.value).toContain('2026-03-20T');
+  });
+
+  it('hides completed logged-job options by default and reveals them via advanced toggle', async () => {
+    dataService.loggedJobOptions = [
+      {
+        entryId: 'entry-scheduled',
+        clientName: 'Nora Bitar',
+        siteLabel: 'NDG Maple Court',
+        address: '2331 Sherbrooke St W',
+        scheduledStart: '2099-03-24T12:00:00.000Z',
+        scheduledEnd: '2099-03-24T15:00:00.000Z',
+        status: 'scheduled',
+      },
+      {
+        entryId: 'entry-late',
+        clientName: 'Alex North',
+        siteLabel: 'Westmount Cedar Hedge',
+        address: '1450 Pine Ave W',
+        scheduledStart: '2026-03-20T13:00:00.000Z',
+        scheduledEnd: '2026-03-20T17:00:00.000Z',
+        status: 'late',
+      },
+      {
+        entryId: 'entry-completed',
+        clientName: 'CJ AbiNassif',
+        siteLabel: 'Hedge Trimming',
+        address: '500 Park Ave',
+        scheduledStart: '2026-03-19T12:00:00.000Z',
+        scheduledEnd: '2026-03-19T16:00:00.000Z',
+        status: 'completed',
+      },
+    ];
+
+    await facade.loadBoard();
+
+    expect(facade.loggedJobStatusCounts()).toEqual({
+      scheduled: 1,
+      late: 1,
+      completed: 1,
+    });
+    expect(facade.visibleDefaultLoggedJobOptions().map((option) => option.entryId)).toEqual([
+      'entry-scheduled',
+      'entry-late',
+    ]);
+    expect(facade.visibleCompletedLoggedJobOptions()).toEqual([]);
+
+    facade.toggleCompletedJobOptions();
+    expect(facade.visibleCompletedLoggedJobOptions().map((option) => option.entryId)).toEqual([
+      'entry-completed',
+    ]);
   });
 
   it('accepts explicit manual job mode and submits payload without linked job id', async () => {

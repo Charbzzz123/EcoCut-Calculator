@@ -21,6 +21,7 @@ import type {
   EmployeeAvailabilityWindow,
   EmployeeClockAction,
   EmployeeLoggedJobOption,
+  EmployeeLoggedJobStatus,
   EmployeeHoursRecord,
   EmployeeJobHistoryRecord,
   EmployeeOperatorRole,
@@ -39,6 +40,11 @@ const formatFullName = (firstName: string, lastName: string): string =>
 const toTimestamp = (value: string): number => {
   const parsed = Date.parse(value);
   return Number.isNaN(parsed) ? 0 : parsed;
+};
+const loggedJobStatusRank: Record<EmployeeLoggedJobStatus, number> = {
+  scheduled: 0,
+  late: 1,
+  completed: 2,
 };
 const sortByHistoryStartDesc = (
   left: EmployeeJobHistoryRecord,
@@ -195,9 +201,14 @@ export class EmployeesService implements OnModuleInit {
     return this.entriesService
       .listEntries()
       .map((entry) => this.toLoggedJobOption(entry))
-      .sort((left, right) =>
-        right.scheduledStart.localeCompare(left.scheduledStart),
-      );
+      .sort((left, right) => {
+        const rankDiff =
+          loggedJobStatusRank[left.status] - loggedJobStatusRank[right.status];
+        if (rankDiff !== 0) {
+          return rankDiff;
+        }
+        return right.scheduledStart.localeCompare(left.scheduledStart);
+      });
   }
 
   async createStartNextJobAssignment(
@@ -1247,6 +1258,14 @@ export class EmployeesService implements OnModuleInit {
     const scheduledStart = entry.calendar?.start ?? entry.createdAt;
     const scheduledEnd =
       entry.calendar?.end ?? this.deriveDefaultEndTimestamp(scheduledStart);
+    const linkedHistory = this.snapshot.history.filter(
+      (historyEntry) => historyEntry.jobEntryId === entry.id,
+    );
+    const status = this.resolveLoggedJobStatus({
+      scheduledStart,
+      scheduledEnd,
+      linkedHistory,
+    });
     const clientName =
       `${entry.form.firstName} ${entry.form.lastName}`.trim() ||
       'Unknown client';
@@ -1257,7 +1276,47 @@ export class EmployeesService implements OnModuleInit {
       address: entry.form.address.trim(),
       scheduledStart,
       scheduledEnd,
+      status,
     };
+  }
+
+  private resolveLoggedJobStatus(input: {
+    scheduledStart: string;
+    scheduledEnd: string;
+    linkedHistory: readonly EmployeeJobHistoryRecord[];
+  }): EmployeeLoggedJobStatus {
+    const nowTimestamp = Date.now();
+    const scheduledEntries = input.linkedHistory.filter(
+      (entry) => entry.status === 'scheduled',
+    );
+    if (scheduledEntries.length) {
+      const hasUpcomingOrActiveWindow = scheduledEntries.some((entry) => {
+        const endTimestamp = toTimestamp(entry.scheduledEnd);
+        return endTimestamp > nowTimestamp;
+      });
+      return hasUpcomingOrActiveWindow ? 'scheduled' : 'late';
+    }
+
+    const hasCompletedEntry = input.linkedHistory.some(
+      (entry) => entry.status === 'completed',
+    );
+    const hasCancelledEntry = input.linkedHistory.some(
+      (entry) => entry.status === 'cancelled',
+    );
+    if (hasCompletedEntry || hasCancelledEntry) {
+      return 'completed';
+    }
+
+    const scheduledEndTimestamp = toTimestamp(input.scheduledEnd);
+    const scheduledStartTimestamp = toTimestamp(input.scheduledStart);
+    if (
+      scheduledEndTimestamp > 0 &&
+      scheduledStartTimestamp > 0 &&
+      scheduledEndTimestamp < nowTimestamp
+    ) {
+      return 'late';
+    }
+    return 'scheduled';
   }
 
   private resolveJobSiteLabel(entry: StoredEntry): string {

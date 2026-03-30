@@ -92,6 +92,7 @@ export class StartNextJobFacade {
     initialValue: this.analyticsEndDateControl.value,
   });
   readonly analyticsWindow = signal<StartNextJobAnalyticsWindow>('30d');
+  readonly showCompletedJobOptions = signal(false);
 
   readonly loadState = signal<StartNextJobLoadState>('loading');
   readonly errorMessage = signal('');
@@ -111,6 +112,36 @@ export class StartNextJobFacade {
 
   readonly readinessSnapshot = computed(() => this.readinessSignal());
   readonly loggedJobOptions = computed(() => this.loggedJobOptionsSignal());
+  readonly loggedJobStatusCounts = computed(() => {
+    const options = this.loggedJobOptions();
+    return {
+      scheduled: options.filter((option) => option.status === 'scheduled').length,
+      late: options.filter((option) => option.status === 'late').length,
+      completed: options.filter((option) => option.status === 'completed').length,
+    };
+  });
+  readonly visibleLoggedJobOptions = computed(() => {
+    const includeCompleted = this.showCompletedJobOptions();
+    const selectedEntryId = this.linkedJobEntryIdControl.value.trim();
+    return this.loggedJobOptions().filter((option) => {
+      if (option.entryId === selectedEntryId) {
+        return true;
+      }
+      if (includeCompleted) {
+        return true;
+      }
+      return option.status !== 'completed';
+    });
+  });
+  readonly visibleCompletedLoggedJobOptions = computed(() =>
+    this.visibleLoggedJobOptions().filter((option) => option.status === 'completed'),
+  );
+  readonly visibleDefaultLoggedJobOptions = computed(() =>
+    this.visibleLoggedJobOptions().filter((option) => option.status !== 'completed'),
+  );
+  readonly hasVisibleLoggedJobOptions = computed(
+    () => this.visibleLoggedJobOptions().length > 0,
+  );
   readonly selectedLinkedJob = computed(() => {
     const entryId = this.linkedJobEntryIdControl.value.trim();
     if (!entryId || entryId === MANUAL_JOB_MODE) {
@@ -543,6 +574,10 @@ export class StartNextJobFacade {
     this.scheduledEndControl.setValue(toDateTimeLocal(selectedJob.scheduledEnd), {
       emitEvent: false,
     });
+  }
+
+  toggleCompletedJobOptions(): void {
+    this.showCompletedJobOptions.update((current) => !current);
   }
 
   isHistoryEntrySelected(entryId: string): boolean {

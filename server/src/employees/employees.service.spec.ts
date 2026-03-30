@@ -170,6 +170,7 @@ describe('EmployeesService', () => {
     expect(options[0]?.entryId).toBe('entry-1');
     expect(options[0]?.siteLabel).toBe('Westmount Cedar Hedge');
     expect(options[0]?.address).toBe('1450 Pine Ave W');
+    expect(options[0]?.status).toBe('late');
   });
 
   it('allows manager to create profile and hours', async () => {

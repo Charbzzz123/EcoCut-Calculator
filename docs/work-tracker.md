@@ -6,6 +6,7 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 | Task                                                                 | Done       | Notes                                                                                                                                                                                                                                                                             |
 | -------------------------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| JX-2 Job status model + picker defaults                              | 2026-03-30 | Added normalized job-option status (`scheduled`, `late`, `completed`) across API + frontend, sorted picker results by status priority, defaulted the picker to scheduled/late entries, and moved completed entries behind an explicit advanced toggle with matching tests.        |
 | JX-1 Start Next Job job-first draft flow                             | 2026-03-30 | Reordered `/jobs/start` to open on Job details first, made linked-job mode explicit/required (`linked` vs `manual`), moved selector into primary controls, and updated step gating to `Job -> Crew -> Review` with matching validation/tests.                                     |
 | UX-12 Start Next Job single-step workspace pass                      | 2026-03-29 | Reworked `/jobs/start` into a true guided flow: only one major step panel is visible at a time (Crew, Draft, Review, or Scheduled History), with clear Back/Continue controls and a simplified top workflow strip that keeps readiness status without duplicating full sections.  |
 | UX-11 Start Next Job progressive disclosure pass                     | 2026-03-29 | Added collapsible workflow/details, collapsible Step 2 advanced controls, moved primary save action into Step 3 review, and added collapsible analytics/history sections with step-jump auto-expand behavior to reduce overload while preserving full controls.                   |
@@ -101,14 +102,13 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 ## In Progress / Backlog
 
-| Step | Task                                      | Owner | Notes                                                                                                                                            |
-| ---- | ----------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| JX-2 | Job status model + picker defaults        | —     | Add `Scheduled`, `Late`, `Completed` job states in picker filters. Default list to upcoming + late jobs, hide completed unless advanced enabled. |
-| JX-3 | Active run lifecycle (start/end)          | —     | Replace scheduled-end editing flow with runtime controls: `Start job` and `End job`. Allow multiple concurrent teams/jobs.                       |
-| JX-4 | Manual mid-job crew clock-out             | —     | Add per-employee early leave action while a job is active (`clock out now`, optional reason). End-job still auto-clocks all remaining crew.      |
-| JX-5 | Continuity runs for completed jobs        | —     | Advanced action: reopen as `manual continuity` segment for issue returns; preserve original completed record and append a linked follow-up run.  |
-| JX-6 | Cross-module sync and reporting integrity | —     | Ensure Employees clock board/hours/history, Start Next Job history, and analytics all consume the same assignment lifecycle records.             |
-| JX-7 | UX + validation + docs hardening          | —     | Progressive disclosure, clear blockers, success/error toasts, tests, and final docs updates after implementation.                                |
+| Step | Task                                      | Owner | Notes                                                                                                                                           |
+| ---- | ----------------------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| JX-3 | Active run lifecycle (start/end)          | —     | Replace scheduled-end editing flow with runtime controls: `Start job` and `End job`. Allow multiple concurrent teams/jobs.                      |
+| JX-4 | Manual mid-job crew clock-out             | —     | Add per-employee early leave action while a job is active (`clock out now`, optional reason). End-job still auto-clocks all remaining crew.     |
+| JX-5 | Continuity runs for completed jobs        | —     | Advanced action: reopen as `manual continuity` segment for issue returns; preserve original completed record and append a linked follow-up run. |
+| JX-6 | Cross-module sync and reporting integrity | —     | Ensure Employees clock board/hours/history, Start Next Job history, and analytics all consume the same assignment lifecycle records.            |
+| JX-7 | UX + validation + docs hardening          | —     | Progressive disclosure, clear blockers, success/error toasts, tests, and final docs updates after implementation.                               |
 
 ### JX Plan Detail (freeze this before coding)
 
@@ -129,6 +129,8 @@ Use this as the source of truth if chat context resets.
   - Operator can start from job selection first and proceed without confusion.
 
 #### JX-2 - Job status model + picker defaults
+
+- **Status**: Completed on 2026-03-30.
 
 - **Data model**
   - Normalize assignment/job lifecycle status to: `scheduled`, `late`, `completed`.

@@ -154,6 +154,7 @@ class EmployeesDataServiceStub {
       address: '1450 Pine Ave W',
       scheduledStart: '2026-03-20T13:00:00Z',
       scheduledEnd: '2026-03-20T17:00:00Z',
+      status: 'late',
     },
     {
       entryId: 'entry-ndg',
@@ -162,6 +163,7 @@ class EmployeesDataServiceStub {
       address: '2331 Sherbrooke St W',
       scheduledStart: '2026-03-18T11:00:00Z',
       scheduledEnd: '2026-03-18T14:00:00Z',
+      status: 'completed',
     },
   ];
 

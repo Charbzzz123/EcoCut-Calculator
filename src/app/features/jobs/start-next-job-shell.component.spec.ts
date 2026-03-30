@@ -74,6 +74,7 @@ const createFacadeStub = () => ({
       address: '1 Main St',
       scheduledStart: '2026-03-21T14:00:00.000Z',
       scheduledEnd: '2026-03-21T15:00:00.000Z',
+      status: 'scheduled' as const,
     },
   ]),
   selectedLinkedJob: signal<{
@@ -83,10 +84,37 @@ const createFacadeStub = () => ({
     address: string;
     scheduledStart: string;
     scheduledEnd: string;
+    status: 'scheduled' | 'late' | 'completed';
   } | null>(null),
   hasJobModeSelection: signal(false),
   isManualJobSelection: signal(false),
   hasLinkedJobSelection: signal(false),
+  visibleLoggedJobOptions: signal([
+    {
+      entryId: 'entry-1',
+      clientName: 'Alex North',
+      siteLabel: 'Downtown',
+      address: '1 Main St',
+      scheduledStart: '2026-03-21T14:00:00.000Z',
+      scheduledEnd: '2026-03-21T15:00:00.000Z',
+      status: 'scheduled' as const,
+    },
+  ]),
+  visibleDefaultLoggedJobOptions: signal([
+    {
+      entryId: 'entry-1',
+      clientName: 'Alex North',
+      siteLabel: 'Downtown',
+      address: '1 Main St',
+      scheduledStart: '2026-03-21T14:00:00.000Z',
+      scheduledEnd: '2026-03-21T15:00:00.000Z',
+      status: 'scheduled' as const,
+    },
+  ]),
+  visibleCompletedLoggedJobOptions: signal([]),
+  hasVisibleLoggedJobOptions: signal(true),
+  loggedJobStatusCounts: signal({ scheduled: 1, late: 0, completed: 0 }),
+  showCompletedJobOptions: signal(false),
   filteredReadiness: signal<EmployeeStartNextJobReadiness[]>([]),
   selectedCrew: signal<EmployeeStartNextJobReadiness[]>([]),
   selectedCrewConflicts: signal<CrewConflict[]>([]),
@@ -165,6 +193,7 @@ const createFacadeStub = () => ({
   setAnalyticsWindow: vi.fn(),
   markAnalyticsWindowCustom: vi.fn(),
   applyLinkedJobSelection: vi.fn(),
+  toggleCompletedJobOptions: vi.fn(),
   loadBoard: vi.fn().mockResolvedValue(undefined),
   submitAssignment: vi.fn().mockResolvedValue(true),
   completeHistoryEntry: vi.fn().mockResolvedValue(true),
@@ -567,6 +596,7 @@ describe('StartNextJobShellComponent', () => {
       address: '1 Main St',
       scheduledStart: '2026-03-21T14:00:00.000Z',
       scheduledEnd: '2026-03-21T15:00:00.000Z',
+      status: 'scheduled',
     });
     fixture.detectChanges();
     setStepFocus('draft', fixture);

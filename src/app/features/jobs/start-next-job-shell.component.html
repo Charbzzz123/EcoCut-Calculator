@@ -117,11 +117,34 @@
               >
                 <option value="">Select job mode</option>
                 <option [value]="facade.manualJobModeValue">No specific client job (manual)</option>
-                @for (option of facade.loggedJobOptions(); track option.entryId) {
-                  <option [value]="option.entryId">
-                    {{ option.clientName }} - {{ option.siteLabel }} -
-                    {{ option.scheduledStart | date: 'MMM d, y, h:mm a' }}
-                  </option>
+                @if (facade.visibleDefaultLoggedJobOptions().length) {
+                  <optgroup label="Scheduled + late jobs">
+                    @for (option of facade.visibleDefaultLoggedJobOptions(); track option.entryId) {
+                      <option [value]="option.entryId">
+                        {{ option.clientName }} - {{ option.siteLabel }} -
+                        {{ option.scheduledStart | date: 'MMM d, y, h:mm a' }}
+                        @if (option.status === 'late') {
+                          [Late]
+                        }
+                      </option>
+                    }
+                  </optgroup>
+                }
+                @if (
+                  facade.showCompletedJobOptions() &&
+                  facade.visibleCompletedLoggedJobOptions().length
+                ) {
+                  <optgroup label="Completed jobs (advanced)">
+                    @for (
+                      option of facade.visibleCompletedLoggedJobOptions();
+                      track option.entryId
+                    ) {
+                      <option [value]="option.entryId">
+                        {{ option.clientName }} - {{ option.siteLabel }} -
+                        {{ option.scheduledStart | date: 'MMM d, y, h:mm a' }} [Completed]
+                      </option>
+                    }
+                  </optgroup>
                 }
               </select>
             </label>
@@ -201,9 +224,27 @@
 
           @if (draftAdvancedExpanded()) {
             <div id="start-next-draft-advanced" class="draft-advanced-content">
-              <p class="field__hint">
-                Advanced scheduling controls will be added in the next slices.
-              </p>
+              <div class="section-toggle">
+                <p class="field__hint">
+                  Jobs available: {{ facade.loggedJobStatusCounts().scheduled }} scheduled,
+                  {{ facade.loggedJobStatusCounts().late }} late,
+                  {{ facade.loggedJobStatusCounts().completed }} completed.
+                </p>
+                <button
+                  type="button"
+                  class="ghost-btn"
+                  (click)="facade.toggleCompletedJobOptions()"
+                >
+                  {{
+                    facade.showCompletedJobOptions()
+                      ? 'Hide completed jobs'
+                      : 'Show completed jobs (advanced)'
+                  }}
+                </button>
+              </div>
+              @if (!facade.hasVisibleLoggedJobOptions()) {
+                <p class="field__hint">No linked jobs are currently available. Use manual mode.</p>
+              }
             </div>
           }
         </section>

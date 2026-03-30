@@ -184,6 +184,10 @@
   - Operators must explicitly choose either a linked client job or `No specific client job (manual)`.
   - Linked job mode auto-fills label/address/schedule and keeps those fields read-only.
   - Manual mode keeps fields editable.
+- **Linked job picker feed**:
+  - Linked jobs now expose lifecycle status: `Scheduled`, `Late`, or `Completed`.
+  - Default picker groups show `Scheduled + late jobs` first.
+  - `Completed` jobs stay hidden unless operators explicitly enable `Show completed jobs (advanced)` in Step 2.
 - **Crew picker**: operators can select/deselect employees from live readiness records (`/employees/readiness`) with status badges (`Available`, `Scheduled`, `Inactive`).
 - **Conflict checks**: selection validates inactive members, existing readiness conflicts, next-available constraints, and overlap against upcoming windows before draft can proceed.
 - **Draft readiness**: panel shows blocking reasons until required fields + crew are valid and conflict-free.
@@ -215,14 +219,8 @@
 
 #### Start Next Job - Next Evolution (Planned)
 
-- **Job-first entry point**: operators select a linked client job before crew selection. `No specific client job (manual)` remains available for exception cases.
-- **Default job feed behavior**:
-  - Default list shows `Scheduled` and `Late` jobs first.
-  - `Completed` jobs are hidden unless an advanced toggle is enabled.
-  - Completed jobs can be reopened only through a **manual continuity** action to track return visits/issues.
-- **Draft autofill rules**:
-  - When a linked job is chosen, job label, address/site, and scheduled start are auto-filled from the source entry.
-  - Manual mode keeps editable fields visible (same as today).
+- **Completed-job continuity guardrail**:
+  - Completed jobs remain hidden in normal flow and can only be reused through a dedicated **manual continuity** action to track return visits/issues.
 - **Execution lifecycle model**:
   - `Start job` begins a live run for the selected crew.
   - `End job` closes the run and auto-clocks out all still-active crew members on that run.
