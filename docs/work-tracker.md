@@ -6,6 +6,7 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 | Task                                                                 | Done       | Notes                                                                                                                                                                                                                                                                                                    |
 | -------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| JX-6C Server lifecycle reporting parity                              | 2026-03-30 | Added backend lifecycle reporting parity (`GET /employees/reporting/lifecycle`) so exports/dashboards can read completed-on-time, completed-late, scheduled-late, and continuity counts with the exact same metric rules already used by Start Next Job and Manage Employees UI cards.                   |
 | JX-6B Unified late/on-time + continuity metrics                      | 2026-03-30 | Added one shared lifecycle metric helper for Employees + Start Next Job so completed-on-time, completed-late, scheduled-late, and continuity counts are derived with identical rules across both modules.                                                                                                |
 | JX-6A Start Next Job post-mutation board reconciliation              | 2026-03-30 | After assignment/history lifecycle mutations, the Start Next Job facade now re-syncs readiness/history/job-options from `/api/employees/*` to prevent optimistic UI drift and keep crew selection, scheduled-history actions, and analytics aligned with the backend source of truth.                    |
 | JX-5 Continuity runs for completed jobs                              | 2026-03-30 | Completed linked jobs now require advanced continuity metadata (category + reason), and saving creates a new scheduled follow-up segment linked to the latest completed source record while preserving the original completed history entry.                                                             |
@@ -107,10 +108,9 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 ## In Progress / Backlog
 
-| Step | Task                                      | Owner | Notes                                                                                                                  |
-| ---- | ----------------------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------- |
-| JX-6 | Cross-module sync and reporting integrity | —     | In progress: JX-6A/JX-6B shipped. Remaining: finalize server-side reporting/export parity on the same lifecycle rules. |
-| JX-7 | UX + validation + docs hardening          | —     | Progressive disclosure, clear blockers, success/error toasts, tests, and final docs updates after implementation.      |
+| Step | Task                             | Owner | Notes                                                                                                             |
+| ---- | -------------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------- |
+| JX-7 | UX + validation + docs hardening | —     | Progressive disclosure, clear blockers, success/error toasts, tests, and final docs updates after implementation. |
 
 ### JX Plan Detail (freeze this before coding)
 
@@ -183,14 +183,14 @@ Use this as the source of truth if chat context resets.
 
 #### JX-6 - Cross-module sync + reporting integrity
 
-- **Status**: In progress (JX-6A and JX-6B completed on 2026-03-30).
+- **Status**: Completed on 2026-03-30 (JX-6A + JX-6B + JX-6C).
 
 - **Consistency checks**
   - JX-6A complete: Start Next Job now re-fetches canonical readiness/history/job-options after lifecycle mutations to eliminate optimistic drift.
   - JX-6B complete: Employees + Start Next Job now consume one shared lifecycle metric helper for on-time/late/continuity counts.
-  - Remaining: no duplicate writes and no orphaned assignment-hours links.
+  - JX-6C complete: backend reporting endpoint now applies the same lifecycle rules for parity in server-generated analytics.
 - **Analytics**
-  - Remaining: server-side exports/dashboards should use the same lifecycle metric definitions as UI cards.
+  - Lifecycle report API is now available at `GET /employees/reporting/lifecycle` with optional `from`, `to`, and `employeeIds` filters.
 - **Done when**
   - Same action produces matching state everywhere in app + API.
 

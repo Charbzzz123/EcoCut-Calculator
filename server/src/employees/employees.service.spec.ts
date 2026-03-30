@@ -184,6 +184,77 @@ describe('EmployeesService', () => {
     expect(inactive?.nextAvailableAt).toBeNull();
   });
 
+  it('returns lifecycle report totals with per-employee rollups', () => {
+    const report = service.getLifecycleReport();
+
+    expect(report.window).toEqual({ from: null, to: null });
+    expect(report.totals).toEqual({
+      completedOnTime: 1,
+      completedLate: 0,
+      scheduledLate: 0,
+      continuity: 0,
+      totalTracked: 3,
+    });
+    expect(report.perEmployee).toEqual([
+      {
+        employeeId: 'emp-owner',
+        fullName: 'Alex Nassif',
+        completedOnTime: 1,
+        completedLate: 0,
+        scheduledLate: 0,
+        continuity: 0,
+        totalTracked: 3,
+      },
+      {
+        employeeId: 'emp-inactive',
+        fullName: 'Nora Bitar',
+        completedOnTime: 0,
+        completedLate: 0,
+        scheduledLate: 0,
+        continuity: 0,
+        totalTracked: 0,
+      },
+    ]);
+    expect(report.generatedAt).toEqual(expect.any(String));
+  });
+
+  it('applies lifecycle report window/employee filters and validates bounds', () => {
+    const filtered = service.getLifecycleReport({
+      from: '2099-03-24T00:00:00.000Z',
+      to: '2099-03-24T23:59:59.000Z',
+      employeeIds: ['emp-owner'],
+    });
+
+    expect(filtered.window).toEqual({
+      from: '2099-03-24T00:00:00.000Z',
+      to: '2099-03-24T23:59:59.000Z',
+    });
+    expect(filtered.perEmployee).toEqual([
+      {
+        employeeId: 'emp-owner',
+        fullName: 'Alex Nassif',
+        completedOnTime: 0,
+        completedLate: 0,
+        scheduledLate: 0,
+        continuity: 0,
+        totalTracked: 2,
+      },
+    ]);
+    expect(filtered.totals.totalTracked).toBe(2);
+
+    expect(() =>
+      service.getLifecycleReport({
+        from: 'invalid-date',
+      }),
+    ).toThrow(BadRequestException);
+    expect(() =>
+      service.getLifecycleReport({
+        from: '2099-03-25T00:00:00.000Z',
+        to: '2099-03-24T00:00:00.000Z',
+      }),
+    ).toThrow(BadRequestException);
+  });
+
   it('returns logged job options from entries', () => {
     const options = service.listLoggedJobOptions();
     const lateOption = options.find((option) => option.entryId === 'entry-1');

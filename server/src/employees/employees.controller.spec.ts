@@ -8,6 +8,7 @@ describe('EmployeesController', () => {
   const listJobHistoryEntries = jest.fn();
   const listStartNextJobReadiness = jest.fn();
   const listLoggedJobOptions = jest.fn();
+  const getLifecycleReport = jest.fn();
   const createEmployeeProfile = jest.fn();
   const updateEmployeeProfile = jest.fn();
   const archiveEmployee = jest.fn();
@@ -37,6 +38,7 @@ describe('EmployeesController', () => {
             listJobHistoryEntries,
             listStartNextJobReadiness,
             listLoggedJobOptions,
+            getLifecycleReport,
             createEmployeeProfile,
             updateEmployeeProfile,
             archiveEmployee,
@@ -71,6 +73,7 @@ describe('EmployeesController', () => {
     listJobHistoryEntries.mockReturnValue([{ id: 'job-1' }]);
     listStartNextJobReadiness.mockReturnValue([{ employeeId: 'emp-1' }]);
     listLoggedJobOptions.mockReturnValue([{ entryId: 'entry-1' }]);
+    getLifecycleReport.mockReturnValue({ generatedAt: '2026-03-30T00:00:00Z' });
     const controller = await createController();
 
     expect(controller.listRoster()).toEqual([{ id: 'emp-1' }]);
@@ -80,6 +83,26 @@ describe('EmployeesController', () => {
       { employeeId: 'emp-1' },
     ]);
     expect(controller.listLoggedJobOptions()).toEqual([{ entryId: 'entry-1' }]);
+    expect(controller.getLifecycleReport()).toEqual({
+      generatedAt: '2026-03-30T00:00:00Z',
+    });
+  });
+
+  it('parses lifecycle report query params before forwarding to service', async () => {
+    const controller = await createController();
+    getLifecycleReport.mockReturnValue({ generatedAt: '2026-03-30T00:00:00Z' });
+
+    controller.getLifecycleReport(
+      '2026-03-01T00:00:00.000Z',
+      '2026-03-30T23:59:59.000Z',
+      'emp-1, emp-2, ,',
+    );
+
+    expect(getLifecycleReport).toHaveBeenCalledWith({
+      from: '2026-03-01T00:00:00.000Z',
+      to: '2026-03-30T23:59:59.000Z',
+      employeeIds: ['emp-1', 'emp-2'],
+    });
   });
 
   it('parses manager role from headers for mutating endpoints', async () => {

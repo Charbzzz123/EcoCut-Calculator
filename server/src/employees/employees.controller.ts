@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import type { CreateEmployeeDto } from './dto/create-employee.dto';
 import type { CreateClockActionDto } from './dto/create-clock-action.dto';
@@ -47,6 +48,23 @@ export class EmployeesController {
   @Get('job-options')
   listLoggedJobOptions() {
     return this.employees.listLoggedJobOptions();
+  }
+
+  @Get('reporting/lifecycle')
+  getLifecycleReport(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('employeeIds') employeeIdsRaw?: string,
+  ) {
+    const employeeIds = employeeIdsRaw
+      ?.split(',')
+      .map((employeeId) => employeeId.trim())
+      .filter(Boolean);
+    return this.employees.getLifecycleReport({
+      from: from?.trim() || null,
+      to: to?.trim() || null,
+      employeeIds,
+    });
   }
 
   @Post('roster')

@@ -23,6 +23,8 @@ import type {
   EmployeeAssignmentRunLifecycleResult,
   EmployeeClockAction,
   EmployeeContinuityCategory,
+  EmployeeLifecycleReport,
+  EmployeeLifecycleReportRow,
   EmployeeLoggedJobOption,
   EmployeeLoggedJobStatus,
   EmployeeHoursRecord,
@@ -33,6 +35,7 @@ import type {
   EmployeeStartNextJobReadiness,
   EmployeesSnapshot,
 } from './employees.types';
+import { computeHistoryLifecycleSummary } from './history-lifecycle.metrics';
 
 const digitsOnly = (value: string): string => value.replace(/\D/g, '');
 const normalizeText = (value: string): string => value.trim().toLowerCase();
@@ -80,6 +83,12 @@ interface AssignmentContinuityContext {
   category: EmployeeContinuityCategory;
   reason: string;
   sourceHistoryEntry: EmployeeJobHistoryRecord;
+}
+
+export interface EmployeeLifecycleReportFilters {
+  from?: string | null;
+  to?: string | null;
+  employeeIds?: string[];
 }
 
 @Injectable()
@@ -226,6 +235,69 @@ export class EmployeesService implements OnModuleInit {
         }
         return right.scheduledStart.localeCompare(left.scheduledStart);
       });
+  }
+
+  getLifecycleReport(
+    filters: EmployeeLifecycleReportFilters = {},
+  ): EmployeeLifecycleReport {
+    const window = this.normalizeLifecycleReportWindow(filters);
+    const filteredEmployeeIds = new Set(
+      (filters.employeeIds ?? [])
+        .map((employeeId) => employeeId.trim())
+        .filter(Boolean),
+    );
+    const rosterScope = this.snapshot.roster.filter((employee) =>
+      filteredEmployeeIds.size ? filteredEmployeeIds.has(employee.id) : true,
+    );
+    const rosterScopeIds = new Set(rosterScope.map((employee) => employee.id));
+    const scopedHistory = this.filterHistoryByLifecycleWindow(
+      this.snapshot.history.filter((entry) =>
+        rosterScopeIds.has(entry.employeeId),
+      ),
+      window,
+    );
+
+    const perEmployee: EmployeeLifecycleReportRow[] = rosterScope
+      .map((employee) => {
+        const employeeHistory = scopedHistory.filter(
+          (entry) => entry.employeeId === employee.id,
+        );
+        const lifecycle = computeHistoryLifecycleSummary(employeeHistory);
+        return {
+          employeeId: employee.id,
+          fullName: employee.fullName,
+          completedOnTime: lifecycle.completedOnTime,
+          completedLate: lifecycle.completedLate,
+          scheduledLate: lifecycle.scheduledLate,
+          continuity: lifecycle.continuity,
+          totalTracked: employeeHistory.length,
+        };
+      })
+      .sort((left, right) => left.fullName.localeCompare(right.fullName));
+
+    const totals = perEmployee.reduce(
+      (accumulator, row) => ({
+        completedOnTime: accumulator.completedOnTime + row.completedOnTime,
+        completedLate: accumulator.completedLate + row.completedLate,
+        scheduledLate: accumulator.scheduledLate + row.scheduledLate,
+        continuity: accumulator.continuity + row.continuity,
+        totalTracked: accumulator.totalTracked + row.totalTracked,
+      }),
+      {
+        completedOnTime: 0,
+        completedLate: 0,
+        scheduledLate: 0,
+        continuity: 0,
+        totalTracked: 0,
+      },
+    );
+
+    return {
+      generatedAt: new Date().toISOString(),
+      window,
+      totals,
+      perEmployee,
+    };
   }
 
   async createStartNextJobAssignment(
@@ -1551,6 +1623,68 @@ export class EmployeesService implements OnModuleInit {
       return '';
     }
     return new Date(parsed).toISOString();
+  }
+
+  private normalizeLifecycleReportWindow(
+    filters: EmployeeLifecycleReportFilters,
+  ): { from: string | null; to: string | null } {
+    const from = this.normalizeLifecycleWindowBoundary(filters.from, 'from');
+    const to = this.normalizeLifecycleWindowBoundary(filters.to, 'to');
+    if (from && to && toTimestamp(from) > toTimestamp(to)) {
+      throw new BadRequestException(
+        'Lifecycle report "from" must be before or equal to "to".',
+      );
+    }
+    return { from, to };
+  }
+
+  private normalizeLifecycleWindowBoundary(
+    value: string | null | undefined,
+    label: 'from' | 'to',
+  ): string | null {
+    if (!value) {
+      return null;
+    }
+    const normalized = this.toIsoDateTime(value);
+    if (!normalized) {
+      throw new BadRequestException(
+        `Lifecycle report "${label}" must be a valid datetime.`,
+      );
+    }
+    return normalized;
+  }
+
+  private filterHistoryByLifecycleWindow(
+    history: readonly EmployeeJobHistoryRecord[],
+    window: { from: string | null; to: string | null },
+  ): EmployeeJobHistoryRecord[] {
+    const fromTimestamp = window.from ? toTimestamp(window.from) : null;
+    const toTimestampBoundary = window.to ? toTimestamp(window.to) : null;
+    if (fromTimestamp === null && toTimestampBoundary === null) {
+      return [...history];
+    }
+    return history.filter((entry) => {
+      const entryTimestamp = this.resolveLifecycleEntryTimestamp(entry);
+      if (!entryTimestamp) {
+        return false;
+      }
+      if (fromTimestamp !== null && entryTimestamp < fromTimestamp) {
+        return false;
+      }
+      if (
+        toTimestampBoundary !== null &&
+        entryTimestamp > toTimestampBoundary
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  private resolveLifecycleEntryTimestamp(
+    entry: EmployeeJobHistoryRecord,
+  ): number {
+    return toTimestamp(entry.scheduledStart) || toTimestamp(entry.scheduledEnd);
   }
 
   private normalizeScheduledHistoryPatch(

@@ -119,6 +119,34 @@ export interface EmployeeStartNextJobReadiness {
   upcomingWindows: EmployeeAvailabilityWindow[];
 }
 
+export interface EmployeeLifecycleReportWindow {
+  from: string | null;
+  to: string | null;
+}
+
+export interface EmployeeLifecycleReportRow {
+  employeeId: string;
+  fullName: string;
+  completedOnTime: number;
+  completedLate: number;
+  scheduledLate: number;
+  continuity: number;
+  totalTracked: number;
+}
+
+export interface EmployeeLifecycleReport {
+  generatedAt: string;
+  window: EmployeeLifecycleReportWindow;
+  totals: {
+    completedOnTime: number;
+    completedLate: number;
+    scheduledLate: number;
+    continuity: number;
+    totalTracked: number;
+  };
+  perEmployee: EmployeeLifecycleReportRow[];
+}
+
 export interface EmployeesSnapshot {
   roster: EmployeeProfileRecord[];
   hours: EmployeeHoursRecord[];
