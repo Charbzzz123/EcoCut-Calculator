@@ -1,3 +1,5 @@
+import type { EmployeeContinuityCategory } from '../employees.types';
+
 export interface CreateStartNextJobAssignmentDto {
   jobLabel: string;
   address: string;
@@ -5,4 +7,6 @@ export interface CreateStartNextJobAssignmentDto {
   scheduledEnd: string;
   employeeIds: string[];
   jobEntryId?: string | null;
+  continuityCategory?: EmployeeContinuityCategory | null;
+  continuityReason?: string | null;
 }

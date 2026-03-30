@@ -60,6 +60,16 @@ const createFacadeStub = () => ({
   addressControl: new FormControl('', { nonNullable: true }),
   scheduledStartControl: new FormControl('', { nonNullable: true }),
   scheduledEndControl: new FormControl('', { nonNullable: true }),
+  continuityCategoryControl: new FormControl('', { nonNullable: true }),
+  continuityReasonControl: new FormControl('', { nonNullable: true }),
+  continuityCategoryOptions: [
+    { value: 'issue_return', label: 'Issue return' },
+    { value: 'touch_up', label: 'Touch-up' },
+    { value: 'client_change', label: 'Client change' },
+    { value: 'weather_delay', label: 'Weather delay' },
+    { value: 'access_issue', label: 'Access issue' },
+    { value: 'other', label: 'Other' },
+  ],
   analyticsStartDateControl: new FormControl('', { nonNullable: true }),
   analyticsEndDateControl: new FormControl('', { nonNullable: true }),
   analyticsWindow: signal<'7d' | '30d' | '90d' | 'custom'>('30d'),
@@ -91,6 +101,8 @@ const createFacadeStub = () => ({
   hasJobModeSelection: signal(false),
   isManualJobSelection: signal(false),
   hasLinkedJobSelection: signal(false),
+  requiresContinuityDetails: signal(false),
+  linkedScheduleReadOnly: signal(false),
   visibleLoggedJobOptions: signal([
     {
       entryId: 'entry-1',

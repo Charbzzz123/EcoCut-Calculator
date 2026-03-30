@@ -64,6 +64,7 @@ class FakeEmployeesRepository {
         scheduledEnd: '2026-03-19T17:00:00Z',
         hoursWorked: 8,
         status: 'completed',
+        jobEntryId: 'entry-completed',
       },
       {
         id: 'job-future-1',
@@ -121,6 +122,25 @@ class FakeEntriesService {
         end: '2026-03-20T17:00:00.000Z',
       },
     },
+    {
+      id: 'entry-completed',
+      createdAt: '2026-03-19T10:00:00.000Z',
+      variant: 'customer',
+      form: {
+        firstName: 'CJ',
+        lastName: 'AbiNassif',
+        address: '500 Park Ave',
+        phone: '(438) 222-3333',
+        email: 'cj@ecocutqc.com',
+        jobType: 'Hedge Trimming',
+        jobValue: '520',
+      },
+      hedges: {},
+      calendar: {
+        start: '2026-03-19T13:00:00.000Z',
+        end: '2026-03-19T17:00:00.000Z',
+      },
+    },
   ];
 
   listEntries(): StoredEntry[] {
@@ -166,11 +186,14 @@ describe('EmployeesService', () => {
 
   it('returns logged job options from entries', () => {
     const options = service.listLoggedJobOptions();
-    expect(options).toHaveLength(1);
-    expect(options[0]?.entryId).toBe('entry-1');
-    expect(options[0]?.siteLabel).toBe('Westmount Cedar Hedge');
-    expect(options[0]?.address).toBe('1450 Pine Ave W');
-    expect(options[0]?.status).toBe('late');
+    const lateOption = options.find((option) => option.entryId === 'entry-1');
+    const completedOption = options.find(
+      (option) => option.entryId === 'entry-completed',
+    );
+    expect(lateOption?.siteLabel).toBe('Westmount Cedar Hedge');
+    expect(lateOption?.address).toBe('1450 Pine Ave W');
+    expect(lateOption?.status).toBe('late');
+    expect(completedOption?.status).toBe('completed');
   });
 
   it('allows manager to create profile and hours', async () => {
@@ -571,6 +594,50 @@ describe('EmployeesService', () => {
     expect(createdHours?.jobEntryId).toBe('entry-1');
     expect(createdHours?.siteLabel).toBe('Westmount Cedar Hedge');
     expect(createdHours?.workDate).toBe('2026-03-20');
+  });
+
+  it('requires continuity metadata when creating assignments from completed linked jobs', async () => {
+    await expect(
+      service.createStartNextJobAssignment(
+        {
+          jobLabel: 'Completed job follow-up',
+          address: '500 Park Ave',
+          scheduledStart: '2099-03-26T09:00:00.000Z',
+          scheduledEnd: '2099-03-26T11:00:00.000Z',
+          employeeIds: ['emp-owner'],
+          jobEntryId: 'entry-completed',
+        },
+        'owner',
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('creates a continuity segment linked to the latest completed history record', async () => {
+    const result = await service.createStartNextJobAssignment(
+      {
+        jobLabel: 'Completed job follow-up',
+        address: '500 Park Ave',
+        scheduledStart: '2099-03-26T09:00:00.000Z',
+        scheduledEnd: '2099-03-26T11:00:00.000Z',
+        employeeIds: ['emp-owner'],
+        jobEntryId: 'entry-completed',
+        continuityCategory: 'issue_return',
+        continuityReason: 'Client reported a missed section.',
+      },
+      'owner',
+    );
+
+    const createdHistory = result.createdHistory[0];
+    const createdHours = result.createdHours[0];
+    expect(createdHistory?.jobEntryId).toBe('entry-completed');
+    expect(createdHistory?.continuitySourceHistoryEntryId).toBe(
+      'job-completed',
+    );
+    expect(createdHistory?.continuityCategory).toBe('issue_return');
+    expect(createdHistory?.continuityReason).toBe(
+      'Client reported a missed section.',
+    );
+    expect(createdHours?.correctionNote).toContain('Continuity (Issue return)');
   });
 
   it('rejects conflicting or invalid start-next-job assignment payloads', async () => {

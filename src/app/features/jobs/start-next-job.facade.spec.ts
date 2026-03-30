@@ -31,6 +31,11 @@ class EmployeesDataServiceStub {
   endRunCalls: string[] = [];
   clockOutCalls: { entryId: string; reason: string | null }[] = [];
 
+  private upsertHistory(record: EmployeeJobHistoryRecord): void {
+    const nextHistory = this.history.filter((entry) => entry.id !== record.id);
+    this.history = [record, ...nextHistory];
+  }
+
   async listStartNextJobReadiness(): Promise<EmployeeStartNextJobReadiness[]> {
     if (this.shouldFail) {
       throw new Error('failure');
@@ -57,20 +62,22 @@ class EmployeesDataServiceStub {
       throw new Error('save-failure');
     }
     this.assignmentPayloads.push(payload);
+    const createdHistory: EmployeeJobHistoryRecord[] = [
+      {
+        id: 'created-history-1',
+        employeeId: 'emp-a',
+        siteLabel: 'Morning trim',
+        address: '12 Crew St',
+        scheduledStart: '2026-03-21T09:00:00.000Z',
+        scheduledEnd: '2026-03-21T10:00:00.000Z',
+        hoursWorked: 1,
+        status: 'scheduled',
+      },
+    ];
+    this.history = [...createdHistory, ...this.history];
     return {
       assignmentId: 'assign-1',
-      createdHistory: [
-        {
-          id: 'created-history-1',
-          employeeId: 'emp-a',
-          siteLabel: 'Morning trim',
-          address: '12 Crew St',
-          scheduledStart: '2026-03-21T09:00:00.000Z',
-          scheduledEnd: '2026-03-21T10:00:00.000Z',
-          hoursWorked: 1,
-          status: 'scheduled' as const,
-        },
-      ],
+      createdHistory,
       createdHours: [],
     };
   }
@@ -80,7 +87,7 @@ class EmployeesDataServiceStub {
     if (this.shouldFailComplete || this.shouldFailCompleteIds.has(entryId)) {
       throw new Error('complete-failure');
     }
-    return {
+    const completed: EmployeeJobHistoryRecord = {
       id: entryId,
       employeeId: 'emp-b',
       siteLabel: 'Downtown',
@@ -88,8 +95,10 @@ class EmployeesDataServiceStub {
       scheduledStart: '2026-03-21T14:00:00.000Z',
       scheduledEnd: '2026-03-21T17:00:00.000Z',
       hoursWorked: 3,
-      status: 'completed' as const,
+      status: 'completed',
     };
+    this.upsertHistory(completed);
+    return completed;
   }
 
   async updateScheduledHistoryEntry(
@@ -105,7 +114,7 @@ class EmployeesDataServiceStub {
     if (this.shouldFailUpdate) {
       throw new Error('update-failure');
     }
-    return {
+    const updated: EmployeeJobHistoryRecord = {
       id: entryId,
       employeeId: 'emp-b',
       siteLabel: payload.siteLabel,
@@ -113,8 +122,10 @@ class EmployeesDataServiceStub {
       scheduledStart: payload.scheduledStart,
       scheduledEnd: payload.scheduledEnd,
       hoursWorked: 2,
-      status: 'scheduled' as const,
+      status: 'scheduled',
     };
+    this.upsertHistory(updated);
+    return updated;
   }
 
   async cancelScheduledHistoryEntry(entryId: string) {
@@ -122,7 +133,7 @@ class EmployeesDataServiceStub {
     if (this.shouldFailCancel || this.shouldFailCancelIds.has(entryId)) {
       throw new Error('cancel-failure');
     }
-    return {
+    const cancelled: EmployeeJobHistoryRecord = {
       id: entryId,
       employeeId: 'emp-b',
       siteLabel: 'Downtown',
@@ -130,8 +141,10 @@ class EmployeesDataServiceStub {
       scheduledStart: '2026-03-21T14:00:00.000Z',
       scheduledEnd: '2026-03-21T17:00:00.000Z',
       hoursWorked: 3,
-      status: 'cancelled' as const,
+      status: 'cancelled',
     };
+    this.upsertHistory(cancelled);
+    return cancelled;
   }
 
   async reassignScheduledHistoryEntry(entryId: string, payload: { employeeId: string }) {
@@ -139,7 +152,7 @@ class EmployeesDataServiceStub {
     if (this.shouldFailReassign) {
       throw new Error('reassign-failure');
     }
-    return {
+    const reassigned: EmployeeJobHistoryRecord = {
       id: entryId,
       employeeId: payload.employeeId,
       siteLabel: 'Downtown',
@@ -147,8 +160,10 @@ class EmployeesDataServiceStub {
       scheduledStart: '2026-03-21T14:00:00.000Z',
       scheduledEnd: '2026-03-21T17:00:00.000Z',
       hoursWorked: 3,
-      status: 'scheduled' as const,
+      status: 'scheduled',
     };
+    this.upsertHistory(reassigned);
+    return reassigned;
   }
 
   async startAssignmentRun(entryId: string) {
@@ -156,25 +171,30 @@ class EmployeesDataServiceStub {
     if (this.shouldFailStartRun) {
       throw new Error('start-run-failure');
     }
+    const updatedHistory: EmployeeJobHistoryRecord[] = [
+      {
+        id: entryId,
+        employeeId: 'emp-b',
+        siteLabel: 'Downtown',
+        address: '2 Main St',
+        scheduledStart: '2026-03-21T14:00:00.000Z',
+        scheduledEnd: '2026-03-21T17:00:00.000Z',
+        hoursWorked: 3,
+        status: 'scheduled',
+        runStartedAt: '2026-03-21T14:05:00.000Z',
+        runEndedAt: null,
+        assignmentId: 'assign-1',
+      },
+    ];
+    this.history = [
+      ...updatedHistory,
+      ...this.history.filter((entry) => !updatedHistory.some((record) => record.id === entry.id)),
+    ];
     return {
       assignmentId: 'assign-1',
       runStartedAt: '2026-03-21T14:05:00.000Z',
       runEndedAt: null,
-      updatedHistory: [
-        {
-          id: entryId,
-          employeeId: 'emp-b',
-          siteLabel: 'Downtown',
-          address: '2 Main St',
-          scheduledStart: '2026-03-21T14:00:00.000Z',
-          scheduledEnd: '2026-03-21T17:00:00.000Z',
-          hoursWorked: 3,
-          status: 'scheduled' as const,
-          runStartedAt: '2026-03-21T14:05:00.000Z',
-          runEndedAt: null,
-          assignmentId: 'assign-1',
-        },
-      ],
+      updatedHistory,
       updatedHours: [],
     };
   }
@@ -184,25 +204,30 @@ class EmployeesDataServiceStub {
     if (this.shouldFailEndRun) {
       throw new Error('end-run-failure');
     }
+    const updatedHistory: EmployeeJobHistoryRecord[] = [
+      {
+        id: entryId,
+        employeeId: 'emp-b',
+        siteLabel: 'Downtown',
+        address: '2 Main St',
+        scheduledStart: '2026-03-21T14:00:00.000Z',
+        scheduledEnd: '2026-03-21T17:00:00.000Z',
+        hoursWorked: 2,
+        status: 'completed',
+        runStartedAt: '2026-03-21T14:05:00.000Z',
+        runEndedAt: '2026-03-21T16:10:00.000Z',
+        assignmentId: 'assign-1',
+      },
+    ];
+    this.history = [
+      ...updatedHistory,
+      ...this.history.filter((entry) => !updatedHistory.some((record) => record.id === entry.id)),
+    ];
     return {
       assignmentId: 'assign-1',
       runStartedAt: '2026-03-21T14:05:00.000Z',
       runEndedAt: '2026-03-21T16:10:00.000Z',
-      updatedHistory: [
-        {
-          id: entryId,
-          employeeId: 'emp-b',
-          siteLabel: 'Downtown',
-          address: '2 Main St',
-          scheduledStart: '2026-03-21T14:00:00.000Z',
-          scheduledEnd: '2026-03-21T17:00:00.000Z',
-          hoursWorked: 2,
-          status: 'completed' as const,
-          runStartedAt: '2026-03-21T14:05:00.000Z',
-          runEndedAt: '2026-03-21T16:10:00.000Z',
-          assignmentId: 'assign-1',
-        },
-      ],
+      updatedHistory,
       updatedHours: [],
     };
   }
@@ -217,26 +242,31 @@ class EmployeesDataServiceStub {
     if (this.shouldFailClockOut) {
       throw new Error('clock-out-failure');
     }
+    const updatedHistory: EmployeeJobHistoryRecord[] = [
+      {
+        id: entryId,
+        employeeId: 'emp-b',
+        siteLabel: 'Downtown',
+        address: '2 Main St',
+        scheduledStart: '2026-03-21T14:00:00.000Z',
+        scheduledEnd: '2026-03-21T17:00:00.000Z',
+        hoursWorked: 1.5,
+        status: 'completed',
+        runStartedAt: '2026-03-21T14:05:00.000Z',
+        runEndedAt: '2026-03-21T15:40:00.000Z',
+        runClockOutReason: payload.reason ?? null,
+        assignmentId: 'assign-1',
+      },
+    ];
+    this.history = [
+      ...updatedHistory,
+      ...this.history.filter((entry) => !updatedHistory.some((record) => record.id === entry.id)),
+    ];
     return {
       assignmentId: 'assign-1',
       runStartedAt: '2026-03-21T14:05:00.000Z',
       runEndedAt: null,
-      updatedHistory: [
-        {
-          id: entryId,
-          employeeId: 'emp-b',
-          siteLabel: 'Downtown',
-          address: '2 Main St',
-          scheduledStart: '2026-03-21T14:00:00.000Z',
-          scheduledEnd: '2026-03-21T17:00:00.000Z',
-          hoursWorked: 1.5,
-          status: 'completed' as const,
-          runStartedAt: '2026-03-21T14:05:00.000Z',
-          runEndedAt: '2026-03-21T15:40:00.000Z',
-          runClockOutReason: payload.reason ?? null,
-          assignmentId: 'assign-1',
-        },
-      ],
+      updatedHistory,
       updatedHours: [],
     };
   }
@@ -428,6 +458,66 @@ describe('StartNextJobFacade', () => {
     expect(facade.visibleCompletedLoggedJobOptions().map((option) => option.entryId)).toEqual([
       'entry-completed',
     ]);
+  });
+
+  it('requires continuity details when a completed linked job is selected', async () => {
+    dataService.loggedJobOptions = [
+      {
+        entryId: 'entry-completed',
+        clientName: 'CJ AbiNassif',
+        siteLabel: 'Hedge Trimming',
+        address: '500 Park Ave',
+        scheduledStart: '2026-03-19T12:00:00.000Z',
+        scheduledEnd: '2026-03-19T16:00:00.000Z',
+        status: 'completed',
+      },
+    ];
+    await facade.loadBoard();
+
+    facade.toggleEmployeeSelection('emp-a');
+    facade.toggleCompletedJobOptions();
+    facade.linkedJobEntryIdControl.setValue('entry-completed');
+    facade.applyLinkedJobSelection();
+
+    expect(facade.requiresContinuityDetails()).toBe(true);
+    expect(facade.linkedScheduleReadOnly()).toBe(false);
+    expect(facade.draftValidation().blockingReasons).toContain(
+      'Continuity category is required when using a completed linked job.',
+    );
+    expect(facade.draftValidation().blockingReasons).toContain(
+      'Continuity reason is required when using a completed linked job.',
+    );
+  });
+
+  it('includes continuity fields in assignment payload for completed linked jobs', async () => {
+    dataService.loggedJobOptions = [
+      {
+        entryId: 'entry-completed',
+        clientName: 'CJ AbiNassif',
+        siteLabel: 'Hedge Trimming',
+        address: '500 Park Ave',
+        scheduledStart: '2026-03-19T12:00:00.000Z',
+        scheduledEnd: '2026-03-19T16:00:00.000Z',
+        status: 'completed',
+      },
+    ];
+    await facade.loadBoard();
+
+    facade.toggleEmployeeSelection('emp-a');
+    facade.toggleCompletedJobOptions();
+    facade.linkedJobEntryIdControl.setValue('entry-completed');
+    facade.applyLinkedJobSelection();
+    facade.scheduledStartControl.setValue('2026-03-21T09:00');
+    facade.scheduledEndControl.setValue('2026-03-21T10:00');
+    facade.continuityCategoryControl.setValue('issue_return');
+    facade.continuityReasonControl.setValue('Customer reported missed section.');
+
+    await expect(facade.submitAssignment('owner')).resolves.toBe(true);
+    expect(dataService.assignmentPayloads[dataService.assignmentPayloads.length - 1]).toMatchObject({
+      jobEntryId: 'entry-completed',
+      continuityCategory: 'issue_return',
+      continuityReason: 'Customer reported missed section.',
+    });
   });
 
   it('accepts explicit manual job mode and submits payload without linked job id', async () => {

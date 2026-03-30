@@ -188,6 +188,10 @@
   - Linked jobs now expose lifecycle status: `Scheduled`, `Late`, or `Completed`.
   - Default picker groups show `Scheduled + late jobs` first.
   - `Completed` jobs stay hidden unless operators explicitly enable `Show completed jobs (advanced)` in Step 2.
+- **Completed-job continuity flow**:
+  - When a completed linked job is selected, continuity details are now mandatory (`category` + `reason`) before save.
+  - Saving creates a new scheduled follow-up segment linked to the latest completed source record while preserving the original completed entry.
+  - Continuity metadata is persisted on history/hours rows for issue-return tracking and payroll/audit context.
 - **Crew picker**: operators can select/deselect employees from live readiness records (`/employees/readiness`) with status badges (`Available`, `Scheduled`, `Inactive`).
 - **Conflict checks**: selection validates inactive members, existing readiness conflicts, next-available constraints, and overlap against upcoming windows before draft can proceed.
 - **Draft readiness**: panel shows blocking reasons until required fields + crew are valid and conflict-free.
@@ -211,6 +215,7 @@
   - Multiple assignment runs can stay active in parallel as long as no employee is active in more than one run.
 - **Bulk lifecycle controls**: schedulers can multi-select scheduled history entries and run `Complete selected` or `Cancel selected` actions from the same panel. The board reports partial failures (for example, 3 of 4 succeeded) and keeps failed rows selected for quick retry.
 - **Optimistic board updates**: schedule edits and lifecycle actions now patch board state immediately (history + readiness summaries) with rollback when an API call fails, so operators get instant feedback without waiting for full board reloads.
+- **Post-mutation canonical refresh**: after assignment and lifecycle mutations succeed, the board re-syncs readiness/history/job-options from `/api/employees/*` to prevent stale optimistic drift between Start Next Job and Manage Employees modules.
 - **Assignment analytics panel**: the summary column now shows selected-crew analytics (tracked, scheduled, completed, cancelled, total/average hours, completion/cancellation rates, unique sites) so dispatch decisions stay data-driven during scheduling.
 - **Analytics export**: Step 2 now includes `Export CSV`, which downloads selected-crew analytics plus detailed history rows (employee, status, site/address, scheduled window, and hours) for handoff/reporting.
 - **Date-range analytics window**: Step 2 now supports `From`/`To` filters for analytics; invalid ranges are blocked with inline guidance, and both panel metrics + CSV export respect the selected window.
@@ -225,11 +230,9 @@
 
 #### Start Next Job - Next Evolution (Planned)
 
-- **Completed-job continuity guardrail**:
-  - Completed jobs remain hidden in normal flow and can only be reused through a dedicated **manual continuity** action to track return visits/issues.
 - **Status + tracking outcomes**:
   - Each run tracks planned window vs actual execution and flags `on schedule`, `late`, or `in advance`.
-  - Continuity segments append to the same client job lineage for issue-rate and repeat-visit statistics.
+  - Continuity segments already append to the same client-job lineage; next step is exposing dedicated issue-rate dashboards on top of that data.
 - **Cross-module consistency requirement**:
   - Start Next Job lifecycle events must stay synchronized with Manage Employees (clock board, hours log, history timeline, readiness), so payroll and operational analytics read from one coherent event stream.
 

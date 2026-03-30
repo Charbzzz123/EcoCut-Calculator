@@ -22,6 +22,7 @@ import type {
   EmployeeAvailabilityWindow,
   EmployeeAssignmentRunLifecycleResult,
   EmployeeClockAction,
+  EmployeeContinuityCategory,
   EmployeeLoggedJobOption,
   EmployeeLoggedJobStatus,
   EmployeeHoursRecord,
@@ -66,6 +67,20 @@ const overlapsRange = (
 const phonePattern = /^\(\d{3}\)\s\d{3}-\d{4}$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MANUAL_CORRECTION_SITE_LABEL = 'Manual correction';
+const continuityCategoryLabels: Record<EmployeeContinuityCategory, string> = {
+  issue_return: 'Issue return',
+  touch_up: 'Touch-up',
+  client_change: 'Client change',
+  weather_delay: 'Weather delay',
+  access_issue: 'Access issue',
+  other: 'Other',
+};
+
+interface AssignmentContinuityContext {
+  category: EmployeeContinuityCategory;
+  reason: string;
+  sourceHistoryEntry: EmployeeJobHistoryRecord;
+}
 
 @Injectable()
 export class EmployeesService implements OnModuleInit {
@@ -220,6 +235,10 @@ export class EmployeesService implements OnModuleInit {
     this.assertOwnerOrManager(actorRole);
     const normalized = this.normalizeStartNextJobPayload(payload);
     const selectedJob = this.resolveJobSelection(normalized.jobEntryId);
+    const continuityContext = this.resolveAssignmentContinuityContext(
+      selectedJob,
+      normalized,
+    );
     const assignmentWindow = this.resolveAssignmentWindow(
       normalized,
       selectedJob,
@@ -261,6 +280,10 @@ export class EmployeesService implements OnModuleInit {
       runStartedAt: null,
       runEndedAt: null,
       runClockOutReason: null,
+      continuitySourceHistoryEntryId:
+        continuityContext?.sourceHistoryEntry.id ?? null,
+      continuityCategory: continuityContext?.category ?? null,
+      continuityReason: continuityContext?.reason ?? null,
       jobEntryId: selectedJob?.entryId ?? null,
       assignmentId,
     }));
@@ -273,6 +296,7 @@ export class EmployeesService implements OnModuleInit {
       hours: durationHours,
       source: 'assignment' as const,
       jobEntryId: selectedJob?.entryId ?? null,
+      correctionNote: this.buildContinuityCorrectionNote(continuityContext),
       assignmentId,
       historyEntryId: entry.id,
       clockInAt: null,
@@ -1365,6 +1389,10 @@ export class EmployeesService implements OnModuleInit {
         runStartedAt: entry.runStartedAt ?? null,
         runEndedAt: entry.runEndedAt ?? null,
         runClockOutReason: entry.runClockOutReason ?? null,
+        continuitySourceHistoryEntryId:
+          entry.continuitySourceHistoryEntryId ?? null,
+        continuityCategory: entry.continuityCategory ?? null,
+        continuityReason: entry.continuityReason ?? null,
         linkedHoursEntryId: entry.linkedHoursEntryId ?? null,
         jobEntryId: entry.jobEntryId ?? null,
         assignmentId: entry.assignmentId ?? null,
@@ -1376,6 +1404,7 @@ export class EmployeesService implements OnModuleInit {
     payload: CreateStartNextJobAssignmentDto,
   ): CreateStartNextJobAssignmentDto {
     const normalizedJobEntryId = payload.jobEntryId?.trim() ?? '';
+    const normalizedContinuityReason = payload.continuityReason?.trim() ?? '';
     return {
       jobLabel: payload.jobLabel.trim(),
       address: payload.address.trim(),
@@ -1389,6 +1418,8 @@ export class EmployeesService implements OnModuleInit {
         ),
       ),
       jobEntryId: normalizedJobEntryId || null,
+      continuityCategory: payload.continuityCategory ?? null,
+      continuityReason: normalizedContinuityReason || null,
     };
   }
 
@@ -1590,6 +1621,62 @@ export class EmployeesService implements OnModuleInit {
     return linkedIds;
   }
 
+  private resolveAssignmentContinuityContext(
+    selectedJob: EmployeeLoggedJobOption | null,
+    payload: CreateStartNextJobAssignmentDto,
+  ): AssignmentContinuityContext | null {
+    if (!selectedJob || selectedJob.status !== 'completed') {
+      return null;
+    }
+
+    const category = payload.continuityCategory ?? null;
+    const reason = payload.continuityReason?.trim() ?? '';
+    if (!category || !reason) {
+      throw new BadRequestException(
+        'Completed linked jobs require continuityCategory and continuityReason.',
+      );
+    }
+
+    const sourceHistoryEntry = this.findLatestCompletedHistoryForJobEntry(
+      selectedJob.entryId,
+    );
+    if (!sourceHistoryEntry) {
+      throw new ConflictException(
+        `Completed linked job "${selectedJob.entryId}" does not have a completed history entry to continue from.`,
+      );
+    }
+
+    return {
+      category,
+      reason,
+      sourceHistoryEntry,
+    };
+  }
+
+  private findLatestCompletedHistoryForJobEntry(
+    jobEntryId: string,
+  ): EmployeeJobHistoryRecord | null {
+    const matches = this.snapshot.history
+      .filter(
+        (entry) =>
+          entry.jobEntryId === jobEntryId && entry.status === 'completed',
+      )
+      .sort(sortByHistoryStartDesc);
+    return matches[0] ?? null;
+  }
+
+  private buildContinuityCorrectionNote(
+    continuityContext: AssignmentContinuityContext | null,
+  ): string | null {
+    if (!continuityContext) {
+      return null;
+    }
+    const label = continuityCategoryLabels[continuityContext.category];
+    return label
+      ? `Continuity (${label}): ${continuityContext.reason}`
+      : `Continuity: ${continuityContext.reason}`;
+  }
+
   private resolveJobSelection(
     jobEntryId: string | null | undefined,
   ): EmployeeLoggedJobOption | null {
@@ -1727,6 +1814,9 @@ export class EmployeesService implements OnModuleInit {
       hoursWorked: input.draft.hours,
       status: 'completed',
       runClockOutReason: null,
+      continuitySourceHistoryEntryId: null,
+      continuityCategory: null,
+      continuityReason: null,
       linkedHoursEntryId: input.hoursEntryId,
       jobEntryId: selectedJob.entryId,
       assignmentId: null,

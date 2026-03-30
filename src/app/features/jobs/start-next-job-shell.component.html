@@ -176,7 +176,7 @@
                 class="field__input"
                 type="datetime-local"
                 [formControl]="facade.scheduledStartControl"
-                [readOnly]="facade.hasLinkedJobSelection()"
+                [readOnly]="facade.linkedScheduleReadOnly()"
                 required
                 aria-required="true"
               />
@@ -187,7 +187,7 @@
                 class="field__input"
                 type="datetime-local"
                 [formControl]="facade.scheduledEndControl"
-                [readOnly]="facade.hasLinkedJobSelection()"
+                [readOnly]="facade.linkedScheduleReadOnly()"
                 required
                 aria-required="true"
               />
@@ -244,6 +244,41 @@
               </div>
               @if (!facade.hasVisibleLoggedJobOptions()) {
                 <p class="field__hint">No linked jobs are currently available. Use manual mode.</p>
+              }
+              @if (facade.requiresContinuityDetails()) {
+                <div class="continuity-controls">
+                  <p class="field__hint">
+                    Completed linked job selected. Provide continuity details to track this
+                    follow-up segment.
+                  </p>
+                  <div class="continuity-controls__grid">
+                    <label class="field">
+                      <span class="field__label">Continuity category *</span>
+                      <select
+                        class="field__input"
+                        [formControl]="facade.continuityCategoryControl"
+                        required
+                        aria-required="true"
+                      >
+                        <option value="">Select category</option>
+                        @for (option of facade.continuityCategoryOptions; track option.value) {
+                          <option [value]="option.value">{{ option.label }}</option>
+                        }
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span class="field__label">Continuity reason *</span>
+                      <textarea
+                        class="field__input field__textarea"
+                        [formControl]="facade.continuityReasonControl"
+                        rows="3"
+                        placeholder="Explain why this completed job needs follow-up work."
+                        required
+                        aria-required="true"
+                      ></textarea>
+                    </label>
+                  </div>
+                </div>
               }
             </div>
           }

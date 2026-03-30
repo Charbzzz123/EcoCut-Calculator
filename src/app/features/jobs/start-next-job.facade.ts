@@ -3,6 +3,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { EmployeesDataService } from '../employees/employees-data.service.js';
 import type {
+  EmployeeContinuityCategory,
   EmployeeLoggedJobOption,
   EmployeeJobHistoryRecord,
   EmployeeOperatorRole,
@@ -69,6 +70,17 @@ const escapeCsvCell = (value: string | number): string => {
   return `"${normalized}"`;
 };
 const MANUAL_JOB_MODE = '__manual__';
+const continuityCategoryOptions: readonly {
+  value: EmployeeContinuityCategory;
+  label: string;
+}[] = [
+  { value: 'issue_return', label: 'Issue return' },
+  { value: 'touch_up', label: 'Touch-up' },
+  { value: 'client_change', label: 'Client change' },
+  { value: 'weather_delay', label: 'Weather delay' },
+  { value: 'access_issue', label: 'Access issue' },
+  { value: 'other', label: 'Other' },
+];
 
 @Injectable()
 export class StartNextJobFacade {
@@ -83,6 +95,8 @@ export class StartNextJobFacade {
   readonly addressControl = new FormControl('', { nonNullable: true });
   readonly scheduledStartControl = new FormControl('', { nonNullable: true });
   readonly scheduledEndControl = new FormControl('', { nonNullable: true });
+  readonly continuityCategoryControl = new FormControl('', { nonNullable: true });
+  readonly continuityReasonControl = new FormControl('', { nonNullable: true });
   readonly analyticsStartDateControl = new FormControl('', { nonNullable: true });
   readonly analyticsEndDateControl = new FormControl('', { nonNullable: true });
   private readonly analyticsStartDateValue = toSignal(this.analyticsStartDateControl.valueChanges, {
@@ -166,6 +180,14 @@ export class StartNextJobFacade {
     () => this.linkedJobEntryIdControl.value.trim() === MANUAL_JOB_MODE,
   );
   readonly hasLinkedJobSelection = computed(() => Boolean(this.selectedLinkedJob()));
+  readonly continuityCategoryOptions = continuityCategoryOptions;
+  readonly requiresContinuityDetails = computed(
+    () => this.selectedLinkedJob()?.status === 'completed',
+  );
+  readonly linkedScheduleReadOnly = computed(() => {
+    const selectedJob = this.selectedLinkedJob();
+    return Boolean(selectedJob && selectedJob.status !== 'completed');
+  });
   readonly selectedEmployeeIds = computed(() => this.selectedEmployeeIdsSignal());
   readonly selectedHistoryEntryIds = computed(() => this.selectedHistoryEntryIdsSignal());
 
@@ -481,6 +503,18 @@ export class StartNextJobFacade {
     if (!this.selectedEmployeeIds().length) {
       blockingReasons.push('Select at least one employee for the crew.');
     }
+    if (this.requiresContinuityDetails()) {
+      if (!this.continuityCategoryControl.value.trim()) {
+        blockingReasons.push(
+          'Continuity category is required when using a completed linked job.',
+        );
+      }
+      if (!this.continuityReasonControl.value.trim()) {
+        blockingReasons.push(
+          'Continuity reason is required when using a completed linked job.',
+        );
+      }
+    }
     if (this.selectedCrewConflicts().length) {
       blockingReasons.push('Resolve crew conflicts before creating the assignment draft.');
     }
@@ -494,40 +528,7 @@ export class StartNextJobFacade {
     this.loadState.set('loading');
     this.errorMessage.set('');
     try {
-      const [readiness, history, loggedJobOptions] = await Promise.all([
-        this.employeesData.listStartNextJobReadiness(),
-        this.employeesData.listJobHistoryEntries(),
-        this.employeesData.listLoggedJobOptions(),
-      ]);
-      const sortedReadiness = [...readiness].sort((left, right) =>
-        left.fullName.localeCompare(right.fullName),
-      );
-      const sortedHistory = [...history].sort(sortHistoryByStartDesc);
-      const sortedJobOptions = [...loggedJobOptions].sort((left, right) =>
-        right.scheduledStart.localeCompare(left.scheduledStart),
-      );
-      this.readinessSignal.set(sortedReadiness);
-      this.historySignal.set(sortedHistory);
-      this.loggedJobOptionsSignal.set(sortedJobOptions);
-      const allowedIds = new Set(sortedReadiness.map((employee) => employee.employeeId));
-      this.selectedEmployeeIdsSignal.update((selectedIds) =>
-        selectedIds.filter((employeeId) => allowedIds.has(employeeId)),
-      );
-      const allowedHistoryIds = new Set(
-        sortedHistory.filter((entry) => entry.status === 'scheduled').map((entry) => entry.id),
-      );
-      this.selectedHistoryEntryIdsSignal.update((selectedIds) =>
-        selectedIds.filter((entryId) => allowedHistoryIds.has(entryId)),
-      );
-      if (this.linkedJobEntryIdControl.value.trim()) {
-        const selectedJobId = this.linkedJobEntryIdControl.value.trim();
-        const hasLinkedJob =
-          selectedJobId === MANUAL_JOB_MODE ||
-          sortedJobOptions.some((option) => option.entryId === selectedJobId);
-        if (!hasLinkedJob) {
-          this.linkedJobEntryIdControl.setValue('', { emitEvent: false });
-        }
-      }
+      await this.reconcileBoardState();
       this.loadState.set('ready');
     } catch {
       this.loadState.set('error');
@@ -560,10 +561,12 @@ export class StartNextJobFacade {
     this.clearSaveFeedback();
     const selectedJobId = this.linkedJobEntryIdControl.value.trim();
     if (!selectedJobId || selectedJobId === MANUAL_JOB_MODE) {
+      this.clearContinuityInputs();
       return;
     }
     const selectedJob = this.selectedLinkedJob();
     if (!selectedJob) {
+      this.clearContinuityInputs();
       return;
     }
     this.jobLabelControl.setValue(selectedJob.siteLabel, { emitEvent: false });
@@ -574,6 +577,9 @@ export class StartNextJobFacade {
     this.scheduledEndControl.setValue(toDateTimeLocal(selectedJob.scheduledEnd), {
       emitEvent: false,
     });
+    if (selectedJob.status !== 'completed') {
+      this.clearContinuityInputs();
+    }
   }
 
   toggleCompletedJobOptions(): void {
@@ -659,6 +665,9 @@ export class StartNextJobFacade {
       this.saveState.set('success');
       this.saveMessage.set(`Assignment saved for ${result.createdHistory.length} crew member(s).`);
       this.resetDraftAfterSave();
+      await this.reconcileAfterMutation(
+        'Assignment saved, but board refresh failed. Click Retry if values look stale.',
+      );
       return true;
     } catch {
       this.saveState.set('error');
@@ -683,6 +692,7 @@ export class StartNextJobFacade {
     this.scheduledEndControl.setValue(toDateTimeLocal(entry.scheduledEnd), {
       emitEvent: false,
     });
+    this.clearContinuityInputs();
     this.saveState.set('idle');
     this.saveMessage.set('');
   }
@@ -762,6 +772,9 @@ export class StartNextJobFacade {
       this.editingHistoryEntryId.set(null);
       this.saveState.set('success');
       this.saveMessage.set('Schedule updated.');
+      await this.reconcileAfterMutation(
+        'Schedule updated, but board refresh failed. Click Retry if values look stale.',
+      );
       return true;
     } catch {
       this.restoreBoardSnapshot(snapshot);
@@ -800,6 +813,9 @@ export class StartNextJobFacade {
       }
       this.saveState.set('success');
       this.saveMessage.set('Scheduled assignment cancelled.');
+      await this.reconcileAfterMutation(
+        'Cancellation saved, but board refresh failed. Click Retry if values look stale.',
+      );
       return true;
     } catch {
       this.restoreBoardSnapshot(snapshot);
@@ -842,6 +858,9 @@ export class StartNextJobFacade {
       this.applyHistoryUpserts(lifecycle.updatedHistory);
       this.saveState.set('success');
       this.saveMessage.set('Run started. Crew clock-in is now active.');
+      await this.reconcileAfterMutation(
+        'Run started, but board refresh failed. Click Retry if values look stale.',
+      );
       return true;
     } catch {
       this.restoreBoardSnapshot(snapshot);
@@ -893,6 +912,9 @@ export class StartNextJobFacade {
       this.applyHistoryUpserts(lifecycle.updatedHistory);
       this.saveState.set('success');
       this.saveMessage.set('Run ended. Remaining crew members were clocked out.');
+      await this.reconcileAfterMutation(
+        'Run ended, but board refresh failed. Click Retry if values look stale.',
+      );
       return true;
     } catch {
       this.restoreBoardSnapshot(snapshot);
@@ -958,6 +980,9 @@ export class StartNextJobFacade {
       } else {
         this.saveMessage.set('Crew member clocked out.');
       }
+      await this.reconcileAfterMutation(
+        'Clock-out saved, but board refresh failed. Click Retry if values look stale.',
+      );
       return true;
     } catch {
       this.restoreBoardSnapshot(snapshot);
@@ -1026,6 +1051,9 @@ export class StartNextJobFacade {
       }
       this.saveState.set('success');
       this.saveMessage.set(`Scheduled assignment moved to ${target.fullName}.`);
+      await this.reconcileAfterMutation(
+        'Reassignment saved, but board refresh failed. Click Retry if values look stale.',
+      );
       return true;
     } catch {
       this.restoreBoardSnapshot(snapshot);
@@ -1061,6 +1089,9 @@ export class StartNextJobFacade {
       this.applyHistoryUpserts([completed]);
       this.saveState.set('success');
       this.saveMessage.set('Assignment marked as completed.');
+      await this.reconcileAfterMutation(
+        'Completion saved, but board refresh failed. Click Retry if values look stale.',
+      );
       return true;
     } catch {
       this.restoreBoardSnapshot(snapshot);
@@ -1111,6 +1142,9 @@ export class StartNextJobFacade {
     if (failedCount === 0) {
       this.saveState.set('success');
       this.saveMessage.set(`Completed ${entries.length} scheduled assignment(s).`);
+      await this.reconcileAfterMutation(
+        'Bulk completion saved, but board refresh failed. Click Retry if values look stale.',
+      );
       return true;
     }
 
@@ -1119,6 +1153,9 @@ export class StartNextJobFacade {
     this.saveState.set('error');
     this.saveMessage.set(
       `Completed ${succeededRecords.length} of ${entries.length} scheduled assignments. Retry the remaining ${failedCount}.`,
+    );
+    await this.reconcileAfterMutation(
+      'Partial bulk completion applied, but board refresh failed. Click Retry if values look stale.',
     );
     return false;
   }
@@ -1162,6 +1199,9 @@ export class StartNextJobFacade {
     if (failedCount === 0) {
       this.saveState.set('success');
       this.saveMessage.set(`Cancelled ${entries.length} scheduled assignment(s).`);
+      await this.reconcileAfterMutation(
+        'Bulk cancellation saved, but board refresh failed. Click Retry if values look stale.',
+      );
       return true;
     }
 
@@ -1170,6 +1210,9 @@ export class StartNextJobFacade {
     this.saveState.set('error');
     this.saveMessage.set(
       `Cancelled ${succeededRecords.length} of ${entries.length} scheduled assignments. Retry the remaining ${failedCount}.`,
+    );
+    await this.reconcileAfterMutation(
+      'Partial bulk cancellation applied, but board refresh failed. Click Retry if values look stale.',
     );
     return false;
   }
@@ -1422,6 +1465,11 @@ export class StartNextJobFacade {
 
   private buildAssignmentPayload(): EmployeeStartNextJobAssignmentPayload {
     const linkedEntryId = this.linkedJobEntryIdControl.value.trim();
+    const continuityCategory = this.resolveContinuityCategory(
+      this.continuityCategoryControl.value.trim(),
+    );
+    const continuityReason = this.continuityReasonControl.value.trim();
+    const includeContinuity = this.requiresContinuityDetails();
     return {
       jobLabel: this.jobLabelControl.value.trim(),
       address: this.addressControl.value.trim(),
@@ -1429,6 +1477,8 @@ export class StartNextJobFacade {
       scheduledEnd: toIsoDateTime(this.scheduledEndControl.value),
       employeeIds: this.selectedEmployeeIds(),
       jobEntryId: linkedEntryId && linkedEntryId !== MANUAL_JOB_MODE ? linkedEntryId : null,
+      continuityCategory: includeContinuity ? continuityCategory : null,
+      continuityReason: includeContinuity ? continuityReason : null,
     };
   }
 
@@ -1584,6 +1634,20 @@ export class StartNextJobFacade {
     this.addressControl.setValue('', { emitEvent: false });
     this.scheduledStartControl.setValue('', { emitEvent: false });
     this.scheduledEndControl.setValue('', { emitEvent: false });
+    this.clearContinuityInputs();
+  }
+
+  private clearContinuityInputs(): void {
+    this.continuityCategoryControl.setValue('', { emitEvent: false });
+    this.continuityReasonControl.setValue('', { emitEvent: false });
+  }
+
+  private resolveContinuityCategory(value: string): EmployeeContinuityCategory | null {
+    if (!value) {
+      return null;
+    }
+    const matchingOption = continuityCategoryOptions.find((option) => option.value === value);
+    return matchingOption?.value ?? null;
   }
 
   private clearSaveFeedback(): void {
@@ -1602,5 +1666,53 @@ export class StartNextJobFacade {
     this.selectedHistoryEntryIdsSignal.update((selectedIds) =>
       selectedIds.filter((entryId) => !removals.has(entryId)),
     );
+  }
+
+  private async reconcileBoardState(): Promise<void> {
+    const [readiness, history, loggedJobOptions] = await Promise.all([
+      this.employeesData.listStartNextJobReadiness(),
+      this.employeesData.listJobHistoryEntries(),
+      this.employeesData.listLoggedJobOptions(),
+    ]);
+    const sortedReadiness = [...readiness].sort((left, right) =>
+      left.fullName.localeCompare(right.fullName),
+    );
+    const sortedHistory = [...history].sort(sortHistoryByStartDesc);
+    const sortedJobOptions = [...loggedJobOptions].sort((left, right) =>
+      right.scheduledStart.localeCompare(left.scheduledStart),
+    );
+    this.readinessSignal.set(sortedReadiness);
+    this.historySignal.set(sortedHistory);
+    this.loggedJobOptionsSignal.set(sortedJobOptions);
+    const allowedIds = new Set(sortedReadiness.map((employee) => employee.employeeId));
+    this.selectedEmployeeIdsSignal.update((selectedIds) =>
+      selectedIds.filter((employeeId) => allowedIds.has(employeeId)),
+    );
+    const allowedHistoryIds = new Set(
+      sortedHistory.filter((entry) => entry.status === 'scheduled').map((entry) => entry.id),
+    );
+    this.selectedHistoryEntryIdsSignal.update((selectedIds) =>
+      selectedIds.filter((entryId) => allowedHistoryIds.has(entryId)),
+    );
+    if (this.linkedJobEntryIdControl.value.trim()) {
+      const selectedJobId = this.linkedJobEntryIdControl.value.trim();
+      const hasLinkedJob =
+        selectedJobId === MANUAL_JOB_MODE ||
+        sortedJobOptions.some((option) => option.entryId === selectedJobId);
+      if (!hasLinkedJob) {
+        this.linkedJobEntryIdControl.setValue('', { emitEvent: false });
+      }
+    }
+  }
+
+  private async reconcileAfterMutation(refreshWarning: string): Promise<void> {
+    try {
+      await this.reconcileBoardState();
+    } catch {
+      if (this.saveState() === 'success') {
+        this.saveState.set('error');
+      }
+      this.saveMessage.set(refreshWarning);
+    }
   }
 }

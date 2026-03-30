@@ -193,6 +193,25 @@
   gap: 0.55rem;
 }
 
+.continuity-controls {
+  margin-top: 0.45rem;
+  padding: 0.65rem;
+  border-radius: 0.8rem;
+  border: 1px solid rgba(242, 187, 104, 0.32);
+  background: rgba(58, 45, 20, 0.26);
+}
+
+.continuity-controls__grid {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.field__textarea {
+  min-height: 5.2rem;
+  resize: vertical;
+}
+
 .draft-actions {
   margin-top: 0.95rem;
   display: flex;

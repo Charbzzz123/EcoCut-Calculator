@@ -6,6 +6,8 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 | Task                                                                 | Done       | Notes                                                                                                                                                                                                                                                                                                    |
 | -------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| JX-6A Start Next Job post-mutation board reconciliation              | 2026-03-30 | After assignment/history lifecycle mutations, the Start Next Job facade now re-syncs readiness/history/job-options from `/api/employees/*` to prevent optimistic UI drift and keep crew selection, scheduled-history actions, and analytics aligned with the backend source of truth.                    |
+| JX-5 Continuity runs for completed jobs                              | 2026-03-30 | Completed linked jobs now require advanced continuity metadata (category + reason), and saving creates a new scheduled follow-up segment linked to the latest completed source record while preserving the original completed history entry.                                                             |
 | JX-4 Manual mid-job crew clock-out                                   | 2026-03-30 | Added per-employee `Clock out member` action for active runs (`POST /employees/history/:entryId/clock-out`) with optional reason notes persisted for payroll/audit context, while keeping `End job` for full-run closeout.                                                                               |
 | JX-3 Active run lifecycle (start/end)                                | 2026-03-30 | Added runtime `Start job` / `End job` lifecycle for scheduled assignments with new endpoints (`POST /employees/history/:entryId/start` and `/end`), active-run guards (no edit/cancel/reassign while active), cross-run employee blocking, and synchronized readiness/history/hours updates in API + UI. |
 | JX-2 Job status model + picker defaults                              | 2026-03-30 | Added normalized job-option status (`scheduled`, `late`, `completed`) across API + frontend, sorted picker results by status priority, defaulted the picker to scheduled/late entries, and moved completed entries behind an explicit advanced toggle with matching tests.                               |
@@ -104,11 +106,10 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 ## In Progress / Backlog
 
-| Step | Task                                      | Owner | Notes                                                                                                                                           |
-| ---- | ----------------------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| JX-5 | Continuity runs for completed jobs        | —     | Advanced action: reopen as `manual continuity` segment for issue returns; preserve original completed record and append a linked follow-up run. |
-| JX-6 | Cross-module sync and reporting integrity | —     | Ensure Employees clock board/hours/history, Start Next Job history, and analytics all consume the same assignment lifecycle records.            |
-| JX-7 | UX + validation + docs hardening          | —     | Progressive disclosure, clear blockers, success/error toasts, tests, and final docs updates after implementation.                               |
+| Step | Task                                      | Owner | Notes                                                                                                                                                                    |
+| ---- | ----------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| JX-6 | Cross-module sync and reporting integrity | —     | In progress: JX-6A board reconciliation shipped. Remaining: align analytics/reporting definitions (late/on-time + continuity rollups) across Employees + Start Next Job. |
+| JX-7 | UX + validation + docs hardening          | —     | Progressive disclosure, clear blockers, success/error toasts, tests, and final docs updates after implementation.                                                        |
 
 ### JX Plan Detail (freeze this before coding)
 
@@ -169,6 +170,8 @@ Use this as the source of truth if chat context resets.
 
 #### JX-5 - Continuity for completed jobs
 
+- **Status**: Completed on 2026-03-30.
+
 - **Advanced flow**
   - Allow reopening completed jobs only as `manual continuity`.
   - Continuity creates a new linked execution segment; original completed record stays intact.
@@ -179,11 +182,14 @@ Use this as the source of truth if chat context resets.
 
 #### JX-6 - Cross-module sync + reporting integrity
 
+- **Status**: In progress (JX-6A completed on 2026-03-30).
+
 - **Consistency checks**
-  - Start Next Job, Employees clock board, hours editor, and history timeline read/write the same lifecycle records.
-  - No duplicate writes, no orphaned hours rows, no stale readiness state.
+  - JX-6A complete: Start Next Job now re-fetches canonical readiness/history/job-options after lifecycle mutations to eliminate optimistic drift.
+  - Remaining: Start Next Job, Employees clock board, hours editor, and history timeline must share the same late/on-time and continuity reporting definitions.
+  - Remaining: no duplicate writes and no orphaned assignment-hours links.
 - **Analytics**
-  - Stats include continuity and late/on-time status correctly.
+  - Remaining: stats include continuity and late/on-time status correctly across modules.
 - **Done when**
   - Same action produces matching state everywhere in app + API.
 

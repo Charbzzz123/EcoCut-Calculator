@@ -44,6 +44,13 @@ export type EmployeeOperatorRole = 'owner' | 'manager';
 export type EmployeeHoursSource = 'manual' | 'clock' | 'assignment';
 export type EmployeeClockAction = 'clock_in' | 'clock_out';
 export type EmployeeLoggedJobStatus = 'scheduled' | 'late' | 'completed';
+export type EmployeeContinuityCategory =
+  | 'issue_return'
+  | 'touch_up'
+  | 'client_change'
+  | 'weather_delay'
+  | 'access_issue'
+  | 'other';
 
 export interface EmployeeLoggedJobOption {
   entryId: string;
@@ -85,6 +92,8 @@ export interface EmployeeStartNextJobAssignmentPayload {
   scheduledEnd: string;
   employeeIds: string[];
   jobEntryId?: string | null;
+  continuityCategory?: EmployeeContinuityCategory | null;
+  continuityReason?: string | null;
 }
 
 export interface EmployeeScheduledHistoryUpdatePayload {
@@ -145,6 +154,9 @@ export interface EmployeeJobHistoryRecord {
   runStartedAt?: string | null;
   runEndedAt?: string | null;
   runClockOutReason?: string | null;
+  continuitySourceHistoryEntryId?: string | null;
+  continuityCategory?: EmployeeContinuityCategory | null;
+  continuityReason?: string | null;
   linkedHoursEntryId?: string | null;
   jobEntryId?: string | null;
   assignmentId?: string | null;
