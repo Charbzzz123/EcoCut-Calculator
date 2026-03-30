@@ -204,6 +204,7 @@
 - **Lifecycle controls**: scheduled history cards now support `Edit schedule` and `Cancel assignment` actions. Edits call `/employees/history/:entryId/schedule`; cancel calls `/employees/history/:entryId/cancel`. Both flows refresh readiness/history and keep linked assignment-hours entries aligned with schedule changes.
 - **Reassignment controls**: scheduled cards support `Reassign to ...` when exactly one different active crew member is selected. Reassign calls `/employees/history/:entryId/reassign`, runs overlap checks, and moves linked assignment-hours entries to the new employee.
 - **Run lifecycle controls**: scheduled history cards now expose explicit runtime controls: `Start job` (opens an active run) and `End job` (closes the run and auto-clocks out remaining crew for that assignment).
+- **Mid-run crew clock-out**: while a run is active, each employee card now exposes `Clock out member` so one person can leave early without ending the full run; optional note text is saved for payroll/audit context.
 - **Active-run guardrails**:
   - Operators cannot select a crew member for a new assignment when that employee is already active on another run.
   - Active runs cannot be edited/cancelled/reassigned until `End job` is executed.
@@ -226,9 +227,6 @@
 
 - **Completed-job continuity guardrail**:
   - Completed jobs remain hidden in normal flow and can only be reused through a dedicated **manual continuity** action to track return visits/issues.
-- **Manual early leave control**:
-  - While a run is active, each employee row supports `Clock out now` (mid-job exit).
-  - Early clock-out supports an optional reason note for payroll/audit context.
 - **Status + tracking outcomes**:
   - Each run tracks planned window vs actual execution and flags `on schedule`, `late`, or `in advance`.
   - Continuity segments append to the same client job lineage for issue-rate and repeat-visit statistics.

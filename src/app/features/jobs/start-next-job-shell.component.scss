@@ -767,6 +767,12 @@
   color: #d9fff2;
 }
 
+.history-card__action--warning {
+  border-color: rgba(245, 196, 116, 0.6);
+  background: rgba(83, 62, 22, 0.78);
+  color: #ffe9bc;
+}
+
 .history-card__action--select {
   border-color: rgba(111, 212, 183, 0.38);
 }

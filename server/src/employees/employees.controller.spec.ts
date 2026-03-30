@@ -23,6 +23,7 @@ describe('EmployeesController', () => {
   const reassignScheduledHistoryEntry = jest.fn();
   const startAssignmentRun = jest.fn();
   const endAssignmentRun = jest.fn();
+  const clockOutAssignmentMember = jest.fn();
 
   const createController = async (): Promise<EmployeesController> => {
     const moduleRef = await Test.createTestingModule({
@@ -51,6 +52,7 @@ describe('EmployeesController', () => {
             reassignScheduledHistoryEntry,
             startAssignmentRun,
             endAssignmentRun,
+            clockOutAssignmentMember,
           },
         },
       ],
@@ -99,6 +101,7 @@ describe('EmployeesController', () => {
     reassignScheduledHistoryEntry.mockResolvedValue({ id: 'job-1' });
     startAssignmentRun.mockResolvedValue({ assignmentId: 'assign-1' });
     endAssignmentRun.mockResolvedValue({ assignmentId: 'assign-1' });
+    clockOutAssignmentMember.mockResolvedValue({ assignmentId: 'assign-1' });
 
     await controller.createEmployeeProfile(
       {
@@ -165,6 +168,11 @@ describe('EmployeesController', () => {
     );
     await controller.startAssignmentRun('job-1', 'manager');
     await controller.endAssignmentRun('job-1', 'manager');
+    await controller.clockOutAssignmentMember(
+      'job-1',
+      { reason: 'Left early' },
+      'manager',
+    );
 
     expect(createEmployeeProfile).toHaveBeenCalledWith(
       expect.any(Object),
@@ -227,6 +235,11 @@ describe('EmployeesController', () => {
     );
     expect(startAssignmentRun).toHaveBeenCalledWith('job-1', 'manager');
     expect(endAssignmentRun).toHaveBeenCalledWith('job-1', 'manager');
+    expect(clockOutAssignmentMember).toHaveBeenCalledWith(
+      'job-1',
+      { reason: 'Left early' },
+      'manager',
+    );
   });
 
   it('defaults unknown role headers to owner', async () => {

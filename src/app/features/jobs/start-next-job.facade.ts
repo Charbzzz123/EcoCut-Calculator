@@ -834,6 +834,7 @@ export class StartNextJobFacade {
         ...existing,
         runStartedAt: nowIso,
         runEndedAt: null,
+        runClockOutReason: null,
       },
     ]);
     try {
@@ -884,6 +885,7 @@ export class StartNextJobFacade {
         status: 'completed',
         runEndedAt: nowIso,
         hoursWorked: durationHours,
+        runClockOutReason: null,
       },
     ]);
     try {
@@ -896,6 +898,71 @@ export class StartNextJobFacade {
       this.restoreBoardSnapshot(snapshot);
       this.saveState.set('error');
       this.saveMessage.set('Unable to end this run right now.');
+      return false;
+    }
+  }
+
+  async clockOutHistoryMember(
+    entryId: string,
+    reason: string | null = null,
+    actorRole: EmployeeOperatorRole = 'owner',
+  ): Promise<boolean> {
+    const existing = this.historySignal().find((entry) => entry.id === entryId);
+    if (!existing) {
+      this.saveState.set('error');
+      this.saveMessage.set('Unable to find this active run member anymore.');
+      return false;
+    }
+    if (!this.canEndHistoryRun(existing)) {
+      this.saveState.set('error');
+      this.saveMessage.set('Only active run members can be clocked out.');
+      return false;
+    }
+
+    const normalizedReason = reason?.trim() || null;
+    const snapshot = this.captureBoardSnapshot();
+    const nowIso = new Date().toISOString();
+    const startIso = existing.runStartedAt ?? existing.scheduledStart;
+    const startedTimestamp = toTimestamp(startIso) ?? Date.now();
+    const endedTimestamp = toTimestamp(nowIso) ?? Date.now();
+    const durationHours = Math.max(
+      0.25,
+      Math.round(((endedTimestamp - startedTimestamp) / 3_600_000) * 4) / 4,
+    );
+    this.saveState.set('saving');
+    this.saveMessage.set('Clocking out crew member...');
+    this.removeSelectedHistoryIds([entryId]);
+    this.applyHistoryUpserts([
+      {
+        ...existing,
+        status: 'completed',
+        runEndedAt: nowIso,
+        hoursWorked: durationHours,
+        runClockOutReason: normalizedReason,
+      },
+    ]);
+    try {
+      const lifecycle = await this.employeesData.clockOutAssignmentMember(
+        entryId,
+        normalizedReason ? { reason: normalizedReason } : {},
+        actorRole,
+      );
+      this.applyHistoryUpserts(lifecycle.updatedHistory);
+      this.saveState.set('success');
+      if (lifecycle.runEndedAt) {
+        this.saveMessage.set(
+          'Crew member clocked out. No active crew remains on this run.',
+        );
+      } else if (normalizedReason) {
+        this.saveMessage.set('Crew member clocked out with note.');
+      } else {
+        this.saveMessage.set('Crew member clocked out.');
+      }
+      return true;
+    } catch {
+      this.restoreBoardSnapshot(snapshot);
+      this.saveState.set('error');
+      this.saveMessage.set('Unable to clock out this crew member right now.');
       return false;
     }
   }

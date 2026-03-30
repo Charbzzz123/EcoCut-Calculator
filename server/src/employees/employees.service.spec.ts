@@ -440,6 +440,85 @@ describe('EmployeesService', () => {
     expect(persistedHours?.clockOutAt).toBeTruthy();
   });
 
+  it('supports manual mid-run clock-out for one employee without ending other active crew', async () => {
+    await service.createEmployeeProfile(
+      {
+        firstName: 'Lina',
+        lastName: 'Sarkis',
+        phone: '(438) 777-7777',
+        email: 'lina@ecocutqc.com',
+        role: 'Crew',
+        hourlyRate: 28,
+      },
+      'owner',
+    );
+    const target = service
+      .listRoster()
+      .find((employee) => employee.fullName === 'Lina Sarkis');
+    expect(target).toBeTruthy();
+
+    const created = await service.createStartNextJobAssignment(
+      {
+        jobLabel: 'Dual crew route',
+        address: '500 Main St',
+        scheduledStart: '2099-03-27T09:00:00.000Z',
+        scheduledEnd: '2099-03-27T11:00:00.000Z',
+        employeeIds: ['emp-owner', target?.id ?? ''],
+      },
+      'owner',
+    );
+    const ownerEntry = created.createdHistory.find(
+      (entry) => entry.employeeId === 'emp-owner',
+    );
+    const targetEntry = created.createdHistory.find(
+      (entry) => entry.employeeId === target?.id,
+    );
+    expect(ownerEntry).toBeTruthy();
+    expect(targetEntry).toBeTruthy();
+
+    await service.startAssignmentRun(ownerEntry?.id ?? '', 'owner');
+
+    const clockedOut = await service.clockOutAssignmentMember(
+      targetEntry?.id ?? '',
+      { reason: 'Left early for appointment' },
+      'manager',
+    );
+    expect(clockedOut.assignmentId).toBe(created.assignmentId);
+    expect(clockedOut.runEndedAt).toBeNull();
+    expect(clockedOut.updatedHistory).toHaveLength(1);
+    expect(clockedOut.updatedHistory[0]?.status).toBe('completed');
+    expect(clockedOut.updatedHistory[0]?.runClockOutReason).toBe(
+      'Left early for appointment',
+    );
+    expect(clockedOut.updatedHours[0]?.clockOutAt).toBeTruthy();
+    expect(clockedOut.updatedHours[0]?.correctionNote).toBe(
+      'Left early for appointment',
+    );
+
+    const persistedTarget = service
+      .listJobHistoryEntries()
+      .find((entry) => entry.id === targetEntry?.id);
+    expect(persistedTarget?.status).toBe('completed');
+    expect(persistedTarget?.runEndedAt).toBeTruthy();
+
+    const persistedOwner = service
+      .listJobHistoryEntries()
+      .find((entry) => entry.id === ownerEntry?.id);
+    expect(persistedOwner?.status).toBe('scheduled');
+    expect(persistedOwner?.runStartedAt).toBeTruthy();
+    expect(persistedOwner?.runEndedAt).toBeNull();
+  });
+
+  it('rejects manual mid-run clock-out when entry is not active', async () => {
+    await expect(
+      service.clockOutAssignmentMember(
+        'job-future-1',
+        { reason: 'Left' },
+        'owner',
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
   it('blocks selecting employees already active on another run', async () => {
     const activeRun = await service.createStartNextJobAssignment(
       {

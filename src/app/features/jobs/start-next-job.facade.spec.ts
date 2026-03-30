@@ -19,6 +19,7 @@ class EmployeesDataServiceStub {
   shouldFailReassign = false;
   shouldFailStartRun = false;
   shouldFailEndRun = false;
+  shouldFailClockOut = false;
   shouldFailCompleteIds = new Set<string>();
   shouldFailCancelIds = new Set<string>();
   assignmentPayloads: unknown[] = [];
@@ -28,6 +29,7 @@ class EmployeesDataServiceStub {
   reassignCalls: { entryId: string; employeeId: string }[] = [];
   startRunCalls: string[] = [];
   endRunCalls: string[] = [];
+  clockOutCalls: { entryId: string; reason: string | null }[] = [];
 
   async listStartNextJobReadiness(): Promise<EmployeeStartNextJobReadiness[]> {
     if (this.shouldFail) {
@@ -198,6 +200,40 @@ class EmployeesDataServiceStub {
           status: 'completed' as const,
           runStartedAt: '2026-03-21T14:05:00.000Z',
           runEndedAt: '2026-03-21T16:10:00.000Z',
+          assignmentId: 'assign-1',
+        },
+      ],
+      updatedHours: [],
+    };
+  }
+
+  async clockOutAssignmentMember(
+    entryId: string,
+    payload: {
+      reason?: string;
+    },
+  ) {
+    this.clockOutCalls.push({ entryId, reason: payload.reason?.trim() ?? null });
+    if (this.shouldFailClockOut) {
+      throw new Error('clock-out-failure');
+    }
+    return {
+      assignmentId: 'assign-1',
+      runStartedAt: '2026-03-21T14:05:00.000Z',
+      runEndedAt: null,
+      updatedHistory: [
+        {
+          id: entryId,
+          employeeId: 'emp-b',
+          siteLabel: 'Downtown',
+          address: '2 Main St',
+          scheduledStart: '2026-03-21T14:00:00.000Z',
+          scheduledEnd: '2026-03-21T17:00:00.000Z',
+          hoursWorked: 1.5,
+          status: 'completed' as const,
+          runStartedAt: '2026-03-21T14:05:00.000Z',
+          runEndedAt: '2026-03-21T15:40:00.000Z',
+          runClockOutReason: payload.reason ?? null,
           assignmentId: 'assign-1',
         },
       ],
@@ -1060,6 +1096,44 @@ describe('StartNextJobFacade', () => {
     expect(dataService.endRunCalls).toEqual(['hist-2']);
     expect(facade.saveState()).toBe('success');
     expect(facade.saveMessage()).toBe('Run ended. Remaining crew members were clocked out.');
+  });
+
+  it('clocks out one active run member with optional note', async () => {
+    await facade.loadBoard();
+    facade.toggleEmployeeSelection('emp-b');
+    await facade.startHistoryRun('hist-2', 'manager');
+
+    await expect(
+      facade.clockOutHistoryMember('hist-2', 'Left early for appointment', 'owner'),
+    ).resolves.toBe(true);
+    expect(dataService.clockOutCalls).toEqual([
+      { entryId: 'hist-2', reason: 'Left early for appointment' },
+    ]);
+    expect(facade.saveState()).toBe('success');
+    expect(facade.saveMessage()).toBe('Crew member clocked out with note.');
+    expect(facade.selectedCrewHistory().find((entry) => entry.id === 'hist-2')?.status).toBe(
+      'completed',
+    );
+  });
+
+  it('surfaces clock-out API failures and restores optimistic state', async () => {
+    await facade.loadBoard();
+    facade.toggleEmployeeSelection('emp-b');
+    await facade.startHistoryRun('hist-2', 'owner');
+    dataService.shouldFailClockOut = true;
+
+    const clockOutPromise = facade.clockOutHistoryMember('hist-2');
+    expect(facade.selectedCrewHistory().find((entry) => entry.id === 'hist-2')?.status).toBe(
+      'completed',
+    );
+    await expect(clockOutPromise).resolves.toBe(false);
+    expect(facade.saveState()).toBe('error');
+    expect(facade.saveMessage()).toBe(
+      'Unable to clock out this crew member right now.',
+    );
+    expect(facade.selectedCrewHistory().find((entry) => entry.id === 'hist-2')?.status).toBe(
+      'scheduled',
+    );
   });
 
   it('blocks editing when a run is already active', async () => {

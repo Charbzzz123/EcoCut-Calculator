@@ -200,6 +200,7 @@ const createFacadeStub = () => ({
   submitAssignment: vi.fn().mockResolvedValue(true),
   startHistoryRun: vi.fn().mockResolvedValue(true),
   endHistoryRun: vi.fn().mockResolvedValue(true),
+  clockOutHistoryMember: vi.fn().mockResolvedValue(true),
   completeHistoryEntry: vi.fn().mockResolvedValue(true),
   completeSelectedHistoryEntries: vi.fn().mockResolvedValue(true),
   beginHistoryEdit: vi.fn(),
@@ -441,6 +442,33 @@ describe('StartNextJobShellComponent', () => {
     ) as HTMLButtonElement;
     cancelButton.click();
     expect(facade.cancelScheduledHistoryEntry).toHaveBeenCalledWith('job-1');
+  });
+
+  it('prompts for optional note before clocking out a run member', () => {
+    facade.loadState.set('ready');
+    facade.selectedCrewHistory.set([
+      {
+        ...historyItem,
+        runStartedAt: '2026-03-21T14:05:00.000Z',
+        runEndedAt: null,
+      },
+    ]);
+    facade.scheduledHistoryCount.set(1);
+    facade.canStartHistoryRun.mockReturnValue(false);
+    facade.canEndHistoryRun.mockReturnValue(true);
+    vi.stubGlobal('prompt', vi.fn().mockReturnValue('Left early'));
+    fixture.detectChanges();
+    setStepFocus('history', fixture);
+
+    const clockOutButton = fixture.nativeElement.querySelector(
+      '.history-card__action--warning',
+    ) as HTMLButtonElement;
+    clockOutButton.click();
+
+    expect(facade.clockOutHistoryMember).toHaveBeenCalledWith(
+      'job-1',
+      'Left early',
+    );
   });
 
   it('keeps analytics export button disabled when no selected history exists', () => {

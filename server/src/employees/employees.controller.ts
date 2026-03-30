@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import type { CreateEmployeeDto } from './dto/create-employee.dto';
 import type { CreateClockActionDto } from './dto/create-clock-action.dto';
+import type { ClockOutAssignmentMemberDto } from './dto/clock-out-assignment-member.dto';
 import type { CreateHoursEntryDto } from './dto/create-hours-entry.dto';
 import type { CreateStartNextJobAssignmentDto } from './dto/create-start-next-job-assignment.dto';
 import type { ReassignScheduledHistoryDto } from './dto/reassign-scheduled-history.dto';
@@ -217,6 +218,19 @@ export class EmployeesController {
   ) {
     return this.employees.endAssignmentRun(
       entryId,
+      this.parseOperatorRole(operatorRole),
+    );
+  }
+
+  @Post('history/:entryId/clock-out')
+  clockOutAssignmentMember(
+    @Param('entryId') entryId: string,
+    @Body() body: ClockOutAssignmentMemberDto,
+    @Headers('x-operator-role') operatorRole?: string,
+  ) {
+    return this.employees.clockOutAssignmentMember(
+      entryId,
+      body,
       this.parseOperatorRole(operatorRole),
     );
   }

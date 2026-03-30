@@ -82,6 +82,17 @@ export class StartNextJobShellComponent implements OnInit {
     this.analyticsPanelExpanded.update((expanded) => !expanded);
   }
 
+  protected clockOutRunMember(entryId: string): void {
+    const note = globalThis.prompt(
+      'Optional clock-out note (leave blank to continue):',
+      '',
+    );
+    if (note === null) {
+      return;
+    }
+    void this.facade.clockOutHistoryMember(entryId, note);
+  }
+
   private scrollToSection(sectionId: string): void {
     setTimeout(() => {
       const section = document.getElementById(sectionId);

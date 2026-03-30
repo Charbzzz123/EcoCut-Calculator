@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import type { CreateEmployeeDto } from './dto/create-employee.dto';
 import type { CreateClockActionDto } from './dto/create-clock-action.dto';
+import type { ClockOutAssignmentMemberDto } from './dto/clock-out-assignment-member.dto';
 import type { CreateHoursEntryDto } from './dto/create-hours-entry.dto';
 import type { CreateStartNextJobAssignmentDto } from './dto/create-start-next-job-assignment.dto';
 import type { ReassignScheduledHistoryDto } from './dto/reassign-scheduled-history.dto';
@@ -259,6 +260,7 @@ export class EmployeesService implements OnModuleInit {
       status: 'scheduled' as const,
       runStartedAt: null,
       runEndedAt: null,
+      runClockOutReason: null,
       jobEntryId: selectedJob?.entryId ?? null,
       assignmentId,
     }));
@@ -357,6 +359,7 @@ export class EmployeesService implements OnModuleInit {
       ...entry,
       runStartedAt: nowIso,
       runEndedAt: null,
+      runClockOutReason: null,
     }));
     const updatedHistoryIds = new Set(updatedHistory.map((entry) => entry.id));
     const updatedHours: EmployeeHoursRecord[] = [];
@@ -447,6 +450,7 @@ export class EmployeesService implements OnModuleInit {
         status: 'completed' as const,
         runEndedAt: nowIso,
         hoursWorked: durationHours,
+        runClockOutReason: null,
       };
     });
     const updatedHistoryIds = new Set(updatedHistory.map((entry) => entry.id));
@@ -498,6 +502,103 @@ export class EmployeesService implements OnModuleInit {
       runStartedAt: activeRunEntries[0]?.runStartedAt ?? null,
       runEndedAt: nowIso,
       updatedHistory,
+      updatedHours,
+    };
+  }
+
+  async clockOutAssignmentMember(
+    entryId: string,
+    payload: ClockOutAssignmentMemberDto,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeAssignmentRunLifecycleResult> {
+    this.assertOwnerOrManager(actorRole);
+    const existing = this.snapshot.history.find(
+      (entry) => entry.id === entryId,
+    );
+    if (!existing) {
+      throw new NotFoundException(`Job history entry "${entryId}" not found.`);
+    }
+    if (!existing.assignmentId) {
+      throw new ConflictException(
+        `Entry "${entryId}" is not part of an assignment run.`,
+      );
+    }
+    if (!this.isRunActive(existing)) {
+      throw new ConflictException(`Entry "${entryId}" is not active in a run.`);
+    }
+
+    const nowIso = new Date().toISOString();
+    const nowTimestamp = toTimestamp(nowIso);
+    const runStartTimestamp =
+      toTimestamp(existing.runStartedAt ?? '') ||
+      toTimestamp(existing.scheduledStart);
+    const durationHours = Math.max(
+      0.25,
+      Math.round(((nowTimestamp - runStartTimestamp) / 3_600_000) * 4) / 4,
+    );
+    const reason = payload.reason?.trim() || null;
+    const updatedHistoryEntry: EmployeeJobHistoryRecord = {
+      ...existing,
+      status: 'completed',
+      runEndedAt: nowIso,
+      hoursWorked: durationHours,
+      runClockOutReason: reason,
+    };
+    const updatedHoursIds = this.findLinkedAssignmentHoursEntryIds(existing);
+    const updatedHours: EmployeeHoursRecord[] = [];
+    const assignmentRunStart =
+      existing.runStartedAt ??
+      this.snapshot.history.find(
+        (entry) =>
+          entry.assignmentId === existing.assignmentId &&
+          entry.status === 'scheduled' &&
+          entry.runStartedAt &&
+          !entry.runEndedAt,
+      )?.runStartedAt ??
+      null;
+
+    this.snapshot = {
+      ...this.snapshot,
+      history: this.snapshot.history.map((entry) =>
+        entry.id === existing.id ? updatedHistoryEntry : entry,
+      ),
+      hours: this.snapshot.hours.map((entry) => {
+        if (!updatedHoursIds.has(entry.id)) {
+          return entry;
+        }
+        const next: EmployeeHoursRecord = {
+          ...entry,
+          workDate: updatedHistoryEntry.scheduledStart.slice(0, 10),
+          hours: updatedHistoryEntry.hoursWorked,
+          clockInAt: updatedHistoryEntry.runStartedAt ?? entry.clockInAt,
+          clockOutAt: nowIso,
+          correctionNote: reason ?? entry.correctionNote ?? null,
+          updatedByRole: actorRole,
+          updatedAt: nowIso,
+        };
+        updatedHours.push(next);
+        return next;
+      }),
+      roster: this.snapshot.roster.map((employee) =>
+        employee.id === updatedHistoryEntry.employeeId
+          ? { ...employee, lastActivityAt: nowIso }
+          : employee,
+      ),
+    };
+    await this.persistSnapshot();
+
+    const remainingActiveEntries = this.snapshot.history.filter(
+      (entry) =>
+        entry.assignmentId === existing.assignmentId &&
+        entry.status === 'scheduled' &&
+        this.isRunActive(entry),
+    );
+
+    return {
+      assignmentId: existing.assignmentId,
+      runStartedAt: assignmentRunStart,
+      runEndedAt: remainingActiveEntries.length ? null : nowIso,
+      updatedHistory: [updatedHistoryEntry],
       updatedHours,
     };
   }
@@ -1263,6 +1364,7 @@ export class EmployeesService implements OnModuleInit {
         ...entry,
         runStartedAt: entry.runStartedAt ?? null,
         runEndedAt: entry.runEndedAt ?? null,
+        runClockOutReason: entry.runClockOutReason ?? null,
         linkedHoursEntryId: entry.linkedHoursEntryId ?? null,
         jobEntryId: entry.jobEntryId ?? null,
         assignmentId: entry.assignmentId ?? null,
@@ -1624,6 +1726,7 @@ export class EmployeesService implements OnModuleInit {
       scheduledEnd: endDate,
       hoursWorked: input.draft.hours,
       status: 'completed',
+      runClockOutReason: null,
       linkedHoursEntryId: input.hoursEntryId,
       jobEntryId: selectedJob.entryId,
       assignmentId: null,

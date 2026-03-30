@@ -63,6 +63,7 @@ export interface EmployeeJobHistoryRecord {
   status: EmployeeJobStatus;
   runStartedAt?: string | null;
   runEndedAt?: string | null;
+  runClockOutReason?: string | null;
   linkedHoursEntryId?: string | null;
   jobEntryId?: string | null;
   assignmentId?: string | null;

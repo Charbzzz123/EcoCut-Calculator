@@ -6,6 +6,7 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 | Task                                                                 | Done       | Notes                                                                                                                                                                                                                                                                                                    |
 | -------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| JX-4 Manual mid-job crew clock-out                                   | 2026-03-30 | Added per-employee `Clock out member` action for active runs (`POST /employees/history/:entryId/clock-out`) with optional reason notes persisted for payroll/audit context, while keeping `End job` for full-run closeout.                                                                               |
 | JX-3 Active run lifecycle (start/end)                                | 2026-03-30 | Added runtime `Start job` / `End job` lifecycle for scheduled assignments with new endpoints (`POST /employees/history/:entryId/start` and `/end`), active-run guards (no edit/cancel/reassign while active), cross-run employee blocking, and synchronized readiness/history/hours updates in API + UI. |
 | JX-2 Job status model + picker defaults                              | 2026-03-30 | Added normalized job-option status (`scheduled`, `late`, `completed`) across API + frontend, sorted picker results by status priority, defaulted the picker to scheduled/late entries, and moved completed entries behind an explicit advanced toggle with matching tests.                               |
 | JX-1 Start Next Job job-first draft flow                             | 2026-03-30 | Reordered `/jobs/start` to open on Job details first, made linked-job mode explicit/required (`linked` vs `manual`), moved selector into primary controls, and updated step gating to `Job -> Crew -> Review` with matching validation/tests.                                                            |
@@ -105,7 +106,6 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 | Step | Task                                      | Owner | Notes                                                                                                                                           |
 | ---- | ----------------------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| JX-4 | Manual mid-job crew clock-out             | —     | Add per-employee early leave action while a job is active (`clock out now`, optional reason). End-job still auto-clocks all remaining crew.     |
 | JX-5 | Continuity runs for completed jobs        | —     | Advanced action: reopen as `manual continuity` segment for issue returns; preserve original completed record and append a linked follow-up run. |
 | JX-6 | Cross-module sync and reporting integrity | —     | Ensure Employees clock board/hours/history, Start Next Job history, and analytics all consume the same assignment lifecycle records.            |
 | JX-7 | UX + validation + docs hardening          | —     | Progressive disclosure, clear blockers, success/error toasts, tests, and final docs updates after implementation.                               |
@@ -156,6 +156,8 @@ Use this as the source of truth if chat context resets.
   - One crew can end a run without blocking other crews from starting another run.
 
 #### JX-4 - Manual mid-job crew clock-out
+
+- **Status**: Completed on 2026-03-30.
 
 - **Behavior**
   - Add per-employee `Clock out now` while run is active.

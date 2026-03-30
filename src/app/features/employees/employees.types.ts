@@ -112,6 +112,10 @@ export interface EmployeeAssignmentRunLifecycleResult {
   updatedHours: EmployeeHoursRecord[];
 }
 
+export interface EmployeeRunMemberClockOutPayload {
+  reason?: string;
+}
+
 export interface EmployeeHoursDraft {
   workDate: string;
   jobEntryId: string;
@@ -140,6 +144,7 @@ export interface EmployeeJobHistoryRecord {
   status: EmployeeJobStatus;
   runStartedAt?: string | null;
   runEndedAt?: string | null;
+  runClockOutReason?: string | null;
   linkedHoursEntryId?: string | null;
   jobEntryId?: string | null;
   assignmentId?: string | null;

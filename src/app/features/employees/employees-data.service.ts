@@ -13,6 +13,7 @@ import type {
   EmployeeRosterRecord,
   EmployeeScheduledHistoryReassignPayload,
   EmployeeScheduledHistoryUpdatePayload,
+  EmployeeRunMemberClockOutPayload,
   EmployeeAssignmentRunLifecycleResult,
   EmployeeStartNextJobAssignmentPayload,
   EmployeeStartNextJobAssignmentResult,
@@ -144,6 +145,22 @@ export class EmployeesDataService {
       this.http.post<EmployeeAssignmentRunLifecycleResult>(
         `${this.baseUrl}/history/${entryId}/end`,
         null,
+        {
+          headers: this.operatorHeaders(actorRole),
+        },
+      ),
+    );
+  }
+
+  async clockOutAssignmentMember(
+    entryId: string,
+    payload: EmployeeRunMemberClockOutPayload,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeAssignmentRunLifecycleResult> {
+    return firstValueFrom(
+      this.http.post<EmployeeAssignmentRunLifecycleResult>(
+        `${this.baseUrl}/history/${entryId}/clock-out`,
+        payload,
         {
           headers: this.operatorHeaders(actorRole),
         },

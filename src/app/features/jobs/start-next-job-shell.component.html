@@ -858,6 +858,9 @@
                 {{ item.scheduledEnd | date: 'h:mm a' }}
               </p>
               <p class="history-card__meta">{{ item.status }} | {{ item.hoursWorked }}h</p>
+              @if (item.runClockOutReason) {
+                <p class="history-card__meta">Clock-out note: {{ item.runClockOutReason }}</p>
+              }
               @if (facade.isRunActive(item)) {
                 <p class="history-card__meta">
                   Run active since
@@ -894,6 +897,14 @@
                       (click)="facade.endHistoryRun(item.id)"
                     >
                       End job
+                    </button>
+                    <button
+                      type="button"
+                      class="history-card__action history-card__action--warning"
+                      [disabled]="facade.saveState() === 'saving'"
+                      (click)="clockOutRunMember(item.id)"
+                    >
+                      Clock out member
                     </button>
                   }
                   <button
