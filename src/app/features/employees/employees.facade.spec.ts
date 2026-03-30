@@ -216,6 +216,29 @@ class EmployeesDataServiceStub {
     return this.jobOptions.map((option) => ({ ...option }));
   }
 
+  async updateScheduledHistoryEntry(
+    entryId: string,
+    payload: {
+      siteLabel: string;
+      address: string;
+      scheduledStart: string;
+      scheduledEnd: string;
+    },
+  ): Promise<EmployeeJobHistoryRecord> {
+    const entry = this.jobHistoryRecords.find((record) => record.id === entryId);
+    if (!entry) {
+      throw new Error('missing');
+    }
+    Object.assign(entry, payload, {
+      hoursWorked:
+        Math.round(
+          ((Date.parse(payload.scheduledEnd) - Date.parse(payload.scheduledStart)) / 3_600_000) *
+            4,
+        ) / 4,
+    });
+    return { ...entry };
+  }
+
   async createEmployeeProfile(payload: {
     firstName: string;
     lastName: string;
@@ -803,6 +826,93 @@ describe('EmployeesFacade', () => {
     facade.closeJobHistory();
     expect(facade.historyPanelOpen()).toBe(false);
     expect(facade.selectedHistoryEmployee()).toBeNull();
+  });
+
+  it('edits scheduled history entries and refreshes summary state', async () => {
+    await facade.loadRoster();
+    facade.openJobHistory('active-1');
+
+    facade.startHistoryEdit('job-active-2');
+    expect(facade.historyEditorOpen()).toBe(true);
+    expect(facade.editingHistoryEntry()?.id).toBe('job-active-2');
+    expect(facade.historyForm.controls.siteLabel.value).toBe('NDG Maple Court');
+
+    facade.historyForm.setValue({
+      siteLabel: 'NDG Maple Court Updated',
+      address: '2390 Sherbrooke St W',
+      scheduledStart: '2099-03-24T09:00',
+      scheduledEnd: '2099-03-24T11:30',
+    });
+
+    await expect(facade.saveHistoryEdit()).resolves.toBe(true);
+    expect(facade.historySuccessSnapshot()).toBe('History schedule updated successfully.');
+    expect(facade.historyEditorOpen()).toBe(false);
+    expect(
+      facade
+        .selectedEmployeeJobHistorySnapshot()
+        .find((entry) => entry.id === 'job-active-2')?.siteLabel,
+    ).toBe('NDG Maple Court Updated');
+
+    facade.cancelHistoryEdit();
+    expect(facade.historyEditorOpen()).toBe(false);
+    expect(facade.historyErrorsSnapshot()).toEqual([]);
+  });
+
+  it('validates history edits and blocks cancelled entries', async () => {
+    await facade.loadRoster();
+    facade.openJobHistory('active-1');
+
+    service.jobHistoryRecords.push({
+      id: 'job-cancelled-1',
+      employeeId: 'active-1',
+      siteLabel: 'Cancelled route',
+      address: '100 Test St',
+      scheduledStart: '2099-03-28T12:00:00Z',
+      scheduledEnd: '2099-03-28T14:00:00Z',
+      hoursWorked: 2,
+      status: 'cancelled',
+    });
+    await facade.loadRoster();
+    facade.openJobHistory('active-1');
+
+    facade.startHistoryEdit('job-cancelled-1');
+    expect(facade.historyEditorOpen()).toBe(false);
+    expect(facade.historyErrorsSnapshot()[0]).toContain('Cancelled history entries');
+
+    facade.startHistoryEdit('job-active-2');
+    facade.historyForm.setValue({
+      siteLabel: '',
+      address: '',
+      scheduledStart: 'invalid',
+      scheduledEnd: '2099-03-24T08:00',
+    });
+    await expect(facade.saveHistoryEdit()).resolves.toBe(false);
+    expect(facade.historySuccessSnapshot()).toBeNull();
+    expect(facade.historyErrorsSnapshot().join(' ')).toContain('Required fields missing');
+    expect(facade.historyErrorsSnapshot().join(' ')).toContain('Scheduled start must be a valid');
+
+    facade.historyForm.setValue({
+      siteLabel: 'Westmount',
+      address: '1450 Pine Ave W',
+      scheduledStart: '2099-03-24T10:00',
+      scheduledEnd: '2099-03-24T09:00',
+    });
+    await expect(facade.saveHistoryEdit()).resolves.toBe(false);
+    expect(facade.historyErrorsSnapshot()[0]).toContain(
+      'Scheduled end must be later than scheduled start.',
+    );
+
+    vi.spyOn(service, 'updateScheduledHistoryEntry').mockRejectedValueOnce({
+      error: { message: 'Updated schedule overlaps "NDG Upper Court".' },
+    });
+    facade.historyForm.setValue({
+      siteLabel: 'Westmount',
+      address: '1450 Pine Ave W',
+      scheduledStart: '2099-03-24T12:15',
+      scheduledEnd: '2099-03-24T13:15',
+    });
+    await expect(facade.saveHistoryEdit()).resolves.toBe(false);
+    expect(facade.historyErrorsSnapshot()[0]).toContain('Updated schedule overlaps');
   });
 
   it('surfaces nested and top-level API messages for profile/archive/restore failures', async () => {

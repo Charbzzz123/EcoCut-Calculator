@@ -334,9 +334,9 @@ export class EmployeesService implements OnModuleInit {
     if (!existing) {
       throw new NotFoundException(`Job history entry "${entryId}" not found.`);
     }
-    if (existing.status !== 'scheduled') {
+    if (existing.status === 'cancelled') {
       throw new ConflictException(
-        `Only scheduled entries can be edited (entry "${entryId}").`,
+        `Cancelled entries cannot be edited (entry "${entryId}").`,
       );
     }
 

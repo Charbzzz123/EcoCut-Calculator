@@ -14,6 +14,7 @@ import type {
   EmployeeOperatorRole,
   EmployeeProfileMutationPayload,
   EmployeeProfileDraft,
+  EmployeeScheduledHistoryUpdatePayload,
   EmployeeStartNextJobReadiness,
   EmployeeRosterRecord,
   EmployeeStatusFilter,
@@ -31,6 +32,26 @@ const toIsoDateFromDateTime = (value: string): string | null => {
   }
   return new Date(parsed).toISOString().slice(0, 10);
 };
+const toIsoDateTime = (value: string): string | null => {
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) {
+    return null;
+  }
+  return new Date(parsed).toISOString();
+};
+const toDateTimeLocal = (value: string): string => {
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) {
+    return '';
+  }
+  const date = new Date(parsed);
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  const hours = `${date.getHours()}`.padStart(2, '0');
+  const minutes = `${date.getMinutes()}`.padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
 const formatHours = (hours: number): string =>
   Number.isInteger(hours) ? `${hours}` : hours.toFixed(2).replace(/\.?0+$/, '');
 const sortHoursByDateDesc = (left: EmployeeHoursRecord, right: EmployeeHoursRecord): number => {
@@ -45,10 +66,31 @@ const sortHistoryByStartDesc = (
   left: EmployeeJobHistoryRecord,
   right: EmployeeJobHistoryRecord,
 ): number => right.scheduledStart.localeCompare(left.scheduledStart);
+const sortHistoryByEditPriority = (
+  left: EmployeeJobHistoryRecord,
+  right: EmployeeJobHistoryRecord,
+): number => {
+  if (left.status !== right.status) {
+    if (left.status === 'scheduled') {
+      return -1;
+    }
+    if (right.status === 'scheduled') {
+      return 1;
+    }
+  }
+  return sortHistoryByStartDesc(left, right);
+};
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phonePattern = /^\(\d{3}\)\s\d{3}-\d{4}$/;
 const MANUAL_CORRECTION_JOB_ID = '__manual__';
+
+interface EmployeeHistoryScheduleDraft {
+  siteLabel: string;
+  address: string;
+  scheduledStart: string;
+  scheduledEnd: string;
+}
 
 type EmployeeClockState = 'clocked_in' | 'clocked_out' | 'inactive';
 
@@ -88,6 +130,13 @@ export class EmployeesFacade {
     hours: new FormControl('', { nonNullable: true }),
   });
 
+  readonly historyForm = new FormGroup({
+    siteLabel: new FormControl('', { nonNullable: true }),
+    address: new FormControl('', { nonNullable: true }),
+    scheduledStart: new FormControl('', { nonNullable: true }),
+    scheduledEnd: new FormControl('', { nonNullable: true }),
+  });
+
   private readonly querySignal: WritableSignal<string> = signal('');
   private readonly statusFilterSignal: WritableSignal<EmployeeStatusFilter> =
     signal<EmployeeStatusFilter>('all');
@@ -122,6 +171,9 @@ export class EmployeesFacade {
   private readonly selectedHistoryEmployeeIdSignal: WritableSignal<string | null> = signal<
     string | null
   >(null);
+  private readonly editingHistoryEntryIdSignal: WritableSignal<string | null> = signal<
+    string | null
+  >(null);
   private readonly selectedHoursJobEntryIdSignal: WritableSignal<string> = signal(
     MANUAL_CORRECTION_JOB_ID,
   );
@@ -130,6 +182,10 @@ export class EmployeesFacade {
   );
   private readonly hoursErrorsSignal: WritableSignal<string[]> = signal<string[]>([]);
   private readonly hoursSuccessSignal: WritableSignal<string | null> = signal<string | null>(null);
+  private readonly historyErrorsSignal: WritableSignal<string[]> = signal<string[]>([]);
+  private readonly historySuccessSignal: WritableSignal<string | null> = signal<string | null>(
+    null,
+  );
   private readonly workspaceNoticeSignal: WritableSignal<string | null> = signal<string | null>(
     null,
   );
@@ -229,9 +285,21 @@ export class EmployeesFacade {
     const entries = this.jobHistoryEntriesSignal().filter(
       (entry) => entry.employeeId === selectedId,
     );
-    entries.sort(sortHistoryByStartDesc);
+    entries.sort(sortHistoryByEditPriority);
     return entries;
   });
+  readonly historyEditorOpen: Signal<boolean> = computed(
+    () => this.editingHistoryEntryIdSignal() !== null,
+  );
+  readonly editingHistoryEntry: Signal<EmployeeJobHistoryRecord | null> = computed(() => {
+    const editingId = this.editingHistoryEntryIdSignal();
+    if (!editingId) {
+      return null;
+    }
+    return this.selectedEmployeeJobHistory().find((entry) => entry.id === editingId) ?? null;
+  });
+  readonly historyErrors: Signal<string[]> = this.historyErrorsSignal.asReadonly();
+  readonly historySuccess: Signal<string | null> = this.historySuccessSignal.asReadonly();
   readonly selectedHistorySummary: Signal<{
     jobsCount: number;
     completedCount: number;
@@ -306,6 +374,14 @@ export class EmployeesFacade {
 
   selectedEmployeeJobHistorySnapshot(): EmployeeJobHistoryRecord[] {
     return this.selectedEmployeeJobHistory();
+  }
+
+  historyErrorsSnapshot(): string[] {
+    return this.historyErrors();
+  }
+
+  historySuccessSnapshot(): string | null {
+    return this.historySuccess();
   }
 
   startNextJobReadinessSnapshot(): EmployeeStartNextJobReadiness[] {
@@ -474,10 +550,14 @@ export class EmployeesFacade {
       return;
     }
     this.selectedHistoryEmployeeIdSignal.set(employee.id);
+    this.editingHistoryEntryIdSignal.set(null);
+    this.historyErrorsSignal.set([]);
+    this.historySuccessSignal.set(null);
   }
 
   closeJobHistory(): void {
     this.selectedHistoryEmployeeIdSignal.set(null);
+    this.cancelHistoryEdit();
   }
 
   closeHoursEditor(): void {
@@ -502,6 +582,79 @@ export class EmployeesFacade {
       correctionNote: entry.correctionNote ?? '',
       hours: formatHours(entry.hours),
     });
+  }
+
+  startHistoryEdit(entryId: string): void {
+    this.clearWorkspaceNotice();
+    const historyEntry = this.selectedEmployeeJobHistory().find((entry) => entry.id === entryId);
+    if (!historyEntry) {
+      return;
+    }
+    if (historyEntry.status === 'cancelled') {
+      this.historySuccessSignal.set(null);
+      this.historyErrorsSignal.set([
+        'Cancelled history entries cannot be edited.',
+      ]);
+      return;
+    }
+
+    this.editingHistoryEntryIdSignal.set(historyEntry.id);
+    this.historyErrorsSignal.set([]);
+    this.historySuccessSignal.set(null);
+    this.historyForm.setValue({
+      siteLabel: historyEntry.siteLabel,
+      address: historyEntry.address,
+      scheduledStart: toDateTimeLocal(historyEntry.scheduledStart),
+      scheduledEnd: toDateTimeLocal(historyEntry.scheduledEnd),
+    });
+    this.historyForm.markAsPristine();
+    this.historyForm.markAsUntouched();
+  }
+
+  cancelHistoryEdit(): void {
+    this.editingHistoryEntryIdSignal.set(null);
+    this.historyErrorsSignal.set([]);
+  }
+
+  async saveHistoryEdit(): Promise<boolean> {
+    this.clearWorkspaceNotice();
+    const editingEntry = this.editingHistoryEntry();
+    if (!editingEntry) {
+      this.historySuccessSignal.set(null);
+      this.historyErrorsSignal.set(['Select a scheduled history entry before saving edits.']);
+      return false;
+    }
+
+    const draft = this.readHistoryDraftFromForm();
+    const validationErrors = this.validateHistoryDraft(draft);
+    if (validationErrors.length) {
+      this.historySuccessSignal.set(null);
+      this.historyErrorsSignal.set(validationErrors);
+      return false;
+    }
+
+    const payload = this.toScheduledHistoryPayload(draft);
+    try {
+      const updated = await this.data.updateScheduledHistoryEntry(
+        editingEntry.id,
+        payload,
+        this.roleSignal(),
+      );
+      this.jobHistoryEntriesSignal.update((entries) =>
+        entries.map((entry) => (entry.id === updated.id ? updated : entry)),
+      );
+      this.historyErrorsSignal.set([]);
+      this.historySuccessSignal.set('History schedule updated successfully.');
+      this.editingHistoryEntryIdSignal.set(null);
+      await this.loadRoster();
+      return true;
+    } catch (error) {
+      this.historySuccessSignal.set(null);
+      this.historyErrorsSignal.set([
+        this.readApiErrorMessage(error, 'Unable to update history schedule.'),
+      ]);
+      return false;
+    }
   }
 
   async removeHoursEntry(entryId: string): Promise<void> {
@@ -907,6 +1060,66 @@ export class EmployeesFacade {
       correctionNote: isManual && normalizedNote ? normalizedNote : undefined,
       jobEntryId: linkedJob?.entryId ?? null,
       hours: Number.parseFloat(normalizedHours),
+    };
+  }
+
+  private readHistoryDraftFromForm(): EmployeeHistoryScheduleDraft {
+    return {
+      siteLabel: this.historyForm.controls.siteLabel.value,
+      address: this.historyForm.controls.address.value,
+      scheduledStart: this.historyForm.controls.scheduledStart.value,
+      scheduledEnd: this.historyForm.controls.scheduledEnd.value,
+    };
+  }
+
+  private validateHistoryDraft(draft: EmployeeHistoryScheduleDraft): string[] {
+    const errors: string[] = [];
+    const missingLabels: string[] = [];
+    if (!draft.siteLabel.trim()) {
+      missingLabels.push('Site label');
+    }
+    if (!draft.address.trim()) {
+      missingLabels.push('Address');
+    }
+    if (!draft.scheduledStart.trim()) {
+      missingLabels.push('Scheduled start');
+    }
+    if (!draft.scheduledEnd.trim()) {
+      missingLabels.push('Scheduled end');
+    }
+    if (missingLabels.length) {
+      errors.push(`Required fields missing: ${missingLabels.join(', ')}.`);
+    }
+
+    const startIso = toIsoDateTime(draft.scheduledStart);
+    const endIso = toIsoDateTime(draft.scheduledEnd);
+    if (draft.scheduledStart.trim() && !startIso) {
+      errors.push('Scheduled start must be a valid date/time.');
+    }
+    if (draft.scheduledEnd.trim() && !endIso) {
+      errors.push('Scheduled end must be a valid date/time.');
+    }
+    if (startIso && endIso && Date.parse(endIso) <= Date.parse(startIso)) {
+      errors.push('Scheduled end must be later than scheduled start.');
+    }
+
+    return errors;
+  }
+
+  private toScheduledHistoryPayload(
+    draft: EmployeeHistoryScheduleDraft,
+  ): EmployeeScheduledHistoryUpdatePayload {
+    const scheduledStartIso = toIsoDateTime(draft.scheduledStart);
+    const scheduledEndIso = toIsoDateTime(draft.scheduledEnd);
+    if (!scheduledStartIso || !scheduledEndIso) {
+      throw new Error('Invalid history schedule payload.');
+    }
+
+    return {
+      siteLabel: draft.siteLabel.trim(),
+      address: draft.address.trim(),
+      scheduledStart: scheduledStartIso,
+      scheduledEnd: scheduledEndIso,
     };
   }
 

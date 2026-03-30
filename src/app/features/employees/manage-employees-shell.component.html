@@ -696,6 +696,99 @@
                   {{ selectedHistorySummary().scheduledCount }} | Total hours:
                   {{ selectedHistorySummary().totalHours }}
                 </p>
+                <p class="employee-inline-panel__meta">
+                  Scheduled and completed entries can be edited. Cancelled entries stay read-only.
+                </p>
+                @if (selectedHistorySummary().jobsCount > 0) {
+                  <div class="history-quick-actions">
+                    <button
+                      type="button"
+                      class="employee-action employee-action--primary"
+                      (click)="editFirstScheduledHistoryEntry()"
+                    >
+                      Edit next editable entry
+                    </button>
+                  </div>
+                }
+
+                @if (historyErrors().length) {
+                  <div class="error-summary" role="alert" aria-live="assertive">
+                    <p>Fix the following before saving history edits:</p>
+                    <ul>
+                      @for (error of historyErrors(); track error) {
+                        <li>{{ error }}</li>
+                      }
+                    </ul>
+                  </div>
+                }
+                @if (historySuccess()) {
+                  <p class="success-summary" role="status" aria-live="polite">
+                    {{ historySuccess() }}
+                  </p>
+                }
+
+                @if (historyEditorOpen() && editingHistoryEntry()) {
+                  <form
+                    class="history-form"
+                    [formGroup]="historyForm"
+                    (ngSubmit)="saveHistoryEdit()"
+                    novalidate
+                  >
+                    <p class="editing-note">
+                      Editing schedule for {{ editingHistoryEntry()!.siteLabel }}.
+                    </p>
+                    <div class="history-grid">
+                      <label class="field">
+                        <span class="field__label">Site label *</span>
+                        <input
+                          class="field__input"
+                          type="text"
+                          formControlName="siteLabel"
+                          required
+                          aria-required="true"
+                        />
+                      </label>
+                      <label class="field">
+                        <span class="field__label">Address *</span>
+                        <input
+                          class="field__input"
+                          type="text"
+                          formControlName="address"
+                          required
+                          aria-required="true"
+                        />
+                      </label>
+                      <label class="field">
+                        <span class="field__label">Scheduled start *</span>
+                        <input
+                          class="field__input"
+                          type="datetime-local"
+                          formControlName="scheduledStart"
+                          required
+                          aria-required="true"
+                        />
+                      </label>
+                      <label class="field">
+                        <span class="field__label">Scheduled end *</span>
+                        <input
+                          class="field__input"
+                          type="datetime-local"
+                          formControlName="scheduledEnd"
+                          required
+                          aria-required="true"
+                        />
+                      </label>
+                    </div>
+                    <div class="editor-actions">
+                      <button type="button" class="employee-action" (click)="cancelHistoryEdit()">
+                        Cancel
+                      </button>
+                      <button type="submit" class="employee-action employee-action--primary">
+                        Save schedule
+                      </button>
+                    </div>
+                  </form>
+                }
 
                 @if (!selectedEmployeeJobHistory().length) {
                   <p class="roster-state workspace-state">
@@ -707,15 +800,41 @@
                       historyEntry of selectedEmployeeJobHistory();
                       track trackByHistoryEntryId($index, historyEntry)
                     ) {
-                      <li class="history-card">
+                      <li
+                        class="history-card"
+                        [class.history-card--editing]="
+                          editingHistoryEntry()?.id === historyEntry.id
+                        "
+                      >
                         <header class="history-card__header">
                           <p class="history-card__site">{{ historyEntry.siteLabel }}</p>
-                          <span
-                            class="status-chip"
-                            [class.status-chip--inactive]="historyEntry.status === 'scheduled'"
-                          >
-                            {{ historyEntry.status === 'completed' ? 'Completed' : 'Scheduled' }}
-                          </span>
+                          <div class="history-card__header-actions">
+                            <span
+                              class="status-chip"
+                              [class.status-chip--inactive]="historyEntry.status === 'scheduled'"
+                            >
+                              {{ historyEntry.status === 'completed' ? 'Completed' : 'Scheduled' }}
+                            </span>
+                            <div class="history-card__actions">
+                              <button
+                                type="button"
+                                class="employee-action"
+                                [disabled]="
+                                  historyEntry.status === 'cancelled' ||
+                                  editingHistoryEntry()?.id === historyEntry.id
+                                "
+                                (click)="startHistoryEdit(historyEntry.id)"
+                              >
+                                @if (editingHistoryEntry()?.id === historyEntry.id) {
+                                  Editing schedule
+                                } @else if (historyEntry.status === 'cancelled') {
+                                  Cancelled (read-only)
+                                } @else {
+                                  Edit schedule
+                                }
+                              </button>
+                            </div>
+                          </div>
                         </header>
                         <p class="history-card__address">{{ historyEntry.address }}</p>
                         <p class="history-card__window">
@@ -1081,6 +1200,20 @@
           <p class="history-context__meta">
             Recent site: {{ selectedHistorySummary().recentSite }}
           </p>
+          <p class="history-context__meta">
+            Scheduled and completed entries can be edited. Cancelled entries stay read-only.
+          </p>
+          @if (selectedHistorySummary().jobsCount > 0) {
+            <div class="history-quick-actions">
+              <button
+                type="button"
+                class="employee-action employee-action--primary"
+                (click)="editFirstScheduledHistoryEntry()"
+              >
+                Edit next editable entry
+              </button>
+            </div>
+          }
         </div>
 
         <section class="history-summary" aria-label="History totals">
@@ -1113,12 +1246,33 @@
               <li class="history-card">
                 <header class="history-card__header">
                   <p class="history-card__site">{{ historyEntry.siteLabel }}</p>
-                  <span
-                    class="status-chip"
-                    [class.status-chip--inactive]="historyEntry.status === 'scheduled'"
-                  >
-                    {{ historyEntry.status === 'completed' ? 'Completed' : 'Scheduled' }}
-                  </span>
+                  <div class="history-card__header-actions">
+                    <span
+                      class="status-chip"
+                      [class.status-chip--inactive]="historyEntry.status === 'scheduled'"
+                    >
+                      {{ historyEntry.status === 'completed' ? 'Completed' : 'Scheduled' }}
+                    </span>
+                    <div class="history-card__actions">
+                      <button
+                        type="button"
+                        class="employee-action"
+                        [disabled]="
+                          historyEntry.status === 'cancelled' ||
+                          editingHistoryEntry()?.id === historyEntry.id
+                        "
+                        (click)="startHistoryEdit(historyEntry.id)"
+                      >
+                        @if (editingHistoryEntry()?.id === historyEntry.id) {
+                          Editing schedule
+                        } @else if (historyEntry.status === 'cancelled') {
+                          Cancelled (read-only)
+                        } @else {
+                          Edit schedule
+                        }
+                      </button>
+                    </div>
+                  </div>
                 </header>
                 <p class="history-card__address">{{ historyEntry.address }}</p>
                 <p class="history-card__window">

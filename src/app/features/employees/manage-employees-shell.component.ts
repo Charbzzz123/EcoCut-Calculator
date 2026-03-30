@@ -27,6 +27,7 @@ export class ManageEmployeesShellComponent implements OnInit {
   readonly roleControl = this.facade.roleControl;
   readonly profileForm = this.facade.profileForm;
   readonly hoursForm = this.facade.hoursForm;
+  readonly historyForm = this.facade.historyForm;
   readonly loadState = this.facade.loadState;
   readonly statusFilter = this.facade.statusFilter;
   readonly operatorRole = this.facade.operatorRole;
@@ -51,6 +52,10 @@ export class ManageEmployeesShellComponent implements OnInit {
   readonly selectedHistoryEmployee = this.facade.selectedHistoryEmployee;
   readonly selectedEmployeeJobHistory = this.facade.selectedEmployeeJobHistory;
   readonly selectedHistorySummary = this.facade.selectedHistorySummary;
+  readonly historyEditorOpen = this.facade.historyEditorOpen;
+  readonly editingHistoryEntry = this.facade.editingHistoryEntry;
+  readonly historyErrors = this.facade.historyErrors;
+  readonly historySuccess = this.facade.historySuccess;
   readonly startNextJobReadiness = this.facade.startNextJobReadiness;
   readonly clockSummaries = this.facade.clockSummaries;
   readonly statsSnapshot = () => this.facade.statsSnapshot();
@@ -125,6 +130,28 @@ export class ManageEmployeesShellComponent implements OnInit {
   protected closeJobHistory(): void {
     this.inlinePanel.set(null);
     this.facade.closeJobHistory();
+  }
+
+  protected startHistoryEdit(entryId: string): void {
+    this.facade.startHistoryEdit(entryId);
+  }
+
+  protected cancelHistoryEdit(): void {
+    this.facade.cancelHistoryEdit();
+  }
+
+  protected saveHistoryEdit(): void {
+    void this.facade.saveHistoryEdit();
+  }
+
+  protected editFirstScheduledHistoryEntry(): void {
+    const nextEditable = this.selectedEmployeeJobHistory().find(
+      (entry) => entry.status !== 'cancelled',
+    );
+    if (!nextEditable) {
+      return;
+    }
+    this.facade.startHistoryEdit(nextEditable.id);
   }
 
   protected clockIn(employeeId: string): void {

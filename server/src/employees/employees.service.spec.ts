@@ -543,6 +543,24 @@ describe('EmployeesService', () => {
     expect(linkedHours?.updatedByRole).toBe('manager');
   });
 
+  it('updates completed history entries when patch is valid', async () => {
+    const updated = await service.updateScheduledHistoryEntry(
+      'job-completed',
+      {
+        siteLabel: 'Westmount revised',
+        address: '1452 Pine Ave W',
+        scheduledStart: '2026-03-19T12:00:00.000Z',
+        scheduledEnd: '2026-03-19T16:30:00.000Z',
+      },
+      'owner',
+    );
+
+    expect(updated.status).toBe('completed');
+    expect(updated.siteLabel).toBe('Westmount revised');
+    expect(updated.address).toBe('1452 Pine Ave W');
+    expect(updated.hoursWorked).toBe(4.5);
+  });
+
   it('cancels scheduled assignment history and removes linked hours entries', async () => {
     const created = await service.createStartNextJobAssignment(
       {
@@ -568,20 +586,7 @@ describe('EmployeesService', () => {
     ).toBe(false);
   });
 
-  it('rejects invalid scheduled history edit/cancel transitions', async () => {
-    await expect(
-      service.updateScheduledHistoryEntry(
-        'job-completed',
-        {
-          siteLabel: 'x',
-          address: 'y',
-          scheduledStart: '2099-03-25T11:00:00.000Z',
-          scheduledEnd: '2099-03-25T10:00:00.000Z',
-        },
-        'owner',
-      ),
-    ).rejects.toBeInstanceOf(ConflictException);
-
+  it('rejects invalid history edit/cancel transitions', async () => {
     await expect(
       service.cancelScheduledHistoryEntry('job-completed', 'owner'),
     ).rejects.toBeInstanceOf(ConflictException);
@@ -598,6 +603,32 @@ describe('EmployeesService', () => {
         'owner',
       ),
     ).rejects.toBeInstanceOf(NotFoundException);
+
+    const created = await service.createStartNextJobAssignment(
+      {
+        jobLabel: 'Cancelled route',
+        address: '111 Test St',
+        scheduledStart: '2099-03-30T09:00:00.000Z',
+        scheduledEnd: '2099-03-30T10:00:00.000Z',
+        employeeIds: ['emp-owner'],
+      },
+      'owner',
+    );
+    const cancelledId = created.createdHistory[0]?.id ?? '';
+    await service.cancelScheduledHistoryEntry(cancelledId, 'owner');
+
+    await expect(
+      service.updateScheduledHistoryEntry(
+        cancelledId,
+        {
+          siteLabel: 'x',
+          address: 'y',
+          scheduledStart: '2099-03-30T10:00:00.000Z',
+          scheduledEnd: '2099-03-30T11:00:00.000Z',
+        },
+        'owner',
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('reassigns scheduled entries and linked assignment hours to another active employee', async () => {

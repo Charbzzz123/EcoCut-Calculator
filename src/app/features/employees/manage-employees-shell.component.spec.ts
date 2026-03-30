@@ -37,6 +37,12 @@ class EmployeesFacadeStub {
     correctionNote: new FormControl('', { nonNullable: true }),
     hours: new FormControl('', { nonNullable: true }),
   });
+  readonly historyForm = new FormGroup({
+    siteLabel: new FormControl('', { nonNullable: true }),
+    address: new FormControl('', { nonNullable: true }),
+    scheduledStart: new FormControl('', { nonNullable: true }),
+    scheduledEnd: new FormControl('', { nonNullable: true }),
+  });
 
   readonly loadRoster = vi.fn(() => Promise.resolve());
   readonly setStatusFilter = vi.fn((filter: EmployeeStatusFilter) => {
@@ -62,7 +68,19 @@ class EmployeesFacadeStub {
     this.selectedHistoryEmployeeIdSignal.set(employeeId);
   });
   readonly closeHoursEditor = vi.fn(() => this.selectedHoursEmployeeIdSignal.set(null));
-  readonly closeJobHistory = vi.fn(() => this.selectedHistoryEmployeeIdSignal.set(null));
+  readonly closeJobHistory = vi.fn(() => {
+    this.selectedHistoryEmployeeIdSignal.set(null);
+    this.editingHistoryEntryIdSignal.set(null);
+    this.historyErrorsSignal.set([]);
+  });
+  readonly startHistoryEdit = vi.fn((entryId: string) => {
+    this.editingHistoryEntryIdSignal.set(entryId);
+  });
+  readonly cancelHistoryEdit = vi.fn(() => {
+    this.editingHistoryEntryIdSignal.set(null);
+    this.historyErrorsSignal.set([]);
+  });
+  readonly saveHistoryEdit = vi.fn(async () => true);
   readonly saveHoursEntry = vi.fn(async () => true);
   readonly editHoursEntry = vi.fn();
   readonly removeHoursEntry = vi.fn();
@@ -110,12 +128,15 @@ class EmployeesFacadeStub {
   private readonly hoursEntriesSignal = signal<EmployeeHoursRecord[]>([]);
   private readonly jobOptionsSignal = signal<EmployeeLoggedJobOption[]>([]);
   private readonly selectedHistoryEmployeeIdSignal = signal<string | null>(null);
+  private readonly editingHistoryEntryIdSignal = signal<string | null>(null);
   private readonly historyEntriesSignal = signal<EmployeeJobHistoryRecord[]>([]);
   private readonly readinessSignal = signal<EmployeeStartNextJobReadiness[]>([]);
   private readonly clockSignal = signal<EmployeeClockSummary[]>([]);
   private readonly editingHoursEntryIdSignal = signal<string | null>(null);
   private readonly hoursErrorsSignal = signal<string[]>([]);
   private readonly hoursSuccessSignal = signal<string | null>(null);
+  private readonly historyErrorsSignal = signal<string[]>([]);
+  private readonly historySuccessSignal = signal<string | null>(null);
   private stats = { total: 0, active: 0, inactive: 0 };
 
   readonly rosterSnapshot = vi.fn(() => this.rosterSignal());
@@ -159,6 +180,13 @@ class EmployeesFacadeStub {
     this.historyEntriesSignal().filter(
       (entry) => entry.employeeId === this.selectedHistoryEmployeeIdSignal(),
     );
+  readonly historyEditorOpen = () => this.editingHistoryEntryIdSignal() !== null;
+  readonly editingHistoryEntry = () =>
+    this.selectedEmployeeJobHistory().find(
+      (entry) => entry.id === this.editingHistoryEntryIdSignal(),
+    ) ?? null;
+  readonly historyErrors = this.historyErrorsSignal.asReadonly();
+  readonly historySuccess = this.historySuccessSignal.asReadonly();
   readonly selectedHistorySummary = () => {
     const entries = this.selectedEmployeeJobHistory();
     const completedCount = entries.filter((entry) => entry.status === 'completed').length;
@@ -195,6 +223,9 @@ class EmployeesFacadeStub {
     editingHoursEntryId?: string | null;
     hoursErrors?: string[];
     hoursSuccess?: string | null;
+    editingHistoryEntryId?: string | null;
+    historyErrors?: string[];
+    historySuccess?: string | null;
   }): void {
     if (options.loadState) {
       this.loadStateSignal.set(options.loadState);
@@ -259,6 +290,15 @@ class EmployeesFacadeStub {
     }
     if (options.hoursSuccess !== undefined) {
       this.hoursSuccessSignal.set(options.hoursSuccess);
+    }
+    if (options.editingHistoryEntryId !== undefined) {
+      this.editingHistoryEntryIdSignal.set(options.editingHistoryEntryId);
+    }
+    if (options.historyErrors) {
+      this.historyErrorsSignal.set(options.historyErrors);
+    }
+    if (options.historySuccess !== undefined) {
+      this.historySuccessSignal.set(options.historySuccess);
     }
   }
 }
@@ -793,6 +833,57 @@ describe('ManageEmployeesShellComponent', () => {
     fixture.detectChanges();
 
     expect(native.querySelector('.history-card .status-chip')?.textContent).toContain('Scheduled');
+    const editSchedule = native.querySelector(
+      '.history-card__actions .employee-action',
+    ) as HTMLButtonElement;
+    editSchedule.click();
+    expect(facade.startHistoryEdit).toHaveBeenCalledWith('history-2');
+  });
+
+  it('renders inline history editor and forwards save/cancel actions', () => {
+    facade.setViewModel({
+      loadState: 'ready',
+      roster: [activeRecord],
+      filteredRoster: [activeRecord],
+      selectedHistoryEmployeeId: activeRecord.id,
+      historyEntries: [scheduledHistoryEntry],
+      editingHistoryEntryId: scheduledHistoryEntry.id,
+      historyErrors: ['Scheduled end must be later than scheduled start.'],
+      historySuccess: 'History schedule updated successfully.',
+    });
+    facade.historyForm.setValue({
+      siteLabel: 'NDG Maple Court',
+      address: '2331 Sherbrooke St W',
+      scheduledStart: '2026-03-24T08:00',
+      scheduledEnd: '2026-03-24T10:00',
+    });
+
+    const fixture = TestBed.createComponent(ManageEmployeesShellComponent);
+    fixture.detectChanges();
+    const native = fixture.nativeElement as HTMLElement;
+    (native.querySelector('.employees-roster .employee-card') as HTMLElement).click();
+    fixture.detectChanges();
+    const cardActions = native.querySelectorAll('.employee-card__actions .employee-action');
+    (cardActions[0] as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(native.querySelector('.history-form')).toBeTruthy();
+    expect(native.querySelector('.error-summary')?.textContent).toContain(
+      'Fix the following before saving history edits',
+    );
+    expect(native.querySelector('.success-summary')?.textContent).toContain(
+      'History schedule updated successfully.',
+    );
+
+    const historyForm = native.querySelector('.history-form') as HTMLFormElement;
+    historyForm.dispatchEvent(new Event('submit'));
+    expect(facade.saveHistoryEdit).toHaveBeenCalled();
+
+    const cancelButton = native.querySelector(
+      '.history-form .employee-action',
+    ) as HTMLButtonElement;
+    cancelButton.click();
+    expect(facade.cancelHistoryEdit).toHaveBeenCalled();
   });
 
   it('shows empty history state when selected employee has no timeline entries', () => {
