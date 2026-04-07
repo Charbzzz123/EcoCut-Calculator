@@ -46,12 +46,16 @@
 .back-chip {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   gap: 0.5rem;
   padding: 0.65rem 1.2rem;
   border-radius: 999px;
   border: 1px solid var(--border-strong);
   text-decoration: none;
   font-weight: 600;
+  white-space: nowrap;
+  line-height: 1.15;
   color: var(--text-inverse);
   background: var(--gradient-accent);
   box-shadow: 0 12px 26px var(--surface-glow);

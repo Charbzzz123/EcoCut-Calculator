@@ -21,16 +21,10 @@
 
 .employees-shell__header {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: space-between;
   align-items: flex-start;
   gap: 0.9rem;
-}
-
-.employees-shell__header app-back-chip {
-  opacity: 0.85;
-  transform: scale(0.92);
-  transform-origin: top right;
 }
 
 .hero-copy {
@@ -913,6 +907,10 @@ h1 {
 }
 
 @media (max-width: 760px) {
+  .employees-shell__header {
+    flex-direction: column;
+  }
+
   .employees-toolbar__row {
     grid-template-columns: 1fr;
   }

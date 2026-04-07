@@ -230,6 +230,7 @@ Use this as the source of truth if chat context resets.
 
 ## To Eventually Do
 
-| Task                                       | Owner | Notes                                                                                            |
-| ------------------------------------------ | ----- | ------------------------------------------------------------------------------------------------ |
-| Migrate EntriesRepository to real database | —     | Replace file-based persistence with SQLite/Postgres via a managed ORM (e.g., Prisma) when ready. |
+| Task                                       | Owner | Notes                                                                                                                                                                                                                  |
+| ------------------------------------------ | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Migrate EntriesRepository to real database | —     | Replace file-based persistence with SQLite/Postgres via a managed ORM (e.g., Prisma) when ready.                                                                                                                       |
+| Centralize job display labels + snapshots  | —     | Add canonical `displayLabel` read model (client + job type) and optional `clientNameSnapshot` on history rows so labels stay consistent across Start Next Job, history, and reports even if client names change later. |
