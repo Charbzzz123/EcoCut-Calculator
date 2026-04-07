@@ -641,6 +641,62 @@ describe('StartNextJobShellComponent', () => {
     expect(facade.clearCrewSelection).toHaveBeenCalled();
   });
 
+  it('renders blocker affordance buttons and routes to the right step', () => {
+    facade.loadState.set('ready');
+    facade.hasJobModeSelection.set(true);
+    facade.selectedCrew.set([employee]);
+    facade.draftValidation.set({
+      isReady: false,
+      blockingReasons: [
+        'Select at least one employee for the crew.',
+        'Job label is required.',
+      ],
+    });
+    fixture.detectChanges();
+    setStepFocus('review', fixture);
+
+    const actionButtons = fixture.nativeElement.querySelectorAll(
+      '.validation-box__action',
+    ) as NodeListOf<HTMLButtonElement>;
+    expect(actionButtons.length).toBe(2);
+    expect(actionButtons[0]?.textContent).toContain('Go to Step 2');
+    expect(actionButtons[1]?.textContent).toContain('Fix in Step 1');
+
+    actionButtons[0]?.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Step 2 - Crew pool');
+
+    setStepFocus('review', fixture);
+    const refreshedButtons = fixture.nativeElement.querySelectorAll(
+      '.validation-box__action',
+    ) as NodeListOf<HTMLButtonElement>;
+    refreshedButtons[1]?.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Step 1 - Job details');
+  });
+
+  it('opens draft advanced controls from continuity blocker action', () => {
+    facade.loadState.set('ready');
+    facade.hasJobModeSelection.set(true);
+    facade.selectedCrew.set([employee]);
+    facade.draftValidation.set({
+      isReady: false,
+      blockingReasons: ['Continuity reason is required when using a completed linked job.'],
+    });
+    fixture.detectChanges();
+    setStepFocus('review', fixture);
+
+    const actionButton = fixture.nativeElement.querySelector(
+      '.validation-box__action',
+    ) as HTMLButtonElement;
+    expect(actionButton.textContent).toContain('Open continuity');
+    actionButton.click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Step 1 - Job details');
+    expect(fixture.nativeElement.textContent).toContain('Hide advanced');
+  });
+
   it('renders linked job selector in draft step and forwards linked-job changes', () => {
     facade.loadState.set('ready');
     facade.hasJobModeSelection.set(true);

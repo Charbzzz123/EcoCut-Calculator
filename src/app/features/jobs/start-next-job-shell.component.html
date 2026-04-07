@@ -482,7 +482,18 @@
               <p>Draft is blocked until these are fixed:</p>
               <ul>
                 @for (reason of facade.draftValidation().blockingReasons; track reason) {
-                  <li>{{ reason }}</li>
+                  <li>
+                    <span>{{ reason }}</span>
+                    @if (blockerActionLabel(reason); as actionLabel) {
+                      <button
+                        type="button"
+                        class="ghost-btn validation-box__action"
+                        (click)="handleBlockerAction(reason)"
+                      >
+                        {{ actionLabel }}
+                      </button>
+                    }
+                  </li>
                 }
               </ul>
             </div>

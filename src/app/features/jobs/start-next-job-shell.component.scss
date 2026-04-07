@@ -744,6 +744,19 @@
   gap: 0.4rem;
 }
 
+.validation-box li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.validation-box__action {
+  padding: 0.24rem 0.62rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
 .history-card__employee {
   font-weight: 600;
 }

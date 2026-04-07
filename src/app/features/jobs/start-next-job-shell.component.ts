@@ -93,6 +93,58 @@ export class StartNextJobShellComponent implements OnInit {
     void this.facade.clockOutHistoryMember(entryId, note);
   }
 
+  protected blockerActionLabel(reason: string): string | null {
+    if (
+      reason === 'Select a linked job mode (linked client job or manual mode).' ||
+      reason === 'Job label is required.' ||
+      reason === 'Job address is required.' ||
+      reason === 'Scheduled start and end are required.' ||
+      reason === 'Scheduled end must be after scheduled start.'
+    ) {
+      return 'Fix in Step 1';
+    }
+    if (
+      reason === 'Select at least one employee for the crew.' ||
+      reason === 'Resolve crew conflicts before creating the assignment draft.'
+    ) {
+      return 'Go to Step 2';
+    }
+    if (
+      reason === 'Continuity category is required when using a completed linked job.' ||
+      reason === 'Continuity reason is required when using a completed linked job.'
+    ) {
+      return 'Open continuity';
+    }
+    return null;
+  }
+
+  protected handleBlockerAction(reason: string): void {
+    if (
+      reason === 'Select at least one employee for the crew.' ||
+      reason === 'Resolve crew conflicts before creating the assignment draft.'
+    ) {
+      this.setStepFocus('crew');
+      return;
+    }
+    if (
+      reason === 'Continuity category is required when using a completed linked job.' ||
+      reason === 'Continuity reason is required when using a completed linked job.'
+    ) {
+      this.setStepFocus('draft');
+      this.draftAdvancedExpanded.set(true);
+      return;
+    }
+    if (
+      reason === 'Select a linked job mode (linked client job or manual mode).' ||
+      reason === 'Job label is required.' ||
+      reason === 'Job address is required.' ||
+      reason === 'Scheduled start and end are required.' ||
+      reason === 'Scheduled end must be after scheduled start.'
+    ) {
+      this.setStepFocus('draft');
+    }
+  }
+
   private scrollToSection(sectionId: string): void {
     setTimeout(() => {
       const section = document.getElementById(sectionId);
