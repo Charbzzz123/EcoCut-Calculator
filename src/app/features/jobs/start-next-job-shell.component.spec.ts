@@ -55,6 +55,9 @@ const createFacadeStub = () => ({
   headingId: 'start-next-job-heading',
   manualJobModeValue: '__manual__',
   queryControl: new FormControl('', { nonNullable: true }),
+  dispatchModeControl: new FormControl<'start_now' | 'schedule_later'>('start_now', {
+    nonNullable: true,
+  }),
   linkedJobEntryIdControl: new FormControl('', { nonNullable: true }),
   jobLabelControl: new FormControl('', { nonNullable: true }),
   addressControl: new FormControl('', { nonNullable: true }),
@@ -100,6 +103,11 @@ const createFacadeStub = () => ({
     status: 'scheduled' | 'late' | 'completed';
   } | null>(null),
   hasJobModeSelection: signal(false),
+  isStartNowMode: signal(true),
+  isScheduleLaterMode: signal(false),
+  dispatchTimingSummary: signal(
+    'Starts now: Apr 7, 2026, 3:00 PM -> Apr 7, 2026, 4:00 PM (1h).',
+  ),
   isManualJobSelection: signal(false),
   hasLinkedJobSelection: signal(false),
   requiresContinuityDetails: signal(false),
@@ -212,6 +220,8 @@ const createFacadeStub = () => ({
   setAnalyticsWindow: vi.fn(),
   markAnalyticsWindowCustom: vi.fn(),
   applyLinkedJobSelection: vi.fn(),
+  setDispatchMode: vi.fn(),
+  refreshStartNowSchedule: vi.fn(),
   toggleCompletedJobOptions: vi.fn(),
   loadBoard: vi.fn().mockResolvedValue(undefined),
   submitAssignment: vi.fn().mockResolvedValue(true),
@@ -287,6 +297,21 @@ describe('StartNextJobShellComponent', () => {
     setStepFocus('crew', fixture);
     expect(fixture.nativeElement.textContent).toContain('Start Next Job');
     expect(fixture.nativeElement.textContent).toContain('Loading readiness data');
+    expect(facade.refreshStartNowSchedule).toHaveBeenCalled();
+  });
+
+  it('renders dispatch timing controls and forwards mode changes', () => {
+    facade.loadState.set('ready');
+    facade.hasJobModeSelection.set(true);
+    fixture.detectChanges();
+    setStepFocus('draft', fixture);
+
+    const modeButtons = fixture.nativeElement.querySelectorAll(
+      '.dispatch-mode__actions .ghost-btn',
+    ) as NodeListOf<HTMLButtonElement>;
+    expect(modeButtons.length).toBe(2);
+    modeButtons[1]?.click();
+    expect(facade.setDispatchMode).toHaveBeenCalledWith('schedule_later');
   });
 
   it('renders error state and allows retry', () => {
@@ -635,7 +660,7 @@ describe('StartNextJobShellComponent', () => {
     setStepFocus('draft', fixture);
 
     const clearButton = fixture.nativeElement.querySelector(
-      '.draft-actions__secondary .ghost-btn:nth-of-type(2)',
+      '.draft-actions__secondary .ghost-btn:first-of-type',
     ) as HTMLButtonElement;
     clearButton.click();
     expect(facade.clearCrewSelection).toHaveBeenCalled();

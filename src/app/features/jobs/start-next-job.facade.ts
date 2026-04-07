@@ -20,6 +20,7 @@ import type {
   ReadinessPill,
   RouteAssignmentVarianceSnapshot,
   SelectedCrewHistoryItem,
+  StartNextJobDispatchMode,
   StartNextJobAnalyticsWindow,
   StartNextJobLoadState,
   StartNextJobSaveState,
@@ -73,6 +74,7 @@ const escapeCsvCell = (value: string | number): string => {
   return `"${normalized}"`;
 };
 const MANUAL_JOB_MODE = '__manual__';
+const DEFAULT_SCHEDULE_DURATION_MS = 60 * 60 * 1000;
 const continuityCategoryOptions: readonly {
   value: EmployeeContinuityCategory;
   label: string;
@@ -93,6 +95,9 @@ export class StartNextJobFacade {
   readonly manualJobModeValue = MANUAL_JOB_MODE;
 
   readonly queryControl = new FormControl('', { nonNullable: true });
+  readonly dispatchModeControl = new FormControl<StartNextJobDispatchMode>('start_now', {
+    nonNullable: true,
+  });
   readonly linkedJobEntryIdControl = new FormControl('', { nonNullable: true });
   readonly jobLabelControl = new FormControl('', { nonNullable: true });
   readonly addressControl = new FormControl('', { nonNullable: true });
@@ -102,6 +107,9 @@ export class StartNextJobFacade {
   readonly continuityReasonControl = new FormControl('', { nonNullable: true });
   private readonly queryValue = toSignal(this.queryControl.valueChanges, {
     initialValue: this.queryControl.value,
+  });
+  private readonly dispatchModeValue = toSignal(this.dispatchModeControl.valueChanges, {
+    initialValue: this.dispatchModeControl.value,
   });
   private readonly linkedJobEntryIdValue = toSignal(this.linkedJobEntryIdControl.valueChanges, {
     initialValue: this.linkedJobEntryIdControl.value,
@@ -152,6 +160,7 @@ export class StartNextJobFacade {
 
   constructor() {
     this.setAnalyticsWindow('30d');
+    this.refreshStartNowSchedule();
   }
 
   readonly readinessSnapshot = computed(() => this.readinessSignal());
@@ -198,25 +207,41 @@ export class StartNextJobFacade {
       return true;
     }
     const entryId = this.linkedJobEntryIdValue().trim();
-    if (!entryId) {
-      return false;
-    }
-    if (entryId === MANUAL_JOB_MODE) {
-      return true;
-    }
-    return this.loggedJobOptions().some((option) => option.entryId === entryId);
+    return Boolean(entryId);
   });
   readonly isManualJobSelection = computed(
     () => this.linkedJobEntryIdValue().trim() === MANUAL_JOB_MODE,
   );
   readonly hasLinkedJobSelection = computed(() => Boolean(this.selectedLinkedJob()));
+  readonly isStartNowMode = computed(() => this.dispatchModeValue() === 'start_now');
+  readonly isScheduleLaterMode = computed(() => this.dispatchModeValue() === 'schedule_later');
+  readonly dispatchTimingLabel = computed(() =>
+    this.isStartNowMode() ? 'Starts now' : 'Scheduled for later',
+  );
+  readonly dispatchTimingSummary = computed(() => {
+    const start = this.scheduledStartValue();
+    const end = this.scheduledEndValue();
+    if (!start || !end) {
+      return 'Set a linked job mode to establish timing.';
+    }
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      return 'Set valid start and end values.';
+    }
+    const durationMinutes = Math.max(0, Math.round((endDate.getTime() - startDate.getTime()) / 60000));
+    const durationText =
+      durationMinutes % 60 === 0
+        ? `${durationMinutes / 60}h`
+        : `${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m`;
+    return `${this.dispatchTimingLabel()}: ${startDate.toLocaleString()} -> ${endDate.toLocaleString()} (${durationText}).`;
+  });
   readonly continuityCategoryOptions = continuityCategoryOptions;
   readonly requiresContinuityDetails = computed(
     () => this.selectedLinkedJob()?.status === 'completed',
   );
   readonly linkedScheduleReadOnly = computed(() => {
-    const selectedJob = this.selectedLinkedJob();
-    return Boolean(selectedJob && selectedJob.status !== 'completed');
+    return this.isStartNowMode();
   });
   readonly selectedEmployeeIds = computed(() => this.selectedEmployeeIdsSignal());
   readonly selectedHistoryEntryIds = computed(() => this.selectedHistoryEntryIdsSignal());
@@ -592,34 +617,54 @@ export class StartNextJobFacade {
     this.selectedHistoryEntryIdsSignal.set([]);
   }
 
+  setDispatchMode(mode: StartNextJobDispatchMode, now = new Date()): void {
+    if (this.dispatchModeControl.value === mode) {
+      return;
+    }
+    this.dispatchModeControl.setValue(mode);
+    if (this.hasJobModeSelection()) {
+      this.applyLinkedJobSelection(now);
+      return;
+    }
+    this.refreshStartNowSchedule(now);
+  }
+
+  refreshStartNowSchedule(now = new Date()): void {
+    if (!this.isStartNowMode()) {
+      return;
+    }
+    const selectedLinkedJob = this.selectedLinkedJob();
+    const duration = this.resolveScheduleDurationMs(selectedLinkedJob);
+    this.applyScheduleWindow(now, duration);
+  }
+
   applyLinkedJobSelection(now = new Date()): void {
     this.clearSaveFeedback();
     const selectedJobId = this.linkedJobEntryIdControl.value.trim();
     if (!selectedJobId || selectedJobId === MANUAL_JOB_MODE) {
+      this.refreshStartNowSchedule(now);
       this.clearContinuityInputs();
       return;
     }
     const selectedJob = this.selectedLinkedJob();
     if (!selectedJob) {
+      this.refreshStartNowSchedule(now);
       this.clearContinuityInputs();
       return;
     }
     this.jobLabelControl.setValue(selectedJob.siteLabel);
     this.addressControl.setValue(selectedJob.address);
-    if (selectedJob.status === 'late') {
+    if (this.isStartNowMode()) {
+      this.applyScheduleWindow(now, this.resolveScheduleDurationMs(selectedJob));
+    } else if (selectedJob.status === 'late') {
       const startTimestamp = now.getTime();
       const originalStart = toTimestamp(selectedJob.scheduledStart);
       const originalEnd = toTimestamp(selectedJob.scheduledEnd);
       const duration =
         originalStart && originalEnd && originalEnd > originalStart
           ? originalEnd - originalStart
-          : 3_600_000;
-      this.scheduledStartControl.setValue(
-        toDateTimeLocal(new Date(startTimestamp).toISOString()),
-      );
-      this.scheduledEndControl.setValue(
-        toDateTimeLocal(new Date(startTimestamp + duration).toISOString()),
-      );
+          : DEFAULT_SCHEDULE_DURATION_MS;
+      this.applyScheduleWindow(new Date(startTimestamp), duration);
     } else {
       this.scheduledStartControl.setValue(toDateTimeLocal(selectedJob.scheduledStart));
       this.scheduledEndControl.setValue(toDateTimeLocal(selectedJob.scheduledEnd));
@@ -700,6 +745,7 @@ export class StartNextJobFacade {
   }
 
   async submitAssignment(actorRole: EmployeeOperatorRole = 'owner'): Promise<boolean> {
+    this.refreshStartNowSchedule();
     const validation = this.draftValidation();
     if (!validation.isReady) {
       this.saveState.set('error');
@@ -731,6 +777,7 @@ export class StartNextJobFacade {
     if (entry.status !== 'scheduled' || this.isRunActive(entry)) {
       return;
     }
+    this.dispatchModeControl.setValue('schedule_later');
     this.editingHistoryEntryId.set(entry.id);
     this.linkedJobEntryIdControl.setValue(entry.jobEntryId ?? MANUAL_JOB_MODE);
     this.jobLabelControl.setValue(entry.siteLabel);
@@ -1513,6 +1560,43 @@ export class StartNextJobFacade {
     return conflicts;
   }
 
+  private resolveScheduleDurationMs(
+    selectedJob: EmployeeLoggedJobOption | null,
+  ): number {
+    const linkedJobDuration = this.getLinkedJobDurationMs(selectedJob);
+    if (linkedJobDuration !== null) {
+      return linkedJobDuration;
+    }
+    const startTimestamp = toTimestamp(this.scheduledStartControl.value);
+    const endTimestamp = toTimestamp(this.scheduledEndControl.value);
+    if (startTimestamp && endTimestamp && endTimestamp > startTimestamp) {
+      return endTimestamp - startTimestamp;
+    }
+    return DEFAULT_SCHEDULE_DURATION_MS;
+  }
+
+  private getLinkedJobDurationMs(
+    selectedJob: EmployeeLoggedJobOption | null,
+  ): number | null {
+    if (!selectedJob) {
+      return null;
+    }
+    const startTimestamp = toTimestamp(selectedJob.scheduledStart);
+    const endTimestamp = toTimestamp(selectedJob.scheduledEnd);
+    if (!startTimestamp || !endTimestamp || endTimestamp <= startTimestamp) {
+      return null;
+    }
+    return endTimestamp - startTimestamp;
+  }
+
+  private applyScheduleWindow(now: Date, durationMs: number): void {
+    const safeDuration = durationMs > 0 ? durationMs : DEFAULT_SCHEDULE_DURATION_MS;
+    const startIso = now.toISOString();
+    const endIso = new Date(now.getTime() + safeDuration).toISOString();
+    this.scheduledStartControl.setValue(toDateTimeLocal(startIso));
+    this.scheduledEndControl.setValue(toDateTimeLocal(endIso));
+  }
+
   private buildAssignmentPayload(): EmployeeStartNextJobAssignmentPayload {
     const linkedEntryId = this.linkedJobEntryIdControl.value.trim();
     const continuityCategory = this.resolveContinuityCategory(
@@ -1678,12 +1762,12 @@ export class StartNextJobFacade {
   private resetDraftAfterSave(): void {
     this.selectedEmployeeIdsSignal.set([]);
     this.selectedHistoryEntryIdsSignal.set([]);
+    this.dispatchModeControl.setValue('start_now');
     this.queryControl.setValue('');
     this.linkedJobEntryIdControl.setValue('');
     this.jobLabelControl.setValue('');
     this.addressControl.setValue('');
-    this.scheduledStartControl.setValue('');
-    this.scheduledEndControl.setValue('');
+    this.refreshStartNowSchedule();
     this.clearContinuityInputs();
   }
 

@@ -6,6 +6,7 @@ import type {
 
 export type StartNextJobLoadState = 'loading' | 'ready' | 'error';
 export type StartNextJobSaveState = 'idle' | 'saving' | 'success' | 'error';
+export type StartNextJobDispatchMode = 'start_now' | 'schedule_later';
 
 export interface CrewConflict {
   employeeId: string;

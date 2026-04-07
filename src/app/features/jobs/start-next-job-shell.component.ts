@@ -50,6 +50,9 @@ export class StartNextJobShellComponent implements OnInit {
       return;
     }
     this.stepFocus.set(step);
+    if (step === 'crew' || step === 'review') {
+      this.facade.refreshStartNowSchedule();
+    }
     if (step === 'review') {
       this.analyticsPanelExpanded.set(true);
     }

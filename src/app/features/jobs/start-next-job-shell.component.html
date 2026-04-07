@@ -127,6 +127,32 @@
       <div class="draft-groups">
         <section class="draft-group draft-group--primary" aria-label="Primary draft details">
           <p class="draft-group__label">Primary details</p>
+          <div class="dispatch-mode" role="group" aria-label="Dispatch timing mode">
+            <span class="dispatch-mode__label">Dispatch timing</span>
+            <div class="dispatch-mode__actions">
+              <button
+                type="button"
+                class="ghost-btn"
+                [class.dispatch-mode__action--active]="facade.isStartNowMode()"
+                [attr.aria-pressed]="facade.isStartNowMode()"
+                (click)="facade.setDispatchMode('start_now')"
+              >
+                Start now
+              </button>
+              <button
+                type="button"
+                class="ghost-btn"
+                [class.dispatch-mode__action--active]="facade.isScheduleLaterMode()"
+                [attr.aria-pressed]="facade.isScheduleLaterMode()"
+                (click)="facade.setDispatchMode('schedule_later')"
+              >
+                Schedule later
+              </button>
+            </div>
+          </div>
+          <p class="field__hint">
+            {{ facade.dispatchTimingSummary() }}
+          </p>
           <div class="draft-grid">
             <label class="field">
               <span class="field__label">Linked client job mode *</span>
@@ -192,8 +218,13 @@
                 aria-required="true"
               />
             </label>
-            <label class="field">
-              <span class="field__label">Scheduled start *</span>
+            <label class="field" [class.field--auto]="facade.linkedScheduleReadOnly()">
+              <span class="field__label">
+                {{ facade.isStartNowMode() ? 'Dispatch start (auto)' : 'Scheduled start *' }}
+                @if (facade.linkedScheduleReadOnly()) {
+                  <span class="field__auto-pill">Locked</span>
+                }
+              </span>
               <input
                 class="field__input"
                 type="datetime-local"
@@ -203,8 +234,13 @@
                 aria-required="true"
               />
             </label>
-            <label class="field">
-              <span class="field__label">Scheduled end *</span>
+            <label class="field" [class.field--auto]="facade.linkedScheduleReadOnly()">
+              <span class="field__label">
+                {{ facade.isStartNowMode() ? 'Estimated end (auto)' : 'Scheduled end *' }}
+                @if (facade.linkedScheduleReadOnly()) {
+                  <span class="field__auto-pill">Locked</span>
+                }
+              </span>
               <input
                 class="field__input"
                 type="datetime-local"
@@ -309,14 +345,6 @@
 
       <div class="draft-actions">
         <div class="draft-actions__secondary">
-          <button
-            type="button"
-            class="ghost-btn"
-            [disabled]="!canOpenCrewStep()"
-            (click)="setStepFocus('crew')"
-          >
-            Go to Step 2
-          </button>
           <button type="button" class="ghost-btn" (click)="facade.clearCrewSelection()">
             Clear crew selection
           </button>

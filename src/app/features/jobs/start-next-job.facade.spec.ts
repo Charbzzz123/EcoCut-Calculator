@@ -357,6 +357,11 @@ const mockHistory: EmployeeJobHistoryRecord[] = [
   },
 ];
 
+const toLocalDateTime = (value: Date): string => {
+  const pad = (segment: number): string => segment.toString().padStart(2, '0');
+  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}T${pad(value.getHours())}:${pad(value.getMinutes())}`;
+};
+
 describe('StartNextJobFacade', () => {
   let facade: StartNextJobFacade;
   let dataService: EmployeesDataServiceStub;
@@ -397,17 +402,19 @@ describe('StartNextJobFacade', () => {
 
   it('loads linked job options and autofills draft details when a linked job is selected', async () => {
     await facade.loadBoard();
+    const fixedNow = new Date('2026-04-06T23:12:00.000Z');
 
     expect(facade.loggedJobOptions()).toHaveLength(1);
     facade.linkedJobEntryIdControl.setValue('entry-1');
-    facade.applyLinkedJobSelection();
+    facade.applyLinkedJobSelection(fixedNow);
 
     expect(facade.selectedLinkedJob()?.entryId).toBe('entry-1');
     expect(facade.hasLinkedJobSelection()).toBe(true);
     expect(facade.jobLabelControl.value).toBe('Westmount Cedar Hedge');
     expect(facade.addressControl.value).toBe('1450 Pine Ave W');
-    expect(facade.scheduledStartControl.value).toContain('2026-03-20T');
-    expect(facade.scheduledEndControl.value).toContain('2026-03-20T');
+    const expectedEnd = new Date(fixedNow.getTime() + 4 * 60 * 60 * 1000);
+    expect(facade.scheduledStartControl.value).toBe(toLocalDateTime(fixedNow));
+    expect(facade.scheduledEndControl.value).toBe(toLocalDateTime(expectedEnd));
   });
 
   it('re-bases late linked jobs to now while preserving original duration', async () => {
@@ -425,10 +432,6 @@ describe('StartNextJobFacade', () => {
     await facade.loadBoard();
 
     const fixedNow = new Date('2026-04-06T23:12:00.000Z');
-    const toLocalDateTime = (value: Date): string => {
-      const pad = (segment: number): string => segment.toString().padStart(2, '0');
-      return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}T${pad(value.getHours())}:${pad(value.getMinutes())}`;
-    };
 
     facade.linkedJobEntryIdControl.setValue('entry-late');
     facade.applyLinkedJobSelection(fixedNow);
@@ -436,6 +439,42 @@ describe('StartNextJobFacade', () => {
     const expectedEnd = new Date(fixedNow.getTime() + 3 * 60 * 60 * 1000);
     expect(facade.scheduledStartControl.value).toBe(toLocalDateTime(fixedNow));
     expect(facade.scheduledEndControl.value).toBe(toLocalDateTime(expectedEnd));
+  });
+
+  it('switches between start-now and schedule-later timing for linked jobs', async () => {
+    await facade.loadBoard();
+    const fixedNow = new Date('2026-04-06T23:12:00.000Z');
+
+    facade.linkedJobEntryIdControl.setValue('entry-1');
+    facade.applyLinkedJobSelection(fixedNow);
+
+    expect(facade.isStartNowMode()).toBe(true);
+    expect(facade.scheduledStartControl.value).toBe(toLocalDateTime(fixedNow));
+
+    facade.setDispatchMode('schedule_later', fixedNow);
+    expect(facade.isScheduleLaterMode()).toBe(true);
+    expect(Date.parse(facade.scheduledStartControl.value)).toBe(
+      Date.parse('2026-03-20T13:00:00.000Z'),
+    );
+    expect(Date.parse(facade.scheduledEndControl.value)).toBe(
+      Date.parse('2026-03-20T17:00:00.000Z'),
+    );
+
+    const nextNow = new Date('2026-04-07T00:22:00.000Z');
+    facade.setDispatchMode('start_now', nextNow);
+    expect(facade.scheduledStartControl.value).toBe(toLocalDateTime(nextNow));
+  });
+
+  it('does not rebase schedule values when refreshing start-now window in schedule-later mode', async () => {
+    await facade.loadBoard();
+    facade.setDispatchMode('schedule_later');
+    facade.scheduledStartControl.setValue('2026-03-21T09:00');
+    facade.scheduledEndControl.setValue('2026-03-21T10:00');
+
+    facade.refreshStartNowSchedule(new Date('2026-04-07T00:22:00.000Z'));
+
+    expect(facade.scheduledStartControl.value).toBe('2026-03-21T09:00');
+    expect(facade.scheduledEndControl.value).toBe('2026-03-21T10:00');
   });
 
   it('hides completed logged-job options by default and reveals them via advanced toggle', async () => {
@@ -504,6 +543,7 @@ describe('StartNextJobFacade', () => {
 
     facade.toggleEmployeeSelection('emp-a');
     facade.toggleCompletedJobOptions();
+    facade.setDispatchMode('schedule_later');
     facade.linkedJobEntryIdControl.setValue('entry-completed');
     facade.applyLinkedJobSelection();
 

@@ -150,6 +150,26 @@
   margin: 0;
 }
 
+.dispatch-mode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.dispatch-mode__label {
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(190, 223, 210, 0.74);
+}
+
+.dispatch-mode__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
 .draft-panel__header {
   margin-bottom: 0.8rem;
 }
@@ -165,8 +185,22 @@
 }
 
 .field__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   color: rgba(190, 223, 210, 0.86);
   font-size: 0.92rem;
+}
+
+.field__auto-pill {
+  border: 1px solid rgba(111, 212, 183, 0.55);
+  border-radius: 999px;
+  background: rgba(16, 63, 47, 0.78);
+  color: #ddfff2;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .field__input {
@@ -189,6 +223,27 @@ select.field__input {
 .field__input:read-only {
   border-color: rgba(111, 212, 183, 0.38);
   background: rgba(8, 31, 24, 0.88);
+}
+
+.field--auto .field__label {
+  color: rgba(158, 214, 197, 0.92);
+}
+
+.field--auto .field__input {
+  border-style: dashed;
+  border-width: 2px;
+  border-color: rgba(111, 212, 183, 0.62);
+  background:
+    linear-gradient(rgba(12, 39, 30, 0.92), rgba(12, 39, 30, 0.92)),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(111, 212, 183, 0.1) 0 8px,
+      rgba(111, 212, 183, 0.02) 8px 16px
+    );
+  color: rgba(224, 244, 236, 0.92);
+  pointer-events: none;
+  cursor: not-allowed;
+  box-shadow: inset 0 0 0 1px rgba(111, 212, 183, 0.14);
 }
 
 .field__hint {
@@ -313,6 +368,16 @@ select.field__input {
 
 .primary-btn[disabled] {
   opacity: 0.55;
+}
+
+.dispatch-mode__actions .ghost-btn.dispatch-mode__action--active,
+.dispatch-mode__actions .ghost-btn[aria-pressed='true'] {
+  border-color: rgba(111, 212, 183, 0.88);
+  background: rgba(94, 206, 175, 0.28);
+  color: #e9fff7;
+  box-shadow:
+    0 0 0 1px rgba(111, 212, 183, 0.22),
+    0 0 16px rgba(94, 206, 175, 0.16);
 }
 
 .board-grid {
