@@ -952,7 +952,9 @@
           ) {
             <li class="history-card">
               <p class="history-card__employee">{{ item.employeeName }}</p>
-              <p class="history-card__site">{{ item.siteLabel }} | {{ item.address }}</p>
+              <p class="history-card__site">
+                {{ item.displayJobLabel ?? item.siteLabel }} | {{ item.address }}
+              </p>
               <p class="history-card__window">
                 {{ item.scheduledStart | date: 'MMM d, y, h:mm a' }} -
                 {{ item.scheduledEnd | date: 'h:mm a' }}

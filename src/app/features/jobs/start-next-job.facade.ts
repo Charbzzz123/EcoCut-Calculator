@@ -276,12 +276,32 @@ export class StartNextJobFacade {
     const nameLookup = new Map(
       this.readinessSnapshot().map((employee) => [employee.employeeId, employee.fullName]),
     );
+    const linkedJobLookup = new Map(
+      this.loggedJobOptions().map((option) => [option.entryId, option]),
+    );
     return this.historySignal()
       .filter((historyItem) => selectedIds.has(historyItem.employeeId))
-      .map((historyItem) => ({
-        ...historyItem,
-        employeeName: nameLookup.get(historyItem.employeeId) ?? 'Unknown employee',
-      }))
+      .map((historyItem) => {
+        const linkedClientName = historyItem.jobEntryId
+          ? (linkedJobLookup.get(historyItem.jobEntryId)?.clientName ?? null)
+          : null;
+        const hasClientPrefix =
+          linkedClientName
+            ? normalizeText(historyItem.siteLabel).startsWith(
+                `${normalizeText(linkedClientName)} - `,
+              )
+            : false;
+        const displayJobLabel =
+          linkedClientName && !hasClientPrefix
+            ? `${linkedClientName} - ${historyItem.siteLabel}`
+            : historyItem.siteLabel;
+        return {
+          ...historyItem,
+          employeeName: nameLookup.get(historyItem.employeeId) ?? 'Unknown employee',
+          linkedClientName,
+          displayJobLabel,
+        };
+      })
       .sort((left, right) => right.scheduledStart.localeCompare(left.scheduledStart));
   });
 
@@ -652,7 +672,7 @@ export class StartNextJobFacade {
       this.clearContinuityInputs();
       return;
     }
-    this.jobLabelControl.setValue(selectedJob.siteLabel);
+    this.jobLabelControl.setValue(this.toLinkedJobDisplayLabel(selectedJob));
     this.addressControl.setValue(selectedJob.address);
     if (this.isStartNowMode()) {
       this.applyScheduleWindow(now, this.resolveScheduleDurationMs(selectedJob));
@@ -836,9 +856,10 @@ export class StartNextJobFacade {
 
     const nextScheduledStart = toIsoDateTime(this.scheduledStartControl.value);
     const nextScheduledEnd = toIsoDateTime(this.scheduledEndControl.value);
+    const nextSiteLabel = this.resolvePersistedJobLabel();
     const optimisticEntry: EmployeeJobHistoryRecord = {
       ...existing,
-      siteLabel: this.jobLabelControl.value.trim(),
+      siteLabel: nextSiteLabel,
       address: this.addressControl.value.trim(),
       scheduledStart: nextScheduledStart,
       scheduledEnd: nextScheduledEnd,
@@ -853,7 +874,7 @@ export class StartNextJobFacade {
       const updated = await this.employeesData.updateScheduledHistoryEntry(
         entryId,
         {
-          siteLabel: optimisticEntry.siteLabel,
+          siteLabel: nextSiteLabel,
           address: optimisticEntry.address,
           scheduledStart: nextScheduledStart,
           scheduledEnd: nextScheduledEnd,
@@ -1605,7 +1626,7 @@ export class StartNextJobFacade {
     const continuityReason = this.continuityReasonControl.value.trim();
     const includeContinuity = this.requiresContinuityDetails();
     return {
-      jobLabel: this.jobLabelControl.value.trim(),
+      jobLabel: this.resolvePersistedJobLabel(),
       address: this.addressControl.value.trim(),
       scheduledStart: toIsoDateTime(this.scheduledStartControl.value),
       scheduledEnd: toIsoDateTime(this.scheduledEndControl.value),
@@ -1623,6 +1644,14 @@ export class StartNextJobFacade {
       return 0;
     }
     return Math.max(0.25, Math.round(((endTimestamp - startTimestamp) / 3_600_000) * 4) / 4);
+  }
+
+  private toLinkedJobDisplayLabel(selectedJob: EmployeeLoggedJobOption): string {
+    return `${selectedJob.clientName} - ${selectedJob.siteLabel}`;
+  }
+
+  private resolvePersistedJobLabel(): string {
+    return this.selectedLinkedJob()?.siteLabel ?? this.jobLabelControl.value.trim();
   }
 
   private captureBoardSnapshot(): OptimisticBoardSnapshot {

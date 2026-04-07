@@ -410,11 +410,34 @@ describe('StartNextJobFacade', () => {
 
     expect(facade.selectedLinkedJob()?.entryId).toBe('entry-1');
     expect(facade.hasLinkedJobSelection()).toBe(true);
-    expect(facade.jobLabelControl.value).toBe('Westmount Cedar Hedge');
+    expect(facade.jobLabelControl.value).toBe('Alex North - Westmount Cedar Hedge');
     expect(facade.addressControl.value).toBe('1450 Pine Ave W');
     const expectedEnd = new Date(fixedNow.getTime() + 4 * 60 * 60 * 1000);
     expect(facade.scheduledStartControl.value).toBe(toLocalDateTime(fixedNow));
     expect(facade.scheduledEndControl.value).toBe(toLocalDateTime(expectedEnd));
+  });
+
+  it('enriches selected history labels with linked client names when jobEntryId exists', async () => {
+    dataService.history = [
+      {
+        id: 'hist-linked',
+        employeeId: 'emp-a',
+        siteLabel: 'Westmount Cedar Hedge',
+        address: '1450 Pine Ave W',
+        scheduledStart: '2026-03-20T13:00:00.000Z',
+        scheduledEnd: '2026-03-20T17:00:00.000Z',
+        hoursWorked: 4,
+        status: 'completed',
+        jobEntryId: 'entry-1',
+      },
+    ];
+    await facade.loadBoard();
+    facade.toggleEmployeeSelection('emp-a');
+
+    expect(facade.selectedCrewHistory()[0]).toMatchObject({
+      linkedClientName: 'Alex North',
+      displayJobLabel: 'Alex North - Westmount Cedar Hedge',
+    });
   });
 
   it('re-bases late linked jobs to now while preserving original duration', async () => {
@@ -1176,7 +1199,7 @@ describe('StartNextJobFacade', () => {
     await expect(facade.submitAssignment('manager')).resolves.toBe(true);
     expect(dataService.assignmentPayloads).toHaveLength(1);
     expect(dataService.assignmentPayloads[0]).toMatchObject({
-      jobLabel: 'Morning trim',
+      jobLabel: 'Westmount Cedar Hedge',
       address: '12 Crew St',
       employeeIds: ['emp-a'],
       jobEntryId: 'entry-1',

@@ -16,6 +16,8 @@ export interface CrewConflict {
 
 export interface SelectedCrewHistoryItem extends EmployeeJobHistoryRecord {
   employeeName: string;
+  linkedClientName?: string | null;
+  displayJobLabel?: string;
 }
 
 export interface AssignmentDraftValidation {
