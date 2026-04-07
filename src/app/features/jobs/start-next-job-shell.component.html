@@ -95,6 +95,28 @@
     </ul>
   </article>
 
+  @if (facade.saveState() !== 'idle' && facade.saveMessage()) {
+    <div
+      class="save-toast"
+      [class.save-toast--success]="facade.saveState() === 'success'"
+      [class.save-toast--error]="facade.saveState() === 'error'"
+      [class.save-toast--saving]="facade.saveState() === 'saving'"
+      role="status"
+      aria-live="polite"
+    >
+      <p>{{ facade.saveMessage() }}</p>
+      @if (facade.saveState() !== 'saving') {
+        <button
+          type="button"
+          class="ghost-btn save-toast__dismiss"
+          (click)="facade.dismissSaveFeedback()"
+        >
+          Dismiss
+        </button>
+      }
+    </div>
+  }
+
   @if (stepFocus() === 'draft') {
     <article id="start-next-draft" class="draft-panel" aria-label="Assignment draft">
       <header class="panel-header draft-panel__header">
@@ -513,18 +535,6 @@
             </div>
           </div>
 
-          @if (facade.saveState() !== 'idle' && facade.saveMessage()) {
-            <p
-              class="save-feedback"
-              [class.save-feedback--success]="facade.saveState() === 'success'"
-              [class.save-feedback--error]="facade.saveState() === 'error'"
-              role="status"
-              aria-live="polite"
-            >
-              {{ facade.saveMessage() }}
-            </p>
-          }
-
           <div class="analytics-panel">
             <div class="analytics-panel__header">
               <h3>Assignment analytics</h3>
@@ -722,18 +732,18 @@
                                   <p>{{ trend.totalHours | number: '1.0-2' }}h tracked</p>
                                 </header>
                                 <p>
-                                  {{ trend.completedCount }} completed �
-                                  {{ trend.scheduledCount }} scheduled �
+                                  {{ trend.completedCount }} completed -
+                                  {{ trend.scheduledCount }} scheduled -
                                   {{ trend.cancelledCount }} cancelled
                                 </p>
                                 <p>
-                                  Completion {{ trend.completionRate | number: '1.0-1' }}% �
+                                  Completion {{ trend.completionRate | number: '1.0-1' }}% -
                                   Cancellation {{ trend.cancellationRate | number: '1.0-1' }}%
                                 </p>
                                 <p>
                                   Last site:
                                   @if (trend.lastSiteLabel && trend.lastAddress) {
-                                    {{ trend.lastSiteLabel }} � {{ trend.lastAddress }}
+                                    {{ trend.lastSiteLabel }} - {{ trend.lastAddress }}
                                   } @else {
                                     &mdash;
                                   }

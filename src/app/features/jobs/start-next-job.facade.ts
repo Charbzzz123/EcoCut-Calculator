@@ -654,6 +654,10 @@ export class StartNextJobFacade {
     this.analyticsWindow.set('custom');
   }
 
+  dismissSaveFeedback(): void {
+    this.clearSaveFeedback();
+  }
+
   async submitAssignment(actorRole: EmployeeOperatorRole = 'owner'): Promise<boolean> {
     const validation = this.draftValidation();
     if (!validation.isReady) {

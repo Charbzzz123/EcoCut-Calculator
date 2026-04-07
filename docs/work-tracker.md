@@ -6,6 +6,7 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 | Task                                                                 | Done       | Notes                                                                                                                                                                                                                                                                                                    |
 | -------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| JX-7A Start Next Job global feedback toast + text cleanup            | 2026-04-06 | Added a global save feedback toast (success/error/saving) visible across all Start Next Job steps with dismiss support for non-saving states, and replaced broken separator glyphs in trend cards with clean ASCII output for consistent rendering.                                                      |
 | JX-6C Server lifecycle reporting parity                              | 2026-03-30 | Added backend lifecycle reporting parity (`GET /employees/reporting/lifecycle`) so exports/dashboards can read completed-on-time, completed-late, scheduled-late, and continuity counts with the exact same metric rules already used by Start Next Job and Manage Employees UI cards.                   |
 | JX-6B Unified late/on-time + continuity metrics                      | 2026-03-30 | Added one shared lifecycle metric helper for Employees + Start Next Job so completed-on-time, completed-late, scheduled-late, and continuity counts are derived with identical rules across both modules.                                                                                                |
 | JX-6A Start Next Job post-mutation board reconciliation              | 2026-03-30 | After assignment/history lifecycle mutations, the Start Next Job facade now re-syncs readiness/history/job-options from `/api/employees/*` to prevent optimistic UI drift and keep crew selection, scheduled-history actions, and analytics aligned with the backend source of truth.                    |
@@ -108,9 +109,9 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 ## In Progress / Backlog
 
-| Step | Task                             | Owner | Notes                                                                                                             |
-| ---- | -------------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------- |
-| JX-7 | UX + validation + docs hardening | —     | Progressive disclosure, clear blockers, success/error toasts, tests, and final docs updates after implementation. |
+| Step | Task                             | Owner | Notes                                                                                                                                |
+| ---- | -------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| JX-7 | UX + validation + docs hardening | —     | In progress: JX-7A shipped (global feedback toast + text cleanup). Remaining: blocker-action affordances and final docs/tests sweep. |
 
 ### JX Plan Detail (freeze this before coding)
 
@@ -195,6 +196,8 @@ Use this as the source of truth if chat context resets.
   - Same action produces matching state everywhere in app + API.
 
 #### JX-7 - UX/test/docs hardening
+
+- **Status**: In progress (JX-7A completed on 2026-04-06).
 
 - **UX**
   - Keep progressive disclosure, clear blockers, and explicit success/error messaging.

@@ -231,24 +231,42 @@
   justify-content: flex-end;
 }
 
-.save-feedback {
-  margin: 0.85rem 0 0;
+.save-toast {
+  margin: 0;
   border-radius: 0.8rem;
   border: 1px solid rgba(111, 212, 183, 0.25);
   background: rgba(7, 30, 25, 0.75);
   color: #d8efe7;
   padding: 0.6rem 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
-.save-feedback--success {
+.save-toast p {
+  margin: 0;
+}
+
+.save-toast__dismiss {
+  padding: 0.32rem 0.75rem;
+  font-size: 0.78rem;
+}
+
+.save-toast--success {
   border-color: rgba(111, 212, 183, 0.5);
   background: rgba(16, 63, 47, 0.72);
 }
 
-.save-feedback--error {
+.save-toast--error {
   border-color: rgba(230, 114, 114, 0.45);
   background: rgba(56, 26, 26, 0.72);
   color: #ffd9d9;
+}
+
+.save-toast--saving {
+  border-color: rgba(111, 212, 183, 0.38);
+  background: rgba(15, 53, 41, 0.72);
 }
 
 .panel-collapse-hint {

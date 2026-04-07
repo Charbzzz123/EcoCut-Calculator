@@ -77,6 +77,7 @@ const createFacadeStub = () => ({
   errorMessage: signal('Unable to load Start Next Job data right now.'),
   saveState: signal<'idle' | 'saving' | 'success' | 'error'>('idle'),
   saveMessage: signal(''),
+  dismissSaveFeedback: vi.fn(),
   editingHistoryEntryId: signal<string | null>(null),
   loggedJobOptions: signal([
     {
@@ -678,9 +679,24 @@ describe('StartNextJobShellComponent', () => {
     const saveButton = fixture.nativeElement.querySelector('.primary-btn') as HTMLButtonElement;
     expect(saveButton.textContent).toContain('Saving assignment');
     expect(saveButton.disabled).toBe(true);
-    expect(fixture.nativeElement.querySelector('.save-feedback')?.textContent).toContain(
+    const toast = fixture.nativeElement.querySelector('.save-toast') as HTMLElement | null;
+    expect(toast?.textContent).toContain(
       'Saving assignment',
     );
+    expect(toast?.textContent).not.toContain('Dismiss');
+  });
+
+  it('shows dismiss action on non-saving feedback and forwards dismissal', () => {
+    facade.loadState.set('ready');
+    facade.saveState.set('success');
+    facade.saveMessage.set('Assignment saved.');
+    fixture.detectChanges();
+
+    const dismissButton = fixture.nativeElement.querySelector(
+      '.save-toast .save-toast__dismiss',
+    ) as HTMLButtonElement;
+    dismissButton.click();
+    expect(facade.dismissSaveFeedback).toHaveBeenCalledTimes(1);
   });
 
   it('keeps step navigation locked until prerequisites are met', () => {
