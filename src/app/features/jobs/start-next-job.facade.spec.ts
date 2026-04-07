@@ -507,10 +507,11 @@ describe('StartNextJobFacade', () => {
     facade.toggleCompletedJobOptions();
     facade.linkedJobEntryIdControl.setValue('entry-completed');
     facade.applyLinkedJobSelection();
-    facade.scheduledStartControl.setValue('2026-03-21T09:00');
-    facade.scheduledEndControl.setValue('2026-03-21T10:00');
+    facade.scheduledStartControl.setValue('2099-03-21T13:00');
+    facade.scheduledEndControl.setValue('2099-03-21T14:00');
     facade.continuityCategoryControl.setValue('issue_return');
     facade.continuityReasonControl.setValue('Customer reported missed section.');
+    expect(facade.draftValidation().isReady).toBe(true);
 
     await expect(facade.submitAssignment('owner')).resolves.toBe(true);
     expect(dataService.assignmentPayloads[dataService.assignmentPayloads.length - 1]).toMatchObject({
@@ -536,6 +537,15 @@ describe('StartNextJobFacade', () => {
       jobLabel: 'Manual follow-up',
       jobEntryId: null,
     });
+  });
+
+  it('reacts to job-mode control changes after initial reads', async () => {
+    await facade.loadBoard();
+    expect(facade.hasJobModeSelection()).toBe(false);
+
+    facade.linkedJobEntryIdControl.setValue('__manual__');
+
+    expect(facade.hasJobModeSelection()).toBe(true);
   });
 
   it('filters readiness by query and toggles selected crew', async () => {

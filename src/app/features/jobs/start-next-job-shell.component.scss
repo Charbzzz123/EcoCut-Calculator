@@ -157,6 +157,7 @@
 .field {
   display: grid;
   gap: 0.35rem;
+  min-width: 0;
 }
 
 .field--wide {
@@ -174,6 +175,13 @@
   background: rgba(4, 20, 16, 0.86);
   color: #e8f7f2;
   padding: 0.72rem 0.82rem;
+  min-width: 0;
+}
+
+select.field__input {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .field__input:read-only {

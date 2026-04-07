@@ -98,6 +98,33 @@ export class StartNextJobFacade {
   readonly scheduledEndControl = new FormControl('', { nonNullable: true });
   readonly continuityCategoryControl = new FormControl('', { nonNullable: true });
   readonly continuityReasonControl = new FormControl('', { nonNullable: true });
+  private readonly queryValue = toSignal(this.queryControl.valueChanges, {
+    initialValue: this.queryControl.value,
+  });
+  private readonly linkedJobEntryIdValue = toSignal(this.linkedJobEntryIdControl.valueChanges, {
+    initialValue: this.linkedJobEntryIdControl.value,
+  });
+  private readonly jobLabelValue = toSignal(this.jobLabelControl.valueChanges, {
+    initialValue: this.jobLabelControl.value,
+  });
+  private readonly addressValue = toSignal(this.addressControl.valueChanges, {
+    initialValue: this.addressControl.value,
+  });
+  private readonly scheduledStartValue = toSignal(this.scheduledStartControl.valueChanges, {
+    initialValue: this.scheduledStartControl.value,
+  });
+  private readonly scheduledEndValue = toSignal(this.scheduledEndControl.valueChanges, {
+    initialValue: this.scheduledEndControl.value,
+  });
+  private readonly continuityCategoryValue = toSignal(
+    this.continuityCategoryControl.valueChanges,
+    {
+      initialValue: this.continuityCategoryControl.value,
+    },
+  );
+  private readonly continuityReasonValue = toSignal(this.continuityReasonControl.valueChanges, {
+    initialValue: this.continuityReasonControl.value,
+  });
   readonly analyticsStartDateControl = new FormControl('', { nonNullable: true });
   readonly analyticsEndDateControl = new FormControl('', { nonNullable: true });
   private readonly analyticsStartDateValue = toSignal(this.analyticsStartDateControl.valueChanges, {
@@ -137,7 +164,7 @@ export class StartNextJobFacade {
   });
   readonly visibleLoggedJobOptions = computed(() => {
     const includeCompleted = this.showCompletedJobOptions();
-    const selectedEntryId = this.linkedJobEntryIdControl.value.trim();
+    const selectedEntryId = this.linkedJobEntryIdValue().trim();
     return this.loggedJobOptions().filter((option) => {
       if (option.entryId === selectedEntryId) {
         return true;
@@ -158,7 +185,7 @@ export class StartNextJobFacade {
     () => this.visibleLoggedJobOptions().length > 0,
   );
   readonly selectedLinkedJob = computed(() => {
-    const entryId = this.linkedJobEntryIdControl.value.trim();
+    const entryId = this.linkedJobEntryIdValue().trim();
     if (!entryId || entryId === MANUAL_JOB_MODE) {
       return null;
     }
@@ -168,7 +195,7 @@ export class StartNextJobFacade {
     if (this.editingHistoryEntryId()) {
       return true;
     }
-    const entryId = this.linkedJobEntryIdControl.value.trim();
+    const entryId = this.linkedJobEntryIdValue().trim();
     if (!entryId) {
       return false;
     }
@@ -178,7 +205,7 @@ export class StartNextJobFacade {
     return this.loggedJobOptions().some((option) => option.entryId === entryId);
   });
   readonly isManualJobSelection = computed(
-    () => this.linkedJobEntryIdControl.value.trim() === MANUAL_JOB_MODE,
+    () => this.linkedJobEntryIdValue().trim() === MANUAL_JOB_MODE,
   );
   readonly hasLinkedJobSelection = computed(() => Boolean(this.selectedLinkedJob()));
   readonly continuityCategoryOptions = continuityCategoryOptions;
@@ -193,7 +220,7 @@ export class StartNextJobFacade {
   readonly selectedHistoryEntryIds = computed(() => this.selectedHistoryEntryIdsSignal());
 
   readonly filteredReadiness = computed(() => {
-    const query = normalizeText(this.queryControl.value);
+    const query = normalizeText(this.queryValue());
     if (!query) {
       return this.readinessSnapshot();
     }
@@ -481,8 +508,8 @@ export class StartNextJobFacade {
   );
 
   readonly selectedCrewConflicts = computed<CrewConflict[]>(() => {
-    const startTimestamp = toTimestamp(this.scheduledStartControl.value);
-    const endTimestamp = toTimestamp(this.scheduledEndControl.value);
+    const startTimestamp = toTimestamp(this.scheduledStartValue());
+    const endTimestamp = toTimestamp(this.scheduledEndValue());
     return this.selectedCrew().flatMap((employee) =>
       this.buildConflictsForEmployee(employee, startTimestamp, endTimestamp),
     );
@@ -493,14 +520,14 @@ export class StartNextJobFacade {
     if (!this.editingHistoryEntryId() && !this.hasJobModeSelection()) {
       blockingReasons.push('Select a linked job mode (linked client job or manual mode).');
     }
-    if (!this.jobLabelControl.value.trim()) {
+    if (!this.jobLabelValue().trim()) {
       blockingReasons.push('Job label is required.');
     }
-    if (!this.addressControl.value.trim()) {
+    if (!this.addressValue().trim()) {
       blockingReasons.push('Job address is required.');
     }
-    const startTimestamp = toTimestamp(this.scheduledStartControl.value);
-    const endTimestamp = toTimestamp(this.scheduledEndControl.value);
+    const startTimestamp = toTimestamp(this.scheduledStartValue());
+    const endTimestamp = toTimestamp(this.scheduledEndValue());
     if (!startTimestamp || !endTimestamp) {
       blockingReasons.push('Scheduled start and end are required.');
     } else if (endTimestamp <= startTimestamp) {
@@ -510,12 +537,12 @@ export class StartNextJobFacade {
       blockingReasons.push('Select at least one employee for the crew.');
     }
     if (this.requiresContinuityDetails()) {
-      if (!this.continuityCategoryControl.value.trim()) {
+      if (!this.continuityCategoryValue().trim()) {
         blockingReasons.push(
           'Continuity category is required when using a completed linked job.',
         );
       }
-      if (!this.continuityReasonControl.value.trim()) {
+      if (!this.continuityReasonValue().trim()) {
         blockingReasons.push(
           'Continuity reason is required when using a completed linked job.',
         );
@@ -575,14 +602,10 @@ export class StartNextJobFacade {
       this.clearContinuityInputs();
       return;
     }
-    this.jobLabelControl.setValue(selectedJob.siteLabel, { emitEvent: false });
-    this.addressControl.setValue(selectedJob.address, { emitEvent: false });
-    this.scheduledStartControl.setValue(toDateTimeLocal(selectedJob.scheduledStart), {
-      emitEvent: false,
-    });
-    this.scheduledEndControl.setValue(toDateTimeLocal(selectedJob.scheduledEnd), {
-      emitEvent: false,
-    });
+    this.jobLabelControl.setValue(selectedJob.siteLabel);
+    this.addressControl.setValue(selectedJob.address);
+    this.scheduledStartControl.setValue(toDateTimeLocal(selectedJob.scheduledStart));
+    this.scheduledEndControl.setValue(toDateTimeLocal(selectedJob.scheduledEnd));
     if (selectedJob.status !== 'completed') {
       this.clearContinuityInputs();
     }
@@ -691,17 +714,11 @@ export class StartNextJobFacade {
       return;
     }
     this.editingHistoryEntryId.set(entry.id);
-    this.linkedJobEntryIdControl.setValue(entry.jobEntryId ?? MANUAL_JOB_MODE, {
-      emitEvent: false,
-    });
-    this.jobLabelControl.setValue(entry.siteLabel, { emitEvent: false });
-    this.addressControl.setValue(entry.address, { emitEvent: false });
-    this.scheduledStartControl.setValue(toDateTimeLocal(entry.scheduledStart), {
-      emitEvent: false,
-    });
-    this.scheduledEndControl.setValue(toDateTimeLocal(entry.scheduledEnd), {
-      emitEvent: false,
-    });
+    this.linkedJobEntryIdControl.setValue(entry.jobEntryId ?? MANUAL_JOB_MODE);
+    this.jobLabelControl.setValue(entry.siteLabel);
+    this.addressControl.setValue(entry.address);
+    this.scheduledStartControl.setValue(toDateTimeLocal(entry.scheduledStart));
+    this.scheduledEndControl.setValue(toDateTimeLocal(entry.scheduledEnd));
     this.clearContinuityInputs();
     this.saveState.set('idle');
     this.saveMessage.set('');
@@ -1642,18 +1659,18 @@ export class StartNextJobFacade {
   private resetDraftAfterSave(): void {
     this.selectedEmployeeIdsSignal.set([]);
     this.selectedHistoryEntryIdsSignal.set([]);
-    this.queryControl.setValue('', { emitEvent: false });
-    this.linkedJobEntryIdControl.setValue('', { emitEvent: false });
-    this.jobLabelControl.setValue('', { emitEvent: false });
-    this.addressControl.setValue('', { emitEvent: false });
-    this.scheduledStartControl.setValue('', { emitEvent: false });
-    this.scheduledEndControl.setValue('', { emitEvent: false });
+    this.queryControl.setValue('');
+    this.linkedJobEntryIdControl.setValue('');
+    this.jobLabelControl.setValue('');
+    this.addressControl.setValue('');
+    this.scheduledStartControl.setValue('');
+    this.scheduledEndControl.setValue('');
     this.clearContinuityInputs();
   }
 
   private clearContinuityInputs(): void {
-    this.continuityCategoryControl.setValue('', { emitEvent: false });
-    this.continuityReasonControl.setValue('', { emitEvent: false });
+    this.continuityCategoryControl.setValue('');
+    this.continuityReasonControl.setValue('');
   }
 
   private resolveContinuityCategory(value: string): EmployeeContinuityCategory | null {
@@ -1714,7 +1731,7 @@ export class StartNextJobFacade {
         selectedJobId === MANUAL_JOB_MODE ||
         sortedJobOptions.some((option) => option.entryId === selectedJobId);
       if (!hasLinkedJob) {
-        this.linkedJobEntryIdControl.setValue('', { emitEvent: false });
+        this.linkedJobEntryIdControl.setValue('');
       }
     }
   }
