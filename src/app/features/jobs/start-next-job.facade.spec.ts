@@ -410,6 +410,34 @@ describe('StartNextJobFacade', () => {
     expect(facade.scheduledEndControl.value).toContain('2026-03-20T');
   });
 
+  it('re-bases late linked jobs to now while preserving original duration', async () => {
+    dataService.loggedJobOptions = [
+      {
+        entryId: 'entry-late',
+        clientName: 'Alex North',
+        siteLabel: 'Westmount Cedar Hedge',
+        address: '1450 Pine Ave W',
+        scheduledStart: '2026-03-20T13:00:00.000Z',
+        scheduledEnd: '2026-03-20T16:00:00.000Z',
+        status: 'late',
+      },
+    ];
+    await facade.loadBoard();
+
+    const fixedNow = new Date('2026-04-06T23:12:00.000Z');
+    const toLocalDateTime = (value: Date): string => {
+      const pad = (segment: number): string => segment.toString().padStart(2, '0');
+      return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}T${pad(value.getHours())}:${pad(value.getMinutes())}`;
+    };
+
+    facade.linkedJobEntryIdControl.setValue('entry-late');
+    facade.applyLinkedJobSelection(fixedNow);
+
+    const expectedEnd = new Date(fixedNow.getTime() + 3 * 60 * 60 * 1000);
+    expect(facade.scheduledStartControl.value).toBe(toLocalDateTime(fixedNow));
+    expect(facade.scheduledEndControl.value).toBe(toLocalDateTime(expectedEnd));
+  });
+
   it('hides completed logged-job options by default and reveals them via advanced toggle', async () => {
     dataService.loggedJobOptions = [
       {
@@ -580,6 +608,31 @@ describe('StartNextJobFacade', () => {
 
     expect(facade.selectedCrewConflicts().length).toBeGreaterThan(0);
     expect(facade.selectedCrewHistory().map((item) => item.employeeName)).toEqual(['Bruno East']);
+  });
+
+  it('does not block when selected start is in the same displayed minute as next available', async () => {
+    dataService.readiness = mockReadiness.map((entry) =>
+      entry.employeeId === 'emp-a'
+        ? {
+            ...entry,
+            nextAvailableAt: '2026-03-21T12:00:45.000Z',
+          }
+        : entry,
+    );
+    await facade.loadBoard();
+
+    facade.toggleEmployeeSelection('emp-a');
+    facade.linkedJobEntryIdControl.setValue('__manual__');
+    facade.jobLabelControl.setValue('Morning trim');
+    facade.addressControl.setValue('12 Crew St');
+    facade.scheduledStartControl.setValue('2026-03-21T12:00');
+    facade.scheduledEndControl.setValue('2026-03-21T13:00');
+
+    expect(
+      facade
+        .selectedCrewConflicts()
+        .some((conflict) => conflict.reason === 'Not available by the selected start time.'),
+    ).toBe(false);
   });
 
   it('marks draft ready when required fields are valid and no conflicts remain', async () => {

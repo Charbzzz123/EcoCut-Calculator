@@ -40,6 +40,8 @@ const toTimestamp = (value: string): number | null => {
   const timestamp = Date.parse(value);
   return Number.isNaN(timestamp) ? null : timestamp;
 };
+const toMinutePrecision = (timestamp: number): number =>
+  Math.floor(timestamp / 60_000) * 60_000;
 const overlapsRange = (startA: number, endA: number, startB: number, endB: number): boolean =>
   startA < endB && endA > startB;
 const toIsoDateTime = (value: string): string => new Date(value).toISOString();
@@ -590,7 +592,7 @@ export class StartNextJobFacade {
     this.selectedHistoryEntryIdsSignal.set([]);
   }
 
-  applyLinkedJobSelection(): void {
+  applyLinkedJobSelection(now = new Date()): void {
     this.clearSaveFeedback();
     const selectedJobId = this.linkedJobEntryIdControl.value.trim();
     if (!selectedJobId || selectedJobId === MANUAL_JOB_MODE) {
@@ -604,8 +606,24 @@ export class StartNextJobFacade {
     }
     this.jobLabelControl.setValue(selectedJob.siteLabel);
     this.addressControl.setValue(selectedJob.address);
-    this.scheduledStartControl.setValue(toDateTimeLocal(selectedJob.scheduledStart));
-    this.scheduledEndControl.setValue(toDateTimeLocal(selectedJob.scheduledEnd));
+    if (selectedJob.status === 'late') {
+      const startTimestamp = now.getTime();
+      const originalStart = toTimestamp(selectedJob.scheduledStart);
+      const originalEnd = toTimestamp(selectedJob.scheduledEnd);
+      const duration =
+        originalStart && originalEnd && originalEnd > originalStart
+          ? originalEnd - originalStart
+          : 3_600_000;
+      this.scheduledStartControl.setValue(
+        toDateTimeLocal(new Date(startTimestamp).toISOString()),
+      );
+      this.scheduledEndControl.setValue(
+        toDateTimeLocal(new Date(startTimestamp + duration).toISOString()),
+      );
+    } else {
+      this.scheduledStartControl.setValue(toDateTimeLocal(selectedJob.scheduledStart));
+      this.scheduledEndControl.setValue(toDateTimeLocal(selectedJob.scheduledEnd));
+    }
     if (selectedJob.status !== 'completed') {
       this.clearContinuityInputs();
     }
@@ -1466,7 +1484,8 @@ export class StartNextJobFacade {
     }
     const blockedByNextAvailable =
       employee.nextAvailableAt && toTimestamp(employee.nextAvailableAt)
-        ? startTimestamp < (toTimestamp(employee.nextAvailableAt) as number)
+        ? toMinutePrecision(startTimestamp) <
+          toMinutePrecision(toTimestamp(employee.nextAvailableAt) as number)
         : false;
     if (blockedByNextAvailable) {
       conflicts.push({
