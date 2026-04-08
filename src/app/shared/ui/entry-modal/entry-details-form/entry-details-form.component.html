@@ -15,9 +15,45 @@
   </label>
   <label class="wide">
     <span>Home address</span>
-    <input type="text" formControlName="address" />
+    <div class="address-field">
+      <input type="text" formControlName="address" (focus)="handlers.handleAddressFocus()" />
+      @if (showAddressSuggestions) {
+        <ul class="address-suggestions" role="listbox" aria-label="Address suggestions">
+          @if (addressLookupLoading) {
+            <li class="address-suggestions__status">Searching addresses...</li>
+          } @else if (addressSuggestions.length) {
+            @for (suggestion of addressSuggestions; track suggestion.id) {
+              <li>
+                <button
+                  type="button"
+                  class="address-suggestion"
+                  (click)="handlers.selectAddressSuggestion(suggestion)"
+                >
+                  <span class="address-suggestion__primary">{{ suggestion.primaryText }}</span>
+                  @if (suggestion.secondaryText) {
+                    <span class="address-suggestion__secondary">{{
+                      suggestion.secondaryText
+                    }}</span>
+                  }
+                </button>
+              </li>
+            }
+          } @else {
+            <li class="address-suggestions__status">No matching addresses found.</li>
+          }
+        </ul>
+      }
+    </div>
     @if (controlInvalid('address')) {
-      <small class="error">Required</small>
+      @if (form.get('address')?.errors?.['required']) {
+        <small class="error">Required</small>
+      } @else if (form.get('address')?.errors?.['addressUnverified']) {
+        <small class="error">Select a valid address from suggestions</small>
+      }
+    } @else if (addressLookupMessage) {
+      <small class="hint">{{ addressLookupMessage }}</small>
+    } @else if (addressVerified) {
+      <small class="hint">Address verified.</small>
     }
   </label>
   <label>

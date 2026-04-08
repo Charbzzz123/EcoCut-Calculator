@@ -1,5 +1,5 @@
-﻿export const environment = {
+export const environment = {
   production: false,
-  apiBaseUrl: '/api'
+  apiBaseUrl: '/api',
+  enforceVerifiedAddress: false,
 } as const;
-

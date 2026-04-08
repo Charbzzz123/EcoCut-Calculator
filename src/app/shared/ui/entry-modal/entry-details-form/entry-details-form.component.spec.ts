@@ -66,6 +66,8 @@ class EntryDetailsHostComponent {
   getHedgeState = () => 'none' as HedgeState;
   handlers: EntryDetailsFormHandlers = {
     handlePhoneInput: vi.fn(),
+    selectAddressSuggestion: vi.fn(),
+    handleAddressFocus: vi.fn(),
     cycleHedge: vi.fn(),
     updateTrimSection: vi.fn(),
     selectTrimPreset: vi.fn(),

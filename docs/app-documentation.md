@@ -51,6 +51,7 @@ root/
   - Specs cover slot rebuilding, drag guards, and the DOM states for available/booked chips.
 - **Integration**: `HomeShellComponent` imports the modal and toggles it from the floating �Add Entry� CTA. The component emits `EntryModalPayload` with the selected variant, normalized form payload, and hedge configs, which feed the fa�ade/server. Customer submissions automatically create a Google Calendar event via `HomeDataService`, which in turn stores the returned `eventId` back onto the payload so later edits/deletes can call the appropriate proxy endpoint.
 - **Entry persistence client**: `EntryRepositoryService` (`src/app/shared/domain/entry/entry-repository.service.ts`) wraps `/api/entries` and `/api/entries/clients`. `HomeDataService.saveEntry` now awaits this service so every submission is recorded immediately (no more console stub). `listClients()` will power the future CRM dashboard without duplicating HTTP plumbing.
+- **Address lookup client**: `AddressLookupService` (`src/app/shared/domain/address/address-lookup.service.ts`) wraps `/api/addresses/*` for debounced suggestions, server-side validation, and monthly usage snapshots. Entry modal address lookup uses a 500ms debounce + in-memory query cache to reduce paid autocomplete calls.
 - **Client roster UI**: `/clients` is backed by `ClientsShellComponent` (standalone) which uses `EntryRepositoryService.listClients()` on init. The view renders summary cards, search/filter controls, and the roster list with dedicated loading/error states. Routes are defined in `app.routes.ts` (lazy loaded via `loadComponent`).
 - **Manage Employees workspace (ME-1 to ME-9 UI)**: `/employees/manage` lazy-loads `ManageEmployeesShellComponent` with `EmployeesFacade` + `EmployeesDataService`. Current release includes roster retrieval/filtering, owner-safe profile create/edit/archive, operator role mode (owner vs manager), per-employee hours editing with capability guards, manager/owner clock in/out cards, employee timeline rollups, and a Start Next Job readiness contract panel (availability state, upcoming windows, next available time, conflict flag). Both reads and writes are now wired to `/api/employees/*`, with operator-role headers applied on mutating requests so backend permissions remain authoritative.
 - **Manage Employees UX refinement (UX-1/UX-2/UX-5/UX-6/UX-7/UX-8 complete)**: the shell now prioritizes actionable controls over explanatory text (workflow block removed by default), groups toolbar actions into `Primary controls` vs `Advanced controls`, keeps one canonical roster count line plus summary cards in the controls region, and uses a compact sticky workspace-mode row (`Roster focus`, `Clock board`, `Assignment readiness`) to preserve context while scrolling; profile/hours/history views now open from per-employee card actions instead of global workspace pills. Workspace loading/error/empty messaging plus button/chip emphasis use shared styling tokens for consistency with Start Next Job, and form validation exposes required semantics + assertive live-region errors.
@@ -78,6 +79,11 @@ root/
   - `GET /entries` � retrieve the append-only job history (same SQLite snapshot) so undo/reporting layers can read the source of truth.
   - `GET /entries/clients` � returns the deduplicated client roster (keyed by email ? phone ? name+address) with `jobsCount`, `lastJobDate`, and `lastCalendarEventId`.
   - Implementation lives in `server/src/entries/` (service, repository, controller, module). The repository persists to SQLite today (`ENTRIES_DB_PATH`) and can later be swapped for Postgres without changing the public API.
+- **Addresses module**:
+  - `GET /addresses/suggest?q=...&sessionToken=...` - proxy to provider autocomplete with monthly cap guardrails.
+  - `POST /addresses/validate` - validates a selected suggestion id and returns normalized civic address fields.
+  - `GET /addresses/usage` - returns monthly caps/counts + 75/90/100% threshold flags for quota monitoring.
+  - Usage persistence is stored in SQLite at `ADDRESS_USAGE_DB_PATH` (default `server/data/address-usage.db`).
 - **Employees module**:
   - `GET /employees/roster` - list employee profiles used by the Manage Employees roster.
   - `GET /employees/job-options` - list saved client jobs (from Entries) with normalized `status` (`scheduled`, `late`, `completed`) for linked-job pickers in hours logging and Start Next Job.
@@ -121,6 +127,12 @@ root/
   | `GOOGLE_CALENDAR_CREDENTIALS_PATH` _or_ `GOOGLE_CALENDAR_CREDENTIALS` | Yes | Points to / contains the service-account JSON for `ecocut-calendar-bot@ecocut-calendar-link.iam.gserviceaccount.com`. JSON files live outside the repo. |
   | `GOOGLE_CALENDAR_ID` | Optional | Overrides the default target calendar (`ecojcut@gmail.com`). |
   | `ENTRIES_DB_PATH` | Optional | SQLite file path for persisted job/CRM entry history (`server/data/entries.db` by default). |
+  | `ADDRESS_PROVIDER` | Optional | Address provider switch (`google` or `none`). |
+  | `GOOGLE_MAPS_API_KEY` | Required when `ADDRESS_PROVIDER=google` | API key for Places autocomplete/details. |
+  | `ADDRESS_USAGE_DB_PATH` | Optional | SQLite file path for address API usage ledger (`server/data/address-usage.db` by default). |
+  | `ADDRESS_AUTOCOMPLETE_CAP_MONTHLY` | Optional | Hard monthly cap for autocomplete requests. |
+  | `ADDRESS_DETAILS_CAP_MONTHLY` | Optional | Hard monthly cap for place-details validation requests. |
+  | `ADDRESS_VALIDATION_CAP_MONTHLY` | Optional | Reserved cap for future dedicated address-validation calls. |
   | `COMMUNICATIONS_DB_PATH` | Optional | SQLite file path for broadcast campaigns/audit/analytics/suppressions (`server/data/communications.db` by default). |
   | `EMPLOYEES_DB_PATH` | Optional | SQLite file path for persisted employees roster/hours/history snapshot (`server/data/employees.db` by default). |
   | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` | Required for email sends | Hostinger SMTP credentials used by the communications module. |

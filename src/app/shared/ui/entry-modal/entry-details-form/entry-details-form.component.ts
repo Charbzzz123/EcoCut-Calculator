@@ -18,10 +18,13 @@ import {
   RabattageOption,
   TrimPreset,
 } from '@shared/domain/entry/entry-modal.models.js';
+import type { AddressSuggestion } from '@shared/domain/address/address-lookup.service.js';
 import { PanelState } from '../entry-modal-panel.store.js';
 
 export interface EntryDetailsFormHandlers {
   handlePhoneInput(event: Event): void;
+  selectAddressSuggestion(suggestion: AddressSuggestion): void;
+  handleAddressFocus(): void;
   cycleHedge(event: MouseEvent, hedgeId: HedgeId): void;
   updateTrimSection(section: 'inside' | 'top' | 'outside', checked: boolean): void;
   selectTrimPreset(preset: TrimPreset): void;
@@ -56,6 +59,11 @@ export class EntryDetailsFormComponent implements OnDestroy {
   @Input({ required: true }) hasSavedConfig!: (hedgeId: HedgeId) => boolean;
   @Input({ required: true }) getHedgeState!: (hedgeId: HedgeId) => HedgeState;
   @Input({ required: true }) handlers!: EntryDetailsFormHandlers;
+  @Input() addressSuggestions: readonly AddressSuggestion[] = [];
+  @Input() showAddressSuggestions = false;
+  @Input() addressLookupLoading = false;
+  @Input() addressLookupMessage: string | null = null;
+  @Input() addressVerified = false;
   @Output() canvasHostChange = new EventEmitter<ElementRef<HTMLElement> | undefined>();
 
   @ViewChild('canvasHost', { static: false })

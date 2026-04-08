@@ -31,6 +31,11 @@ import {
   CalendarEventSummary,
   CalendarEventsService,
 } from '@shared/domain/entry/calendar-events.service.js';
+import {
+  AddressLookupService,
+  type AddressSuggestResponse,
+  type AddressSuggestion,
+} from '@shared/domain/address/address-lookup.service.js';
 import type { EntryDetailsFormHandlers } from './entry-details-form/entry-details-form.component.js';
 import { EntryModalValidationService } from './entry-modal-validation.service.js';
 import type {
@@ -41,9 +46,10 @@ import {
   EntryRepositoryService,
   type ClientMatchResult,
 } from '@shared/domain/entry/entry-repository.service.js';
-import { Subscription } from 'rxjs';
+import { debounceTime, distinctUntilChanged, Subscription } from 'rxjs';
 import { EntryModalDuplicateGuard } from './entry-modal-duplicate.guard.js';
 import { EntryModalScheduleController } from './entry-modal-schedule.controller.js';
+import { environment } from '../../../../environments/environment';
 
 @Directive()
 export abstract class EntryModalFacade implements OnDestroy {
@@ -110,6 +116,7 @@ export abstract class EntryModalFacade implements OnDestroy {
     notes: new FormControl('', { nonNullable: true }),
   });
   private readonly calendarService = inject(CalendarEventsService);
+  private readonly addressLookup = inject(AddressLookupService);
   private readonly entryRepository = inject(EntryRepositoryService);
   private readonly validationService = inject(EntryModalValidationService);
   private readonly scheduleController = new EntryModalScheduleController({
@@ -140,6 +147,7 @@ export abstract class EntryModalFacade implements OnDestroy {
   protected readonly duplicateMatchError = this.duplicateGuard.error;
   protected readonly duplicateCheckLoading = this.duplicateGuard.loading;
   private readonly formChangesSub: Subscription;
+  private readonly addressLookupSub: Subscription;
   protected readonly panelStore = new EntryModalPanelStore();
   protected readonly hedgeStates = this.panelStore.hedgeStates;
   protected readonly savedConfigs = this.panelStore.savedConfigs;
@@ -148,6 +156,20 @@ export abstract class EntryModalFacade implements OnDestroy {
   protected readonly panelError = this.panelStore.panelError;
   protected readonly hedgeSelectionError = signal<string | null>(null);
   protected readonly requiredFieldErrors = signal<string[]>([]);
+  protected readonly addressSuggestions = signal<readonly AddressSuggestion[]>([]);
+  protected readonly showAddressSuggestions = signal(false);
+  protected readonly addressLookupLoading = signal(false);
+  protected readonly addressLookupMessage = signal<string | null>(null);
+  protected readonly addressVerified = signal(false);
+  private addressSelectionId: string | null = null;
+  private verifiedAddressValue: string | null = null;
+  private addressSessionToken: string = this.generateSessionToken();
+  private readonly addressSuggestionCache = new Map<
+    string,
+    AddressSuggestResponse
+  >();
+  private addressAutoFillInProgress = false;
+  private readonly enforceVerifiedAddress = environment.enforceVerifiedAddress;
   /* c8 ignore next */
   protected readonly floatingPanelEnabled = this.panelStore.floatingPanelEnabled;
   protected readonly hedges = this.panelStore.hedges;
@@ -164,6 +186,8 @@ export abstract class EntryModalFacade implements OnDestroy {
   protected readonly getHedgeStateFn = (hedgeId: HedgeId) => this.getHedgeState(hedgeId);
   protected readonly detailsHandlers: EntryDetailsFormHandlers = {
     handlePhoneInput: (event) => this.handlePhoneInput(event),
+    selectAddressSuggestion: (suggestion) => void this.selectAddressSuggestion(suggestion),
+    handleAddressFocus: () => this.handleAddressFocus(),
     cycleHedge: (event, hedgeId) => this.cycleHedge(event, hedgeId),
     updateTrimSection: (section, checked) => this.updateTrimSection(section, checked),
     selectTrimPreset: (preset) => this.selectTrimPreset(preset),
@@ -277,6 +301,7 @@ export abstract class EntryModalFacade implements OnDestroy {
   constructor() {
     this.formChangesSub = this.form.valueChanges.subscribe(() => {
       this.resetDuplicateGuards();
+      this.syncAddressVerificationState(this.form.controls.address.value);
       if (this.requiredFieldErrors().length > 0) {
         this.requiredFieldErrors.set(this.collectRequiredFieldErrors());
       }
@@ -284,7 +309,13 @@ export abstract class EntryModalFacade implements OnDestroy {
         this.syncHedgeSelectionError();
       }
     });
+    this.addressLookupSub = this.form.controls.address.valueChanges
+      .pipe(debounceTime(500), distinctUntilChanged())
+      .subscribe((value) => {
+        void this.handleAddressQuery(value);
+      });
     this.syncCalendarValidators();
+    this.syncAddressVerificationState(this.form.controls.address.value);
   }
   protected get scheduleViewModel(): EntryScheduleSectionViewModel {
     const base = this.scheduleController.buildViewModel();
@@ -307,6 +338,71 @@ export abstract class EntryModalFacade implements OnDestroy {
     const formatted = formatNorthAmericanPhone(digits);
     this.form.controls.phone.setValue(formatted, { emitEvent: false });
     input.value = formatted;
+  }
+
+  protected handleAddressFocus(): void {
+    const address = this.form.controls.address.value.trim();
+    if (address.length >= 3 && this.addressSuggestions().length > 0) {
+      this.showAddressSuggestions.set(true);
+    }
+  }
+
+  protected async selectAddressSuggestion(suggestion: AddressSuggestion): Promise<void> {
+    this.addressAutoFillInProgress = true;
+    this.form.controls.address.setValue(suggestion.label);
+    this.form.controls.address.markAsTouched();
+    this.addressAutoFillInProgress = false;
+
+    this.addressLookupLoading.set(true);
+    this.addressLookupMessage.set('Validating selected address...');
+    this.showAddressSuggestions.set(false);
+    this.addressSuggestions.set([]);
+    this.addressSelectionId = suggestion.id;
+
+    try {
+      const result = await this.addressLookup.validate(suggestion.id, this.addressSessionToken);
+      if (result.verified) {
+        const normalized = result.normalizedAddress?.formattedAddress?.trim();
+        if (normalized && normalized !== this.form.controls.address.value) {
+          this.addressAutoFillInProgress = true;
+          this.form.controls.address.setValue(normalized);
+          this.addressAutoFillInProgress = false;
+        }
+        this.addressVerified.set(true);
+        this.verifiedAddressValue = this.form.controls.address.value.trim();
+        this.addressLookupMessage.set('Address verified.');
+        this.applyAddressVerificationError(false);
+        if (result.usage.thresholds.warn90Reached) {
+          this.addressLookupMessage.set(
+            'Address verified. Warning: monthly address API quota is above 90%.',
+          );
+        } else if (result.usage.thresholds.warn75Reached) {
+          this.addressLookupMessage.set(
+            'Address verified. Monthly address API quota is above 75%.',
+          );
+        }
+      } else {
+        this.addressVerified.set(false);
+        this.addressSelectionId = null;
+        this.verifiedAddressValue = null;
+        this.applyAddressVerificationError(
+          this.form.controls.address.value.trim().length > 0,
+        );
+        this.addressLookupMessage.set(
+          result.message ?? 'Select a valid address from the suggestions.',
+        );
+      }
+    } catch {
+      this.addressVerified.set(false);
+      this.addressSelectionId = null;
+      this.verifiedAddressValue = null;
+      this.applyAddressVerificationError(this.form.controls.address.value.trim().length > 0);
+      this.addressLookupMessage.set('Unable to validate address right now. Try again.');
+    } finally {
+      this.addressSessionToken = this.generateSessionToken();
+      this.addressSuggestionCache.clear();
+      this.addressLookupLoading.set(false);
+    }
   }
 
   protected trimPresetSelected(): TrimPreset | null {
@@ -516,6 +612,148 @@ export abstract class EntryModalFacade implements OnDestroy {
     return `${email}::${phoneDigits}::${name}::${address}`;
   }
 
+  private async handleAddressQuery(value: string): Promise<void> {
+    this.syncAddressVerificationState(value);
+
+    const query = value.trim();
+    if (query.length < 3) {
+      this.addressSuggestions.set([]);
+      this.showAddressSuggestions.set(false);
+      if (!query.length) {
+        this.addressLookupMessage.set(null);
+      }
+      return;
+    }
+
+    if (this.addressSelectionId && this.addressVerified() && query === this.form.controls.address.value) {
+      return;
+    }
+
+    const cacheKey = query.toLowerCase();
+    const cachedResult = this.addressSuggestionCache.get(cacheKey);
+    if (cachedResult) {
+      this.applyAddressSuggestResult(cachedResult);
+      return;
+    }
+
+    this.addressLookupLoading.set(true);
+    try {
+      const result = await this.addressLookup.suggest(query, this.addressSessionToken);
+      this.addressSuggestionCache.set(cacheKey, result);
+      this.applyAddressSuggestResult(result);
+    } catch {
+      this.addressSuggestions.set([]);
+      this.showAddressSuggestions.set(false);
+      this.addressLookupMessage.set('Unable to search addresses right now.');
+    } finally {
+      this.addressLookupLoading.set(false);
+    }
+  }
+
+  private applyAddressSuggestResult(result: AddressSuggestResponse): void {
+    this.addressSuggestions.set(result.suggestions);
+    this.showAddressSuggestions.set(result.status === 'ok' && result.suggestions.length > 0);
+
+    if (result.usage.thresholds.hardStopReached) {
+      this.addressLookupMessage.set(
+        'Monthly address search cap reached. Search is paused until next month.',
+      );
+      this.showAddressSuggestions.set(false);
+      return;
+    }
+
+    if (result.status !== 'ok') {
+      this.addressLookupMessage.set(result.message ?? 'Address search is unavailable right now.');
+      if (result.status === 'quota_reached') {
+        this.showAddressSuggestions.set(false);
+      }
+      return;
+    }
+
+    if (result.suggestions.length === 0) {
+      this.addressLookupMessage.set('No matching addresses found.');
+      return;
+    }
+
+    if (result.usage.thresholds.warn90Reached) {
+      this.addressLookupMessage.set(
+        'Address API usage is above 90% this month. Keep searches focused.',
+      );
+      return;
+    }
+
+    if (result.usage.thresholds.warn75Reached) {
+      this.addressLookupMessage.set('Address API usage is above 75% this month.');
+      return;
+    }
+
+    this.addressLookupMessage.set(null);
+  }
+
+  private syncAddressVerificationState(value: string): void {
+    if (!this.enforceVerifiedAddress) {
+      this.addressVerified.set(value.trim().length > 0);
+      this.addressSelectionId = null;
+      this.verifiedAddressValue = null;
+      this.applyAddressVerificationError(false);
+      return;
+    }
+
+    if (this.addressAutoFillInProgress) {
+      return;
+    }
+    const trimmed = value.trim();
+    if (!trimmed.length) {
+      this.addressVerified.set(false);
+      this.addressSelectionId = null;
+      this.verifiedAddressValue = null;
+      this.addressSessionToken = this.generateSessionToken();
+      this.addressSuggestionCache.clear();
+      this.applyAddressVerificationError(false);
+      this.addressLookupMessage.set(null);
+      return;
+    }
+
+    const isStillVerifiedSelection =
+      this.addressSelectionId !== null &&
+      this.addressVerified() &&
+      this.verifiedAddressValue === trimmed &&
+      !this.addressLookupLoading();
+    if (!isStillVerifiedSelection) {
+      this.addressVerified.set(false);
+      this.addressSelectionId = null;
+      this.verifiedAddressValue = null;
+      this.applyAddressVerificationError(true);
+      if (!this.addressLookupLoading()) {
+        this.addressLookupMessage.set('Select a suggested address to continue.');
+      }
+    }
+  }
+
+  private applyAddressVerificationError(active: boolean): void {
+    const control = this.form.controls.address;
+    if (!this.enforceVerifiedAddress) {
+      if (control.hasError('addressUnverified')) {
+        const next = { ...(control.errors ?? {}) } as Record<string, unknown>;
+        delete next['addressUnverified'];
+        control.setErrors(Object.keys(next).length > 0 ? next : null);
+      }
+      return;
+    }
+    const current = { ...(control.errors ?? {}) } as Record<string, unknown>;
+    if (active) {
+      current['addressUnverified'] = true;
+    } else {
+      delete current['addressUnverified'];
+    }
+    const nextErrors = Object.keys(current).length > 0 ? current : null;
+    control.setErrors(nextErrors);
+  }
+
+  private generateSessionToken(): string {
+    return `addr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+  }
+
   private syncCalendarValidators(): void {
     const calendar = this.calendarGroup;
     const controls = [calendar.controls.date, calendar.controls.startTime, calendar.controls.endTime];
@@ -556,6 +794,10 @@ export abstract class EntryModalFacade implements OnDestroy {
         addError(label);
       }
     });
+
+    if (this.form.controls.address.hasError('addressUnverified')) {
+      addError('Home address (select a valid suggestion)');
+    }
 
     if (this.form.controls.phone.hasError('required')) {
       addError('Phone number');
@@ -641,6 +883,14 @@ export abstract class EntryModalFacade implements OnDestroy {
     const calendarPayload =
       payload.variant === 'customer' ? payload.calendar ?? null : null;
     this.scheduleController.applyCalendarPayload(calendarPayload);
+    this.addressSelectionId = null;
+    this.verifiedAddressValue = this.form.controls.address.value.trim();
+    this.addressVerified.set(this.verifiedAddressValue.length > 0);
+    this.addressLookupMessage.set(null);
+    this.addressSuggestions.set([]);
+    this.showAddressSuggestions.set(false);
+    this.addressSuggestionCache.clear();
+    this.applyAddressVerificationError(false);
   }
   /* c8 ignore end */
 
@@ -651,6 +901,15 @@ export abstract class EntryModalFacade implements OnDestroy {
     this.syncCalendarValidators();
     this.hedgeSelectionError.set(null);
     this.requiredFieldErrors.set([]);
+    this.addressSelectionId = null;
+    this.verifiedAddressValue = null;
+    this.addressSessionToken = this.generateSessionToken();
+    this.addressVerified.set(false);
+    this.addressSuggestions.set([]);
+    this.showAddressSuggestions.set(false);
+    this.addressLookupLoading.set(false);
+    this.addressLookupMessage.set(null);
+    this.addressSuggestionCache.clear();
   }
 
   private syncCanvasHost(): void {
@@ -825,6 +1084,7 @@ export abstract class EntryModalFacade implements OnDestroy {
 
   ngOnDestroy(): void {
     this.formChangesSub.unsubscribe();
+    this.addressLookupSub.unsubscribe();
     this.panelStore.destroy();
     this.scheduleController.destroy();
   }

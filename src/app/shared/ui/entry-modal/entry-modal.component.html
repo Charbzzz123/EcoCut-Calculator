@@ -27,6 +27,11 @@
           [trimPresetSelected]="trimPresetSelectedFn"
           [hasSavedConfig]="hasSavedConfigFn"
           [getHedgeState]="getHedgeStateFn"
+          [addressSuggestions]="addressSuggestions()"
+          [showAddressSuggestions]="showAddressSuggestions()"
+          [addressLookupLoading]="addressLookupLoading()"
+          [addressLookupMessage]="addressLookupMessage()"
+          [addressVerified]="addressVerified()"
           [handlers]="detailsHandlers"
           (canvasHostChange)="onCanvasHostChange($event)"
         ></app-entry-details-form>
