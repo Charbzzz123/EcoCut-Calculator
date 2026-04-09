@@ -209,14 +209,48 @@
             </label>
             <label class="field">
               <span class="field__label">Site / address *</span>
-              <input
-                class="field__input"
-                type="text"
-                [formControl]="facade.addressControl"
-                [readOnly]="facade.hasLinkedJobSelection()"
-                required
-                aria-required="true"
-              />
+              <div class="address-field">
+                <input
+                  class="field__input"
+                  type="text"
+                  autocomplete="off"
+                  [formControl]="facade.addressControl"
+                  [readOnly]="facade.hasLinkedJobSelection()"
+                  required
+                  aria-required="true"
+                  (focus)="facade.handleAddressFocus()"
+                  (blur)="facade.handleAddressBlur()"
+                />
+                @if (facade.showAddressSuggestions()) {
+                  <ul class="address-suggestions" role="listbox" aria-label="Address suggestions">
+                    @if (facade.addressLookupLoading()) {
+                      <li class="address-suggestions__status">Searching addresses...</li>
+                    } @else if (facade.addressSuggestions().length) {
+                      @for (suggestion of facade.addressSuggestions(); track suggestion.id) {
+                        <li>
+                          <button
+                            type="button"
+                            class="address-suggestion"
+                            (mousedown)="$event.preventDefault()"
+                            (click)="facade.selectAddressSuggestion(suggestion)"
+                          >
+                            <span class="address-suggestion__primary">{{
+                              suggestion.primaryText
+                            }}</span>
+                            @if (suggestion.secondaryText) {
+                              <span class="address-suggestion__secondary">{{
+                                suggestion.secondaryText
+                              }}</span>
+                            }
+                          </button>
+                        </li>
+                      }
+                    } @else {
+                      <li class="address-suggestions__status">No matching addresses found.</li>
+                    }
+                  </ul>
+                }
+              </div>
             </label>
             <label class="field" [class.field--auto]="facade.linkedScheduleReadOnly()">
               <span class="field__label">
@@ -263,6 +297,22 @@
             <p class="field__hint">
               Manual mode selected: provide label, address, and schedule values directly.
             </p>
+          }
+          @if (facade.addressControl.touched && facade.addressControl.hasError('required')) {
+            <p class="field__hint field__hint--error">Job address is required.</p>
+          } @else if (
+            facade.addressControl.touched &&
+            facade.addressVerificationRequired &&
+            facade.addressControl.value.trim().length > 0 &&
+            !facade.addressVerified()
+          ) {
+            <p class="field__hint field__hint--error">
+              Select a verified address from suggestions.
+            </p>
+          } @else if (facade.addressLookupMessage(); as addressMessage) {
+            <p class="field__hint">{{ addressMessage }}</p>
+          } @else if (facade.addressVerified()) {
+            <p class="field__hint">Address verified.</p>
           }
         </section>
 

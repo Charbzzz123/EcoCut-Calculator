@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { EmployeesFacade } from './employees.facade.js';
 import { EmployeesDataService } from './employees-data.service.js';
+import { AddressLookupService } from '../../shared/domain/address/address-lookup.service.js';
 import type {
   EmployeeHoursRecord,
   EmployeeLoggedJobOption,
@@ -409,6 +410,56 @@ class EmployeesDataServiceStub {
   }
 }
 
+class AddressLookupServiceStub {
+  async suggest(query: string) {
+    return {
+      status: query.length >= 3 ? 'ok' : 'no_results',
+      message: null,
+      suggestions:
+        query.length >= 3
+          ? [
+              {
+                id: 'addr-1',
+                fullAddress: '2331 Sherbrooke St W, Montreal, QC',
+                primaryText: '2331 Sherbrooke St W',
+                secondaryText: 'Montreal, QC',
+              },
+            ]
+          : [],
+      usage: {
+        period: '2026-04',
+        usageCount: 0,
+        softCap: 800,
+        hardCap: 1000,
+        thresholds: {
+          warn75Reached: false,
+          warn90Reached: false,
+          hardStopReached: false,
+        },
+      },
+    } as const;
+  }
+
+  async validate(id: string) {
+    return {
+      status: id ? 'ok' : 'invalid',
+      message: null,
+      address: '2331 Sherbrooke St W, Montreal, QC',
+      usage: {
+        period: '2026-04',
+        usageCount: 0,
+        softCap: 800,
+        hardCap: 1000,
+        thresholds: {
+          warn75Reached: false,
+          warn90Reached: false,
+          hardStopReached: false,
+        },
+      },
+    } as const;
+  }
+}
+
 describe('EmployeesFacade', () => {
   let facade: EmployeesFacade;
   let service: EmployeesDataServiceStub;
@@ -418,6 +469,7 @@ describe('EmployeesFacade', () => {
       providers: [
         EmployeesFacade,
         { provide: EmployeesDataService, useClass: EmployeesDataServiceStub },
+        { provide: AddressLookupService, useClass: AddressLookupServiceStub },
       ],
     });
 

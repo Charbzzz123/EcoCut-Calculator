@@ -43,6 +43,10 @@ class EmployeesFacadeStub {
     scheduledStart: new FormControl('', { nonNullable: true }),
     scheduledEnd: new FormControl('', { nonNullable: true }),
   });
+  readonly addressVerificationRequired = false;
+  readonly handleHistoryAddressFocus = vi.fn();
+  readonly handleHistoryAddressBlur = vi.fn();
+  readonly selectHistoryAddressSuggestion = vi.fn();
 
   readonly loadRoster = vi.fn(() => Promise.resolve());
   readonly setStatusFilter = vi.fn((filter: EmployeeStatusFilter) => {
@@ -137,6 +141,13 @@ class EmployeesFacadeStub {
   private readonly hoursSuccessSignal = signal<string | null>(null);
   private readonly historyErrorsSignal = signal<string[]>([]);
   private readonly historySuccessSignal = signal<string | null>(null);
+  private readonly historyAddressSuggestionsSignal = signal<
+    { id: string; primaryText: string; secondaryText?: string }[]
+  >([]);
+  private readonly showHistoryAddressSuggestionsSignal = signal(false);
+  private readonly historyAddressLookupLoadingSignal = signal(false);
+  private readonly historyAddressLookupMessageSignal = signal<string | null>(null);
+  private readonly historyAddressVerifiedSignal = signal(false);
   private stats = { total: 0, active: 0, inactive: 0 };
 
   readonly rosterSnapshot = vi.fn(() => this.rosterSignal());
@@ -187,6 +198,11 @@ class EmployeesFacadeStub {
     ) ?? null;
   readonly historyErrors = this.historyErrorsSignal.asReadonly();
   readonly historySuccess = this.historySuccessSignal.asReadonly();
+  readonly historyAddressSuggestions = this.historyAddressSuggestionsSignal.asReadonly();
+  readonly showHistoryAddressSuggestions = this.showHistoryAddressSuggestionsSignal.asReadonly();
+  readonly historyAddressLookupLoading = this.historyAddressLookupLoadingSignal.asReadonly();
+  readonly historyAddressLookupMessage = this.historyAddressLookupMessageSignal.asReadonly();
+  readonly historyAddressVerified = this.historyAddressVerifiedSignal.asReadonly();
   readonly selectedHistorySummary = () => {
     const entries = this.selectedEmployeeJobHistory();
     const completedCount = entries.filter((entry) => entry.status === 'completed').length;

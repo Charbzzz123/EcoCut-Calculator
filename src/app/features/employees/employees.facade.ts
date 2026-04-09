@@ -1,8 +1,14 @@
-import { Injectable, Signal, WritableSignal, computed, inject, signal } from '@angular/core';
+import { Injectable, OnDestroy, Signal, WritableSignal, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup } from '@angular/forms';
-import { debounceTime, distinctUntilChanged, startWith } from 'rxjs';
+import { Subscription, debounceTime, distinctUntilChanged, startWith } from 'rxjs';
 import { EmployeesDataService } from './employees-data.service.js';
 import { computeHistoryLifecycleSummary } from '../../shared/domain/employees/history-lifecycle-metrics.js';
+import {
+  AddressLookupService,
+  type AddressSuggestResponse,
+  type AddressSuggestion,
+} from '../../shared/domain/address/address-lookup.service.js';
+import { environment } from '../../../environments/environment';
 import type {
   EmployeeEditorMode,
   EmployeeHoursMutationPayload,
@@ -107,8 +113,12 @@ export interface EmployeeClockSummary {
 }
 
 @Injectable({ providedIn: 'root' })
-export class EmployeesFacade {
+export class EmployeesFacade implements OnDestroy {
   private readonly data = inject(EmployeesDataService);
+  private readonly addressLookup = inject(AddressLookupService);
+  private readonly enforceVerifiedAddress = environment.enforceVerifiedAddress;
+
+  readonly addressVerificationRequired = this.enforceVerifiedAddress;
 
   readonly headingId = 'manage-employees-heading';
   readonly queryControl = new FormControl('', { nonNullable: true });
@@ -190,6 +200,25 @@ export class EmployeesFacade {
   private readonly workspaceNoticeSignal: WritableSignal<string | null> = signal<string | null>(
     null,
   );
+  private readonly historyAddressSuggestionsSignal: WritableSignal<readonly AddressSuggestion[]> =
+    signal<readonly AddressSuggestion[]>([]);
+  private readonly showHistoryAddressSuggestionsSignal: WritableSignal<boolean> =
+    signal<boolean>(false);
+  private readonly historyAddressLookupLoadingSignal: WritableSignal<boolean> =
+    signal<boolean>(false);
+  private readonly historyAddressLookupMessageSignal: WritableSignal<string | null> =
+    signal<string | null>(null);
+  private readonly historyAddressVerifiedSignal: WritableSignal<boolean> = signal<boolean>(false);
+  private historyAddressSelectionId: string | null = null;
+  private verifiedHistoryAddressValue: string | null = null;
+  private historyAddressSessionToken = this.generateAddressSessionToken();
+  private readonly historyAddressSuggestionCache = new Map<string, AddressSuggestResponse>();
+  private historyAddressAutoFillInProgress = false;
+  private readonly querySub: Subscription;
+  private readonly roleSub: Subscription;
+  private readonly hoursJobSub: Subscription;
+  private readonly historyAddressSyncSub: Subscription;
+  private readonly historyAddressLookupSub: Subscription;
 
   readonly statusFilter: Signal<EmployeeStatusFilter> = this.statusFilterSignal.asReadonly();
   readonly loadState: Signal<EmployeeLoadState> = this.loadStateSignal.asReadonly();
@@ -301,6 +330,15 @@ export class EmployeesFacade {
   });
   readonly historyErrors: Signal<string[]> = this.historyErrorsSignal.asReadonly();
   readonly historySuccess: Signal<string | null> = this.historySuccessSignal.asReadonly();
+  readonly historyAddressSuggestions: Signal<readonly AddressSuggestion[]> =
+    this.historyAddressSuggestionsSignal.asReadonly();
+  readonly showHistoryAddressSuggestions: Signal<boolean> =
+    this.showHistoryAddressSuggestionsSignal.asReadonly();
+  readonly historyAddressLookupLoading: Signal<boolean> =
+    this.historyAddressLookupLoadingSignal.asReadonly();
+  readonly historyAddressLookupMessage: Signal<string | null> =
+    this.historyAddressLookupMessageSignal.asReadonly();
+  readonly historyAddressVerified: Signal<boolean> = this.historyAddressVerifiedSignal.asReadonly();
   readonly selectedHistorySummary: Signal<{
     jobsCount: number;
     completedCount: number;
@@ -334,17 +372,35 @@ export class EmployeesFacade {
   );
 
   constructor() {
-    this.queryControl.valueChanges
+    this.querySub = this.queryControl.valueChanges
       .pipe(startWith(''), debounceTime(150), distinctUntilChanged())
       .subscribe((value) => this.querySignal.set(value));
 
-    this.roleControl.valueChanges
+    this.roleSub = this.roleControl.valueChanges
       .pipe(startWith(this.roleControl.value), distinctUntilChanged())
       .subscribe((value) => this.roleSignal.set(value));
 
-    this.hoursForm.controls.jobEntryId.valueChanges
+    this.hoursJobSub = this.hoursForm.controls.jobEntryId.valueChanges
       .pipe(startWith(this.hoursForm.controls.jobEntryId.value), distinctUntilChanged())
       .subscribe((value) => this.selectedHoursJobEntryIdSignal.set(value));
+
+    this.historyAddressSyncSub = this.historyForm.controls.address.valueChanges
+      .pipe(distinctUntilChanged())
+      .subscribe((value) => this.syncHistoryAddressVerificationState(value));
+    this.historyAddressLookupSub = this.historyForm.controls.address.valueChanges
+      .pipe(debounceTime(500), distinctUntilChanged())
+      .subscribe((value) => {
+        void this.handleHistoryAddressQuery(value);
+      });
+    this.syncHistoryAddressVerificationState(this.historyForm.controls.address.value);
+  }
+
+  ngOnDestroy(): void {
+    this.querySub.unsubscribe();
+    this.roleSub.unsubscribe();
+    this.hoursJobSub.unsubscribe();
+    this.historyAddressSyncSub.unsubscribe();
+    this.historyAddressLookupSub.unsubscribe();
   }
 
   setStatusFilter(filter: EmployeeStatusFilter): void {
@@ -560,6 +616,15 @@ export class EmployeesFacade {
     this.editingHistoryEntryIdSignal.set(null);
     this.historyErrorsSignal.set([]);
     this.historySuccessSignal.set(null);
+    this.showHistoryAddressSuggestionsSignal.set(false);
+    this.historyAddressSuggestionsSignal.set([]);
+    this.historyAddressLookupLoadingSignal.set(false);
+    this.historyAddressLookupMessageSignal.set(null);
+    this.historyAddressSelectionId = null;
+    this.verifiedHistoryAddressValue = null;
+    this.historyAddressVerifiedSignal.set(false);
+    this.historyAddressSessionToken = this.generateAddressSessionToken();
+    this.historyAddressSuggestionCache.clear();
   }
 
   closeJobHistory(): void {
@@ -591,6 +656,85 @@ export class EmployeesFacade {
     });
   }
 
+  handleHistoryAddressFocus(): void {
+    if (!this.historyEditorOpen()) {
+      return;
+    }
+    if (
+      !this.showHistoryAddressSuggestionsSignal() &&
+      this.historyAddressSuggestionsSignal().length > 0
+    ) {
+      this.showHistoryAddressSuggestionsSignal.set(true);
+    }
+  }
+
+  handleHistoryAddressBlur(): void {
+    setTimeout(() => this.showHistoryAddressSuggestionsSignal.set(false), 120);
+  }
+
+  async selectHistoryAddressSuggestion(suggestion: AddressSuggestion): Promise<void> {
+    if (!this.historyEditorOpen()) {
+      return;
+    }
+    this.historyAddressAutoFillInProgress = true;
+    this.historyForm.controls.address.setValue(suggestion.label);
+    this.historyForm.controls.address.markAsTouched();
+    this.historyAddressAutoFillInProgress = false;
+
+    this.historyAddressLookupLoadingSignal.set(true);
+    this.historyAddressLookupMessageSignal.set('Validating selected address...');
+    this.showHistoryAddressSuggestionsSignal.set(false);
+    this.historyAddressSuggestionsSignal.set([]);
+    this.historyAddressSelectionId = suggestion.id;
+
+    try {
+      const result = await this.addressLookup.validate(
+        suggestion.id,
+        this.historyAddressSessionToken,
+      );
+      if (!result.verified) {
+        this.historyAddressVerifiedSignal.set(false);
+        this.historyAddressSelectionId = null;
+        this.verifiedHistoryAddressValue = null;
+        this.historyAddressLookupMessageSignal.set(
+          result.message ?? 'Select a valid address from suggestions.',
+        );
+        return;
+      }
+
+      const normalizedAddress = result.normalizedAddress?.formattedAddress?.trim();
+      if (
+        normalizedAddress &&
+        normalizedAddress !== this.historyForm.controls.address.value
+      ) {
+        this.historyAddressAutoFillInProgress = true;
+        this.historyForm.controls.address.setValue(normalizedAddress);
+        this.historyAddressAutoFillInProgress = false;
+      }
+      this.markHistoryAddressVerified(this.historyForm.controls.address.value, suggestion.id);
+
+      if (result.usage.thresholds.warn90Reached) {
+        this.historyAddressLookupMessageSignal.set(
+          'Address verified. API usage is above 90% this month.',
+        );
+      } else if (result.usage.thresholds.warn75Reached) {
+        this.historyAddressLookupMessageSignal.set(
+          'Address verified. API usage is above 75% this month.',
+        );
+      } else {
+        this.historyAddressLookupMessageSignal.set('Address verified.');
+      }
+    } catch {
+      this.historyAddressVerifiedSignal.set(false);
+      this.historyAddressSelectionId = null;
+      this.verifiedHistoryAddressValue = null;
+      this.historyAddressLookupMessageSignal.set('Unable to validate address right now. Try again.');
+    } finally {
+      this.historyAddressSessionToken = this.generateAddressSessionToken();
+      this.historyAddressLookupLoadingSignal.set(false);
+    }
+  }
+
   startHistoryEdit(entryId: string): void {
     this.clearWorkspaceNotice();
     const historyEntry = this.selectedEmployeeJobHistory().find((entry) => entry.id === entryId);
@@ -614,6 +758,10 @@ export class EmployeesFacade {
       scheduledStart: toDateTimeLocal(historyEntry.scheduledStart),
       scheduledEnd: toDateTimeLocal(historyEntry.scheduledEnd),
     });
+    this.markHistoryAddressVerified(historyEntry.address, `history:${historyEntry.id}`);
+    this.showHistoryAddressSuggestionsSignal.set(false);
+    this.historyAddressSuggestionsSignal.set([]);
+    this.historyAddressLookupMessageSignal.set(null);
     this.historyForm.markAsPristine();
     this.historyForm.markAsUntouched();
   }
@@ -621,6 +769,15 @@ export class EmployeesFacade {
   cancelHistoryEdit(): void {
     this.editingHistoryEntryIdSignal.set(null);
     this.historyErrorsSignal.set([]);
+    this.showHistoryAddressSuggestionsSignal.set(false);
+    this.historyAddressSuggestionsSignal.set([]);
+    this.historyAddressLookupLoadingSignal.set(false);
+    this.historyAddressLookupMessageSignal.set(null);
+    this.historyAddressSelectionId = null;
+    this.verifiedHistoryAddressValue = null;
+    this.historyAddressVerifiedSignal.set(false);
+    this.historyAddressSessionToken = this.generateAddressSessionToken();
+    this.historyAddressSuggestionCache.clear();
   }
 
   async saveHistoryEdit(): Promise<boolean> {
@@ -653,6 +810,14 @@ export class EmployeesFacade {
       this.historyErrorsSignal.set([]);
       this.historySuccessSignal.set('History schedule updated successfully.');
       this.editingHistoryEntryIdSignal.set(null);
+      this.showHistoryAddressSuggestionsSignal.set(false);
+      this.historyAddressSuggestionsSignal.set([]);
+      this.historyAddressLookupMessageSignal.set(null);
+      this.historyAddressSelectionId = null;
+      this.verifiedHistoryAddressValue = null;
+      this.historyAddressVerifiedSignal.set(false);
+      this.historyAddressSessionToken = this.generateAddressSessionToken();
+      this.historyAddressSuggestionCache.clear();
       await this.loadRoster();
       return true;
     } catch (error) {
@@ -1070,6 +1235,136 @@ export class EmployeesFacade {
     };
   }
 
+  private async handleHistoryAddressQuery(value: string): Promise<void> {
+    if (!this.historyEditorOpen()) {
+      this.showHistoryAddressSuggestionsSignal.set(false);
+      this.historyAddressSuggestionsSignal.set([]);
+      return;
+    }
+
+    const query = value.trim();
+    if (query.length < 3) {
+      this.historyAddressSuggestionsSignal.set([]);
+      this.showHistoryAddressSuggestionsSignal.set(false);
+      if (!query.length) {
+        this.historyAddressLookupMessageSignal.set(null);
+      }
+      return;
+    }
+
+    if (
+      this.historyAddressSelectionId &&
+      this.historyAddressVerifiedSignal() &&
+      query === this.historyForm.controls.address.value
+    ) {
+      return;
+    }
+
+    const cacheKey = query.toLowerCase();
+    const cached = this.historyAddressSuggestionCache.get(cacheKey);
+    if (cached) {
+      this.applyHistoryAddressSuggestResult(cached);
+      return;
+    }
+
+    this.historyAddressLookupLoadingSignal.set(true);
+    try {
+      const result = await this.addressLookup.suggest(query, this.historyAddressSessionToken);
+      this.historyAddressSuggestionCache.set(cacheKey, result);
+      this.applyHistoryAddressSuggestResult(result);
+    } catch {
+      this.historyAddressSuggestionsSignal.set([]);
+      this.showHistoryAddressSuggestionsSignal.set(false);
+      this.historyAddressLookupMessageSignal.set('Unable to search addresses right now.');
+    } finally {
+      this.historyAddressLookupLoadingSignal.set(false);
+    }
+  }
+
+  private applyHistoryAddressSuggestResult(result: AddressSuggestResponse): void {
+    this.historyAddressSuggestionsSignal.set(result.suggestions);
+    this.showHistoryAddressSuggestionsSignal.set(
+      result.status === 'ok' && result.suggestions.length > 0,
+    );
+
+    if (result.usage.thresholds.hardStopReached) {
+      this.historyAddressLookupMessageSignal.set(
+        'Monthly address search cap reached. Search is paused until next month.',
+      );
+      this.showHistoryAddressSuggestionsSignal.set(false);
+      return;
+    }
+    if (result.status !== 'ok') {
+      this.historyAddressLookupMessageSignal.set(
+        result.message ?? 'Address search is unavailable right now.',
+      );
+      if (result.status === 'quota_reached') {
+        this.showHistoryAddressSuggestionsSignal.set(false);
+      }
+      return;
+    }
+    if (!result.suggestions.length) {
+      this.historyAddressLookupMessageSignal.set('No matching addresses found.');
+      return;
+    }
+    if (result.usage.thresholds.warn90Reached) {
+      this.historyAddressLookupMessageSignal.set(
+        'Address API usage is above 90% this month. Keep searches focused.',
+      );
+      return;
+    }
+    if (result.usage.thresholds.warn75Reached) {
+      this.historyAddressLookupMessageSignal.set('Address API usage is above 75% this month.');
+      return;
+    }
+    this.historyAddressLookupMessageSignal.set(null);
+  }
+
+  private syncHistoryAddressVerificationState(value: string): void {
+    if (!this.enforceVerifiedAddress) {
+      this.historyAddressVerifiedSignal.set(value.trim().length > 0);
+      return;
+    }
+    if (this.historyAddressAutoFillInProgress) {
+      return;
+    }
+    const trimmed = value.trim();
+    if (!trimmed.length) {
+      this.historyAddressVerifiedSignal.set(false);
+      this.historyAddressSelectionId = null;
+      this.verifiedHistoryAddressValue = null;
+      this.historyAddressSessionToken = this.generateAddressSessionToken();
+      this.historyAddressSuggestionCache.clear();
+      this.historyAddressLookupMessageSignal.set(null);
+      return;
+    }
+    const isStillVerifiedSelection =
+      this.historyAddressSelectionId !== null &&
+      this.historyAddressVerifiedSignal() &&
+      this.verifiedHistoryAddressValue === trimmed &&
+      !this.historyAddressLookupLoadingSignal();
+    if (isStillVerifiedSelection) {
+      return;
+    }
+    this.historyAddressVerifiedSignal.set(false);
+    this.historyAddressSelectionId = null;
+    this.verifiedHistoryAddressValue = null;
+    if (!this.historyAddressLookupLoadingSignal()) {
+      this.historyAddressLookupMessageSignal.set('Select a suggested address to continue.');
+    }
+  }
+
+  private markHistoryAddressVerified(address: string, selectionId: string | null): void {
+    const trimmed = address.trim();
+    this.historyAddressVerifiedSignal.set(trimmed.length > 0);
+    this.historyAddressSelectionId = selectionId;
+    this.verifiedHistoryAddressValue = trimmed.length > 0 ? trimmed : null;
+  }
+
+  private generateAddressSessionToken(): string {
+    return `addr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+  }
+
   private readHistoryDraftFromForm(): EmployeeHistoryScheduleDraft {
     return {
       siteLabel: this.historyForm.controls.siteLabel.value,
@@ -1108,6 +1403,13 @@ export class EmployeesFacade {
     }
     if (startIso && endIso && Date.parse(endIso) <= Date.parse(startIso)) {
       errors.push('Scheduled end must be later than scheduled start.');
+    }
+    if (
+      this.enforceVerifiedAddress &&
+      draft.address.trim().length > 0 &&
+      !this.historyAddressVerifiedSignal()
+    ) {
+      errors.push('Select a verified address from suggestions.');
     }
 
     return errors;

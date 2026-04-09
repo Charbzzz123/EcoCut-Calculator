@@ -1,7 +1,12 @@
 import { FormControl } from '@angular/forms';
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { computed, inject, Injectable, OnDestroy, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { EmployeesDataService } from '../employees/employees-data.service.js';
+import {
+  AddressLookupService,
+  type AddressSuggestResponse,
+  type AddressSuggestion,
+} from '../../shared/domain/address/address-lookup.service.js';
 import type {
   EmployeeContinuityCategory,
   EmployeeLoggedJobOption,
@@ -26,6 +31,8 @@ import type {
   StartNextJobSaveState,
 } from './start-next-job.types.js';
 import { computeHistoryLifecycleSummary } from '../../shared/domain/employees/history-lifecycle-metrics.js';
+import { debounceTime, distinctUntilChanged, Subscription } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
 interface OptimisticBoardSnapshot {
   readonly history: EmployeeJobHistoryRecord[];
@@ -88,8 +95,11 @@ const continuityCategoryOptions: readonly {
 ];
 
 @Injectable()
-export class StartNextJobFacade {
+export class StartNextJobFacade implements OnDestroy {
   private readonly employeesData = inject(EmployeesDataService);
+  private readonly addressLookup = inject(AddressLookupService);
+  private readonly enforceVerifiedAddress = environment.enforceVerifiedAddress;
+  readonly addressVerificationRequired = this.enforceVerifiedAddress;
 
   readonly headingId = 'start-next-job-heading';
   readonly manualJobModeValue = MANUAL_JOB_MODE;
@@ -151,6 +161,18 @@ export class StartNextJobFacade {
   readonly saveState = signal<StartNextJobSaveState>('idle');
   readonly saveMessage = signal('');
   readonly editingHistoryEntryId = signal<string | null>(null);
+  readonly addressSuggestions = signal<readonly AddressSuggestion[]>([]);
+  readonly showAddressSuggestions = signal(false);
+  readonly addressLookupLoading = signal(false);
+  readonly addressLookupMessage = signal<string | null>(null);
+  readonly addressVerified = signal(false);
+  private readonly addressLookupSub: Subscription;
+  private readonly addressSyncSub: Subscription;
+  private addressSelectionId: string | null = null;
+  private verifiedAddressValue: string | null = null;
+  private addressSessionToken = this.generateAddressSessionToken();
+  private readonly addressSuggestionCache = new Map<string, AddressSuggestResponse>();
+  private addressAutoFillInProgress = false;
 
   private readonly readinessSignal = signal<EmployeeStartNextJobReadiness[]>([]);
   private readonly historySignal = signal<EmployeeJobHistoryRecord[]>([]);
@@ -159,8 +181,22 @@ export class StartNextJobFacade {
   private readonly selectedHistoryEntryIdsSignal = signal<string[]>([]);
 
   constructor() {
+    this.addressSyncSub = this.addressControl.valueChanges
+      .pipe(distinctUntilChanged())
+      .subscribe((value) => this.syncAddressVerificationState(value));
+    this.addressLookupSub = this.addressControl.valueChanges
+      .pipe(debounceTime(500), distinctUntilChanged())
+      .subscribe((value) => {
+        void this.handleAddressQuery(value);
+      });
+    this.syncAddressVerificationState(this.addressControl.value);
     this.setAnalyticsWindow('30d');
     this.refreshStartNowSchedule();
+  }
+
+  ngOnDestroy(): void {
+    this.addressLookupSub.unsubscribe();
+    this.addressSyncSub.unsubscribe();
   }
 
   readonly readinessSnapshot = computed(() => this.readinessSignal());
@@ -573,6 +609,13 @@ export class StartNextJobFacade {
     if (!this.addressValue().trim()) {
       blockingReasons.push('Job address is required.');
     }
+    if (
+      this.enforceVerifiedAddress &&
+      this.addressValue().trim().length > 0 &&
+      !this.addressVerified()
+    ) {
+      blockingReasons.push('Select a verified address from suggestions.');
+    }
     const startTimestamp = toTimestamp(this.scheduledStartValue());
     const endTimestamp = toTimestamp(this.scheduledEndValue());
     if (!startTimestamp || !endTimestamp) {
@@ -664,16 +707,24 @@ export class StartNextJobFacade {
     if (!selectedJobId || selectedJobId === MANUAL_JOB_MODE) {
       this.refreshStartNowSchedule(now);
       this.clearContinuityInputs();
+      this.syncAddressVerificationState(this.addressControl.value);
       return;
     }
     const selectedJob = this.selectedLinkedJob();
     if (!selectedJob) {
       this.refreshStartNowSchedule(now);
       this.clearContinuityInputs();
+      this.syncAddressVerificationState(this.addressControl.value);
       return;
     }
     this.jobLabelControl.setValue(this.toLinkedJobDisplayLabel(selectedJob));
+    this.addressAutoFillInProgress = true;
     this.addressControl.setValue(selectedJob.address);
+    this.addressAutoFillInProgress = false;
+    this.markAddressVerified(selectedJob.address, null);
+    this.showAddressSuggestions.set(false);
+    this.addressSuggestions.set([]);
+    this.addressLookupMessage.set('Linked job address loaded and locked.');
     if (this.isStartNowMode()) {
       this.applyScheduleWindow(now, this.resolveScheduleDurationMs(selectedJob));
     } else if (selectedJob.status === 'late') {
@@ -696,6 +747,81 @@ export class StartNextJobFacade {
 
   toggleCompletedJobOptions(): void {
     this.showCompletedJobOptions.update((current) => !current);
+  }
+
+  handleAddressFocus(): void {
+    const query = this.addressControl.value.trim();
+    if (
+      this.hasLinkedJobSelection() ||
+      query.length < 3 ||
+      this.addressSuggestions().length === 0
+    ) {
+      return;
+    }
+    this.showAddressSuggestions.set(true);
+  }
+
+  handleAddressBlur(): void {
+    setTimeout(() => {
+      this.showAddressSuggestions.set(false);
+    }, 120);
+  }
+
+  async selectAddressSuggestion(suggestion: AddressSuggestion): Promise<void> {
+    if (this.hasLinkedJobSelection()) {
+      return;
+    }
+    this.addressAutoFillInProgress = true;
+    this.addressControl.setValue(suggestion.label);
+    this.addressControl.markAsTouched();
+    this.addressAutoFillInProgress = false;
+
+    this.addressLookupLoading.set(true);
+    this.addressLookupMessage.set('Validating selected address...');
+    this.showAddressSuggestions.set(false);
+    this.addressSuggestions.set([]);
+    this.addressSelectionId = suggestion.id;
+
+    try {
+      const result = await this.addressLookup.validate(suggestion.id, this.addressSessionToken);
+      if (!result.verified) {
+        this.addressVerified.set(false);
+        this.addressSelectionId = null;
+        this.verifiedAddressValue = null;
+        this.addressLookupMessage.set(
+          result.message ?? 'Select a valid address from suggestions.',
+        );
+        return;
+      }
+
+      const normalizedAddress = result.normalizedAddress?.formattedAddress?.trim();
+      if (normalizedAddress && normalizedAddress !== this.addressControl.value) {
+        this.addressAutoFillInProgress = true;
+        this.addressControl.setValue(normalizedAddress);
+        this.addressAutoFillInProgress = false;
+      }
+      this.markAddressVerified(this.addressControl.value, suggestion.id);
+      this.addressLookupMessage.set('Address verified.');
+
+      if (result.usage.thresholds.warn90Reached) {
+        this.addressLookupMessage.set(
+          'Address verified. Warning: monthly address API quota is above 90%.',
+        );
+      } else if (result.usage.thresholds.warn75Reached) {
+        this.addressLookupMessage.set(
+          'Address verified. Monthly address API quota is above 75%.',
+        );
+      }
+    } catch {
+      this.addressVerified.set(false);
+      this.addressSelectionId = null;
+      this.verifiedAddressValue = null;
+      this.addressLookupMessage.set('Unable to validate address right now. Try again.');
+    } finally {
+      this.addressSessionToken = this.generateAddressSessionToken();
+      this.addressSuggestionCache.clear();
+      this.addressLookupLoading.set(false);
+    }
   }
 
   isRunActive(entry: Pick<EmployeeJobHistoryRecord, 'status' | 'runStartedAt' | 'runEndedAt'>): boolean {
@@ -801,7 +927,13 @@ export class StartNextJobFacade {
     this.editingHistoryEntryId.set(entry.id);
     this.linkedJobEntryIdControl.setValue(entry.jobEntryId ?? MANUAL_JOB_MODE);
     this.jobLabelControl.setValue(entry.siteLabel);
+    this.addressAutoFillInProgress = true;
     this.addressControl.setValue(entry.address);
+    this.addressAutoFillInProgress = false;
+    this.markAddressVerified(entry.address, null);
+    this.showAddressSuggestions.set(false);
+    this.addressSuggestions.set([]);
+    this.addressLookupMessage.set(null);
     this.scheduledStartControl.setValue(toDateTimeLocal(entry.scheduledStart));
     this.scheduledEndControl.setValue(toDateTimeLocal(entry.scheduledEnd));
     this.clearContinuityInputs();
@@ -811,6 +943,10 @@ export class StartNextJobFacade {
 
   cancelHistoryEdit(): void {
     this.editingHistoryEntryId.set(null);
+    this.showAddressSuggestions.set(false);
+    this.addressSuggestions.set([]);
+    this.addressLookupMessage.set(null);
+    this.syncAddressVerificationState(this.addressControl.value);
     this.clearSaveFeedback();
   }
 
@@ -829,6 +965,9 @@ export class StartNextJobFacade {
       return false;
     }
     if (!this.jobLabelControl.value.trim() || !this.addressControl.value.trim()) {
+      return false;
+    }
+    if (this.enforceVerifiedAddress && !this.addressVerified()) {
       return false;
     }
     const startTimestamp = toTimestamp(this.scheduledStartControl.value);
@@ -1788,6 +1927,127 @@ export class StartNextJobFacade {
     return new Date(resolvedTimestamp).toISOString();
   }
 
+  private async handleAddressQuery(value: string): Promise<void> {
+    if (this.hasLinkedJobSelection()) {
+      this.showAddressSuggestions.set(false);
+      this.addressSuggestions.set([]);
+      return;
+    }
+    const query = value.trim();
+    if (query.length < 3) {
+      this.addressSuggestions.set([]);
+      this.showAddressSuggestions.set(false);
+      if (!query.length) {
+        this.addressLookupMessage.set(null);
+      }
+      return;
+    }
+
+    if (this.addressSelectionId && this.addressVerified() && query === this.addressControl.value) {
+      return;
+    }
+
+    const cacheKey = query.toLowerCase();
+    const cached = this.addressSuggestionCache.get(cacheKey);
+    if (cached) {
+      this.applyAddressSuggestResult(cached);
+      return;
+    }
+
+    this.addressLookupLoading.set(true);
+    try {
+      const result = await this.addressLookup.suggest(query, this.addressSessionToken);
+      this.addressSuggestionCache.set(cacheKey, result);
+      this.applyAddressSuggestResult(result);
+    } catch {
+      this.addressSuggestions.set([]);
+      this.showAddressSuggestions.set(false);
+      this.addressLookupMessage.set('Unable to search addresses right now.');
+    } finally {
+      this.addressLookupLoading.set(false);
+    }
+  }
+
+  private applyAddressSuggestResult(result: AddressSuggestResponse): void {
+    this.addressSuggestions.set(result.suggestions);
+    this.showAddressSuggestions.set(result.status === 'ok' && result.suggestions.length > 0);
+
+    if (result.usage.thresholds.hardStopReached) {
+      this.addressLookupMessage.set(
+        'Monthly address search cap reached. Search is paused until next month.',
+      );
+      this.showAddressSuggestions.set(false);
+      return;
+    }
+    if (result.status !== 'ok') {
+      this.addressLookupMessage.set(result.message ?? 'Address search is unavailable right now.');
+      if (result.status === 'quota_reached') {
+        this.showAddressSuggestions.set(false);
+      }
+      return;
+    }
+    if (!result.suggestions.length) {
+      this.addressLookupMessage.set('No matching addresses found.');
+      return;
+    }
+    if (result.usage.thresholds.warn90Reached) {
+      this.addressLookupMessage.set(
+        'Address API usage is above 90% this month. Keep searches focused.',
+      );
+      return;
+    }
+    if (result.usage.thresholds.warn75Reached) {
+      this.addressLookupMessage.set('Address API usage is above 75% this month.');
+      return;
+    }
+    this.addressLookupMessage.set(null);
+  }
+
+  private syncAddressVerificationState(value: string): void {
+    if (!this.enforceVerifiedAddress) {
+      this.addressVerified.set(value.trim().length > 0);
+      return;
+    }
+    if (this.addressAutoFillInProgress) {
+      return;
+    }
+    const trimmed = value.trim();
+    if (!trimmed.length) {
+      this.addressVerified.set(false);
+      this.addressSelectionId = null;
+      this.verifiedAddressValue = null;
+      this.addressSessionToken = this.generateAddressSessionToken();
+      this.addressSuggestionCache.clear();
+      this.addressLookupMessage.set(null);
+      return;
+    }
+    const isStillVerifiedSelection =
+      this.addressSelectionId !== null &&
+      this.addressVerified() &&
+      this.verifiedAddressValue === trimmed &&
+      !this.addressLookupLoading();
+    if (isStillVerifiedSelection) {
+      return;
+    }
+    this.addressVerified.set(false);
+    this.addressSelectionId = null;
+    this.verifiedAddressValue = null;
+    if (!this.addressLookupLoading()) {
+      this.addressLookupMessage.set('Select a suggested address to continue.');
+    }
+  }
+
+  private markAddressVerified(address: string, selectionId: string | null): void {
+    const trimmed = address.trim();
+    this.addressVerified.set(trimmed.length > 0);
+    this.addressSelectionId = selectionId;
+    this.verifiedAddressValue = trimmed.length > 0 ? trimmed : null;
+  }
+
+  private generateAddressSessionToken(): string {
+    return `addr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+  }
+
   private resetDraftAfterSave(): void {
     this.selectedEmployeeIdsSignal.set([]);
     this.selectedHistoryEntryIdsSignal.set([]);
@@ -1796,6 +2056,13 @@ export class StartNextJobFacade {
     this.linkedJobEntryIdControl.setValue('');
     this.jobLabelControl.setValue('');
     this.addressControl.setValue('');
+    this.showAddressSuggestions.set(false);
+    this.addressSuggestions.set([]);
+    this.addressLookupMessage.set(null);
+    this.addressSelectionId = null;
+    this.verifiedAddressValue = null;
+    this.addressSessionToken = this.generateAddressSessionToken();
+    this.addressSuggestionCache.clear();
     this.refreshStartNowSchedule();
     this.clearContinuityInputs();
   }

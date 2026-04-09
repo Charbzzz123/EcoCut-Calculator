@@ -628,6 +628,71 @@ h1 {
   gap: 0.8rem;
 }
 
+.address-field {
+  position: relative;
+}
+
+.address-suggestions {
+  list-style: none;
+  margin: 0;
+  padding: 0.3rem;
+  position: absolute;
+  inset: calc(100% + 0.25rem) 0 auto;
+  border: 1px solid rgba(111, 212, 183, 0.26);
+  border-radius: 0.8rem;
+  background: rgba(5, 24, 19, 0.96);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.32);
+  max-height: 12.5rem;
+  overflow-y: auto;
+  z-index: 20;
+}
+
+.address-suggestion {
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 0.65rem;
+  background: transparent;
+  color: #e8f7f2;
+  text-align: left;
+  padding: 0.45rem 0.5rem;
+  display: grid;
+  gap: 0.1rem;
+  cursor: pointer;
+}
+
+.address-suggestion:hover,
+.address-suggestion:focus-visible {
+  border-color: rgba(111, 212, 183, 0.4);
+  background: rgba(94, 206, 175, 0.15);
+  outline: none;
+}
+
+.address-suggestion__primary {
+  font-size: 0.86rem;
+}
+
+.address-suggestion__secondary {
+  font-size: 0.76rem;
+  color: rgba(190, 223, 210, 0.74);
+}
+
+.address-suggestions__status {
+  margin: 0;
+  padding: 0.45rem 0.5rem;
+  color: rgba(190, 223, 210, 0.78);
+  font-size: 0.8rem;
+}
+
+.field__hint {
+  margin: -0.2rem 0 0;
+  font-size: 0.84rem;
+  color: rgba(190, 223, 210, 0.82);
+}
+
+.field__hint--error {
+  color: #f3c4c4;
+}
+
 .history-grid {
   display: grid;
   gap: 0.75rem;
