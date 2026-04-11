@@ -35,6 +35,7 @@ const TIMELINE_END_HOUR = 20;
 const MIN_SELECTION_MINUTES = 30;
 const TIMELINE_INCREMENT = 15;
 const TIMELINE_SELECTION_OFFSET = 15;
+const BUSY_BAR_FULL_MINUTES = 10 * 60;
 
 export interface TimelineEventBlock {
   id: string;
@@ -308,8 +309,13 @@ export class EntryModalScheduleController {
   }
 
   selectCalendarOverviewDate(date: string): void {
+    const currentDate = this.deps.calendarGroup.controls.date.value;
+    if (this.calendarViewMode() !== 'day' && currentDate === date) {
+      this.calendarViewMode.set('day');
+      return;
+    }
+
     this.deps.calendarGroup.controls.date.setValue(date);
-    this.calendarViewMode.set('day');
     this.handleCalendarDateChange();
   }
 
@@ -1072,7 +1078,7 @@ export class EntryModalScheduleController {
     }
     const startBoundary = TIMELINE_START_HOUR * 60;
     const endBoundary = TIMELINE_END_HOUR * 60;
-    const totalMinutes = this.timelineTotalMinutes();
+    const totalMinutes = BUSY_BAR_FULL_MINUTES;
     let busyMinutes = 0;
     for (const event of events) {
       const start = this.isoToLocalMinutes(event.start) + TIMELINE_SELECTION_OFFSET;

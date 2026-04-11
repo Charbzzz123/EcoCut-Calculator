@@ -188,11 +188,17 @@ describe('EntryModalScheduleController', () => {
     expect(deps.controller.timelineSelectionSignal()()).not.toBeNull();
   });
 
-  it('selects overview dates and returns to day mode', () => {
+  it('uses two-step overview day selection before entering day mode', () => {
     deps.controller.setCalendarViewMode('week');
+    deps.requestRefresh.mockClear();
+
     deps.controller.selectCalendarOverviewDate('2026-03-11');
 
     expect(deps.calendarGroup.controls.date.value).toBe('2026-03-11');
+    expect(deps.controller.buildViewModel().calendarViewMode).toBe('week');
+    expect(deps.requestRefresh).toHaveBeenCalledWith('2026-03-11');
+
+    deps.controller.selectCalendarOverviewDate('2026-03-11');
     expect(deps.controller.buildViewModel().calendarViewMode).toBe('day');
   });
 

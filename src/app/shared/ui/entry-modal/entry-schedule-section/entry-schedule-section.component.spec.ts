@@ -178,6 +178,22 @@ describe('EntryScheduleSectionComponent', () => {
       calendarEvents: [],
     });
     expect(fixture.nativeElement.textContent).toContain('Mon');
+    expect(
+      (fixture.nativeElement.querySelector('.month-overview__day-count') as HTMLElement)?.textContent?.trim(),
+    ).toBe('2');
+
+    const noCountDay: CalendarOverviewDay = {
+      ...weekDay,
+      date: '2026-03-06',
+      dayNumberLabel: '6',
+      eventCount: 0,
+    };
+    updateViewModel({
+      ...buildViewModel(),
+      calendarViewMode: 'month',
+      monthOverviewWeeks: [[noCountDay]],
+    });
+    expect(fixture.nativeElement.querySelector('.month-overview__day-count')).toBeNull();
 
     updateViewModel({
       ...buildViewModel(),
