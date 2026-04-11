@@ -47,15 +47,133 @@
       <span class="helper">Times shown in {{ viewModel.calendarTimeZone }}.</span>
     </div>
 
-    <app-entry-timeline
-      [hours]="viewModel.timelineHours"
-      [events]="viewModel.timelineEvents"
-      [selectionStyle]="viewModel.timelineSelectionStyle"
-      [nowLine]="viewModel.timelineNowLine"
-      [helperText]="viewModel.timelineHelperText"
-      (timelinePointerDown)="handlers.handleTimelinePointerDown($event)"
-      (gridReady)="handlers.handleTimelineGridReady($event)"
-    ></app-entry-timeline>
+    <div class="calendar-toolbar">
+      <div class="calendar-mode-toggle" role="group" aria-label="Calendar view mode">
+        <button
+          type="button"
+          class="ghost"
+          [class.is-active]="viewModel.calendarViewMode === 'day'"
+          (click)="handlers.setCalendarViewMode('day')"
+        >
+          Day
+        </button>
+        <button
+          type="button"
+          class="ghost"
+          [class.is-active]="viewModel.calendarViewMode === 'week'"
+          (click)="handlers.setCalendarViewMode('week')"
+        >
+          Week
+        </button>
+        <button
+          type="button"
+          class="ghost"
+          [class.is-active]="viewModel.calendarViewMode === 'month'"
+          (click)="handlers.setCalendarViewMode('month')"
+        >
+          Month
+        </button>
+      </div>
+
+      <div class="calendar-range-nav">
+        <button type="button" class="ghost icon" (click)="handlers.shiftCalendarWindow(-1)">
+          Prev
+        </button>
+        <button type="button" class="ghost icon" (click)="handlers.jumpCalendarToToday()">
+          Today
+        </button>
+        <button type="button" class="ghost icon" (click)="handlers.shiftCalendarWindow(1)">
+          Next
+        </button>
+        <span class="range-label">{{ viewModel.calendarRangeLabel }}</span>
+      </div>
+    </div>
+
+    @if (viewModel.calendarViewMode === 'day') {
+      <div class="calendar-view-panel calendar-view-panel--day">
+        <app-entry-timeline
+          [hours]="viewModel.timelineHours"
+          [events]="viewModel.timelineEvents"
+          [selectionStyle]="viewModel.timelineSelectionStyle"
+          [nowLine]="viewModel.timelineNowLine"
+          [helperText]="viewModel.timelineHelperText"
+          (timelinePointerDown)="handlers.handleTimelinePointerDown($event)"
+          (gridReady)="handlers.handleTimelineGridReady($event)"
+        ></app-entry-timeline>
+      </div>
+    } @else if (viewModel.calendarOverviewLoading) {
+      <div class="preview-state">
+        <span class="helper">Loading calendar overview...</span>
+      </div>
+    } @else if (viewModel.calendarOverviewError) {
+      <div class="preview-state error">
+        <span>{{ viewModel.calendarOverviewError }}</span>
+      </div>
+    } @else if (viewModel.calendarViewMode === 'week') {
+      <div class="calendar-view-panel calendar-view-panel--week week-overview">
+        @for (day of viewModel.weekOverviewDays; track day.date) {
+          <button
+            type="button"
+            class="overview-day-card"
+            [class.is-selected]="day.isSelected"
+            [class.is-today]="day.isToday"
+            (click)="handlers.selectCalendarOverviewDate(day.date)"
+          >
+            <div class="overview-day-card__header">
+              <span>{{ day.dayLabel }}</span>
+              <strong>{{ day.dayNumberLabel }}</strong>
+            </div>
+            <span class="overview-day-card__meta">{{ day.eventCount }} event(s)</span>
+            <span class="overview-day-card__preview">{{ day.previewText ?? 'No events' }}</span>
+            <span class="overview-day-card__bar">
+              <span class="overview-day-card__bar-fill" [style.width.%]="day.busyPercent"></span>
+            </span>
+          </button>
+        }
+      </div>
+    } @else {
+      <div class="calendar-view-panel calendar-view-panel--month month-overview">
+        <p class="month-overview__title">{{ viewModel.calendarRangeLabel }}</p>
+        <div class="month-overview__weekdays">
+          <span>Mon</span>
+          <span>Tue</span>
+          <span>Wed</span>
+          <span>Thu</span>
+          <span>Fri</span>
+          <span>Sat</span>
+          <span>Sun</span>
+        </div>
+
+        @for (week of viewModel.monthOverviewWeeks; track $index) {
+          <div class="month-overview__week">
+            @for (day of week; track day.date) {
+              <button
+                type="button"
+                class="month-overview__day"
+                [class.is-selected]="day.isSelected"
+                [class.is-today]="day.isToday"
+                [class.is-outside]="!day.inCurrentMonth"
+                (click)="handlers.selectCalendarOverviewDate(day.date)"
+              >
+                <div class="month-overview__day-header">
+                  <span class="month-overview__day-number">{{ day.dayNumberLabel }}</span>
+                  <span class="month-overview__day-count">{{ day.eventCount }}</span>
+                </div>
+                <span class="month-overview__day-preview">{{
+                  day.previewText ?? 'No events'
+                }}</span>
+                <span class="month-overview__day-bar">
+                  <span
+                    class="month-overview__day-bar-fill"
+                    [style.width.%]="day.busyPercent"
+                  ></span>
+                </span>
+              </button>
+            }
+          </div>
+        }
+      </div>
+    }
 
     @if (viewModel.selectionConflict) {
       <div class="conflict-banner" role="alert">
@@ -81,7 +199,7 @@
           <div>
             <strong>Editing existing event</strong>
             <span
-              >{{ editingEvent.summary }} • {{ handlers.formatEventTimeRange(editingEvent) }}</span
+              >{{ editingEvent.summary }} - {{ handlers.formatEventTimeRange(editingEvent) }}</span
             >
           </div>
           <div class="editing-banner__fields">
@@ -117,39 +235,41 @@
       </div>
     }
 
-    <div class="slot-picker">
-      <div class="slot-picker__header">
-        <p class="preview-title">Suggested time slots</p>
-        <span class="helper">Tap an available slot to autofill start & end.</span>
+    @if (viewModel.calendarViewMode === 'day') {
+      <div class="slot-picker">
+        <div class="slot-picker__header">
+          <p class="preview-title">Suggested time slots</p>
+          <span class="helper">Tap an available slot to autofill start and end.</span>
+        </div>
+        @if (viewModel.calendarSlots.length) {
+          <div class="slot-picker__grid">
+            @for (slot of viewModel.calendarSlots; track slot.id) {
+              <button
+                type="button"
+                class="slot-chip"
+                [class.slot-chip--booked]="slot.status === 'booked'"
+                [class.slot-chip--selected]="viewModel.selectedSlotId === slot.id"
+                [disabled]="slot.status === 'booked'"
+                (click)="handlers.selectCalendarSlot(slot.id)"
+              >
+                <span>{{ slot.label }}</span>
+                <small [hidden]="slot.status !== 'booked'">
+                  Booked - {{ slot.conflictSummary ?? 'Conflict' }}
+                </small>
+              </button>
+            }
+          </div>
+        } @else {
+          <div class="preview-state">
+            <span class="helper">Pick a date to view suggested slots.</span>
+          </div>
+        }
       </div>
-      @if (viewModel.calendarSlots.length) {
-        <div class="slot-picker__grid">
-          @for (slot of viewModel.calendarSlots; track slot.id) {
-            <button
-              type="button"
-              class="slot-chip"
-              [class.slot-chip--booked]="slot.status === 'booked'"
-              [class.slot-chip--selected]="viewModel.selectedSlotId === slot.id"
-              [disabled]="slot.status === 'booked'"
-              (click)="handlers.selectCalendarSlot(slot.id)"
-            >
-              <span>{{ slot.label }}</span>
-              <small [hidden]="slot.status !== 'booked'">
-                Booked • {{ slot.conflictSummary ?? 'Conflict' }}
-              </small>
-            </button>
-          }
-        </div>
-      } @else {
-        <div class="preview-state">
-          <span class="helper">Pick a date to view suggested slots.</span>
-        </div>
-      }
-    </div>
+    }
 
     @if (viewModel.calendarEventsLoading) {
       <div class="preview-state">
-        <span class="helper">Loading availability…</span>
+        <span class="helper">Loading availability...</span>
       </div>
     } @else if (viewModel.calendarEventsError) {
       <div class="preview-state error">

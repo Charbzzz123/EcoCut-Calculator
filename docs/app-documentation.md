@@ -43,8 +43,10 @@ root/
 - **Testing/coverage**: `src/app/shared/ui/entry-modal/entry-modal.component.spec.ts` holds 22 focused specs that exercise DOM interactions, state hydration, validations, and template bindings. Run `npx ng test --watch=false --coverage` to enforce the repo's �100% every file� rule (Husky hooks also run this before commits).
 - **Calendar integration**:
   - `CalendarEventsService` (`src/app/shared/domain/entry/calendar-events.service.ts`) wraps the `/api/calendar/events` endpoints. The entry modal consumes it to show live availability; `HomeDataService.saveEntry` uses the same service when creating customer events.
+  - `CalendarEventsService.listEventsForRange(startDate, endDate)` powers week/month overview windows without duplicating endpoint plumbing.
   - `calendar-event.builder.ts` converts the payload into a Google Calendar-friendly summary/description (hedge plan, customer info, budgets, notes).
   - The customer template includes a Google Calendar-style **timeline grid** (7 AM�8 PM) rendered via `timelineHours`, `timelineEvents`, and `timelineSelection` signals. Dragging on the grid fills the start/end controls; overlapping events raise a conflict banner hooked into `selectionConflict` + `conflictConfirmed`.
+  - The schedule block now includes Day/Week/Month toggles with Prev/Today/Next navigation; week and month cards are click-through shortcuts back to day mode for precise drag selection.
 - **Suggested slot picker**:
   - EntryModalComponent derives a standard grid of crew slots (08:00�17:00) and compares each to the fetched Google events. Conflicts mark the chip `slot-chip--booked`, while open slots remain actionable.
   - Manual edits to the start/end inputs clear the selection, so the UI never shows a stale chip highlight.

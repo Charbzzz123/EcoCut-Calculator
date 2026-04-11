@@ -20,6 +20,9 @@ const buildController = (initialVariant: EntryVariant = 'customer') => {
 
   const calendarService = {
     listEventsForDate: vi.fn().mockResolvedValue([] as CalendarEventSummary[]),
+    listEventsForRange: vi.fn().mockResolvedValue([] as CalendarEventSummary[]),
+    getCachedEventsForRange: vi.fn().mockReturnValue(null),
+    prefetchAroundDate: vi.fn().mockResolvedValue(undefined),
     deleteEvent: vi.fn().mockResolvedValue(undefined),
     updateEvent: vi.fn().mockResolvedValue({
       id: 'evt-edit',
@@ -96,6 +99,73 @@ describe('EntryModalScheduleController', () => {
     expect(deps.controller.selectionConflictSignal()()).toBe(false);
   });
 
+  it('loads weekly/monthly overview and navigates date windows', async () => {
+    deps.calendarService.listEventsForRange = vi
+      .fn()
+      .mockResolvedValue([
+        {
+          id: 'evt-overview',
+          summary: 'Client visit',
+          start: iso('2026-03-06', '10:00'),
+          end: iso('2026-03-06', '12:00'),
+        },
+      ]) as CalendarEventsService['listEventsForRange'];
+
+    deps.controller.setCalendarViewMode('week');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(deps.calendarService.listEventsForRange).toHaveBeenCalled();
+    expect(deps.controller.buildViewModel().weekOverviewDays).toHaveLength(7);
+
+    deps.controller.shiftCalendarWindow(1);
+    expect(deps.requestRefresh).toHaveBeenCalled();
+
+    deps.controller.setCalendarViewMode('month');
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(deps.controller.buildViewModel().monthOverviewWeeks.length).toBeGreaterThan(3);
+
+    deps.controller.jumpCalendarToToday();
+    expect(deps.calendarGroup.controls.date.value).toBe(deps.controller.todayIsoDate());
+  });
+
+  it('uses cached overview data immediately and revalidates in background', async () => {
+    deps.calendarService.getCachedEventsForRange = vi
+      .fn()
+      .mockReturnValue([
+        {
+          id: 'evt-cached',
+          summary: 'Cached visit',
+          start: iso('2026-03-05', '09:00'),
+          end: iso('2026-03-05', '10:00'),
+        },
+      ]) as CalendarEventsService['getCachedEventsForRange'];
+    deps.calendarService.listEventsForRange = vi
+      .fn()
+      .mockResolvedValue([
+        {
+          id: 'evt-fresh',
+          summary: 'Fresh visit',
+          start: iso('2026-03-05', '10:00'),
+          end: iso('2026-03-05', '11:00'),
+        },
+      ]) as CalendarEventsService['listEventsForRange'];
+
+    deps.controller.setCalendarViewMode('week');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const viewModel = deps.controller.buildViewModel();
+    expect(viewModel.calendarOverviewLoading).toBe(false);
+    expect(viewModel.weekOverviewDays).toHaveLength(7);
+    expect(deps.calendarService.listEventsForRange).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      { forceRefresh: true },
+    );
+  });
+
   it('clears previews when the customer removes the calendar date', () => {
     deps.controller.rebuildCalendarSlots('2026-03-05', []);
     deps.controller.applyTimelineSelectionMinutes(480, 540);
@@ -116,6 +186,14 @@ describe('EntryModalScheduleController', () => {
     expect(deps.calendarGroup.controls.endTime.value).toBe('14:00');
     expect(deps.controller.selectedSlotIdSignal()()).toBe('slot-12');
     expect(deps.controller.timelineSelectionSignal()()).not.toBeNull();
+  });
+
+  it('selects overview dates and returns to day mode', () => {
+    deps.controller.setCalendarViewMode('week');
+    deps.controller.selectCalendarOverviewDate('2026-03-11');
+
+    expect(deps.calendarGroup.controls.date.value).toBe('2026-03-11');
+    expect(deps.controller.buildViewModel().calendarViewMode).toBe('day');
   });
 
   it('enters editing mode for an existing calendar event', () => {

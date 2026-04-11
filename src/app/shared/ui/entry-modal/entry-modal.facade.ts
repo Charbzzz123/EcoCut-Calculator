@@ -42,6 +42,7 @@ import type {
   EntryScheduleSectionHandlers,
   EntryScheduleSectionViewModel,
 } from './entry-schedule-section/entry-schedule-section.component.js';
+import type { CalendarTimelineViewMode } from './entry-modal-schedule.controller.js';
 import {
   EntryRepositoryService,
   type ClientMatchResult,
@@ -203,6 +204,10 @@ export abstract class EntryModalFacade implements OnDestroy {
     beginPanelDrag: (event) => this.beginPanelDrag(event),
   };
   protected readonly scheduleHandlers: EntryScheduleSectionHandlers = {
+    setCalendarViewMode: (mode) => this.setCalendarViewMode(mode),
+    shiftCalendarWindow: (direction) => this.shiftCalendarWindow(direction),
+    jumpCalendarToToday: () => this.jumpCalendarToToday(),
+    selectCalendarOverviewDate: (date) => this.selectCalendarOverviewDate(date),
     handleCalendarDateChange: () => this.handleCalendarDateChange(),
     handleManualTimeChange: () => this.handleManualTimeChange(),
     handleTimelinePointerDown: (event) => this.handleTimelinePointerDown(event),
@@ -218,6 +223,22 @@ export abstract class EntryModalFacade implements OnDestroy {
 
   protected handleCalendarDateChange(): void {
     this.scheduleController.handleCalendarDateChange();
+  }
+
+  protected setCalendarViewMode(mode: CalendarTimelineViewMode): void {
+    this.scheduleController.setCalendarViewMode(mode);
+  }
+
+  protected shiftCalendarWindow(direction: -1 | 1): void {
+    this.scheduleController.shiftCalendarWindow(direction);
+  }
+
+  protected jumpCalendarToToday(): void {
+    this.scheduleController.jumpCalendarToToday();
+  }
+
+  protected selectCalendarOverviewDate(date: string): void {
+    this.scheduleController.selectCalendarOverviewDate(date);
   }
 
   protected handleManualTimeChange(): void {

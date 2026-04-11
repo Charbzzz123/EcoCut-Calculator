@@ -7,8 +7,23 @@ import { EntryModalPanelStore } from '@shared/ui/entry-modal/entry-modal-panel.s
 import type { HedgeConfig, HedgeState, TrimPreset } from '@shared/domain/entry/entry-modal.models.js';
 import type { CalendarEventsService } from '@shared/domain/entry/calendar-events.service.js';
 
-export class CalendarEventsServiceStub implements Pick<CalendarEventsService, 'listEventsForDate' | 'createEvent' | 'updateEvent' | 'deleteEvent'> {
+export class CalendarEventsServiceStub
+  implements
+    Pick<
+      CalendarEventsService,
+      | 'listEventsForDate'
+      | 'listEventsForRange'
+      | 'getCachedEventsForRange'
+      | 'prefetchAroundDate'
+      | 'createEvent'
+      | 'updateEvent'
+      | 'deleteEvent'
+    >
+{
   listEventsForDate = vi.fn().mockResolvedValue([]);
+  listEventsForRange = vi.fn().mockResolvedValue([]);
+  getCachedEventsForRange = vi.fn().mockReturnValue(null);
+  prefetchAroundDate = vi.fn().mockResolvedValue(undefined);
   createEvent = vi.fn();
   updateEvent = vi.fn().mockResolvedValue({
     id: 'evt-updated',

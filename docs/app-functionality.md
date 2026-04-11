@@ -56,6 +56,10 @@
   - Replaces the static slot-only picker with a Google Calendar-style vertical day view (7?AM?â€“?8?PM) inside the modal. Users click and drag directly on the column to select any custom window; the controls auto-fill start/end times from the selection.
   - Existing Google events render as stacked blocks with overlap detection. When the chosen window collides with an existing job, a conflict banner appears and Save stays disabled until the user explicitly overrides (so double-bookings are intentional).
   - A live â€œcurrent timeâ€ line appears when viewing today, giving schedulers real-time context. The view gracefully handles parallel teams by laying blocks side-by-side and labeling them with summary + location.
+- **Calendar view modes (day/week/month)**:
+  - The schedule section now exposes `Day`, `Week`, and `Month` toggles with `Prev`, `Today`, and `Next` window navigation.
+  - Week and month views provide quick-glance load indicators per day (event count, first event preview, and busy bar) so dispatch can spot crowded days before booking.
+  - Clicking any day from week/month jumps back to day mode for that date, preserving the existing drag-to-select timeline behavior and Date/Start/End synchronization.
 - **Calendar event auto-generation**:
   - When a customer entry is saved the frontend builds a structured event description (contact info, job value, hedge plan breakdown, additional details) and sends it to the Nest backend (`POST /calendar/events`). Location defaults to the customer address.
   - The response `eventId` is stored alongside the entry payload so future edits can call `PATCH /calendar/events/:eventId` and removals can call `DELETE /calendar/events/:eventId` through the same proxy.

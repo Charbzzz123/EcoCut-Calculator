@@ -68,6 +68,20 @@ interface ScheduleControllerDeps {
   requestEnsureCalendarDefaults: () => void;
 }
 
+export type CalendarTimelineViewMode = 'day' | 'week' | 'month';
+
+export interface CalendarOverviewDay {
+  date: string;
+  dayLabel: string;
+  dayNumberLabel: string;
+  inCurrentMonth: boolean;
+  isToday: boolean;
+  isSelected: boolean;
+  eventCount: number;
+  busyPercent: number;
+  previewText: string | null;
+}
+
 export class EntryModalScheduleController {
   readonly timelineHours = Array.from(
     { length: TIMELINE_END_HOUR - TIMELINE_START_HOUR + 1 },
@@ -93,10 +107,16 @@ export class EntryModalScheduleController {
   private readonly conflictConfirmed: WritableSignal<boolean>;
   private readonly currentTimeMinutes: WritableSignal<number | null>;
   private readonly editingCalendarEvent: WritableSignal<CalendarEventSummary | null>;
+  private readonly calendarViewMode: WritableSignal<CalendarTimelineViewMode>;
+  private readonly weekOverviewDays: WritableSignal<CalendarOverviewDay[]>;
+  private readonly monthOverviewWeeks: WritableSignal<CalendarOverviewDay[][]>;
+  private readonly calendarOverviewLoading: WritableSignal<boolean>;
+  private readonly calendarOverviewError: WritableSignal<string | null>;
 
   private timelineGrid?: ElementRef<HTMLElement>;
   private timelineDragStartMinutes: number | null = null;
   private currentTimeTicker: ReturnType<typeof setInterval> | null = null;
+  private overviewRequestVersion = 0;
 
   /* c8 ignore start */
   constructor(private readonly deps: ScheduleControllerDeps) {
@@ -112,6 +132,11 @@ export class EntryModalScheduleController {
     this.conflictConfirmed = signal(false);
     this.currentTimeMinutes = signal<number | null>(null);
     this.editingCalendarEvent = signal<CalendarEventSummary | null>(null);
+    this.calendarViewMode = signal<CalendarTimelineViewMode>('day');
+    this.weekOverviewDays = signal<CalendarOverviewDay[]>([]);
+    this.monthOverviewWeeks = signal<CalendarOverviewDay[][]>([]);
+    this.calendarOverviewLoading = signal(false);
+    this.calendarOverviewError = signal<string | null>(null);
     /* c8 ignore stop */
 
     this.variant = deps.initialVariant;
@@ -190,6 +215,12 @@ export class EntryModalScheduleController {
     return {
       calendarGroup: this.deps.calendarGroup,
       calendarTimeZone: this.calendarTimeZone,
+      calendarViewMode: this.calendarViewMode(),
+      calendarRangeLabel: this.calendarRangeLabel(),
+      weekOverviewDays: this.weekOverviewDays(),
+      monthOverviewWeeks: this.monthOverviewWeeks(),
+      calendarOverviewLoading: this.calendarOverviewLoading(),
+      calendarOverviewError: this.calendarOverviewError(),
       timelineHours: this.timelineHours,
       timelineEvents: this.timelineEvents(),
       timelineSelectionStyle: this.timelineSelectionStyle(),
@@ -236,6 +267,50 @@ export class EntryModalScheduleController {
       { date: '', startTime: '', endTime: '' },
       { emitEvent: false },
     );
+    this.calendarViewMode.set('day');
+  }
+
+  setCalendarViewMode(mode: CalendarTimelineViewMode): void {
+    if (this.calendarViewMode() === mode) {
+      return;
+    }
+    this.calendarViewMode.set(mode);
+    if (mode === 'day') {
+      this.calendarOverviewError.set(null);
+      return;
+    }
+    const date = this.deps.calendarGroup.controls.date.value;
+    if (date) {
+      void this.prefetchCalendarWindow(date);
+    }
+    void this.refreshCalendarOverview();
+  }
+
+  shiftCalendarWindow(direction: -1 | 1): void {
+    const currentDate = this.selectedDateOrToday();
+    const nextDate = new Date(currentDate.getTime());
+    if (this.calendarViewMode() === 'month') {
+      nextDate.setMonth(nextDate.getMonth() + direction);
+    } else if (this.calendarViewMode() === 'week') {
+      nextDate.setDate(nextDate.getDate() + direction * 7);
+    } else {
+      nextDate.setDate(nextDate.getDate() + direction);
+    }
+    const nextIso = this.toIsoDate(nextDate);
+    this.deps.calendarGroup.controls.date.setValue(nextIso);
+    this.handleCalendarDateChange();
+  }
+
+  jumpCalendarToToday(): void {
+    const today = this.todayIsoDate();
+    this.deps.calendarGroup.controls.date.setValue(today);
+    this.handleCalendarDateChange();
+  }
+
+  selectCalendarOverviewDate(date: string): void {
+    this.deps.calendarGroup.controls.date.setValue(date);
+    this.calendarViewMode.set('day');
+    this.handleCalendarDateChange();
   }
 
   applyCalendarPayload(payload: EntryCalendarPayload | undefined | null): void {
@@ -292,6 +367,10 @@ export class EntryModalScheduleController {
     this.conflictConfirmed.set(false);
     this.syncCurrentTimeTicker();
     void this.requestRefresh(date);
+    void this.prefetchCalendarWindow(date);
+    if (this.calendarViewMode() !== 'day') {
+      void this.refreshCalendarOverview();
+    }
   }
 
   handleManualTimeChange(): void {
@@ -464,7 +543,7 @@ export class EntryModalScheduleController {
   formatEventTimeRange(event: CalendarEventSummary): string {
     const start = new Date(event.start);
     const end = new Date(event.end);
-    return `${this.eventTimeFormatter.format(start)} – ${this.eventTimeFormatter.format(end)}`;
+    return `${this.eventTimeFormatter.format(start)} - ${this.eventTimeFormatter.format(end)}`;
   }
 
   private readonly onTimelinePointerMove = (event: PointerEvent) => this.handleTimelinePointerMove(event);
@@ -614,6 +693,10 @@ export class EntryModalScheduleController {
       this.syncCurrentTimeTicker();
       this.evaluateConflictForCurrentTimeRange();
       this.rebuildCalendarSlots(date, events);
+      if (this.calendarViewMode() !== 'day') {
+        await this.refreshCalendarOverview();
+      }
+      void this.prefetchCalendarWindow(date);
     } catch (error) {
       console.warn('Unable to load calendar availability', error);
       this.calendarEventsError.set('Unable to load Google Calendar availability right now.');
@@ -643,6 +726,10 @@ export class EntryModalScheduleController {
     this.currentTimeMinutes.set(null);
     this.clearCurrentTimeTicker();
     this.setEditingCalendarEvent(null);
+    this.calendarOverviewLoading.set(false);
+    this.calendarOverviewError.set(null);
+    this.weekOverviewDays.set([]);
+    this.monthOverviewWeeks.set([]);
   }
 
   rebuildCalendarSlots(date: string, events: CalendarEventSummary[]): void {
@@ -663,7 +750,7 @@ export class EntryModalScheduleController {
         id: template.id,
         startTime: template.start,
         endTime: template.end,
-        label: `${this.eventTimeFormatter.format(new Date(slotStartIso))} – ${this.eventTimeFormatter.format(
+        label: `${this.eventTimeFormatter.format(new Date(slotStartIso))} - ${this.eventTimeFormatter.format(
           new Date(slotEndIso),
         )}`,
         status: conflict ? 'booked' : 'available',
@@ -795,6 +882,260 @@ export class EntryModalScheduleController {
       },
       { emitEvent: false },
     );
+  }
+
+  private calendarRangeLabel(): string {
+    const selectedDate = this.selectedDateOrToday();
+    const mode = this.calendarViewMode();
+    if (mode === 'month') {
+      return selectedDate.toLocaleDateString(undefined, {
+        month: 'long',
+        year: 'numeric',
+      });
+    }
+    if (mode === 'week') {
+      const weekStart = this.startOfWeek(selectedDate);
+      const weekEnd = this.endOfWeek(selectedDate);
+      const sameMonth = weekStart.getMonth() === weekEnd.getMonth();
+      const startLabel = weekStart.toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+      });
+      const endLabel = weekEnd.toLocaleDateString(undefined, {
+        month: sameMonth ? undefined : 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+      return `${startLabel} - ${endLabel}`;
+    }
+    return selectedDate.toLocaleDateString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  }
+
+  private async refreshCalendarOverview(): Promise<void> {
+    if (this.variant !== 'customer') {
+      this.weekOverviewDays.set([]);
+      this.monthOverviewWeeks.set([]);
+      this.calendarOverviewError.set(null);
+      this.calendarOverviewLoading.set(false);
+      return;
+    }
+    const selectedDate = this.selectedDateOrToday();
+    const mode = this.calendarViewMode();
+    if (mode === 'day') {
+      this.weekOverviewDays.set([]);
+      this.monthOverviewWeeks.set([]);
+      this.calendarOverviewError.set(null);
+      this.calendarOverviewLoading.set(false);
+      return;
+    }
+
+    const selectedIso = this.toIsoDate(selectedDate);
+    const range =
+      mode === 'week'
+        ? { start: this.startOfWeek(selectedDate), end: this.endOfWeek(selectedDate) }
+        : { start: this.startOfWeek(this.startOfMonth(selectedDate)), end: this.endOfWeek(this.endOfMonth(selectedDate)) };
+    const startIso = this.toIsoDate(range.start);
+    const endIso = this.toIsoDate(range.end);
+
+    const requestVersion = ++this.overviewRequestVersion;
+    const applyOverview = (events: CalendarEventSummary[]) => {
+      if (requestVersion !== this.overviewRequestVersion) {
+        return;
+      }
+      if (mode === 'week') {
+        this.weekOverviewDays.set(this.buildWeekOverview(range.start, selectedIso, events));
+        this.monthOverviewWeeks.set([]);
+      } else {
+        this.monthOverviewWeeks.set(
+          this.buildMonthOverview(range.start, range.end, selectedIso, selectedDate, events),
+        );
+        this.weekOverviewDays.set([]);
+      }
+      this.calendarOverviewError.set(null);
+    };
+
+    const cached = this.deps.calendarService.getCachedEventsForRange(startIso, endIso);
+    if (cached) {
+      applyOverview(cached);
+      this.calendarOverviewLoading.set(false);
+      void this.deps.calendarService
+        .listEventsForRange(startIso, endIso, { forceRefresh: true })
+        .then((events) => {
+          applyOverview(events);
+        })
+        .catch((error) => {
+          console.warn('Unable to refresh calendar overview', error);
+        });
+      return;
+    }
+
+    this.calendarOverviewLoading.set(true);
+    this.calendarOverviewError.set(null);
+    try {
+      const events = await this.deps.calendarService.listEventsForRange(startIso, endIso);
+      applyOverview(events);
+    } catch (error) {
+      console.warn('Unable to load calendar overview', error);
+      if (requestVersion !== this.overviewRequestVersion) {
+        return;
+      }
+      this.calendarOverviewError.set('Unable to load weekly/monthly overview right now.');
+      this.weekOverviewDays.set([]);
+      this.monthOverviewWeeks.set([]);
+    } finally {
+      if (requestVersion === this.overviewRequestVersion) {
+        this.calendarOverviewLoading.set(false);
+      }
+    }
+  }
+
+  private buildWeekOverview(
+    weekStart: Date,
+    selectedIso: string,
+    events: CalendarEventSummary[],
+  ): CalendarOverviewDay[] {
+    const eventsByDate = this.eventsByDate(events);
+    return Array.from({ length: 7 }, (_, offset) => {
+      const day = this.addDays(weekStart, offset);
+      const dayIso = this.toIsoDate(day);
+      return this.buildOverviewDay(day, dayIso, selectedIso, eventsByDate, true);
+    });
+  }
+
+  private buildMonthOverview(
+    rangeStart: Date,
+    rangeEnd: Date,
+    selectedIso: string,
+    selectedDate: Date,
+    events: CalendarEventSummary[],
+  ): CalendarOverviewDay[][] {
+    const eventsByDate = this.eventsByDate(events);
+    const weeks: CalendarOverviewDay[][] = [];
+    const current = new Date(rangeStart.getTime());
+    while (current <= rangeEnd) {
+      const row: CalendarOverviewDay[] = [];
+      for (let i = 0; i < 7; i += 1) {
+        const day = new Date(current.getTime());
+        const dayIso = this.toIsoDate(day);
+        const inCurrentMonth = day.getMonth() === selectedDate.getMonth();
+        row.push(this.buildOverviewDay(day, dayIso, selectedIso, eventsByDate, inCurrentMonth));
+        current.setDate(current.getDate() + 1);
+      }
+      weeks.push(row);
+    }
+    return weeks;
+  }
+
+  private buildOverviewDay(
+    date: Date,
+    iso: string,
+    selectedIso: string,
+    eventsByDate: Map<string, CalendarEventSummary[]>,
+    inCurrentMonth: boolean,
+  ): CalendarOverviewDay {
+    const events = eventsByDate.get(iso) ?? [];
+    const firstSummary = events[0]?.summary?.trim() ?? null;
+    const previewText =
+      events.length > 1 && firstSummary ? `${firstSummary} +${events.length - 1}` : firstSummary;
+    return {
+      date: iso,
+      dayLabel: date.toLocaleDateString(undefined, { weekday: 'short' }),
+      dayNumberLabel: date.toLocaleDateString(undefined, { day: 'numeric' }),
+      inCurrentMonth,
+      isToday: iso === this.todayIsoDate(),
+      isSelected: iso === selectedIso,
+      eventCount: events.length,
+      busyPercent: this.busyPercentForDay(events),
+      previewText,
+    };
+  }
+
+  private eventsByDate(events: CalendarEventSummary[]): Map<string, CalendarEventSummary[]> {
+    const grouped = new Map<string, CalendarEventSummary[]>();
+    for (const event of events) {
+      const key = this.isoToDateString(event.start);
+      const list = grouped.get(key) ?? [];
+      list.push(event);
+      grouped.set(key, list);
+    }
+    return grouped;
+  }
+
+  private busyPercentForDay(events: CalendarEventSummary[]): number {
+    if (!events.length) {
+      return 0;
+    }
+    const startBoundary = TIMELINE_START_HOUR * 60;
+    const endBoundary = TIMELINE_END_HOUR * 60;
+    const totalMinutes = this.timelineTotalMinutes();
+    let busyMinutes = 0;
+    for (const event of events) {
+      const start = this.isoToLocalMinutes(event.start) + TIMELINE_SELECTION_OFFSET;
+      const end = this.isoToLocalMinutes(event.end) + TIMELINE_SELECTION_OFFSET;
+      const visibleStart = Math.max(startBoundary, start);
+      const visibleEnd = Math.min(endBoundary, end);
+      if (visibleEnd > visibleStart) {
+        busyMinutes += visibleEnd - visibleStart;
+      }
+    }
+    return Math.min(100, (busyMinutes / totalMinutes) * 100);
+  }
+
+  private selectedDateOrToday(): Date {
+    const value = this.deps.calendarGroup.controls.date.value;
+    if (!value) {
+      return new Date(`${this.todayIsoDate()}T00:00:00`);
+    }
+    return new Date(`${value}T00:00:00`);
+  }
+
+  private toIsoDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private addDays(date: Date, offset: number): Date {
+    const result = new Date(date.getTime());
+    result.setDate(result.getDate() + offset);
+    return result;
+  }
+
+  private startOfWeek(date: Date): Date {
+    const copy = new Date(date.getTime());
+    const day = copy.getDay();
+    const diff = (day + 6) % 7;
+    copy.setDate(copy.getDate() - diff);
+    copy.setHours(0, 0, 0, 0);
+    return copy;
+  }
+
+  private endOfWeek(date: Date): Date {
+    const start = this.startOfWeek(date);
+    start.setDate(start.getDate() + 6);
+    return start;
+  }
+
+  private startOfMonth(date: Date): Date {
+    return new Date(date.getFullYear(), date.getMonth(), 1);
+  }
+
+  private endOfMonth(date: Date): Date {
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  }
+
+  private async prefetchCalendarWindow(date: string): Promise<void> {
+    try {
+      await this.deps.calendarService.prefetchAroundDate(date, 1);
+    } catch (error) {
+      console.warn('Unable to prefetch calendar window', error);
+    }
   }
 
   todayIsoDate(): string {
