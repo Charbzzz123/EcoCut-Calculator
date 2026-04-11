@@ -44,6 +44,7 @@ root/
 - **Calendar integration**:
   - `CalendarEventsService` (`src/app/shared/domain/entry/calendar-events.service.ts`) wraps the `/api/calendar/events` endpoints. The entry modal consumes it to show live availability; `HomeDataService.saveEntry` uses the same service when creating customer events.
   - `CalendarEventsService.listEventsForRange(startDate, endDate)` powers week/month overview windows without duplicating endpoint plumbing.
+  - Calendar UI is now centralized in `CalendarSchedulerComponent` (`src/app/shared/ui/calendar-scheduler/calendar-scheduler.component.ts`); `EntryScheduleSectionComponent` is a compatibility wrapper so the scheduler can be dropped into future features without copy/paste.
   - `calendar-event.builder.ts` converts the payload into a Google Calendar-friendly summary/description (hedge plan, customer info, budgets, notes).
   - The customer template includes a Google Calendar-style **timeline grid** (7 AM�8 PM) rendered via `timelineHours`, `timelineEvents`, and `timelineSelection` signals. Dragging on the grid fills the start/end controls; overlapping events raise a conflict banner hooked into `selectionConflict` + `conflictConfirmed`.
   - The schedule block now includes Day/Week/Month toggles with Prev/Today/Next navigation; week and month cards are click-through shortcuts back to day mode for precise drag selection.
