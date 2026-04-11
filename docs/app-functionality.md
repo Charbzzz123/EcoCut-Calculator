@@ -33,7 +33,7 @@
 - Launched from the â€œAdd Entryâ€ dropdown (floating CTA). Two variants reuse the same component: **Warm Lead** (default) and **Customer / Closed** (used for future scheduling + client conversion work).
 - **Required form fields**: first name, last name, home address, phone number, job type (Hedge Trimming, Rabattage, Both), job value. Optional: desired budget, additional details textarea.
 - **Address verification (rollout in progress)**:
-  - Address entry uses debounced provider suggestions (500ms) and requires selecting a provider suggestion when strict mode is enabled.
+  - Address entry uses debounced provider suggestions (3000ms) and requires selecting a provider suggestion when strict mode is enabled.
   - Validation happens server-side from suggestion id (not raw free text) to ensure a complete civic address.
   - Usage guardrails pause lookup automatically when monthly caps are reached.
   - Search calls are minimized via min-length threshold (3 chars) and frontend query caching to control paid API usage.

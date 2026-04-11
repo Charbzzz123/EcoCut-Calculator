@@ -51,6 +51,8 @@ import { EntryModalDuplicateGuard } from './entry-modal-duplicate.guard.js';
 import { EntryModalScheduleController } from './entry-modal-schedule.controller.js';
 import { environment } from '../../../../environments/environment';
 
+const ADDRESS_LOOKUP_DEBOUNCE_MS = 3000;
+
 @Directive()
 export abstract class EntryModalFacade implements OnDestroy {
   private static readonly HEDGE_REQUIREMENT_ERROR =
@@ -163,6 +165,8 @@ export abstract class EntryModalFacade implements OnDestroy {
   protected readonly addressVerified = signal(false);
   private addressSelectionId: string | null = null;
   private verifiedAddressValue: string | null = null;
+  private addressInputFocused = false;
+  private addressSuggestionsSuppressed = false;
   private addressSessionToken: string = this.generateSessionToken();
   private readonly addressSuggestionCache = new Map<
     string,
@@ -188,6 +192,7 @@ export abstract class EntryModalFacade implements OnDestroy {
     handlePhoneInput: (event) => this.handlePhoneInput(event),
     selectAddressSuggestion: (suggestion) => void this.selectAddressSuggestion(suggestion),
     handleAddressFocus: () => this.handleAddressFocus(),
+    handleAddressBlur: () => this.handleAddressBlur(),
     cycleHedge: (event, hedgeId) => this.cycleHedge(event, hedgeId),
     updateTrimSection: (section, checked) => this.updateTrimSection(section, checked),
     selectTrimPreset: (preset) => this.selectTrimPreset(preset),
@@ -310,7 +315,7 @@ export abstract class EntryModalFacade implements OnDestroy {
       }
     });
     this.addressLookupSub = this.form.controls.address.valueChanges
-      .pipe(debounceTime(500), distinctUntilChanged())
+      .pipe(debounceTime(ADDRESS_LOOKUP_DEBOUNCE_MS), distinctUntilChanged())
       .subscribe((value) => {
         void this.handleAddressQuery(value);
       });
@@ -341,10 +346,21 @@ export abstract class EntryModalFacade implements OnDestroy {
   }
 
   protected handleAddressFocus(): void {
+    this.addressInputFocused = true;
+    if (this.addressSuggestionsSuppressed) {
+      return;
+    }
     const address = this.form.controls.address.value.trim();
     if (address.length >= 3 && this.addressSuggestions().length > 0) {
       this.showAddressSuggestions.set(true);
     }
+  }
+
+  protected handleAddressBlur(): void {
+    this.addressInputFocused = false;
+    setTimeout(() => {
+      this.showAddressSuggestions.set(false);
+    }, 120);
   }
 
   protected async selectAddressSuggestion(suggestion: AddressSuggestion): Promise<void> {
@@ -352,6 +368,7 @@ export abstract class EntryModalFacade implements OnDestroy {
     this.form.controls.address.setValue(suggestion.label);
     this.form.controls.address.markAsTouched();
     this.addressAutoFillInProgress = false;
+    this.addressSuggestionsSuppressed = true;
 
     this.addressLookupLoading.set(true);
     this.addressLookupMessage.set('Validating selected address...');
@@ -625,7 +642,7 @@ export abstract class EntryModalFacade implements OnDestroy {
       return;
     }
 
-    if (this.addressSelectionId && this.addressVerified() && query === this.form.controls.address.value) {
+    if (this.addressSelectionId && query === this.form.controls.address.value) {
       return;
     }
 
@@ -652,7 +669,12 @@ export abstract class EntryModalFacade implements OnDestroy {
 
   private applyAddressSuggestResult(result: AddressSuggestResponse): void {
     this.addressSuggestions.set(result.suggestions);
-    this.showAddressSuggestions.set(result.status === 'ok' && result.suggestions.length > 0);
+    this.showAddressSuggestions.set(
+      !this.addressSuggestionsSuppressed &&
+        this.addressInputFocused &&
+        result.status === 'ok' &&
+        result.suggestions.length > 0,
+    );
 
     if (result.usage.thresholds.hardStopReached) {
       this.addressLookupMessage.set(
@@ -707,6 +729,7 @@ export abstract class EntryModalFacade implements OnDestroy {
       this.addressVerified.set(false);
       this.addressSelectionId = null;
       this.verifiedAddressValue = null;
+      this.addressSuggestionsSuppressed = false;
       this.addressSessionToken = this.generateSessionToken();
       this.addressSuggestionCache.clear();
       this.applyAddressVerificationError(false);
@@ -723,6 +746,7 @@ export abstract class EntryModalFacade implements OnDestroy {
       this.addressVerified.set(false);
       this.addressSelectionId = null;
       this.verifiedAddressValue = null;
+      this.addressSuggestionsSuppressed = false;
       this.applyAddressVerificationError(true);
       if (!this.addressLookupLoading()) {
         this.addressLookupMessage.set('Select a suggested address to continue.');
@@ -886,6 +910,7 @@ export abstract class EntryModalFacade implements OnDestroy {
     this.addressSelectionId = null;
     this.verifiedAddressValue = this.form.controls.address.value.trim();
     this.addressVerified.set(this.verifiedAddressValue.length > 0);
+    this.addressSuggestionsSuppressed = this.addressVerified();
     this.addressLookupMessage.set(null);
     this.addressSuggestions.set([]);
     this.showAddressSuggestions.set(false);
@@ -903,6 +928,7 @@ export abstract class EntryModalFacade implements OnDestroy {
     this.requiredFieldErrors.set([]);
     this.addressSelectionId = null;
     this.verifiedAddressValue = null;
+    this.addressSuggestionsSuppressed = false;
     this.addressSessionToken = this.generateSessionToken();
     this.addressVerified.set(false);
     this.addressSuggestions.set([]);

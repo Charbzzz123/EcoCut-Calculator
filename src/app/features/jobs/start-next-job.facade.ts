@@ -41,6 +41,7 @@ interface OptimisticBoardSnapshot {
 }
 
 const normalizeText = (value: string): string => value.trim().toLowerCase();
+const ADDRESS_LOOKUP_DEBOUNCE_MS = 3000;
 const toTimestamp = (value: string): number | null => {
   if (!value) {
     return null;
@@ -185,7 +186,7 @@ export class StartNextJobFacade implements OnDestroy {
       .pipe(distinctUntilChanged())
       .subscribe((value) => this.syncAddressVerificationState(value));
     this.addressLookupSub = this.addressControl.valueChanges
-      .pipe(debounceTime(500), distinctUntilChanged())
+      .pipe(debounceTime(ADDRESS_LOOKUP_DEBOUNCE_MS), distinctUntilChanged())
       .subscribe((value) => {
         void this.handleAddressQuery(value);
       });
@@ -1943,7 +1944,7 @@ export class StartNextJobFacade implements OnDestroy {
       return;
     }
 
-    if (this.addressSelectionId && this.addressVerified() && query === this.addressControl.value) {
+    if (this.addressSelectionId && query === this.addressControl.value) {
       return;
     }
 

@@ -748,59 +748,21 @@
                           aria-required="true"
                         />
                       </label>
-                      <label class="field">
+                      <div class="field">
                         <span class="field__label">Address *</span>
-                        <div class="address-field">
-                          <input
-                            class="field__input"
-                            type="text"
-                            formControlName="address"
-                            autocomplete="off"
-                            required
-                            aria-required="true"
-                            (focus)="facade.handleHistoryAddressFocus()"
-                            (blur)="facade.handleHistoryAddressBlur()"
-                          />
-                          @if (historyEditorOpen() && facade.showHistoryAddressSuggestions()) {
-                            <ul
-                              class="address-suggestions"
-                              role="listbox"
-                              aria-label="Address suggestions"
-                            >
-                              @if (facade.historyAddressLookupLoading()) {
-                                <li class="address-suggestions__status">Searching addresses...</li>
-                              } @else if (facade.historyAddressSuggestions().length) {
-                                @for (
-                                  suggestion of facade.historyAddressSuggestions();
-                                  track suggestion.id
-                                ) {
-                                  <li>
-                                    <button
-                                      type="button"
-                                      class="address-suggestion"
-                                      (mousedown)="$event.preventDefault()"
-                                      (click)="facade.selectHistoryAddressSuggestion(suggestion)"
-                                    >
-                                      <span class="address-suggestion__primary">{{
-                                        suggestion.primaryText
-                                      }}</span>
-                                      @if (suggestion.secondaryText) {
-                                        <span class="address-suggestion__secondary">{{
-                                          suggestion.secondaryText
-                                        }}</span>
-                                      }
-                                    </button>
-                                  </li>
-                                }
-                              } @else {
-                                <li class="address-suggestions__status">
-                                  No matching addresses found.
-                                </li>
-                              }
-                            </ul>
-                          }
-                        </div>
-                      </label>
+                        <app-address-autocomplete-field
+                          [control]="historyForm.controls.address"
+                          [required]="true"
+                          [showSuggestions]="
+                            historyEditorOpen() && facade.showHistoryAddressSuggestions()
+                          "
+                          [suggestions]="facade.historyAddressSuggestions()"
+                          [loading]="facade.historyAddressLookupLoading()"
+                          (focused)="facade.handleHistoryAddressFocus()"
+                          (blurred)="facade.handleHistoryAddressBlur()"
+                          (suggestionSelected)="facade.selectHistoryAddressSuggestion($event)"
+                        ></app-address-autocomplete-field>
+                      </div>
                       <label class="field">
                         <span class="field__label">Scheduled start *</span>
                         <input

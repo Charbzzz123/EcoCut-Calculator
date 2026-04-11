@@ -207,51 +207,20 @@
                 aria-required="true"
               />
             </label>
-            <label class="field">
+            <div class="field">
               <span class="field__label">Site / address *</span>
-              <div class="address-field">
-                <input
-                  class="field__input"
-                  type="text"
-                  autocomplete="off"
-                  [formControl]="facade.addressControl"
-                  [readOnly]="facade.hasLinkedJobSelection()"
-                  required
-                  aria-required="true"
-                  (focus)="facade.handleAddressFocus()"
-                  (blur)="facade.handleAddressBlur()"
-                />
-                @if (facade.showAddressSuggestions()) {
-                  <ul class="address-suggestions" role="listbox" aria-label="Address suggestions">
-                    @if (facade.addressLookupLoading()) {
-                      <li class="address-suggestions__status">Searching addresses...</li>
-                    } @else if (facade.addressSuggestions().length) {
-                      @for (suggestion of facade.addressSuggestions(); track suggestion.id) {
-                        <li>
-                          <button
-                            type="button"
-                            class="address-suggestion"
-                            (mousedown)="$event.preventDefault()"
-                            (click)="facade.selectAddressSuggestion(suggestion)"
-                          >
-                            <span class="address-suggestion__primary">{{
-                              suggestion.primaryText
-                            }}</span>
-                            @if (suggestion.secondaryText) {
-                              <span class="address-suggestion__secondary">{{
-                                suggestion.secondaryText
-                              }}</span>
-                            }
-                          </button>
-                        </li>
-                      }
-                    } @else {
-                      <li class="address-suggestions__status">No matching addresses found.</li>
-                    }
-                  </ul>
-                }
-              </div>
-            </label>
+              <app-address-autocomplete-field
+                [control]="facade.addressControl"
+                [readOnly]="facade.hasLinkedJobSelection()"
+                [required]="true"
+                [showSuggestions]="facade.showAddressSuggestions()"
+                [suggestions]="facade.addressSuggestions()"
+                [loading]="facade.addressLookupLoading()"
+                (focused)="facade.handleAddressFocus()"
+                (blurred)="facade.handleAddressBlur()"
+                (suggestionSelected)="facade.selectAddressSuggestion($event)"
+              ></app-address-autocomplete-field>
+            </div>
             <label class="field" [class.field--auto]="facade.linkedScheduleReadOnly()">
               <span class="field__label">
                 {{ facade.isStartNowMode() ? 'Dispatch start (auto)' : 'Scheduled start *' }}

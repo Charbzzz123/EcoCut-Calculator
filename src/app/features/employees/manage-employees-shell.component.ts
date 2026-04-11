@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
+import { AddressAutocompleteFieldComponent } from '@shared/ui/address-autocomplete-field/address-autocomplete-field.component.js';
 import { BackChipComponent } from '@shared/ui/back-chip/back-chip.component.js';
 import { BrandBannerComponent } from '@shared/ui/brand-banner/brand-banner.component.js';
 import type { EmployeeHoursRecord, EmployeeLoggedJobOption } from './employees.types.js';
@@ -11,7 +12,13 @@ import { EmployeesFacade } from './employees.facade.js';
   selector: 'app-manage-employees-shell',
   templateUrl: './manage-employees-shell.component.html',
   styleUrls: ['./manage-employees-shell.component.scss'],
-  imports: [CommonModule, ReactiveFormsModule, BrandBannerComponent, BackChipComponent],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    BrandBannerComponent,
+    BackChipComponent,
+    AddressAutocompleteFieldComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ManageEmployeesShellComponent implements OnInit {

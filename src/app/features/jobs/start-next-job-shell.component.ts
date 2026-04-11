@@ -8,6 +8,7 @@ import {
   signal,
 } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
+import { AddressAutocompleteFieldComponent } from '@shared/ui/address-autocomplete-field/address-autocomplete-field.component.js';
 import { BackChipComponent } from '@shared/ui/back-chip/back-chip.component.js';
 import { BrandBannerComponent } from '@shared/ui/brand-banner/brand-banner.component.js';
 import { StartNextJobFacade } from './start-next-job.facade.js';
@@ -17,7 +18,13 @@ import { StartNextJobFacade } from './start-next-job.facade.js';
   selector: 'app-start-next-job-shell',
   templateUrl: './start-next-job-shell.component.html',
   styleUrls: ['./start-next-job-shell.component.scss'],
-  imports: [CommonModule, ReactiveFormsModule, BrandBannerComponent, BackChipComponent],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    BrandBannerComponent,
+    BackChipComponent,
+    AddressAutocompleteFieldComponent,
+  ],
   providers: [StartNextJobFacade],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

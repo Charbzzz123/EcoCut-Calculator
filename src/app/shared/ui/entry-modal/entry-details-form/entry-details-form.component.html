@@ -13,37 +13,18 @@
       <small class="error">Required</small>
     }
   </label>
-  <label class="wide">
+  <div class="field wide">
     <span>Home address</span>
-    <div class="address-field">
-      <input type="text" formControlName="address" (focus)="handlers.handleAddressFocus()" />
-      @if (showAddressSuggestions) {
-        <ul class="address-suggestions" role="listbox" aria-label="Address suggestions">
-          @if (addressLookupLoading) {
-            <li class="address-suggestions__status">Searching addresses...</li>
-          } @else if (addressSuggestions.length) {
-            @for (suggestion of addressSuggestions; track suggestion.id) {
-              <li>
-                <button
-                  type="button"
-                  class="address-suggestion"
-                  (click)="handlers.selectAddressSuggestion(suggestion)"
-                >
-                  <span class="address-suggestion__primary">{{ suggestion.primaryText }}</span>
-                  @if (suggestion.secondaryText) {
-                    <span class="address-suggestion__secondary">{{
-                      suggestion.secondaryText
-                    }}</span>
-                  }
-                </button>
-              </li>
-            }
-          } @else {
-            <li class="address-suggestions__status">No matching addresses found.</li>
-          }
-        </ul>
-      }
-    </div>
+    <app-address-autocomplete-field
+      [control]="addressControl"
+      [showSuggestions]="showAddressSuggestions"
+      [suggestions]="addressSuggestions"
+      [loading]="addressLookupLoading"
+      [required]="true"
+      (focused)="handlers.handleAddressFocus()"
+      (blurred)="handlers.handleAddressBlur()"
+      (suggestionSelected)="handlers.selectAddressSuggestion($event)"
+    ></app-address-autocomplete-field>
     @if (controlInvalid('address')) {
       @if (form.get('address')?.errors?.['required']) {
         <small class="error">Required</small>
@@ -55,7 +36,7 @@
     } @else if (addressVerified) {
       <small class="hint">Address verified.</small>
     }
-  </label>
+  </div>
   <label>
     <span>Phone number</span>
     <input

@@ -10,7 +10,13 @@ import {
   Signal,
   ViewChild,
 } from '@angular/core';
-import { ControlContainer, FormGroup, FormGroupDirective, ReactiveFormsModule } from '@angular/forms';
+import {
+  ControlContainer,
+  FormControl,
+  FormGroup,
+  FormGroupDirective,
+  ReactiveFormsModule,
+} from '@angular/forms';
 import {
   EntryVariant,
   HedgeId,
@@ -20,11 +26,13 @@ import {
 } from '@shared/domain/entry/entry-modal.models.js';
 import type { AddressSuggestion } from '@shared/domain/address/address-lookup.service.js';
 import { PanelState } from '../entry-modal-panel.store.js';
+import { AddressAutocompleteFieldComponent } from '@shared/ui/address-autocomplete-field/address-autocomplete-field.component.js';
 
 export interface EntryDetailsFormHandlers {
   handlePhoneInput(event: Event): void;
   selectAddressSuggestion(suggestion: AddressSuggestion): void;
   handleAddressFocus(): void;
+  handleAddressBlur(): void;
   cycleHedge(event: MouseEvent, hedgeId: HedgeId): void;
   updateTrimSection(section: 'inside' | 'top' | 'outside', checked: boolean): void;
   selectTrimPreset(preset: TrimPreset): void;
@@ -38,7 +46,7 @@ export interface EntryDetailsFormHandlers {
 @Component({
   selector: 'app-entry-details-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, AddressAutocompleteFieldComponent],
   templateUrl: './entry-details-form.component.html',
   styleUrl: './entry-details-form.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -76,6 +84,10 @@ export class EntryDetailsFormComponent implements OnDestroy {
 
   readonly jobTypeOptions = ['Hedge Trimming', 'Rabattage', 'Both'] as const;
   readonly rabattageOptions: RabattageOption[] = ['partial', 'total', 'total_no_roots'];
+
+  protected get addressControl(): FormControl<string> {
+    return this.form.controls['address'] as FormControl<string>;
+  }
 
   protected jobTypeSelected(): boolean {
     const control = this.form?.get('jobType');

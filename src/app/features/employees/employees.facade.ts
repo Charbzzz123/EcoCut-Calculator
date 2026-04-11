@@ -29,6 +29,7 @@ import type {
 
 const digitsOnly = (value: string): string => value.replace(/\D/g, '');
 const normalizeText = (value: string): string => value.trim().toLowerCase();
+const ADDRESS_LOOKUP_DEBOUNCE_MS = 3000;
 const normalizeName = (firstName: string, lastName: string): string =>
   `${normalizeText(firstName)}|${normalizeText(lastName)}`;
 const toIsoDate = (value: Date): string => value.toISOString().slice(0, 10);
@@ -388,7 +389,7 @@ export class EmployeesFacade implements OnDestroy {
       .pipe(distinctUntilChanged())
       .subscribe((value) => this.syncHistoryAddressVerificationState(value));
     this.historyAddressLookupSub = this.historyForm.controls.address.valueChanges
-      .pipe(debounceTime(500), distinctUntilChanged())
+      .pipe(debounceTime(ADDRESS_LOOKUP_DEBOUNCE_MS), distinctUntilChanged())
       .subscribe((value) => {
         void this.handleHistoryAddressQuery(value);
       });
@@ -1254,7 +1255,6 @@ export class EmployeesFacade implements OnDestroy {
 
     if (
       this.historyAddressSelectionId &&
-      this.historyAddressVerifiedSignal() &&
       query === this.historyForm.controls.address.value
     ) {
       return;

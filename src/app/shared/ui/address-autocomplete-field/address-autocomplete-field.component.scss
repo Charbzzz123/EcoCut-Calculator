@@ -1,0 +1,115 @@
+:host {
+  display: block;
+}
+
+.address-field {
+  position: relative;
+}
+
+.field__input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border-radius: 0.8rem;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font: inherit;
+  padding: 0.72rem 0.82rem;
+}
+
+.field__input::placeholder {
+  color: var(--text-muted);
+}
+
+.field__input:hover {
+  border-color: var(--border-accent-soft);
+}
+
+.field__input:focus-visible {
+  border-color: var(--border-accent-medium);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.field__input[readonly] {
+  border-color: var(--border-accent-soft);
+  background: var(--surface-input-alt);
+}
+
+.address-suggestions {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+  border-radius: 0.8rem;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-overlay-strong);
+  box-shadow: var(--shadow-medium);
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
+.address-suggestions::-webkit-scrollbar {
+  width: 10px;
+}
+
+.address-suggestions::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 999px;
+}
+
+.address-suggestions::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border: 1px solid var(--scrollbar-thumb-border);
+  border-radius: 999px;
+}
+
+.address-suggestions::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+.address-suggestions__status {
+  margin: 0;
+  padding: 0.5rem 0.55rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.address-suggestion {
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 0.6rem;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  padding: 0.55rem 0.6rem;
+  display: grid;
+  gap: 0.1rem;
+  cursor: pointer;
+}
+
+.address-suggestion:hover,
+.address-suggestion:focus-visible {
+  border-color: var(--border-accent-soft);
+  background: var(--surface-chip);
+  outline: none;
+}
+
+.address-suggestion__primary {
+  font-size: 0.86rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.address-suggestion__secondary {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}

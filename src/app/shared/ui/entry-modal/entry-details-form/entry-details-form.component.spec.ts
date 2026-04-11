@@ -68,6 +68,7 @@ class EntryDetailsHostComponent {
     handlePhoneInput: vi.fn(),
     selectAddressSuggestion: vi.fn(),
     handleAddressFocus: vi.fn(),
+    handleAddressBlur: vi.fn(),
     cycleHedge: vi.fn(),
     updateTrimSection: vi.fn(),
     selectTrimPreset: vi.fn(),

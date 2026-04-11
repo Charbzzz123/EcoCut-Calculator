@@ -10,14 +10,16 @@
   gap: 1rem 1.25rem;
 }
 
-label {
+label,
+.field {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
   font-size: 0.9rem;
 }
 
-label span {
+label span,
+.field > span {
   color: var(--text-muted);
   font-size: 0.8rem;
   text-transform: uppercase;
@@ -56,59 +58,6 @@ textarea {
 .hint {
   color: var(--text-muted);
   font-size: 0.75rem;
-}
-
-.address-field {
-  position: relative;
-}
-
-.address-suggestions {
-  list-style: none;
-  margin: 0.35rem 0 0;
-  padding: 0.35rem;
-  border: 1px solid var(--border-soft);
-  border-radius: 0.8rem;
-  background: var(--surface-overlay);
-  box-shadow: var(--shadow-panel);
-  max-height: 13rem;
-  overflow: auto;
-  display: grid;
-  gap: 0.2rem;
-}
-
-.address-suggestions__status {
-  color: var(--text-muted);
-  font-size: 0.82rem;
-  padding: 0.4rem 0.45rem;
-}
-
-.address-suggestion {
-  width: 100%;
-  border: 1px solid transparent;
-  border-radius: 0.65rem;
-  background: transparent;
-  color: inherit;
-  text-align: left;
-  padding: 0.42rem 0.5rem;
-  display: grid;
-  gap: 0.08rem;
-}
-
-.address-suggestion:hover,
-.address-suggestion:focus-visible {
-  border-color: var(--border-accent-soft);
-  background: rgba(22, 68, 52, 0.48);
-  outline: none;
-}
-
-.address-suggestion__primary {
-  font-size: 0.86rem;
-  font-weight: 500;
-}
-
-.address-suggestion__secondary {
-  color: var(--text-muted);
-  font-size: 0.78rem;
 }
 
 .hedge-error {

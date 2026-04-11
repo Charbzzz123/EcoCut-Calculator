@@ -1,0 +1,38 @@
+<div class="address-field">
+  <input
+    class="field__input"
+    type="text"
+    autocomplete="off"
+    [formControl]="control"
+    [readOnly]="readOnly"
+    [required]="required"
+    [placeholder]="placeholder"
+    (focus)="focused.emit()"
+    (blur)="blurred.emit()"
+  />
+  @if (showSuggestions) {
+    <ul class="address-suggestions" role="listbox" [attr.aria-label]="listboxLabel">
+      @if (loading) {
+        <li class="address-suggestions__status">{{ searchStatusLabel }}</li>
+      } @else if (suggestions.length) {
+        @for (suggestion of suggestions; track suggestion.id) {
+          <li>
+            <button
+              type="button"
+              class="address-suggestion"
+              (mousedown)="onSuggestionMouseDown($event)"
+              (click)="onSuggestionClick(suggestion)"
+            >
+              <span class="address-suggestion__primary">{{ suggestion.primaryText }}</span>
+              @if (suggestion.secondaryText) {
+                <span class="address-suggestion__secondary">{{ suggestion.secondaryText }}</span>
+              }
+            </button>
+          </li>
+        }
+      } @else {
+        <li class="address-suggestions__status">{{ emptyStatusLabel }}</li>
+      }
+    </ul>
+  }
+</div>

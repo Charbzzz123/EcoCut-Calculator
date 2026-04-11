@@ -6,6 +6,7 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 | Task                                                                 | Done       | Notes                                                                                                                                                                                                                                                                                                    |
 | -------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Address rollout Phase B (shared autocomplete field extraction)       | 2026-04-10 | Added reusable `AddressAutocompleteFieldComponent` and swapped Entry Modal, Start Next Job, and Manage Employees history editor to use the same suggestion UI/events. This removes duplicate markup, keeps address UX consistent, and centralizes future address field updates in one place.             |
 | Address rollout Phase A (entry modal + backend guardrails)           | 2026-04-07 | Added Nest `addresses` module (`/addresses/suggest`, `/addresses/validate`, `/addresses/usage`) with monthly SQLite usage tracking + caps, wired entry modal address suggestions/validation, and added query caching + debounce controls to reduce paid provider calls.                                  |
 | JX-7 Start Next Job UX/test/docs hardening final sweep               | 2026-04-06 | Re-ran full quality gates (`npm run lint:workspace`, `npm run test:ci`, `npm run build`, `cd server && npm run lint`, `npm run test`, `npm run check`) and finalized tracker/docs alignment for the JX flow now that JX-7A/JX-7B are shipped.                                                            |
 | JX-7B Start Next Job blocker-action affordances                      | 2026-04-06 | Added action chips on draft blocker rows (`Fix in Step 1`, `Go to Step 2`, `Open continuity`) so operators can jump directly to the correct panel/advanced section instead of manually searching for what to fix.                                                                                        |
@@ -112,9 +113,12 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 ## In Progress / Backlog
 
-| Step | Task | Owner | Notes                    |
-| ---- | ---- | ----- | ------------------------ |
-| —    | —    | —     | No active backlog items. |
+| Step   | Task                                | Owner | Notes                                                                                                                                                                                                                         |
+| ------ | ----------------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ADDR-1 | Address strict-mode rollout         | —     | Keep `enforceVerifiedAddress=false` in development until provider credentials are configured, then run staging validation and switch strict-mode to `true` in production configs.                                             |
+| ADDR-2 | Address usage + quota UI in Finance | —     | Backend usage ledger, monthly caps, and threshold guardrails are shipped (`/addresses/usage`). Remaining work: surface this in the future Finance section with monthly cost/threshold widgets and optional auto-pause toggle. |
+| DATA-1 | Centralize job display labels       | —     | Add canonical `displayLabel` read model (client + job type) and optional `clientNameSnapshot` on history rows so labels stay consistent across Start Next Job, history, and reports even if client names change later.        |
+| DATA-2 | Migrate EntriesRepository database  | —     | Replace file-based persistence with SQLite/Postgres via a managed ORM (e.g., Prisma) when ready.                                                                                                                              |
 
 ### JX Plan Detail (freeze this before coding)
 
@@ -231,10 +235,6 @@ Use this as the source of truth if chat context resets.
 
 ## To Eventually Do
 
-| Task                                       | Owner | Notes                                                                                                                                                                                                                        |
-| ------------------------------------------ | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Migrate EntriesRepository to real database | —     | Replace file-based persistence with SQLite/Postgres via a managed ORM (e.g., Prisma) when ready.                                                                                                                             |
-| Centralize job display labels + snapshots  | —     | Add canonical `displayLabel` read model (client + job type) and optional `clientNameSnapshot` on history rows so labels stay consistent across Start Next Job, history, and reports even if client names change later.       |
-| Address autocomplete + validation rollout  | —     | Add shared address search (debounced suggestions + required provider selection + server-side validation) for entry creation, employee profiles, and job/site fields. Block form progression unless address is verified.      |
-| API usage cost telemetry for Finance       | —     | Add backend usage ledger for address API calls (autocomplete/details/validation counts by day/month/provider), expose reporting endpoint, and surface this later inside the future Finance section as a cost tracker.        |
-| Address API monthly quota guardrails       | —     | Add monthly cap config + threshold alerts (75/90/100%), auto-disable address API calls at cap, show reset date messaging, and re-enable automatically on next monthly cycle; display this status in the future Finance area. |
+| Task | Owner | Notes                                                                                         |
+| ---- | ----- | --------------------------------------------------------------------------------------------- |
+| —    | —     | No deferred items right now; active remaining items are tracked in **In Progress / Backlog**. |
