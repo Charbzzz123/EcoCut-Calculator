@@ -142,7 +142,12 @@
           @for (row of audiencePreviewRows(); track row.client.clientId) {
             <li class="audience-preview__item">
               <div class="audience-preview__row">
-                <p class="audience-preview__name">{{ row.client.fullName }}</p>
+                <div class="audience-preview__identity">
+                  <p class="audience-preview__name">{{ row.client.fullName }}</p>
+                  <p class="audience-preview__meta">
+                    {{ row.client.email || 'No email' }} | {{ row.client.phone || 'No phone' }}
+                  </p>
+                </div>
                 <div class="audience-preview__row-actions">
                   <span
                     class="audience-preview__badge"
@@ -159,9 +164,6 @@
                   </button>
                 </div>
               </div>
-              <p class="audience-preview__meta">
-                {{ row.client.email || 'No email' }} | {{ row.client.phone || 'No phone' }}
-              </p>
             </li>
           } @empty {
             <li class="audience-preview__empty">No recipients match these filters yet.</li>

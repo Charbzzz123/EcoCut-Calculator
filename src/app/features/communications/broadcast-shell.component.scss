@@ -5,7 +5,8 @@
   gap: clamp(1.25rem, 3vw, 2.25rem);
   padding: clamp(1.25rem, 4vw, 3rem);
   padding-bottom: calc(clamp(4.5rem, 7vw, 6rem) + var(--floating-summary-clearance));
-  max-width: 1280px;
+  width: 100%;
+  max-width: 1560px;
   margin: 0 auto;
   color: var(--text-primary);
 }
@@ -151,8 +152,9 @@
 
 .broadcast-board {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
+  align-items: start;
 }
 
 .board-card {
@@ -371,14 +373,15 @@
   padding: 0;
   display: grid;
   gap: 0.45rem;
-  max-height: 12rem;
+  max-height: 15.5rem;
   overflow-y: auto;
-  padding-right: 0.25rem;
+  padding-right: 0.3rem;
+  scrollbar-gutter: stable;
   -webkit-overflow-scrolling: touch;
 }
 
 .audience-preview__item {
-  padding: 0.5rem 0.6rem;
+  padding: 0.6rem 0.7rem;
   border: 1px solid var(--border-muted);
   border-radius: 0.75rem;
   background: var(--surface-card-deep);
@@ -386,20 +389,28 @@
 
 .audience-preview__row {
   display: flex;
-  gap: 0.45rem;
-  align-items: center;
+  gap: 0.7rem;
+  align-items: flex-start;
   justify-content: space-between;
 }
 
+.audience-preview__identity {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .audience-preview__row-actions {
-  display: inline-flex;
-  gap: 0.4rem;
-  align-items: center;
+  display: grid;
+  gap: 0.45rem;
+  justify-items: end;
+  flex: 0 0 auto;
 }
 
 .audience-preview__name {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 0.96rem;
+  line-height: 1.2;
+  word-break: break-word;
   color: var(--text-primary);
 }
 
@@ -439,8 +450,9 @@
 }
 
 .audience-preview__meta {
-  margin: 0.2rem 0 0;
-  font-size: 0.78rem;
+  margin: 0.32rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.25;
   color: var(--text-muted);
   word-break: break-word;
 }
@@ -912,11 +924,31 @@
     padding-bottom: 12.5rem;
   }
 
+  .broadcast-board {
+    grid-template-columns: 1fr;
+  }
+
   .floating-summary {
     left: 0.75rem;
     right: 0.75rem;
     width: auto;
     bottom: 0.75rem;
     padding: 0.55rem 0.65rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .audience-preview__row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.55rem;
+  }
+
+  .audience-preview__row-actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 0.45rem;
   }
 }
