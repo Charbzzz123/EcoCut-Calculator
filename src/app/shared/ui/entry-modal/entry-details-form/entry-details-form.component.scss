@@ -158,6 +158,10 @@ textarea {
   stroke: transparent;
   stroke-width: 3;
   cursor: pointer;
+  transition:
+    stroke var(--motion-duration-base) var(--motion-ease-standard),
+    fill var(--motion-duration-base) var(--motion-ease-standard),
+    filter var(--motion-duration-base) var(--motion-ease-standard);
 }
 
 .hedge:hover {

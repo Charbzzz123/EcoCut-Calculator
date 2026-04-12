@@ -57,6 +57,10 @@
   color: inherit;
   font-size: 1.4rem;
   cursor: pointer;
+  transition:
+    border-color var(--motion-duration-base) var(--motion-ease-standard),
+    background-color var(--motion-duration-base) var(--motion-ease-standard),
+    transform var(--motion-duration-fast) var(--motion-ease-standard);
 }
 
 .content {
@@ -252,6 +256,10 @@ textarea {
   stroke: transparent;
   stroke-width: 3;
   cursor: pointer;
+  transition:
+    stroke var(--motion-duration-base) var(--motion-ease-standard),
+    fill var(--motion-duration-base) var(--motion-ease-standard),
+    filter var(--motion-duration-base) var(--motion-ease-standard);
 }
 
 .hedge:hover {

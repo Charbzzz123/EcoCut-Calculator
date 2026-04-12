@@ -50,15 +50,36 @@ button {
   outline-offset: 2px;
 }
 
-/* Shared interactive behavior for app control buttons; keeps each button's own colors. */
-:where(.refresh-btn, .add-btn, .retry-btn, .status-pill, .employee-action) {
+/* Shared motion baseline for interactive controls across features. */
+:where(
+  button,
+  input:not([type='checkbox']):not([type='radio']),
+  textarea,
+  select,
+  .field__input,
+  .refresh-btn,
+  .add-btn,
+  .retry-btn,
+  .status-pill,
+  .employee-action,
+  .chip,
+  .merge-chip,
+  .address-suggestion,
+  .select-dropdown__trigger,
+  .select-dropdown__option,
+  .client-card,
+  .employee-card,
+  .quick-action,
+  .slot-chip
+) {
   transition:
     transform var(--motion-duration-fast) var(--motion-ease-standard),
     box-shadow var(--motion-duration-base) var(--motion-ease-standard),
     filter var(--motion-duration-base) var(--motion-ease-standard),
     border-color var(--motion-duration-base) var(--motion-ease-standard),
     background-color var(--motion-duration-base) var(--motion-ease-standard),
-    color var(--motion-duration-base) var(--motion-ease-standard);
+    color var(--motion-duration-base) var(--motion-ease-standard),
+    opacity var(--motion-duration-base) var(--motion-ease-standard);
 }
 
 :where(.refresh-btn, .add-btn, .retry-btn, .status-pill, .employee-action):not(:disabled):hover {
@@ -99,7 +120,27 @@ button {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :where(.refresh-btn, .add-btn, .retry-btn, .status-pill, .employee-action) {
+  :where(
+    button,
+    input:not([type='checkbox']):not([type='radio']),
+    textarea,
+    select,
+    .field__input,
+    .refresh-btn,
+    .add-btn,
+    .retry-btn,
+    .status-pill,
+    .employee-action,
+    .chip,
+    .merge-chip,
+    .address-suggestion,
+    .select-dropdown__trigger,
+    .select-dropdown__option,
+    .client-card,
+    .employee-card,
+    .quick-action,
+    .slot-chip
+  ) {
     transition: none;
   }
 
