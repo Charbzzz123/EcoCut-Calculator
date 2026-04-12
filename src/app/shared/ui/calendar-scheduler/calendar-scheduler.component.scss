@@ -83,7 +83,7 @@
 }
 
 .calendar-view-panel {
-  animation: calendar-view-fade 180ms ease;
+  animation: calendar-view-fade var(--motion-duration-fast) var(--motion-ease-standard);
 }
 
 @keyframes calendar-view-fade {
@@ -94,6 +94,12 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .calendar-view-panel {
+    animation: none;
   }
 }
 
