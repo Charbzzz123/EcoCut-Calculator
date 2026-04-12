@@ -8,3 +8,24 @@
   background: var(--surface);
   color: var(--text-primary);
 }
+
+.app-shell--route-enter {
+  animation: app-route-enter var(--motion-duration-panel) var(--motion-ease-standard);
+}
+
+@keyframes app-route-enter {
+  from {
+    opacity: 0.01;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell--route-enter {
+    animation: none;
+  }
+}

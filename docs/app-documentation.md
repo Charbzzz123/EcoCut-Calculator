@@ -206,6 +206,7 @@ With the persistence layer durable we can confidently layer on �undo,� riche
 - **Motion tokens** (`--motion-duration-fast/base/slow/panel`, `--motion-ease-standard/emphasis`, lift distance) are now centralized in the same theme file so feature SCSS avoids hard-coded transition timings.
 - **Global interaction baseline** in `src/styles.scss` now applies token-based motion to shared controls (buttons, inputs, chips, dropdown triggers/options, suggestion rows, and key cards) so new screens inherit consistent interaction feedback by default.
 - **Surface micro-interactions** are also centralized in `src/styles.scss` for shared `*-card`, `*-panel`, and `*-banner` containers so state shifts/hover feedback remain cohesive between modules.
+- **Route-level transitions** are handled at the app shell (`AppComponent` around `router-outlet`) using tokenized motion and reduced-motion fallback so top-level page navigation is smooth but still accessible.
 - **Reduced motion** is enforced globally in `src/styles.scss` for shared interactive controls and shared panel-enter animation utilities.
 - **Dark evergreen palette** keeps the UI in sync with the EcoCut brand (deep greens, neon growth accents).
 - **Brand assets** belong in public/assets/brand/. Expected files: eco-logo.png (wordmark) and eco-mascot.png (character). A placeholder SVG loads if the mascot file is absent.
