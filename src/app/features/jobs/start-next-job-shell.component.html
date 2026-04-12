@@ -16,18 +16,34 @@
 
   <article class="start-next-jump" aria-label="Start Next Job quick navigation">
     <div class="section-toggle">
-      <p class="start-next-jump__label">Guided workflow</p>
-      <p class="start-next-jump__meta">
-        Crew selected: {{ facade.selectedCrew().length }} | Scheduled history:
-        {{ facade.scheduledHistoryCount() }}
-      </p>
+      <div class="start-next-jump__overview">
+        <p class="start-next-jump__label">Guided workflow</p>
+        <p class="start-next-jump__progress-summary">{{ workflowProgressSummary() }}</p>
+      </div>
+      <div class="section-toggle__actions">
+        <p class="start-next-jump__meta">
+          Crew selected: {{ facade.selectedCrew().length }} | Scheduled history:
+          {{ facade.scheduledHistoryCount() }}
+        </p>
+        <button
+          type="button"
+          class="ghost-btn start-next-jump__progress-toggle"
+          [attr.aria-expanded]="workflowStatusExpanded()"
+          aria-controls="start-next-workflow-progress"
+          (click)="toggleWorkflowStatusExpanded()"
+        >
+          {{ workflowStatusExpanded() ? 'Hide progress' : 'Show progress' }}
+        </button>
+      </div>
     </div>
     <div class="start-next-jump__actions">
       <button
         type="button"
         class="ghost-btn"
         [class.start-next-jump__action--active]="stepFocus() === 'draft'"
+        [class.start-next-jump__action--active-draft]="stepFocus() === 'draft'"
         [attr.aria-pressed]="stepFocus() === 'draft'"
+        [attr.aria-current]="stepFocus() === 'draft' ? 'step' : null"
         aria-controls="start-next-draft"
         (click)="setStepFocus('draft')"
       >
@@ -37,7 +53,9 @@
         type="button"
         class="ghost-btn"
         [class.start-next-jump__action--active]="stepFocus() === 'crew'"
+        [class.start-next-jump__action--active-crew]="stepFocus() === 'crew'"
         [attr.aria-pressed]="stepFocus() === 'crew'"
+        [attr.aria-current]="stepFocus() === 'crew' ? 'step' : null"
         aria-controls="start-next-crew"
         [disabled]="!canOpenCrewStep()"
         (click)="setStepFocus('crew')"
@@ -48,7 +66,9 @@
         type="button"
         class="ghost-btn"
         [class.start-next-jump__action--active]="stepFocus() === 'review'"
+        [class.start-next-jump__action--active-review]="stepFocus() === 'review'"
         [attr.aria-pressed]="stepFocus() === 'review'"
+        [attr.aria-current]="stepFocus() === 'review' ? 'step' : null"
         aria-controls="start-next-review"
         [disabled]="!canOpenReviewStep()"
         (click)="setStepFocus('review')"
@@ -59,7 +79,9 @@
         type="button"
         class="ghost-btn"
         [class.start-next-jump__action--active]="stepFocus() === 'history'"
+        [class.start-next-jump__action--active-history]="stepFocus() === 'history'"
         [attr.aria-pressed]="stepFocus() === 'history'"
+        [attr.aria-current]="stepFocus() === 'history' ? 'step' : null"
         aria-controls="start-next-history"
         [disabled]="!canOpenHistoryStep()"
         (click)="setStepFocus('history')"
@@ -67,32 +89,43 @@
         Scheduled history
       </button>
     </div>
-    <ul class="start-next-jump__status">
-      <li>
-        <span>Step 1</span>
-        <strong>{{
-          facade.hasJobModeSelection()
-            ? 'Linked job mode selected'
-            : 'Choose linked job or manual mode'
-        }}</strong>
-      </li>
-      <li>
-        <span>Step 2</span>
-        <strong>{{
-          canOpenReviewStep() ? 'Crew selected' : 'Select at least 1 crew member'
-        }}</strong>
-      </li>
-      <li>
-        <span>Step 3</span>
-        <strong>
-          {{
-            facade.draftValidation().isReady
-              ? 'Ready to save'
-              : 'Review conflicts and validation blockers'
-          }}
-        </strong>
-      </li>
-    </ul>
+    @if (workflowStatusExpanded()) {
+      <ul id="start-next-workflow-progress" class="start-next-jump__status">
+        <li
+          [class.start-next-jump__status-item--active]="isWorkflowStepActive('draft')"
+          [class.start-next-jump__status-item--active-draft]="isWorkflowStepActive('draft')"
+        >
+          <span>Step 1</span>
+          <strong>{{
+            facade.hasJobModeSelection()
+              ? 'Linked job mode selected'
+              : 'Choose linked job or manual mode'
+          }}</strong>
+        </li>
+        <li
+          [class.start-next-jump__status-item--active]="isWorkflowStepActive('crew')"
+          [class.start-next-jump__status-item--active-crew]="isWorkflowStepActive('crew')"
+        >
+          <span>Step 2</span>
+          <strong>{{
+            canOpenReviewStep() ? 'Crew selected' : 'Select at least 1 crew member'
+          }}</strong>
+        </li>
+        <li
+          [class.start-next-jump__status-item--active]="isWorkflowStepActive('review')"
+          [class.start-next-jump__status-item--active-review]="isWorkflowStepActive('review')"
+        >
+          <span>Step 3</span>
+          <strong>
+            {{
+              facade.draftValidation().isReady
+                ? 'Ready to save'
+                : 'Review conflicts and validation blockers'
+            }}
+          </strong>
+        </li>
+      </ul>
+    }
   </article>
 
   @if (facade.saveState() !== 'idle' && facade.saveMessage()) {
@@ -118,7 +151,11 @@
   }
 
   @if (stepFocus() === 'draft') {
-    <article id="start-next-draft" class="draft-panel" aria-label="Assignment draft">
+    <article
+      id="start-next-draft"
+      class="draft-panel motion-enter-panel"
+      aria-label="Assignment draft"
+    >
       <header class="panel-header draft-panel__header">
         <h2>Step 1 - Job details</h2>
         <p>Select job mode and set schedule metadata</p>
@@ -391,7 +428,7 @@
   @if (stepFocus() === 'crew' || stepFocus() === 'review') {
     <article class="board-grid">
       @if (stepFocus() === 'crew') {
-        <section id="start-next-crew" class="crew-pool" aria-live="polite">
+        <section id="start-next-crew" class="crew-pool motion-enter-panel" aria-live="polite">
           <header class="panel-header">
             <h2>Step 2 - Crew pool</h2>
             <p>{{ facade.filteredReadiness().length }} employee(s)</p>
@@ -482,7 +519,7 @@
       }
 
       @if (stepFocus() === 'review') {
-        <section id="start-next-review" class="assignment-summary">
+        <section id="start-next-review" class="assignment-summary motion-enter-panel">
           <header class="panel-header">
             <h2>Step 3 - Assignment summary</h2>
             <p>{{ facade.selectedCrew().length }} selected</p>
@@ -501,6 +538,19 @@
                 <li>{{ employee.fullName }}</li>
               }
             </ul>
+          }
+
+          @if (facade.selectedCrew().length && !facade.selectedCrewConflicts().length) {
+            <p
+              class="review-status"
+              [class.review-status--ready]="facade.draftValidation().isReady"
+            >
+              @if (facade.draftValidation().isReady) {
+                No conflicts detected. Assignment is ready to save.
+              } @else {
+                No crew conflicts detected. Complete Step 1 details to enable save.
+              }
+            </p>
           }
 
           @if (facade.selectedCrewConflicts().length) {
@@ -557,7 +607,7 @@
                 [disabled]="!canOpenHistoryStep()"
                 (click)="setStepFocus('history')"
               >
-                Open scheduled history
+                View scheduled history
               </button>
             </div>
             <div class="draft-actions__primary">
@@ -604,7 +654,7 @@
                   aria-controls="start-next-analytics-content"
                   (click)="toggleAnalyticsPanelExpanded()"
                 >
-                  {{ analyticsPanelExpanded() ? 'Hide analytics' : 'Show analytics' }}
+                  {{ analyticsPanelExpanded() ? 'Hide analytics' : 'View analytics' }}
                 </button>
               </div>
             </div>
@@ -907,7 +957,11 @@
   }
 
   @if (stepFocus() === 'history') {
-    <article id="start-next-history" class="history-panel" aria-label="Selected crew history">
+    <article
+      id="start-next-history"
+      class="history-panel motion-enter-panel"
+      aria-label="Selected crew history"
+    >
       <header class="panel-header">
         <h2>Scheduled history</h2>
         <div class="section-toggle__actions">

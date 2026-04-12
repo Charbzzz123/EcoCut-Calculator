@@ -39,7 +39,7 @@
   color: var(--text-muted);
   font-size: 0.95rem;
   line-height: 1;
-  transition: transform 0.18s ease;
+  transition: transform var(--motion-duration-base) var(--motion-ease-standard);
 }
 
 .select-dropdown--open .select-dropdown__chevron {

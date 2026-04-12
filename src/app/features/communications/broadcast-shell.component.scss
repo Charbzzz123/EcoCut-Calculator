@@ -267,9 +267,9 @@
   place-items: center;
   cursor: pointer;
   transition:
-    border-color 0.2s ease,
-    background-color 0.2s ease,
-    box-shadow 0.2s ease;
+    border-color var(--motion-duration-base) var(--motion-ease-standard),
+    background-color var(--motion-duration-base) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-base) var(--motion-ease-standard);
 }
 
 .check input[type='checkbox']::after {
@@ -279,7 +279,7 @@
   border-radius: 0.15rem;
   background: var(--gradient-accent-soft);
   transform: scale(0);
-  transition: transform 0.15s ease-in-out;
+  transition: transform var(--motion-duration-fast) var(--motion-ease-emphasis);
 }
 
 .check input[type='checkbox']:checked {

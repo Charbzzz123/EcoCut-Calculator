@@ -129,6 +129,13 @@
   --shadow-elevated: 0 25px 55px rgba(3, 10, 7, 0.65);
   --card-radius: 1.25rem;
   --blur-lg: 30px;
+  --motion-duration-fast: 160ms;
+  --motion-duration-base: 240ms;
+  --motion-duration-slow: 320ms;
+  --motion-duration-panel: 360ms;
+  --motion-ease-standard: cubic-bezier(0.2, 0.75, 0.25, 1);
+  --motion-ease-emphasis: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-lift-distance: -1px;
   --font-family-base: 'Inter', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 

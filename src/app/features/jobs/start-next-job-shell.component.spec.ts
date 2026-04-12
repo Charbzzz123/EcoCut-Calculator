@@ -438,8 +438,16 @@ describe('StartNextJobShellComponent', () => {
     setStepFocus('review', fixture);
     expect(fixture.nativeElement.textContent).toContain('Resolve the following conflicts');
     expect(fixture.nativeElement.textContent).toContain('Assignment analytics');
-    expect(fixture.nativeElement.textContent).toContain('Total tracked');
+    expect(fixture.nativeElement.textContent).not.toContain('Total tracked');
     expect(fixture.nativeElement.textContent).not.toContain('Per-employee trend');
+
+    const panelToggle = fixture.nativeElement.querySelector(
+      '.analytics-panel__collapse-btn',
+    ) as HTMLButtonElement;
+    expect(panelToggle.textContent).toContain('View analytics');
+    panelToggle.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Total tracked');
     expect(fixture.nativeElement.textContent).toContain('Detailed trend cards are hidden');
 
     const exportButton = fixture.nativeElement.querySelector(
@@ -534,6 +542,12 @@ describe('StartNextJobShellComponent', () => {
     fixture.detectChanges();
     setStepFocus('review', fixture);
 
+    const panelToggle = fixture.nativeElement.querySelector(
+      '.analytics-panel__collapse-btn',
+    ) as HTMLButtonElement;
+    panelToggle.click();
+    fixture.detectChanges();
+
     const exportButton = fixture.nativeElement.querySelector(
       '.analytics-panel__export-btn',
     ) as HTMLButtonElement;
@@ -553,6 +567,12 @@ describe('StartNextJobShellComponent', () => {
     facade.analyticsRangeError.set('Analytics start date must be before the end date.');
     fixture.detectChanges();
     setStepFocus('review', fixture);
+
+    const panelToggle = fixture.nativeElement.querySelector(
+      '.analytics-panel__collapse-btn',
+    ) as HTMLButtonElement;
+    panelToggle.click();
+    fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain(
       'Analytics start date must be before the end date.',

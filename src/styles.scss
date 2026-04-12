@@ -53,14 +53,16 @@ button {
 /* Shared interactive behavior for app control buttons; keeps each button's own colors. */
 :where(.refresh-btn, .add-btn, .retry-btn, .status-pill, .employee-action) {
   transition:
-    transform 140ms ease,
-    box-shadow 180ms ease,
-    filter 180ms ease,
-    border-color 180ms ease;
+    transform var(--motion-duration-fast) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-base) var(--motion-ease-standard),
+    filter var(--motion-duration-base) var(--motion-ease-standard),
+    border-color var(--motion-duration-base) var(--motion-ease-standard),
+    background-color var(--motion-duration-base) var(--motion-ease-standard),
+    color var(--motion-duration-base) var(--motion-ease-standard);
 }
 
 :where(.refresh-btn, .add-btn, .retry-btn, .status-pill, .employee-action):not(:disabled):hover {
-  transform: translateY(-1px);
+  transform: translateY(var(--motion-lift-distance));
   filter: brightness(1.06);
   box-shadow: 0 8px 20px rgba(2, 12, 9, 0.45);
 }
@@ -79,6 +81,31 @@ button {
 
 :where(.refresh-btn, .add-btn, .retry-btn, .status-pill, .employee-action):disabled {
   filter: saturate(0.72);
+}
+
+:where(.motion-enter-panel) {
+  animation: motion-panel-enter var(--motion-duration-panel) var(--motion-ease-standard);
+}
+
+@keyframes motion-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(.refresh-btn, .add-btn, .retry-btn, .status-pill, .employee-action) {
+    transition: none;
+  }
+
+  :where(.motion-enter-panel) {
+    animation: none;
+  }
 }
 
 .workspace-state {

@@ -202,7 +202,9 @@ With the persistence layer durable we can confidently layer on �undo,� riche
 
 ## Branding & Theming
 
-- **Design tokens** live in src/styles/theme.scss; src/styles.scss simply consumes those variables so tokens stay centralized.
+- **Design tokens** live in `src/styles/theme.scss`; `src/styles.scss` consumes those variables so tokens stay centralized.
+- **Motion tokens** (`--motion-duration-fast/base/slow/panel`, `--motion-ease-standard/emphasis`, lift distance) are now centralized in the same theme file so feature SCSS avoids hard-coded transition timings.
+- **Reduced motion** is enforced globally in `src/styles.scss` for shared interactive controls and shared panel-enter animation utilities.
 - **Dark evergreen palette** keeps the UI in sync with the EcoCut brand (deep greens, neon growth accents).
 - **Brand assets** belong in public/assets/brand/. Expected files: eco-logo.png (wordmark) and eco-mascot.png (character). A placeholder SVG loads if the mascot file is absent.
 

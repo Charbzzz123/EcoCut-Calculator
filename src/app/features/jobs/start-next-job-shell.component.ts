@@ -31,6 +31,7 @@ import { StartNextJobFacade } from './start-next-job.facade.js';
 export class StartNextJobShellComponent implements OnInit {
   protected readonly facade = inject(StartNextJobFacade);
   protected readonly stepFocus = signal<'crew' | 'draft' | 'review' | 'history'>('draft');
+  protected readonly workflowStatusExpanded = signal(false);
   protected readonly draftAdvancedExpanded = signal(false);
   protected readonly analyticsPanelExpanded = signal(false);
   protected readonly analyticsExpanded = signal(false);
@@ -60,9 +61,6 @@ export class StartNextJobShellComponent implements OnInit {
     if (step === 'crew' || step === 'review') {
       this.facade.refreshStartNowSchedule();
     }
-    if (step === 'review') {
-      this.analyticsPanelExpanded.set(true);
-    }
     this.scrollToSection(`start-next-${step}`);
   }
 
@@ -88,8 +86,37 @@ export class StartNextJobShellComponent implements OnInit {
     this.draftAdvancedExpanded.update((expanded) => !expanded);
   }
 
+  protected toggleWorkflowStatusExpanded(): void {
+    this.workflowStatusExpanded.update((expanded) => !expanded);
+  }
+
   protected toggleAnalyticsPanelExpanded(): void {
     this.analyticsPanelExpanded.update((expanded) => !expanded);
+  }
+
+  protected workflowProgressSummary(): string {
+    const focus = this.stepFocus();
+    if (focus === 'draft') {
+      return this.facade.hasJobModeSelection()
+        ? 'Step 1: Linked job mode selected.'
+        : 'Step 1: Choose linked job or manual mode.';
+    }
+    if (focus === 'crew') {
+      return this.canOpenReviewStep()
+        ? 'Step 2: Crew selected.'
+        : 'Step 2: Select at least 1 crew member.';
+    }
+    return this.facade.draftValidation().isReady
+      ? 'Step 3: Ready to save.'
+      : 'Step 3: Review conflicts and validation blockers.';
+  }
+
+  protected isWorkflowStepActive(step: 'draft' | 'crew' | 'review'): boolean {
+    const focus = this.stepFocus();
+    if (step === 'review') {
+      return focus === 'review' || focus === 'history';
+    }
+    return focus === step;
   }
 
   protected clockOutRunMember(entryId: string): void {

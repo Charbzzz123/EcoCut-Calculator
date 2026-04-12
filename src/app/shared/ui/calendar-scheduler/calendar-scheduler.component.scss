@@ -127,8 +127,8 @@
   font-size: 0.9rem;
   color: inherit;
   transition:
-    border-color 0.2s,
-    background 0.2s;
+    border-color var(--motion-duration-base) var(--motion-ease-standard),
+    background var(--motion-duration-base) var(--motion-ease-standard);
 }
 
 .slot-chip small {
