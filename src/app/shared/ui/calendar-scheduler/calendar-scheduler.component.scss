@@ -215,6 +215,12 @@
   padding: 0.65rem 0.75rem;
   text-align: left;
   overflow: hidden;
+  cursor: pointer;
+}
+
+.overview-day-card:hover {
+  border-color: var(--border-accent-soft);
+  transform: translateY(var(--motion-lift-distance));
 }
 
 .overview-day-card.is-selected {
@@ -292,6 +298,7 @@
   display: block;
   height: 100%;
   background: var(--accent-primary);
+  transition: width var(--motion-duration-slow) var(--motion-ease-standard);
 }
 
 .month-overview {
@@ -335,6 +342,12 @@
   flex-direction: column;
   gap: 0.22rem;
   overflow: hidden;
+  cursor: pointer;
+}
+
+.month-overview__day:hover {
+  border-color: var(--border-accent-soft);
+  transform: translateY(var(--motion-lift-distance));
 }
 
 .month-overview__day.is-outside {
@@ -407,6 +420,7 @@
   display: block;
   height: 100%;
   background: var(--accent-primary);
+  transition: width var(--motion-duration-slow) var(--motion-ease-standard);
 }
 
 .calendar-preview .preview-title {

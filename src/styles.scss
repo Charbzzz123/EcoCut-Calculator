@@ -108,6 +108,29 @@ button {
   animation: motion-panel-enter var(--motion-duration-panel) var(--motion-ease-standard);
 }
 
+/* Shared surface transitions so cards/panels/banners feel consistent when states change. */
+:where(
+  [class$='-card'],
+  [class*='-card '],
+  [class$='__card'],
+  [class*='__card '],
+  [class$='-panel'],
+  [class*='-panel '],
+  [class$='__panel'],
+  [class*='__panel '],
+  [class$='-banner'],
+  [class*='-banner '],
+  [class$='__banner'],
+  [class*='__banner ']
+) {
+  transition:
+    border-color var(--motion-duration-base) var(--motion-ease-standard),
+    background-color var(--motion-duration-base) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-base) var(--motion-ease-standard),
+    transform var(--motion-duration-fast) var(--motion-ease-standard),
+    opacity var(--motion-duration-base) var(--motion-ease-standard);
+}
+
 @keyframes motion-panel-enter {
   from {
     opacity: 0;
@@ -140,6 +163,23 @@ button {
     .employee-card,
     .quick-action,
     .slot-chip
+  ) {
+    transition: none;
+  }
+
+  :where(
+    [class$='-card'],
+    [class*='-card '],
+    [class$='__card'],
+    [class*='__card '],
+    [class$='-panel'],
+    [class*='-panel '],
+    [class$='__panel'],
+    [class*='__panel '],
+    [class$='-banner'],
+    [class*='-banner '],
+    [class$='__banner'],
+    [class*='__banner ']
   ) {
     transition: none;
   }
