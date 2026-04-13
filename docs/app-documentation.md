@@ -210,6 +210,7 @@ With the persistence layer durable we can confidently layer on �undo,� riche
 - **Overlay/modal transitions** now use the same motion token baseline for open/close in shared shells (entry modal, client detail overlay/editor overlay, broadcast confirmation) so panel behavior stays consistent across modules.
 - **Shared select dropdown menus** now keep menus rendered during close (short fade/slide exit) with reduced-motion fallback in `SelectDropdownComponent`, so option lists no longer snap in/out when opening or dismissing.
 - **Shared address suggestion popovers** now use the same delayed close fade/slide behavior in `AddressAutocompleteFieldComponent`, keeping address lookup menus visually consistent with dropdown motion and reduced-motion rules.
+- **Home-specific floating menus** (Add Entry CTA/dropdowns) now follow the same fade/slide + visibility handoff pattern so non-shared popover menus behave consistently with the shared motion baseline.
 - **Reduced motion** is enforced globally in `src/styles.scss` for shared interactive controls and shared panel-enter animation utilities.
 - **Dark evergreen palette** keeps the UI in sync with the EcoCut brand (deep greens, neon growth accents).
 - **Brand assets** belong in public/assets/brand/. Expected files: eco-logo.png (wordmark) and eco-mascot.png (character). A placeholder SVG loads if the mascot file is absent.
