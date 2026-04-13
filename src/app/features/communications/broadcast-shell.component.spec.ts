@@ -1010,6 +1010,7 @@ describe('BroadcastShellComponent', () => {
   });
 
   it('opens the preview dropdown and selects a client option', () => {
+    vi.useFakeTimers();
     const host = fixture.nativeElement as HTMLElement;
     const trigger = host.querySelector('.preview-shell .select-dropdown__trigger') as HTMLButtonElement;
 
@@ -1024,12 +1025,17 @@ describe('BroadcastShellComponent', () => {
     ) as HTMLButtonElement;
     bellaOption.click();
     fixture.detectChanges();
+    vi.advanceTimersByTime(180);
+    fixture.detectChanges();
 
     expect(facadeMock.previewClientIdControl.value).toBe('bella');
     expect(host.querySelector('.preview-shell .select-dropdown__menu')).toBeNull();
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
   });
 
   it('closes preview dropdown when clicking outside the selector', () => {
+    vi.useFakeTimers();
     const host = fixture.nativeElement as HTMLElement;
     const trigger = host.querySelector('.preview-shell .select-dropdown__trigger') as HTMLButtonElement;
 
@@ -1039,8 +1045,12 @@ describe('BroadcastShellComponent', () => {
 
     document.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     fixture.detectChanges();
+    vi.advanceTimersByTime(180);
+    fixture.detectChanges();
 
     expect(host.querySelector('.preview-shell .select-dropdown__menu')).toBeNull();
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
   });
 
   it('ignores preview moves when list is too short or out of bounds', () => {

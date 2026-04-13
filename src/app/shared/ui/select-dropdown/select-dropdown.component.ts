@@ -5,6 +5,7 @@ import {
   ElementRef,
   HostListener,
   Input,
+  OnDestroy,
   ViewChild,
   signal,
 } from '@angular/core';
@@ -16,6 +17,7 @@ import {
 const NOOP = (): void => {
   return;
 };
+const MENU_CLOSE_DURATION_MS = 180;
 
 export interface SelectDropdownOption {
   value: string;
@@ -38,7 +40,7 @@ export interface SelectDropdownOption {
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SelectDropdownComponent implements ControlValueAccessor {
+export class SelectDropdownComponent implements ControlValueAccessor, OnDestroy {
   @Input() options: readonly SelectDropdownOption[] = [];
   @Input() placeholder = 'Select';
   @Input() emptyLabel = 'No options available';
@@ -47,10 +49,16 @@ export class SelectDropdownComponent implements ControlValueAccessor {
   @ViewChild('dropdownRoot') private dropdownRoot?: ElementRef<HTMLElement>;
 
   protected readonly menuOpen = signal(false);
+  protected readonly menuClosing = signal(false);
   protected readonly controlValue = signal('');
   private readonly isDisabled = signal(false);
+  private closeTimer: ReturnType<typeof setTimeout> | null = null;
   private onChange: (value: string) => void = NOOP;
   private onTouched: () => void = NOOP;
+
+  ngOnDestroy(): void {
+    this.clearCloseTimer();
+  }
 
   protected hasOptions(): boolean {
     return this.options.length > 0;
@@ -58,6 +66,10 @@ export class SelectDropdownComponent implements ControlValueAccessor {
 
   protected isTriggerDisabled(): boolean {
     return this.isDisabled() || this.options.length === 0;
+  }
+
+  protected shouldRenderMenu(): boolean {
+    return this.menuOpen() || this.menuClosing();
   }
 
   protected selectedLabel(): string {
@@ -88,7 +100,7 @@ export class SelectDropdownComponent implements ControlValueAccessor {
   setDisabledState(isDisabled: boolean): void {
     this.isDisabled.set(isDisabled);
     if (isDisabled) {
-      this.menuOpen.set(false);
+      this.closeMenu(false);
     }
   }
 
@@ -100,17 +112,21 @@ export class SelectDropdownComponent implements ControlValueAccessor {
     const root = this.dropdownRoot?.nativeElement;
     const target = event.target;
     if (!root || !(target instanceof Node) || !root.contains(target)) {
-      this.menuOpen.set(false);
+      this.closeMenu();
       this.onTouched();
     }
   }
 
   protected toggleMenu(): void {
     if (this.isTriggerDisabled()) {
-      this.menuOpen.set(false);
+      this.closeMenu(false);
       return;
     }
-    this.menuOpen.update((open) => !open);
+    if (this.menuOpen()) {
+      this.closeMenu();
+      return;
+    }
+    this.openMenu();
   }
 
   protected selectOption(option: SelectDropdownOption): void {
@@ -119,11 +135,51 @@ export class SelectDropdownComponent implements ControlValueAccessor {
     }
     this.controlValue.set(option.value);
     this.onChange(option.value);
-    this.menuOpen.set(false);
+    this.closeMenu();
     this.onTouched();
   }
 
   protected isActive(option: SelectDropdownOption): boolean {
     return option.value === this.controlValue();
+  }
+
+  private openMenu(): void {
+    this.clearCloseTimer();
+    this.menuClosing.set(false);
+    this.menuOpen.set(true);
+  }
+
+  private closeMenu(withMotion = true): void {
+    this.clearCloseTimer();
+    if (!this.shouldRenderMenu()) {
+      return;
+    }
+    if (!withMotion || this.prefersReducedMotion()) {
+      this.menuOpen.set(false);
+      this.menuClosing.set(false);
+      return;
+    }
+    this.menuOpen.set(false);
+    this.menuClosing.set(true);
+    this.closeTimer = setTimeout(() => {
+      this.menuClosing.set(false);
+      this.closeTimer = null;
+    }, MENU_CLOSE_DURATION_MS);
+  }
+
+  private clearCloseTimer(): void {
+    if (!this.closeTimer) {
+      return;
+    }
+    clearTimeout(this.closeTimer);
+    this.closeTimer = null;
+  }
+
+  private prefersReducedMotion(): boolean {
+    return (
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    );
   }
 }

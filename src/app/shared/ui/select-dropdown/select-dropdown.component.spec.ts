@@ -8,6 +8,7 @@ describe('SelectDropdownComponent', () => {
   let component: SelectDropdownComponent;
 
   beforeEach(async () => {
+    vi.useFakeTimers();
     await TestBed.configureTestingModule({
       imports: [SelectDropdownComponent, ReactiveFormsModule],
     }).compileComponents();
@@ -20,6 +21,11 @@ describe('SelectDropdownComponent', () => {
       { value: 'b', label: 'Beta' },
     ];
     fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
   });
 
   it('renders current selection and updates value through CVA', () => {
@@ -38,6 +44,8 @@ describe('SelectDropdownComponent', () => {
     const options = fixture.nativeElement.querySelectorAll('.select-dropdown__option') as NodeListOf<HTMLButtonElement>;
     options[1].click();
     fixture.detectChanges();
+    vi.advanceTimersByTime(180);
+    fixture.detectChanges();
 
     expect(changedValue).toBe('b');
     expect(fixture.nativeElement.querySelector('.select-dropdown__menu')).toBeNull();
@@ -53,6 +61,8 @@ describe('SelectDropdownComponent', () => {
     expect(fixture.nativeElement.querySelector('.select-dropdown__menu')).toBeTruthy();
 
     component['onDocumentClick']({ target: document.createElement('div') } as unknown as MouseEvent);
+    fixture.detectChanges();
+    vi.advanceTimersByTime(180);
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('.select-dropdown__menu')).toBeNull();

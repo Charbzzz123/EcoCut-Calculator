@@ -208,6 +208,7 @@ With the persistence layer durable we can confidently layer on �undo,� riche
 - **Surface micro-interactions** are also centralized in `src/styles.scss` for shared `*-card`, `*-panel`, and `*-banner` containers so state shifts/hover feedback remain cohesive between modules.
 - **Route-level transitions** are handled at the app shell (`AppComponent` around `router-outlet`) using tokenized motion and reduced-motion fallback so top-level page navigation is smooth but still accessible.
 - **Overlay/modal transitions** now use the same motion token baseline for open/close in shared shells (entry modal, client detail overlay/editor overlay, broadcast confirmation) so panel behavior stays consistent across modules.
+- **Shared select dropdown menus** now keep menus rendered during close (short fade/slide exit) with reduced-motion fallback in `SelectDropdownComponent`, so option lists no longer snap in/out when opening or dismissing.
 - **Reduced motion** is enforced globally in `src/styles.scss` for shared interactive controls and shared panel-enter animation utilities.
 - **Dark evergreen palette** keeps the UI in sync with the EcoCut brand (deep greens, neon growth accents).
 - **Brand assets** belong in public/assets/brand/. Expected files: eco-logo.png (wordmark) and eco-mascot.png (character). A placeholder SVG loads if the mascot file is absent.

@@ -17,8 +17,14 @@
     <span class="select-dropdown__chevron" aria-hidden="true">⌄</span>
   </button>
 
-  @if (menuOpen() && hasOptions()) {
-    <ul class="select-dropdown__menu" role="listbox" [attr.aria-label]="ariaLabel">
+  @if (shouldRenderMenu() && hasOptions()) {
+    <ul
+      class="select-dropdown__menu"
+      [class.select-dropdown__menu--open]="menuOpen()"
+      [class.select-dropdown__menu--closing]="menuClosing()"
+      role="listbox"
+      [attr.aria-label]="ariaLabel"
+    >
       @for (option of options; track option.value) {
         <li>
           <button
