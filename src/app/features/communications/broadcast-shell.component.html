@@ -217,70 +217,79 @@
           </button>
         </div>
 
-        @if (manualPanelOpen()) {
-          <div class="manual-audience__panel">
-            <label class="field">
-              <span>Find existing client</span>
-              <input
-                [formControl]="manualSearchControl"
-                type="search"
-                placeholder="Search full roster by name, address, email, or phone"
-                (input)="onManualSearchInput()"
-              />
-            </label>
+        <div
+          class="motion-collapse"
+          [class.motion-collapse--expanded]="manualPanelOpen()"
+          [attr.aria-hidden]="!manualPanelOpen()"
+          [attr.inert]="manualPanelOpen() ? null : ''"
+        >
+          <div class="motion-collapse__inner">
+            <div class="manual-audience__panel">
+              <label class="field">
+                <span>Find existing client</span>
+                <input
+                  [formControl]="manualSearchControl"
+                  type="search"
+                  placeholder="Search full roster by name, address, email, or phone"
+                  (input)="onManualSearchInput()"
+                />
+              </label>
 
-            <p class="manual-audience__hint">
-              Select clients from your saved roster. Clients already in current filters are marked
-              as already included.
-            </p>
+              <p class="manual-audience__hint">
+                Select clients from your saved roster. Clients already in current filters are marked
+                as already included.
+              </p>
 
-            <ul class="manual-picker__list">
-              @for (row of manualPickerRows(); track row.client.clientId) {
-                <li class="manual-picker__item">
-                  <label class="check manual-picker__check">
-                    <input
-                      type="checkbox"
-                      [checked]="row.isQueued"
-                      [disabled]="!row.canQueue"
-                      (change)="onManualCandidateToggle(row.client.clientId, $event)"
-                    />
-                    <span>{{ row.client.fullName }}</span>
-                  </label>
-                  <p class="manual-picker__meta">
-                    {{ row.client.email || 'No email' }} |
-                    {{ row.client.phone || 'No phone' }}
-                  </p>
-                  @if (row.isInFilters) {
-                    <span class="audience-preview__badge audience-preview__badge--both"
-                      >In filters</span
-                    >
-                  } @else if (row.isAddedManually) {
-                    <span class="audience-preview__badge audience-preview__badge--email"
-                      >Added manually</span
-                    >
-                  }
-                </li>
-              } @empty {
-                <li class="manual-picker__empty">No roster clients match this search.</li>
+              <ul class="manual-picker__list">
+                @for (row of manualPickerRows(); track row.client.clientId) {
+                  <li class="manual-picker__item">
+                    <label class="check manual-picker__check">
+                      <input
+                        type="checkbox"
+                        [checked]="row.isQueued"
+                        [disabled]="!row.canQueue"
+                        (change)="onManualCandidateToggle(row.client.clientId, $event)"
+                      />
+                      <span>{{ row.client.fullName }}</span>
+                    </label>
+                    <p class="manual-picker__meta">
+                      {{ row.client.email || 'No email' }} |
+                      {{ row.client.phone || 'No phone' }}
+                    </p>
+                    @if (row.isInFilters) {
+                      <span class="audience-preview__badge audience-preview__badge--both"
+                        >In filters</span
+                      >
+                    } @else if (row.isAddedManually) {
+                      <span class="audience-preview__badge audience-preview__badge--email"
+                        >Added manually</span
+                      >
+                    }
+                  </li>
+                } @empty {
+                  <li class="manual-picker__empty">No roster clients match this search.</li>
+                }
+              </ul>
+              <div class="override-actions">
+                <button type="button" class="refresh-btn" (click)="addSelectedManualRecipients()">
+                  Add selected ({{ manualQueuedClientIds().length }})
+                </button>
+                <button
+                  type="button"
+                  class="refresh-btn refresh-btn--ghost"
+                  (click)="closeManualPanel()"
+                >
+                  Done
+                </button>
+              </div>
+              @if (manualRecipientNotice()) {
+                <p class="validation-banner validation-banner--info">
+                  {{ manualRecipientNotice() }}
+                </p>
               }
-            </ul>
-            <div class="override-actions">
-              <button type="button" class="refresh-btn" (click)="addSelectedManualRecipients()">
-                Add selected ({{ manualQueuedClientIds().length }})
-              </button>
-              <button
-                type="button"
-                class="refresh-btn refresh-btn--ghost"
-                (click)="closeManualPanel()"
-              >
-                Done
-              </button>
             </div>
-            @if (manualRecipientNotice()) {
-              <p class="validation-banner validation-banner--info">{{ manualRecipientNotice() }}</p>
-            }
           </div>
-        }
+        </div>
 
         @if (manualRecipients().length > 0) {
           <ul class="manual-audience__list">
@@ -536,81 +545,88 @@
           </button>
         </div>
 
-        @if (overridePanelOpen()) {
-          <div class="override-card">
-            <h3>Per-client override</h3>
-            <p class="preview-client">
-              Apply only to {{ previewPayload().clientLabel }}. Overrides win over segment + channel
-              layers.
-            </p>
-            @if (isEmailChannelActive()) {
-              <label class="field">
-                <span>Override subject (optional)</span>
-                <input
-                  [formControl]="overrideSubjectControl"
-                  type="text"
-                  data-merge-target="overrideSubject"
-                  [class.merge-drop-target]="isMergeDragTarget('overrideSubject')"
-                  (focus)="onTemplateCursorChange($event, 'overrideSubject')"
-                  (click)="onTemplateCursorChange($event, 'overrideSubject')"
-                  (keyup)="onTemplateCursorChange($event, 'overrideSubject')"
-                  (select)="onTemplateCursorChange($event, 'overrideSubject')"
-                  (dragover)="onTemplateDragOver($event, 'overrideSubject')"
-                  (dragleave)="onTemplateDragLeave('overrideSubject')"
-                  (drop)="onTemplateDrop($event, 'overrideSubject')"
-                />
-              </label>
-            }
-            @if (isEmailChannelActive()) {
-              <label class="field">
-                <span>Override email body (optional)</span>
-                <textarea
-                  [formControl]="overrideEmailBodyControl"
-                  rows="3"
-                  data-merge-target="overrideEmailBody"
-                  [class.merge-drop-target]="isMergeDragTarget('overrideEmailBody')"
-                  (focus)="onTemplateCursorChange($event, 'overrideEmailBody')"
-                  (click)="onTemplateCursorChange($event, 'overrideEmailBody')"
-                  (keyup)="onTemplateCursorChange($event, 'overrideEmailBody')"
-                  (select)="onTemplateCursorChange($event, 'overrideEmailBody')"
-                  (dragover)="onTemplateDragOver($event, 'overrideEmailBody')"
-                  (dragleave)="onTemplateDragLeave('overrideEmailBody')"
-                  (drop)="onTemplateDrop($event, 'overrideEmailBody')"
-                ></textarea>
-              </label>
-            }
-            @if (isSmsChannelActive()) {
-              <label class="field">
-                <span>Override SMS body (optional)</span>
-                <textarea
-                  [formControl]="overrideSmsBodyControl"
-                  rows="2"
-                  data-merge-target="overrideSmsBody"
-                  [class.merge-drop-target]="isMergeDragTarget('overrideSmsBody')"
-                  (focus)="onTemplateCursorChange($event, 'overrideSmsBody')"
-                  (click)="onTemplateCursorChange($event, 'overrideSmsBody')"
-                  (keyup)="onTemplateCursorChange($event, 'overrideSmsBody')"
-                  (select)="onTemplateCursorChange($event, 'overrideSmsBody')"
-                  (dragover)="onTemplateDragOver($event, 'overrideSmsBody')"
-                  (dragleave)="onTemplateDragLeave('overrideSmsBody')"
-                  (drop)="onTemplateDrop($event, 'overrideSmsBody')"
-                ></textarea>
-              </label>
-            }
-            <div class="override-actions">
-              <button type="button" class="refresh-btn" (click)="saveOverrideForPreviewClient()">
-                Save override
-              </button>
-              <button
-                type="button"
-                class="refresh-btn refresh-btn--ghost"
-                (click)="clearOverrideForPreviewClient()"
-              >
-                Clear override
-              </button>
+        <div
+          class="motion-collapse"
+          [class.motion-collapse--expanded]="overridePanelOpen()"
+          [attr.aria-hidden]="!overridePanelOpen()"
+          [attr.inert]="overridePanelOpen() ? null : ''"
+        >
+          <div class="motion-collapse__inner">
+            <div class="override-card">
+              <h3>Per-client override</h3>
+              <p class="preview-client">
+                Apply only to {{ previewPayload().clientLabel }}. Overrides win over segment +
+                channel layers.
+              </p>
+              @if (isEmailChannelActive()) {
+                <label class="field">
+                  <span>Override subject (optional)</span>
+                  <input
+                    [formControl]="overrideSubjectControl"
+                    type="text"
+                    data-merge-target="overrideSubject"
+                    [class.merge-drop-target]="isMergeDragTarget('overrideSubject')"
+                    (focus)="onTemplateCursorChange($event, 'overrideSubject')"
+                    (click)="onTemplateCursorChange($event, 'overrideSubject')"
+                    (keyup)="onTemplateCursorChange($event, 'overrideSubject')"
+                    (select)="onTemplateCursorChange($event, 'overrideSubject')"
+                    (dragover)="onTemplateDragOver($event, 'overrideSubject')"
+                    (dragleave)="onTemplateDragLeave('overrideSubject')"
+                    (drop)="onTemplateDrop($event, 'overrideSubject')"
+                  />
+                </label>
+              }
+              @if (isEmailChannelActive()) {
+                <label class="field">
+                  <span>Override email body (optional)</span>
+                  <textarea
+                    [formControl]="overrideEmailBodyControl"
+                    rows="3"
+                    data-merge-target="overrideEmailBody"
+                    [class.merge-drop-target]="isMergeDragTarget('overrideEmailBody')"
+                    (focus)="onTemplateCursorChange($event, 'overrideEmailBody')"
+                    (click)="onTemplateCursorChange($event, 'overrideEmailBody')"
+                    (keyup)="onTemplateCursorChange($event, 'overrideEmailBody')"
+                    (select)="onTemplateCursorChange($event, 'overrideEmailBody')"
+                    (dragover)="onTemplateDragOver($event, 'overrideEmailBody')"
+                    (dragleave)="onTemplateDragLeave('overrideEmailBody')"
+                    (drop)="onTemplateDrop($event, 'overrideEmailBody')"
+                  ></textarea>
+                </label>
+              }
+              @if (isSmsChannelActive()) {
+                <label class="field">
+                  <span>Override SMS body (optional)</span>
+                  <textarea
+                    [formControl]="overrideSmsBodyControl"
+                    rows="2"
+                    data-merge-target="overrideSmsBody"
+                    [class.merge-drop-target]="isMergeDragTarget('overrideSmsBody')"
+                    (focus)="onTemplateCursorChange($event, 'overrideSmsBody')"
+                    (click)="onTemplateCursorChange($event, 'overrideSmsBody')"
+                    (keyup)="onTemplateCursorChange($event, 'overrideSmsBody')"
+                    (select)="onTemplateCursorChange($event, 'overrideSmsBody')"
+                    (dragover)="onTemplateDragOver($event, 'overrideSmsBody')"
+                    (dragleave)="onTemplateDragLeave('overrideSmsBody')"
+                    (drop)="onTemplateDrop($event, 'overrideSmsBody')"
+                  ></textarea>
+                </label>
+              }
+              <div class="override-actions">
+                <button type="button" class="refresh-btn" (click)="saveOverrideForPreviewClient()">
+                  Save override
+                </button>
+                <button
+                  type="button"
+                  class="refresh-btn refresh-btn--ghost"
+                  (click)="clearOverrideForPreviewClient()"
+                >
+                  Clear override
+                </button>
+              </div>
             </div>
           </div>
-        }
+        </div>
 
         <article class="preview-card" aria-label="Rendered preview">
           <h3>Rendered preview</h3>

@@ -89,43 +89,49 @@
         Scheduled history
       </button>
     </div>
-    @if (workflowStatusExpanded()) {
-      <ul id="start-next-workflow-progress" class="start-next-jump__status">
-        <li
-          [class.start-next-jump__status-item--active]="isWorkflowStepActive('draft')"
-          [class.start-next-jump__status-item--active-draft]="isWorkflowStepActive('draft')"
-        >
-          <span>Step 1</span>
-          <strong>{{
-            facade.hasJobModeSelection()
-              ? 'Linked job mode selected'
-              : 'Choose linked job or manual mode'
-          }}</strong>
-        </li>
-        <li
-          [class.start-next-jump__status-item--active]="isWorkflowStepActive('crew')"
-          [class.start-next-jump__status-item--active-crew]="isWorkflowStepActive('crew')"
-        >
-          <span>Step 2</span>
-          <strong>{{
-            canOpenReviewStep() ? 'Crew selected' : 'Select at least 1 crew member'
-          }}</strong>
-        </li>
-        <li
-          [class.start-next-jump__status-item--active]="isWorkflowStepActive('review')"
-          [class.start-next-jump__status-item--active-review]="isWorkflowStepActive('review')"
-        >
-          <span>Step 3</span>
-          <strong>
-            {{
-              facade.draftValidation().isReady
-                ? 'Ready to save'
-                : 'Review conflicts and validation blockers'
-            }}
-          </strong>
-        </li>
-      </ul>
-    }
+    <div
+      class="motion-collapse"
+      [class.motion-collapse--expanded]="workflowStatusExpanded()"
+      [attr.aria-hidden]="!workflowStatusExpanded()"
+    >
+      <div class="motion-collapse__inner">
+        <ul id="start-next-workflow-progress" class="start-next-jump__status">
+          <li
+            [class.start-next-jump__status-item--active]="isWorkflowStepActive('draft')"
+            [class.start-next-jump__status-item--active-draft]="isWorkflowStepActive('draft')"
+          >
+            <span>Step 1</span>
+            <strong>{{
+              facade.hasJobModeSelection()
+                ? 'Linked job mode selected'
+                : 'Choose linked job or manual mode'
+            }}</strong>
+          </li>
+          <li
+            [class.start-next-jump__status-item--active]="isWorkflowStepActive('crew')"
+            [class.start-next-jump__status-item--active-crew]="isWorkflowStepActive('crew')"
+          >
+            <span>Step 2</span>
+            <strong>{{
+              canOpenReviewStep() ? 'Crew selected' : 'Select at least 1 crew member'
+            }}</strong>
+          </li>
+          <li
+            [class.start-next-jump__status-item--active]="isWorkflowStepActive('review')"
+            [class.start-next-jump__status-item--active-review]="isWorkflowStepActive('review')"
+          >
+            <span>Step 3</span>
+            <strong>
+              {{
+                facade.draftValidation().isReady
+                  ? 'Ready to save'
+                  : 'Review conflicts and validation blockers'
+              }}
+            </strong>
+          </li>
+        </ul>
+      </div>
+    </div>
   </article>
 
   @if (facade.saveState() !== 'idle' && facade.saveMessage()) {
@@ -336,66 +342,76 @@
             </button>
           </div>
 
-          @if (draftAdvancedExpanded()) {
-            <div id="start-next-draft-advanced" class="draft-advanced-content">
-              <div class="section-toggle">
-                <p class="field__hint">
-                  Jobs available: {{ facade.loggedJobStatusCounts().scheduled }} scheduled,
-                  {{ facade.loggedJobStatusCounts().late }} late,
-                  {{ facade.loggedJobStatusCounts().completed }} completed.
-                </p>
-                <button
-                  type="button"
-                  class="ghost-btn"
-                  (click)="facade.toggleCompletedJobOptions()"
-                >
-                  {{
-                    facade.showCompletedJobOptions()
-                      ? 'Hide completed jobs'
-                      : 'Show completed jobs (advanced)'
-                  }}
-                </button>
-              </div>
-              @if (!facade.hasVisibleLoggedJobOptions()) {
-                <p class="field__hint">No linked jobs are currently available. Use manual mode.</p>
-              }
-              @if (facade.requiresContinuityDetails()) {
-                <div class="continuity-controls">
+          <div
+            id="start-next-draft-advanced"
+            class="motion-collapse"
+            [class.motion-collapse--expanded]="draftAdvancedExpanded()"
+            [attr.aria-hidden]="!draftAdvancedExpanded()"
+            [attr.inert]="draftAdvancedExpanded() ? null : ''"
+          >
+            <div class="motion-collapse__inner">
+              <div class="draft-advanced-content">
+                <div class="section-toggle">
                   <p class="field__hint">
-                    Completed linked job selected. Provide continuity details to track this
-                    follow-up segment.
+                    Jobs available: {{ facade.loggedJobStatusCounts().scheduled }} scheduled,
+                    {{ facade.loggedJobStatusCounts().late }} late,
+                    {{ facade.loggedJobStatusCounts().completed }} completed.
                   </p>
-                  <div class="continuity-controls__grid">
-                    <label class="field">
-                      <span class="field__label">Continuity category *</span>
-                      <select
-                        class="field__input"
-                        [formControl]="facade.continuityCategoryControl"
-                        required
-                        aria-required="true"
-                      >
-                        <option value="">Select category</option>
-                        @for (option of facade.continuityCategoryOptions; track option.value) {
-                          <option [value]="option.value">{{ option.label }}</option>
-                        }
-                      </select>
-                    </label>
-                    <label class="field">
-                      <span class="field__label">Continuity reason *</span>
-                      <textarea
-                        class="field__input field__textarea"
-                        [formControl]="facade.continuityReasonControl"
-                        rows="3"
-                        placeholder="Explain why this completed job needs follow-up work."
-                        required
-                        aria-required="true"
-                      ></textarea>
-                    </label>
-                  </div>
+                  <button
+                    type="button"
+                    class="ghost-btn"
+                    (click)="facade.toggleCompletedJobOptions()"
+                  >
+                    {{
+                      facade.showCompletedJobOptions()
+                        ? 'Hide completed jobs'
+                        : 'Show completed jobs (advanced)'
+                    }}
+                  </button>
                 </div>
-              }
+                @if (!facade.hasVisibleLoggedJobOptions()) {
+                  <p class="field__hint">
+                    No linked jobs are currently available. Use manual mode.
+                  </p>
+                }
+                @if (facade.requiresContinuityDetails()) {
+                  <div class="continuity-controls">
+                    <p class="field__hint">
+                      Completed linked job selected. Provide continuity details to track this
+                      follow-up segment.
+                    </p>
+                    <div class="continuity-controls__grid">
+                      <label class="field">
+                        <span class="field__label">Continuity category *</span>
+                        <select
+                          class="field__input"
+                          [formControl]="facade.continuityCategoryControl"
+                          required
+                          aria-required="true"
+                        >
+                          <option value="">Select category</option>
+                          @for (option of facade.continuityCategoryOptions; track option.value) {
+                            <option [value]="option.value">{{ option.label }}</option>
+                          }
+                        </select>
+                      </label>
+                      <label class="field">
+                        <span class="field__label">Continuity reason *</span>
+                        <textarea
+                          class="field__input field__textarea"
+                          [formControl]="facade.continuityReasonControl"
+                          rows="3"
+                          placeholder="Explain why this completed job needs follow-up work."
+                          required
+                          aria-required="true"
+                        ></textarea>
+                      </label>
+                    </div>
+                  </div>
+                }
+              </div>
             </div>
-          }
+          </div>
         </section>
       </div>
 
@@ -659,8 +675,14 @@
               </div>
             </div>
 
-            @if (analyticsPanelExpanded()) {
-              <div id="start-next-analytics-content">
+            <div
+              id="start-next-analytics-content"
+              class="motion-collapse"
+              [class.motion-collapse--expanded]="analyticsPanelExpanded()"
+              [attr.aria-hidden]="!analyticsPanelExpanded()"
+              [attr.inert]="analyticsPanelExpanded() ? null : ''"
+            >
+              <div class="motion-collapse__inner">
                 <div class="analytics-panel__actions">
                   <button
                     type="button"
@@ -824,8 +846,14 @@
                     </div>
                   </dl>
 
-                  <div id="start-next-analytics-details">
-                    @if (analyticsExpanded()) {
+                  <div
+                    id="start-next-analytics-details"
+                    class="motion-collapse"
+                    [class.motion-collapse--expanded]="analyticsExpanded()"
+                    [attr.aria-hidden]="!analyticsExpanded()"
+                    [attr.inert]="analyticsExpanded() ? null : ''"
+                  >
+                    <div class="motion-collapse__inner">
                       <div class="analytics-panel__details">
                         <div class="employee-trend-panel">
                           <h4>Per-employee trend</h4>
@@ -936,16 +964,18 @@
                           </ul>
                         </div>
                       </div>
-                    } @else {
-                      <p class="analytics-panel__details-hint">
-                        Detailed trend cards are hidden. Use "Show detailed analytics" when you need
-                        deeper breakdowns.
-                      </p>
-                    }
+                    </div>
                   </div>
+                  @if (!analyticsExpanded()) {
+                    <p class="analytics-panel__details-hint">
+                      Detailed trend cards are hidden. Use "Show detailed analytics" when you need
+                      deeper breakdowns.
+                    </p>
+                  }
                 }
               </div>
-            } @else {
+            </div>
+            @if (!analyticsPanelExpanded()) {
               <p class="panel-collapse-hint">
                 Analytics are collapsed by default to keep scheduling actions focused.
               </p>

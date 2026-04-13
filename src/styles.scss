@@ -108,6 +108,35 @@ button {
   animation: motion-panel-enter var(--motion-duration-panel) var(--motion-ease-standard);
 }
 
+/* Shared collapse/expand motion for progressive-disclosure panels. */
+:where(.motion-collapse) {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px);
+  pointer-events: none;
+  transition:
+    grid-template-rows var(--motion-duration-panel) var(--motion-ease-standard),
+    opacity var(--motion-duration-base) var(--motion-ease-standard),
+    transform var(--motion-duration-base) var(--motion-ease-standard),
+    visibility 0ms linear var(--motion-duration-base);
+}
+
+:where(.motion-collapse--expanded) {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+  transition-delay: 0ms, 0ms, 0ms, 0ms;
+}
+
+:where(.motion-collapse__inner) {
+  min-height: 0;
+  overflow: hidden;
+}
+
 /* Shared surface transitions so cards/panels/banners feel consistent when states change. */
 :where(
   [class$='-card'],
@@ -186,6 +215,11 @@ button {
 
   :where(.motion-enter-panel) {
     animation: none;
+  }
+
+  :where(.motion-collapse) {
+    transition: none;
+    transform: none;
   }
 }
 

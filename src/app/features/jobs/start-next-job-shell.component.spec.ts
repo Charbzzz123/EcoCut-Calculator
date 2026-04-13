@@ -438,8 +438,10 @@ describe('StartNextJobShellComponent', () => {
     setStepFocus('review', fixture);
     expect(fixture.nativeElement.textContent).toContain('Resolve the following conflicts');
     expect(fixture.nativeElement.textContent).toContain('Assignment analytics');
-    expect(fixture.nativeElement.textContent).not.toContain('Total tracked');
-    expect(fixture.nativeElement.textContent).not.toContain('Per-employee trend');
+    const analyticsContent = fixture.nativeElement.querySelector(
+      '#start-next-analytics-content',
+    ) as HTMLElement;
+    expect(analyticsContent.classList.contains('motion-collapse--expanded')).toBe(false);
 
     const panelToggle = fixture.nativeElement.querySelector(
       '.analytics-panel__collapse-btn',

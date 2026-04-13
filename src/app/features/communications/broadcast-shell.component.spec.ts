@@ -754,7 +754,9 @@ describe('BroadcastShellComponent', () => {
     toggleButton.click();
     fixture.detectChanges();
 
-    const buttons = fixture.nativeElement.querySelectorAll('.override-actions .refresh-btn');
+    const overrideCard = fixture.nativeElement.querySelector('.override-card') as HTMLElement;
+    expect(overrideCard).toBeTruthy();
+    const buttons = overrideCard.querySelectorAll('.override-actions .refresh-btn');
     const saveButton = buttons[0] as HTMLButtonElement;
     const clearButton = buttons[1] as HTMLButtonElement;
 
@@ -767,13 +769,15 @@ describe('BroadcastShellComponent', () => {
 
   it('keeps per-client override panel collapsed by default and toggles visibility', () => {
     const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelector('.override-card')).toBeNull();
+    const panel = host.querySelector('.preview-shell .motion-collapse') as HTMLElement;
+    expect(panel.classList.contains('motion-collapse--expanded')).toBe(false);
 
     const toggleButton = host.querySelector('.override-toggle .refresh-btn') as HTMLButtonElement;
     expect(toggleButton.textContent).toContain('Show per-client override');
     toggleButton.click();
     fixture.detectChanges();
 
+    expect(panel.classList.contains('motion-collapse--expanded')).toBe(true);
     expect(host.querySelector('.override-card')).toBeTruthy();
     const updatedToggleButton = host.querySelector('.override-toggle .refresh-btn') as HTMLButtonElement;
     expect(updatedToggleButton.textContent).toContain('Hide per-client override');
