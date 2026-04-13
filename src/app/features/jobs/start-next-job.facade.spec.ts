@@ -1255,6 +1255,7 @@ describe('StartNextJobFacade', () => {
 
     await expect(facade.submitAssignment('manager')).resolves.toBe(true);
     expect(dataService.assignmentPayloads).toHaveLength(1);
+    expect(dataService.startRunCalls).toEqual(['created-history-1']);
     expect(dataService.assignmentPayloads[0]).toMatchObject({
       jobLabel: 'Westmount Cedar Hedge',
       address: '12 Crew St',
@@ -1268,7 +1269,8 @@ describe('StartNextJobFacade', () => {
       }),
     );
     expect(facade.saveState()).toBe('success');
-    expect(facade.saveMessage()).toContain('Assignment saved for 1 crew member');
+    expect(facade.saveMessage()).toContain('Assignment started live for 1 crew member');
+    expect(facade.ongoingRuns()).toHaveLength(1);
     expect(facade.selectedEmployeeIds()).toEqual([]);
     expect(facade.linkedJobEntryIdControl.value).toBe('');
     expect(facade.jobLabelControl.value).toBe('');
@@ -1287,7 +1289,32 @@ describe('StartNextJobFacade', () => {
 
     await expect(facade.submitAssignment()).resolves.toBe(false);
     expect(facade.saveState()).toBe('error');
-    expect(facade.saveMessage()).toBe('Unable to save assignment right now.');
+    expect(facade.saveMessage()).toBe('save-failure');
+  });
+
+  it('hides linked job options that already have an active run', async () => {
+    await facade.loadBoard();
+    dataService.history = [
+      {
+        id: 'active-entry-1',
+        employeeId: 'emp-a',
+        siteLabel: 'Westmount Cedar Hedge',
+        address: '1450 Pine Ave',
+        scheduledStart: '2026-03-21T14:00:00.000Z',
+        scheduledEnd: '2026-03-21T16:00:00.000Z',
+        hoursWorked: 2,
+        status: 'scheduled',
+        runStartedAt: '2026-03-21T14:05:00.000Z',
+        runEndedAt: null,
+        assignmentId: 'assign-active',
+        jobEntryId: 'entry-1',
+      },
+    ];
+
+    await facade.loadBoard();
+    expect(facade.visibleLoggedJobOptions().some((option) => option.entryId === 'entry-1')).toBe(
+      false,
+    );
   });
 
   it('marks scheduled history entries as completed and refreshes board', async () => {

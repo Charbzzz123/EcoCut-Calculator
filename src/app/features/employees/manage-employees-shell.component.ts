@@ -99,6 +99,7 @@ export class ManageEmployeesShellComponent implements OnInit {
     this.inlinePanel.set(null);
     this.workspaceFocus.set('profile');
     this.facade.openCreateProfile();
+    this.scrollToSectionSoon('employees-profile');
   }
 
   protected openEditProfile(employeeId: string): void {
@@ -252,5 +253,9 @@ export class ManageEmployeesShellComponent implements OnInit {
     if (section && typeof section.scrollIntoView === 'function') {
       section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+  }
+
+  private scrollToSectionSoon(sectionId: string): void {
+    setTimeout(() => this.scrollToSection(sectionId));
   }
 }

@@ -7,6 +7,7 @@ import type {
   CrossRunTrendSnapshot,
   CrewConflict,
   EmployeeAssignmentTrendSnapshot,
+  OngoingRunSnapshot,
   SelectedCrewHistoryItem,
 } from './start-next-job.types.js';
 import type { EmployeeStartNextJobReadiness } from '../employees/employees.types.js';
@@ -152,6 +153,7 @@ const createFacadeStub = () => ({
     blockingReasons: ['Job label is required.'],
   }),
   selectedCrewHistory: signal<SelectedCrewHistoryItem[]>([]),
+  ongoingRuns: signal<OngoingRunSnapshot[]>([]),
   scheduledHistoryEntries: signal<SelectedCrewHistoryItem[]>([]),
   scheduledHistoryCount: signal(0),
   selectedScheduledHistoryEntries: signal<SelectedCrewHistoryItem[]>([]),
@@ -534,6 +536,36 @@ describe('StartNextJobShellComponent', () => {
       'job-1',
       'Left early',
     );
+  });
+
+  it('renders ongoing jobs section and forwards end action', () => {
+    facade.loadState.set('ready');
+    facade.ongoingRuns.set([
+      {
+        runKey: 'assignment-1',
+        primaryEntryId: 'job-1',
+        assignmentId: 'assignment-1',
+        displayJobLabel: 'Alex North - Downtown',
+        address: '1 Main St',
+        scheduledStart: '2026-03-21T14:00:00.000Z',
+        scheduledEnd: '2026-03-21T15:00:00.000Z',
+        runStartedAt: '2026-03-21T14:05:00.000Z',
+        activeCrewCount: 2,
+        activeCrewNames: ['Alex North', 'Dana Blue'],
+        state: 'late',
+      },
+    ]);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Ongoing jobs');
+    expect(fixture.nativeElement.textContent).toContain('Alex North - Downtown');
+    expect(fixture.nativeElement.textContent).toContain('Crew (2): Alex North, Dana Blue');
+
+    const endButton = fixture.nativeElement.querySelector(
+      '.ongoing-run-card__end-btn',
+    ) as HTMLButtonElement;
+    endButton.click();
+    expect(facade.endHistoryRun).toHaveBeenCalledWith('job-1');
   });
 
   it('keeps analytics export button disabled when no selected history exists', () => {

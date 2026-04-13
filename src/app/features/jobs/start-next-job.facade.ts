@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormControl } from '@angular/forms';
 import { computed, inject, Injectable, OnDestroy, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -22,6 +23,8 @@ import type {
   CrossRunTrendSnapshot,
   CrewConflict,
   EmployeeAssignmentTrendSnapshot,
+  OngoingRunSnapshot,
+  OngoingRunState,
   ReadinessPill,
   RouteAssignmentVarianceSnapshot,
   SelectedCrewHistoryItem,
@@ -49,8 +52,6 @@ const toTimestamp = (value: string): number | null => {
   const timestamp = Date.parse(value);
   return Number.isNaN(timestamp) ? null : timestamp;
 };
-const toMinutePrecision = (timestamp: number): number =>
-  Math.floor(timestamp / 60_000) * 60_000;
 const overlapsRange = (startA: number, endA: number, startB: number, endB: number): boolean =>
   startA < endB && endA > startB;
 const toIsoDateTime = (value: string): string => new Date(value).toISOString();
@@ -210,10 +211,24 @@ export class StartNextJobFacade implements OnDestroy {
       completed: options.filter((option) => option.status === 'completed').length,
     };
   });
+  readonly activeLinkedJobEntryIds = computed(() => {
+    const activeIds = new Set<string>();
+    for (const entry of this.historySignal()) {
+      if (!this.isRunActive(entry) || !entry.jobEntryId) {
+        continue;
+      }
+      activeIds.add(entry.jobEntryId);
+    }
+    return activeIds;
+  });
   readonly visibleLoggedJobOptions = computed(() => {
     const includeCompleted = this.showCompletedJobOptions();
     const selectedEntryId = this.linkedJobEntryIdValue().trim();
+    const activeLinkedIds = this.activeLinkedJobEntryIds();
     return this.loggedJobOptions().filter((option) => {
+      if (activeLinkedIds.has(option.entryId)) {
+        return false;
+      }
       if (option.entryId === selectedEntryId) {
         return true;
       }
@@ -303,6 +318,79 @@ export class StartNextJobFacade implements OnDestroy {
     return this.selectedEmployeeIds()
       .map((employeeId) => lookup.get(employeeId))
       .filter((employee): employee is EmployeeStartNextJobReadiness => Boolean(employee));
+  });
+
+  readonly ongoingRuns = computed<OngoingRunSnapshot[]>(() => {
+    const history = this.historySignal();
+    if (!history.length) {
+      return [];
+    }
+
+    const nameLookup = new Map(
+      this.readinessSnapshot().map((employee) => [employee.employeeId, employee.fullName]),
+    );
+    const linkedJobLookup = new Map(
+      this.loggedJobOptions().map((option) => [option.entryId, option]),
+    );
+    const groupedRuns = new Map<string, EmployeeJobHistoryRecord[]>();
+    for (const entry of history) {
+      if (!this.isRunActive(entry)) {
+        continue;
+      }
+      const runKey = entry.assignmentId?.trim() || entry.id;
+      const existing = groupedRuns.get(runKey);
+      if (existing) {
+        existing.push(entry);
+      } else {
+        groupedRuns.set(runKey, [entry]);
+      }
+    }
+
+    return [...groupedRuns.entries()]
+      .map(([runKey, entries]) => {
+        const sortedEntries = [...entries].sort((left, right) =>
+          left.employeeId.localeCompare(right.employeeId),
+        );
+        const primary = sortedEntries[0];
+        const linkedClientName = primary.jobEntryId
+          ? (linkedJobLookup.get(primary.jobEntryId)?.clientName ?? null)
+          : null;
+        const hasClientPrefix =
+          linkedClientName
+            ? normalizeText(primary.siteLabel).startsWith(`${normalizeText(linkedClientName)} - `)
+            : false;
+        const displayJobLabel =
+          linkedClientName && !hasClientPrefix
+            ? `${linkedClientName} - ${primary.siteLabel}`
+            : primary.siteLabel;
+        const activeCrewNames = sortedEntries.map(
+          (entry) => nameLookup.get(entry.employeeId) ?? 'Unknown employee',
+        );
+        const now = Date.now();
+        const scheduledStartTimestamp = toTimestamp(primary.scheduledStart) ?? now;
+        const scheduledEndTimestamp = toTimestamp(primary.scheduledEnd) ?? now;
+        const state: OngoingRunState =
+          now > scheduledEndTimestamp
+            ? 'late'
+            : now < scheduledStartTimestamp
+              ? 'early_start'
+              : 'on_schedule';
+
+        return {
+          runKey,
+          primaryEntryId: primary.id,
+          assignmentId: primary.assignmentId ?? null,
+          displayJobLabel,
+          address: primary.address,
+          scheduledStart: primary.scheduledStart,
+          scheduledEnd: primary.scheduledEnd,
+          runStartedAt: primary.runStartedAt ?? primary.scheduledStart,
+          activeCrewCount: activeCrewNames.length,
+          activeCrewNames,
+          state,
+        };
+      })
+      .sort((left, right) => right.runStartedAt.localeCompare(left.runStartedAt));
   });
 
   private readonly selectedCrewHistoryAll = computed<SelectedCrewHistoryItem[]>(() => {
@@ -642,6 +730,13 @@ export class StartNextJobFacade implements OnDestroy {
     if (this.selectedCrewConflicts().length) {
       blockingReasons.push('Resolve crew conflicts before creating the assignment draft.');
     }
+    const selectedLinkedJob = this.selectedLinkedJob();
+    if (
+      selectedLinkedJob &&
+      this.activeLinkedJobEntryIds().has(selectedLinkedJob.entryId)
+    ) {
+      blockingReasons.push('Selected linked job is already running.');
+    }
     return {
       isReady: blockingReasons.length === 0,
       blockingReasons,
@@ -892,6 +987,14 @@ export class StartNextJobFacade implements OnDestroy {
   }
 
   async submitAssignment(actorRole: EmployeeOperatorRole = 'owner'): Promise<boolean> {
+    try {
+      await this.reconcileBoardState();
+    } catch {
+      this.saveState.set('error');
+      this.saveMessage.set('Unable to refresh assignment data right now. Try again.');
+      return false;
+    }
+
     this.refreshStartNowSchedule();
     const validation = this.draftValidation();
     if (!validation.isReady) {
@@ -906,16 +1009,54 @@ export class StartNextJobFacade implements OnDestroy {
     try {
       const result = await this.employeesData.createStartNextJobAssignment(payload, actorRole);
       this.applyHistoryUpserts(result.createdHistory);
+      let runStarted = false;
+      if (this.isStartNowMode() && result.createdHistory.length) {
+        try {
+          const lifecycle = await this.employeesData.startAssignmentRun(
+            result.createdHistory[0]!.id,
+            actorRole,
+          );
+          this.applyHistoryUpserts(lifecycle.updatedHistory);
+          runStarted = true;
+        } catch (error) {
+          const reason = this.resolveMutationErrorMessage(
+            error,
+            'Unable to start the run automatically.',
+          );
+          this.saveState.set('success');
+          this.saveMessage.set(
+            `Assignment saved for ${result.createdHistory.length} crew member(s), but live start failed: ${reason}`,
+          );
+          this.resetDraftAfterSave();
+          await this.reconcileAfterMutation(
+            'Assignment saved, but board refresh failed. Click Retry if values look stale.',
+          );
+          return true;
+        }
+      }
       this.saveState.set('success');
-      this.saveMessage.set(`Assignment saved for ${result.createdHistory.length} crew member(s).`);
+      if (runStarted) {
+        this.saveMessage.set(
+          `Assignment started live for ${result.createdHistory.length} crew member(s).`,
+        );
+      } else if (this.isStartNowMode()) {
+          runStarted = false;
+        this.saveMessage.set(
+          `Assignment saved for ${result.createdHistory.length} crew member(s). Start run from Scheduled history.`,
+        );
+      } else {
+        this.saveMessage.set(`Assignment saved for ${result.createdHistory.length} crew member(s).`);
+      }
       this.resetDraftAfterSave();
       await this.reconcileAfterMutation(
         'Assignment saved, but board refresh failed. Click Retry if values look stale.',
       );
       return true;
-    } catch {
+    } catch (error) {
       this.saveState.set('error');
-      this.saveMessage.set('Unable to save assignment right now.');
+      this.saveMessage.set(
+        this.resolveMutationErrorMessage(error, 'Unable to save assignment right now.'),
+      );
       return false;
     }
   }
@@ -1686,36 +1827,28 @@ export class StartNextJobFacade implements OnDestroy {
         employeeName: employee.fullName,
         reason: `Active on "${activeRun.siteLabel}" until ended.`,
       });
+      return conflicts;
     }
     if (!startTimestamp || !endTimestamp) {
       return conflicts;
     }
-    const blockedByNextAvailable =
-      employee.nextAvailableAt && toTimestamp(employee.nextAvailableAt)
-        ? toMinutePrecision(startTimestamp) <
-          toMinutePrecision(toTimestamp(employee.nextAvailableAt) as number)
-        : false;
-    if (blockedByNextAvailable) {
-      conflicts.push({
-        employeeId: employee.employeeId,
-        employeeName: employee.fullName,
-        reason: 'Not available by the selected start time.',
-      });
-    }
 
-    for (const window of employee.upcomingWindows) {
-      const windowStart = toTimestamp(window.startAt);
-      const windowEnd = toTimestamp(window.endAt);
-      if (!windowStart || !windowEnd) {
-        continue;
-      }
-      if (!overlapsRange(startTimestamp, endTimestamp, windowStart, windowEnd)) {
-        continue;
-      }
+    const overlappingScheduled = this.historySignal().filter(
+      (entry) =>
+        entry.employeeId === employee.employeeId &&
+        entry.status === 'scheduled' &&
+        overlapsRange(
+          startTimestamp,
+          endTimestamp,
+          toTimestamp(entry.scheduledStart) ?? 0,
+          toTimestamp(entry.scheduledEnd) ?? 0,
+        ),
+    );
+    for (const entry of overlappingScheduled) {
       conflicts.push({
         employeeId: employee.employeeId,
         employeeName: employee.fullName,
-        reason: `Overlaps with "${window.siteLabel}" (${window.startAt} - ${window.endAt}).`,
+        reason: `Overlaps "${entry.siteLabel}".`,
       });
     }
     return conflicts;
@@ -2145,5 +2278,37 @@ export class StartNextJobFacade implements OnDestroy {
       }
       this.saveMessage.set(refreshWarning);
     }
+  }
+
+  private resolveMutationErrorMessage(error: unknown, fallback: string): string {
+    if (error instanceof HttpErrorResponse) {
+      const payload = error.error as
+        | string
+        | { message?: string | string[]; error?: string }
+        | null
+        | undefined;
+      if (typeof payload === 'string' && payload.trim()) {
+        return payload.trim();
+      }
+      if (payload && typeof payload === 'object') {
+        if (Array.isArray(payload.message) && payload.message.length) {
+          return payload.message.join(' ');
+        }
+        if (typeof payload.message === 'string' && payload.message.trim()) {
+          return payload.message.trim();
+        }
+        if (typeof payload.error === 'string' && payload.error.trim()) {
+          return payload.error.trim();
+        }
+      }
+      if (typeof error.message === 'string' && error.message.trim()) {
+        return error.message.trim();
+      }
+      return fallback;
+    }
+    if (error instanceof Error && error.message.trim()) {
+      return error.message.trim();
+    }
+    return fallback;
   }
 }

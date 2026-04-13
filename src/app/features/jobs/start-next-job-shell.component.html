@@ -14,6 +14,57 @@
     </header>
   </article>
 
+  @if (ongoingRuns().length) {
+    <article class="start-next-ongoing" aria-label="Ongoing jobs">
+      <header class="panel-header start-next-ongoing__header">
+        <h2>Ongoing jobs</h2>
+        <p>{{ ongoingRuns().length }} active run(s)</p>
+      </header>
+      <ul class="ongoing-run-list">
+        @for (run of ongoingRuns(); track run.runKey) {
+          <li class="ongoing-run-card">
+            <div class="ongoing-run-card__main">
+              <p class="ongoing-run-card__title">{{ run.displayJobLabel }}</p>
+              <p class="ongoing-run-card__meta">{{ run.address }}</p>
+              <p class="ongoing-run-card__meta">
+                Started {{ run.runStartedAt | date: 'MMM d, y, h:mm a' }} | Scheduled
+                {{ run.scheduledStart | date: 'h:mm a' }} -
+                {{ run.scheduledEnd | date: 'h:mm a' }}
+              </p>
+              <p class="ongoing-run-card__meta">
+                Crew ({{ run.activeCrewCount }}): {{ run.activeCrewNames.join(', ') }}
+              </p>
+            </div>
+            <div class="ongoing-run-card__actions">
+              <span
+                class="status-pill status-pill--active ongoing-run-card__state"
+                [class.ongoing-run-card__state--late]="run.state === 'late'"
+                [class.ongoing-run-card__state--early]="run.state === 'early_start'"
+              >
+                {{ ongoingRunStateLabel(run.state) }}
+              </span>
+              <button
+                type="button"
+                class="ghost-btn ongoing-run-card__history-btn"
+                (click)="setStepFocus('history')"
+              >
+                Open history
+              </button>
+              <button
+                type="button"
+                class="ghost-btn ongoing-run-card__end-btn"
+                [disabled]="facade.saveState() === 'saving'"
+                (click)="endOngoingRun(run.primaryEntryId)"
+              >
+                End job
+              </button>
+            </div>
+          </li>
+        }
+      </ul>
+    </article>
+  }
+
   <article class="start-next-jump" aria-label="Start Next Job quick navigation">
     <div class="section-toggle">
       <div class="start-next-jump__overview">
@@ -637,11 +688,7 @@
                     : !facade.draftValidation().isReady) || facade.saveState() === 'saving'
                 "
                 aria-describedby="start-next-draft-blockers"
-                (click)="
-                  facade.editingHistoryEntryId()
-                    ? facade.submitHistoryEdit()
-                    : facade.submitAssignment()
-                "
+                (click)="savePrimaryAction()"
               >
                 @if (facade.saveState() === 'saving') {
                   @if (facade.editingHistoryEntryId()) {

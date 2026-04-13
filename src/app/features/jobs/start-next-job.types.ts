@@ -30,6 +30,22 @@ export interface ReadinessPill {
   readonly state: EmployeeReadinessState;
 }
 
+export type OngoingRunState = 'on_schedule' | 'late' | 'early_start';
+
+export interface OngoingRunSnapshot {
+  readonly runKey: string;
+  readonly primaryEntryId: string;
+  readonly assignmentId: string | null;
+  readonly displayJobLabel: string;
+  readonly address: string;
+  readonly scheduledStart: string;
+  readonly scheduledEnd: string;
+  readonly runStartedAt: string;
+  readonly activeCrewCount: number;
+  readonly activeCrewNames: readonly string[];
+  readonly state: OngoingRunState;
+}
+
 export interface AssignmentAnalyticsSnapshot {
   readonly totalTracked: number;
   readonly scheduledCount: number;

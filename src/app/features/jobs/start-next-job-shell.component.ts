@@ -53,6 +53,7 @@ export class StartNextJobShellComponent implements OnInit, OnDestroy {
   protected readonly canOpenHistoryStep = computed(
     () => this.facade.selectedCrew().length > 0 || this.facade.scheduledHistoryCount() > 0,
   );
+  protected readonly ongoingRuns = this.facade.ongoingRuns;
   private saveToastCloseTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
@@ -182,11 +183,42 @@ export class StartNextJobShellComponent implements OnInit, OnDestroy {
     void this.facade.clockOutHistoryMember(entryId, note);
   }
 
+  protected endOngoingRun(entryId: string): void {
+    this.setStepFocus('history');
+    void this.facade.endHistoryRun(entryId);
+  }
+
+  protected ongoingRunStateLabel(state: 'on_schedule' | 'late' | 'early_start'): string {
+    if (state === 'late') {
+      return 'Late';
+    }
+    if (state === 'early_start') {
+      return 'Early start';
+    }
+    return 'On schedule';
+  }
+
+  protected async savePrimaryAction(): Promise<void> {
+    if (this.facade.editingHistoryEntryId()) {
+      const updated = await this.facade.submitHistoryEdit();
+      if (updated) {
+        this.setStepFocus('history');
+      }
+      return;
+    }
+
+    const saved = await this.facade.submitAssignment();
+    if (saved) {
+      this.setStepFocus('draft');
+    }
+  }
+
   protected blockerActionLabel(reason: string): string | null {
     if (
       reason === 'Select a linked job mode (linked client job or manual mode).' ||
       reason === 'Job label is required.' ||
       reason === 'Job address is required.' ||
+      reason === 'Selected linked job is already running.' ||
       reason === 'Scheduled start and end are required.' ||
       reason === 'Scheduled end must be after scheduled start.'
     ) {
@@ -227,6 +259,7 @@ export class StartNextJobShellComponent implements OnInit, OnDestroy {
       reason === 'Select a linked job mode (linked client job or manual mode).' ||
       reason === 'Job label is required.' ||
       reason === 'Job address is required.' ||
+      reason === 'Selected linked job is already running.' ||
       reason === 'Scheduled start and end are required.' ||
       reason === 'Scheduled end must be after scheduled start.'
     ) {
