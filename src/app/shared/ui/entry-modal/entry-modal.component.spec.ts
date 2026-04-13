@@ -2229,6 +2229,16 @@ describe('EntryModalComponent', () => {
     footerClose.click();
     vi.advanceTimersByTime(220);
     expect(closedSpy).toHaveBeenCalledTimes(2);
+
+    const modalShell = fixture.nativeElement.querySelector('.modal-shell') as HTMLDivElement;
+    modalShell.click();
+    vi.advanceTimersByTime(220);
+    expect(closedSpy).toHaveBeenCalledTimes(2);
+
+    const backdrop = fixture.nativeElement.querySelector('.modal-backdrop__scrim') as HTMLButtonElement;
+    backdrop.click();
+    vi.advanceTimersByTime(220);
+    expect(closedSpy).toHaveBeenCalledTimes(3);
     vi.useRealTimers();
   });
 

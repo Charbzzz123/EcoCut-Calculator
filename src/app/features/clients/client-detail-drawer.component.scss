@@ -91,6 +91,9 @@
 }
 
 .client-drawer__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   background: var(--surface-card-soft);
   color: var(--text-primary);
@@ -98,6 +101,8 @@
   width: 2rem;
   height: 2rem;
   font-size: 1.25rem;
+  line-height: 1;
+  padding: 0;
   cursor: pointer;
   transition: background var(--motion-duration-base) var(--motion-ease-standard);
 }

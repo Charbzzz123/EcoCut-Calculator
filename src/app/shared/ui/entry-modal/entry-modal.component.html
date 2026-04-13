@@ -1,5 +1,11 @@
 @if (open || modalClosing()) {
   <div class="modal-backdrop" [class.modal-backdrop--closing]="modalClosing()">
+    <button
+      type="button"
+      class="modal-backdrop__scrim"
+      aria-label="Close dialog"
+      (click)="closeModal()"
+    ></button>
     <div
       class="modal-shell"
       [class.modal-shell--closing]="modalClosing()"
