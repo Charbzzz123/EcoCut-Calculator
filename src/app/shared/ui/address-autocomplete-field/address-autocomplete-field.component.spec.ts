@@ -15,6 +15,7 @@ describe('AddressAutocompleteFieldComponent', () => {
   };
 
   beforeEach(async () => {
+    vi.useFakeTimers();
     await TestBed.configureTestingModule({
       imports: [AddressAutocompleteFieldComponent],
     }).compileComponents();
@@ -23,6 +24,11 @@ describe('AddressAutocompleteFieldComponent', () => {
     component = fixture.componentInstance;
     component.control = new FormControl('', { nonNullable: true });
     fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
   });
 
   it('emits focus and blur events from input', () => {
@@ -65,5 +71,20 @@ describe('AddressAutocompleteFieldComponent', () => {
     fixture.componentRef.setInput('emptyStatusLabel', 'No results');
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('No results');
+  });
+
+  it('keeps suggestion list rendered briefly while closing', () => {
+    fixture.componentRef.setInput('showSuggestions', true);
+    fixture.componentRef.setInput('suggestions', [suggestion]);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.address-suggestions')).toBeTruthy();
+
+    fixture.componentRef.setInput('showSuggestions', false);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.address-suggestions')).toBeTruthy();
+
+    vi.advanceTimersByTime(180);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.address-suggestions')).toBeNull();
   });
 });

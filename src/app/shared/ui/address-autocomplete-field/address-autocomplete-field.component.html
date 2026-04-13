@@ -10,8 +10,14 @@
     (focus)="focused.emit()"
     (blur)="blurred.emit()"
   />
-  @if (showSuggestions) {
-    <ul class="address-suggestions" role="listbox" [attr.aria-label]="listboxLabel">
+  @if (shouldRenderSuggestions()) {
+    <ul
+      class="address-suggestions"
+      [class.address-suggestions--open]="suggestionsVisible()"
+      [class.address-suggestions--closing]="suggestionsClosing()"
+      role="listbox"
+      [attr.aria-label]="listboxLabel"
+    >
       @if (loading) {
         <li class="address-suggestions__status">{{ searchStatusLabel }}</li>
       } @else if (suggestions.length) {
