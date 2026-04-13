@@ -212,6 +212,7 @@ With the persistence layer durable we can confidently layer on �undo,� riche
 - **Shared address suggestion popovers** now use the same delayed close fade/slide behavior in `AddressAutocompleteFieldComponent`, keeping address lookup menus visually consistent with dropdown motion and reduced-motion rules.
 - **Home-specific floating menus** (Add Entry CTA/dropdowns) now follow the same fade/slide + visibility handoff pattern so non-shared popover menus behave consistently with the shared motion baseline.
 - **Shared collapse/expand utility motion** now lives in global styles (`.motion-collapse` / `.motion-collapse__inner`) and is used by Start Next Job + Broadcast progressive-disclosure sections so advanced/progress/analytics panels expand/collapse consistently without per-feature timing drift.
+- **Shared alert/banner motion utility** now lives in global styles (`.motion-alert`) and is applied to validation/state surfaces, with Start Next Job save-toast close-delay rendering so success/error feedback has smooth enter/exit instead of hard snaps.
 - **Reduced motion** is enforced globally in `src/styles.scss` for shared interactive controls and shared panel-enter animation utilities.
 - **Dark evergreen palette** keeps the UI in sync with the EcoCut brand (deep greens, neon growth accents).
 - **Brand assets** belong in public/assets/brand/. Expected files: eco-logo.png (wordmark) and eco-mascot.png (character). A placeholder SVG loads if the mascot file is absent.

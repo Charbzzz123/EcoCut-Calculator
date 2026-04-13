@@ -2,8 +2,10 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  OnDestroy,
   OnInit,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core';
@@ -28,13 +30,22 @@ import { StartNextJobFacade } from './start-next-job.facade.js';
   providers: [StartNextJobFacade],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class StartNextJobShellComponent implements OnInit {
+export class StartNextJobShellComponent implements OnInit, OnDestroy {
+  private static readonly SAVE_TOAST_CLOSE_DELAY_MS = 180;
   protected readonly facade = inject(StartNextJobFacade);
   protected readonly stepFocus = signal<'crew' | 'draft' | 'review' | 'history'>('draft');
   protected readonly workflowStatusExpanded = signal(false);
   protected readonly draftAdvancedExpanded = signal(false);
   protected readonly analyticsPanelExpanded = signal(false);
   protected readonly analyticsExpanded = signal(false);
+  protected readonly saveToastClosing = signal(false);
+  private readonly saveToastSnapshot = signal<{
+    state: 'idle' | 'saving' | 'success' | 'error';
+    message: string;
+  } | null>(null);
+  protected readonly shouldRenderSaveToast = computed(() => this.saveToastSnapshot() !== null);
+  protected readonly saveToastState = computed(() => this.saveToastSnapshot()?.state ?? 'idle');
+  protected readonly saveToastMessage = computed(() => this.saveToastSnapshot()?.message ?? '');
   protected readonly canOpenCrewStep = computed(() => this.facade.hasJobModeSelection());
   protected readonly canOpenReviewStep = computed(
     () => this.facade.hasJobModeSelection() && this.facade.selectedCrew().length > 0,
@@ -42,9 +53,50 @@ export class StartNextJobShellComponent implements OnInit {
   protected readonly canOpenHistoryStep = computed(
     () => this.facade.selectedCrew().length > 0 || this.facade.scheduledHistoryCount() > 0,
   );
+  private saveToastCloseTimer: ReturnType<typeof setTimeout> | null = null;
+
+  constructor() {
+    effect(() => {
+      const state = this.facade.saveState();
+      const message = this.facade.saveMessage().trim();
+
+      if (state !== 'idle' && message.length > 0) {
+        this.clearSaveToastCloseTimer();
+        this.saveToastClosing.set(false);
+        this.saveToastSnapshot.set({ state, message });
+        return;
+      }
+
+      if (!this.saveToastSnapshot()) {
+        return;
+      }
+
+      if (this.prefersReducedMotion()) {
+        this.saveToastSnapshot.set(null);
+        this.saveToastClosing.set(false);
+        return;
+      }
+
+      if (this.saveToastClosing()) {
+        return;
+      }
+
+      this.saveToastClosing.set(true);
+      this.clearSaveToastCloseTimer();
+      this.saveToastCloseTimer = setTimeout(() => {
+        this.saveToastSnapshot.set(null);
+        this.saveToastClosing.set(false);
+        this.saveToastCloseTimer = null;
+      }, StartNextJobShellComponent.SAVE_TOAST_CLOSE_DELAY_MS);
+    });
+  }
 
   ngOnInit(): void {
     void this.facade.loadBoard();
+  }
+
+  ngOnDestroy(): void {
+    this.clearSaveToastCloseTimer();
   }
 
   protected setStepFocus(step: 'crew' | 'draft' | 'review' | 'history'): void {
@@ -189,5 +241,19 @@ export class StartNextJobShellComponent implements OnInit {
         section.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     });
+  }
+
+  private clearSaveToastCloseTimer(): void {
+    if (this.saveToastCloseTimer !== null) {
+      clearTimeout(this.saveToastCloseTimer);
+      this.saveToastCloseTimer = null;
+    }
+  }
+
+  private prefersReducedMotion(): boolean {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return false;
+    }
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }
 }

@@ -134,17 +134,18 @@
     </div>
   </article>
 
-  @if (facade.saveState() !== 'idle' && facade.saveMessage()) {
+  @if (shouldRenderSaveToast()) {
     <div
-      class="save-toast"
-      [class.save-toast--success]="facade.saveState() === 'success'"
-      [class.save-toast--error]="facade.saveState() === 'error'"
-      [class.save-toast--saving]="facade.saveState() === 'saving'"
+      class="save-toast motion-alert"
+      [class.save-toast--success]="saveToastState() === 'success'"
+      [class.save-toast--error]="saveToastState() === 'error'"
+      [class.save-toast--saving]="saveToastState() === 'saving'"
+      [class.motion-alert--closing]="saveToastClosing()"
       role="status"
       aria-live="polite"
     >
-      <p>{{ facade.saveMessage() }}</p>
-      @if (facade.saveState() !== 'saving') {
+      <p>{{ saveToastMessage() }}</p>
+      @if (saveToastState() !== 'saving') {
         <button
           type="button"
           class="ghost-btn save-toast__dismiss"
