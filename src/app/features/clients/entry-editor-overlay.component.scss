@@ -5,6 +5,7 @@
   align-items: center;
   justify-content: center;
   z-index: 70;
+  animation: entry-editor-overlay-fade-in var(--motion-duration-base) var(--motion-ease-standard);
 }
 
 .entry-editor-backdrop {
@@ -16,4 +17,63 @@
 .entry-editor-overlay app-entry-modal {
   position: relative;
   z-index: 2;
+  animation: entry-editor-modal-in var(--motion-duration-panel) var(--motion-ease-standard);
+}
+
+.entry-editor-overlay--closing {
+  animation: entry-editor-overlay-fade-out var(--motion-duration-fast) var(--motion-ease-standard)
+    forwards;
+}
+
+.entry-editor-overlay--closing app-entry-modal {
+  animation: entry-editor-modal-out var(--motion-duration-fast) var(--motion-ease-standard) forwards;
+}
+
+@keyframes entry-editor-overlay-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes entry-editor-overlay-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes entry-editor-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes entry-editor-modal-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entry-editor-overlay,
+  .entry-editor-overlay app-entry-modal,
+  .entry-editor-overlay--closing,
+  .entry-editor-overlay--closing app-entry-modal {
+    animation: none;
+  }
 }

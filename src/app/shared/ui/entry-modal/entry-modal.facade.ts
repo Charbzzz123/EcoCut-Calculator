@@ -53,6 +53,7 @@ import { EntryModalScheduleController } from './entry-modal-schedule.controller.
 import { environment } from '../../../../environments/environment';
 
 const ADDRESS_LOOKUP_DEBOUNCE_MS = 3000;
+const MODAL_CLOSE_ANIMATION_MS = 220;
 
 @Directive()
 export abstract class EntryModalFacade implements OnDestroy {
@@ -159,6 +160,7 @@ export abstract class EntryModalFacade implements OnDestroy {
   protected readonly panelError = this.panelStore.panelError;
   protected readonly hedgeSelectionError = signal<string | null>(null);
   protected readonly requiredFieldErrors = signal<string[]>([]);
+  protected readonly modalClosing = signal(false);
   protected readonly addressSuggestions = signal<readonly AddressSuggestion[]>([]);
   protected readonly showAddressSuggestions = signal(false);
   protected readonly addressLookupLoading = signal(false);
@@ -175,6 +177,7 @@ export abstract class EntryModalFacade implements OnDestroy {
   >();
   private addressAutoFillInProgress = false;
   private readonly enforceVerifiedAddress = environment.enforceVerifiedAddress;
+  private modalCloseTimer: ReturnType<typeof setTimeout> | null = null;
   /* c8 ignore next */
   protected readonly floatingPanelEnabled = this.panelStore.floatingPanelEnabled;
   protected readonly hedges = this.panelStore.hedges;
@@ -524,9 +527,18 @@ export abstract class EntryModalFacade implements OnDestroy {
   }
 
   protected closeModal(): void {
-    this.resetModalState();
-    this.resetDuplicateGuards();
-    this.closed.emit();
+    if (this.modalClosing()) {
+      return;
+    }
+    this.modalClosing.set(true);
+    this.clearModalCloseTimer();
+    this.modalCloseTimer = setTimeout(() => {
+      this.resetModalState();
+      this.resetDuplicateGuards();
+      this.modalClosing.set(false);
+      this.modalCloseTimer = null;
+      this.closed.emit();
+    }, MODAL_CLOSE_ANIMATION_MS);
   }
 
   protected onTimelineGridReady(ref: ElementRef<HTMLElement>): void {
@@ -1130,9 +1142,17 @@ export abstract class EntryModalFacade implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.clearModalCloseTimer();
     this.formChangesSub.unsubscribe();
     this.addressLookupSub.unsubscribe();
     this.panelStore.destroy();
     this.scheduleController.destroy();
+  }
+
+  private clearModalCloseTimer(): void {
+    if (this.modalCloseTimer !== null) {
+      clearTimeout(this.modalCloseTimer);
+      this.modalCloseTimer = null;
+    }
   }
 }

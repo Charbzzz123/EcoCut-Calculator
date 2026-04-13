@@ -40,14 +40,18 @@ describe('ClientDetailOverlayComponent', () => {
   });
 
   it('emits close when backdrop clicked', () => {
+    vi.useFakeTimers();
     const spy = vi.fn();
     fixture.componentInstance.closed.subscribe(spy);
     const backdrop = fixture.nativeElement.querySelector('.client-detail-overlay__backdrop') as HTMLButtonElement;
     backdrop.click();
+    vi.advanceTimersByTime(220);
     expect(spy).toHaveBeenCalled();
+    vi.useRealTimers();
   });
 
   it('forwards drawer events', () => {
+    vi.useFakeTimers();
     const closeSpy = vi.fn();
     const retrySpy = vi.fn();
     const updateSpy = vi.fn();
@@ -86,11 +90,13 @@ describe('ClientDetailOverlayComponent', () => {
       contactPhone: '',
       hedges: createEmptyHedgeConfigs(),
     } as ClientHistoryEntry);
+    vi.advanceTimersByTime(220);
     expect(closeSpy).toHaveBeenCalled();
     expect(retrySpy).toHaveBeenCalled();
     expect(updateSpy).toHaveBeenCalledWith({ firstName: 'Renamed' });
     expect(deleteClientSpy).toHaveBeenCalled();
     expect(editSpy).toHaveBeenCalled();
     expect(deleteEntrySpy).toHaveBeenCalled();
+    vi.useRealTimers();
   });
 });

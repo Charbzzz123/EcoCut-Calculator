@@ -39,22 +39,28 @@ describe('EntryEditorOverlayComponent', () => {
   });
 
   it('emits closed when backdrop clicked', () => {
+    vi.useFakeTimers();
     const spy = vi.fn();
     fixture.componentInstance.closed.subscribe(spy);
     const backdrop = fixture.nativeElement.querySelector('.entry-editor-backdrop') as HTMLDivElement;
     backdrop.click();
+    vi.advanceTimersByTime(220);
     expect(spy).toHaveBeenCalled();
+    vi.useRealTimers();
   });
 
   it('re-emits save events', () => {
+    vi.useFakeTimers();
     const closeSpy = vi.fn();
     const spy = vi.fn();
     fixture.componentInstance.closed.subscribe(closeSpy);
     fixture.componentInstance.saved.subscribe(spy);
     const modalRef = fixture.debugElement.query(By.css('app-entry-modal'));
     modalRef.componentInstance.closed.emit();
+    vi.advanceTimersByTime(220);
     modalRef.componentInstance.saved.emit(payload);
     expect(closeSpy).toHaveBeenCalled();
     expect(spy).toHaveBeenCalledWith(payload);
+    vi.useRealTimers();
   });
 });

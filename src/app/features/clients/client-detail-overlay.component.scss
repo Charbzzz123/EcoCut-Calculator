@@ -5,6 +5,7 @@
   justify-content: flex-end;
   background: var(--surface-scrim-soft);
   z-index: 50;
+  animation: client-overlay-fade-in var(--motion-duration-base) var(--motion-ease-standard);
 }
 
 .client-detail-overlay__backdrop {
@@ -17,4 +18,64 @@
 .client-detail-overlay app-client-detail-drawer {
   position: relative;
   z-index: 2;
+  animation: client-drawer-slide-in var(--motion-duration-panel) var(--motion-ease-standard);
+}
+
+.client-detail-overlay--closing {
+  animation: client-overlay-fade-out var(--motion-duration-fast) var(--motion-ease-standard)
+    forwards;
+}
+
+.client-detail-overlay--closing app-client-detail-drawer {
+  animation: client-drawer-slide-out var(--motion-duration-fast) var(--motion-ease-standard)
+    forwards;
+}
+
+@keyframes client-overlay-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes client-overlay-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes client-drawer-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes client-drawer-slide-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .client-detail-overlay,
+  .client-detail-overlay app-client-detail-drawer,
+  .client-detail-overlay--closing,
+  .client-detail-overlay--closing app-client-detail-drawer {
+    animation: none;
+  }
 }

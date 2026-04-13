@@ -1,6 +1,12 @@
-@if (open) {
-  <div class="modal-backdrop">
-    <div class="modal-shell" role="dialog" aria-modal="true" [attr.aria-label]="headlineText">
+@if (open || modalClosing()) {
+  <div class="modal-backdrop" [class.modal-backdrop--closing]="modalClosing()">
+    <div
+      class="modal-shell"
+      [class.modal-shell--closing]="modalClosing()"
+      role="dialog"
+      aria-modal="true"
+      [attr.aria-label]="headlineText"
+    >
       <header class="modal-header">
         <div>
           <p class="eyebrow">{{ eyebrowText }}</p>

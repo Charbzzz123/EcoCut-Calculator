@@ -150,6 +150,7 @@ describe('ClientsShellComponent', () => {
   let facade: ClientsFacadeStub;
 
   beforeEach(async () => {
+    vi.useFakeTimers();
     facade = new ClientsFacadeStub();
     await TestBed.configureTestingModule({
       providers: [
@@ -163,6 +164,11 @@ describe('ClientsShellComponent', () => {
     fixture = TestBed.createComponent(ClientsShellComponent);
     fixture.detectChanges();
     fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
   });
 
   it('loads clients on init and refreshes via toolbar', () => {
@@ -195,6 +201,7 @@ describe('ClientsShellComponent', () => {
     const overlay = overlayDebug!.nativeElement;
     const backdrop = overlay.querySelector('.client-detail-overlay__backdrop') as HTMLButtonElement;
     backdrop.click();
+    vi.advanceTimersByTime(220);
     expect(facade.closeDrawer).toHaveBeenCalled();
     const overlayCmp = overlayDebug!.componentInstance;
     overlayCmp.retry.emit();
@@ -226,6 +233,7 @@ describe('ClientsShellComponent', () => {
     const overlay = overlayDebug!.nativeElement;
     const backdrop = overlay.querySelector('.entry-editor-backdrop') as HTMLDivElement;
     backdrop.click();
+    vi.advanceTimersByTime(220);
     expect(facade.closeEntryEditor).toHaveBeenCalled();
     const payload = {
       variant: 'customer' as const,

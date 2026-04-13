@@ -780,6 +780,7 @@ describe('BroadcastShellComponent', () => {
   });
 
   it('renders test/dispatch controls and forwards confirmation actions', () => {
+    vi.useFakeTimers();
     facadeMock.channelControl.setValue('email');
     facadeMock.testEmailControl.setValue('owner@ecocutqc.com');
     facadeMock.testPhoneControl.setValue('');
@@ -806,11 +807,17 @@ describe('BroadcastShellComponent', () => {
     fixture.detectChanges();
 
     const modalButtons = fixture.nativeElement.querySelectorAll('.confirmation-modal .refresh-btn');
-    (modalButtons[0] as HTMLButtonElement).click();
     (modalButtons[1] as HTMLButtonElement).click();
+    vi.advanceTimersByTime(220);
+    fixture.detectChanges();
+    const refreshedModalButtons = fixture.nativeElement.querySelectorAll(
+      '.confirmation-modal .refresh-btn',
+    );
+    (refreshedModalButtons[0] as HTMLButtonElement).click();
     expect(facadeMock.confirmCurrentAction).toHaveBeenCalledTimes(1);
     expect(facadeMock.closeConfirmation).toHaveBeenCalledTimes(1);
     expect(fixture.nativeElement.textContent).toContain('Broadcast queued for 3 recipients');
+    vi.useRealTimers();
   });
 
   it('forwards test-send action through the shell', () => {
@@ -1129,6 +1136,7 @@ describe('BroadcastShellComponent', () => {
   });
 
   it('handles confirmation backdrop interactions for click and keyboard', () => {
+    vi.useFakeTimers();
     facadeMock.confirmationOpen.set(true);
     facadeMock.confirmationPayload.set({
       mode: 'dispatch',
@@ -1144,10 +1152,14 @@ describe('BroadcastShellComponent', () => {
 
     const backdrop = fixture.nativeElement.querySelector('.confirmation-backdrop') as HTMLElement;
     backdrop.click();
+    vi.advanceTimersByTime(220);
     backdrop.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    vi.advanceTimersByTime(220);
     backdrop.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }));
+    vi.advanceTimersByTime(220);
 
     expect(facadeMock.closeConfirmation).toHaveBeenCalledTimes(3);
+    vi.useRealTimers();
   });
 
   it('renders test confirmation title when payload mode is test', () => {

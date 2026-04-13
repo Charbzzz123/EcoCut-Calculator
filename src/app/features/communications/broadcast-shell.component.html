@@ -759,15 +759,19 @@
     </p>
   }
 
-  @if (confirmationOpen() && confirmationPayload(); as payload) {
+  @if (shouldRenderConfirmation() && activeConfirmationPayload(); as payload) {
     <section
       class="confirmation-backdrop"
+      [class.confirmation-backdrop--closing]="confirmationClosing()"
       tabindex="0"
       (click)="onConfirmationBackdropClick($event)"
       (keydown.enter)="closeConfirmation()"
       (keydown.space)="closeConfirmation(); $event.preventDefault()"
     >
-      <article class="confirmation-modal">
+      <article
+        class="confirmation-modal"
+        [class.confirmation-modal--closing]="confirmationClosing()"
+      >
         <h2>{{ payload.mode === 'test' ? 'Confirm test send' : 'Confirm broadcast dispatch' }}</h2>
         <ul class="summary-list">
           <li>Mode: {{ payload.mode }}</li>

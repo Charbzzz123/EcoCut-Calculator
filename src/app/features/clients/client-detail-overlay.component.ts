@@ -1,5 +1,13 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  EventEmitter,
+  Input,
+  OnDestroy,
+  Output,
+  signal,
+} from '@angular/core';
 import type {
   ClientDetail,
   ClientSummary,
@@ -17,7 +25,10 @@ import { ClientDetailDrawerComponent } from './client-detail-drawer.component.js
   styleUrl: './client-detail-overlay.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ClientDetailOverlayComponent {
+export class ClientDetailOverlayComponent implements OnDestroy {
+  private closeTimer: ReturnType<typeof setTimeout> | null = null;
+  protected readonly closing = signal(false);
+
   @Input({ required: true }) client!: ClientSummary;
   @Input() detail: ClientDetail | null = null;
   @Input() state: ClientDetailState = 'loading';
@@ -28,4 +39,28 @@ export class ClientDetailOverlayComponent {
   @Output() deleteClient = new EventEmitter<void>();
   @Output() editEntry = new EventEmitter<ClientHistoryEntry>();
   @Output() deleteEntry = new EventEmitter<ClientHistoryEntry>();
+
+  protected requestClose(): void {
+    if (this.closing()) {
+      return;
+    }
+    this.closing.set(true);
+    this.clearCloseTimer();
+    this.closeTimer = setTimeout(() => {
+      this.closed.emit();
+      this.closing.set(false);
+      this.closeTimer = null;
+    }, 220);
+  }
+
+  private clearCloseTimer(): void {
+    if (this.closeTimer !== null) {
+      clearTimeout(this.closeTimer);
+      this.closeTimer = null;
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.clearCloseTimer();
+  }
 }

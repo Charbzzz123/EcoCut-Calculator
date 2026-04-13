@@ -353,16 +353,19 @@ describe('EntryModalComponent', () => {
   });
 
   it('resets state when closing modal', () => {
+    vi.useFakeTimers();
     component.form.patchValue({ firstName: 'Will', jobType: 'Both', jobValue: '500' });
     component['hedgeStates'].set({ ...component['hedgeStates'](), 'hedge-3': 'trim' });
     const closedSpy = vi.fn();
     component.closed.subscribe(closedSpy);
 
     component['closeModal']();
+    vi.advanceTimersByTime(220);
 
     expect(closedSpy).toHaveBeenCalled();
     expect(component.form.value.firstName).toBe('');
     expect(component['hedgeStates']()['hedge-3']).toBe('none');
+    vi.useRealTimers();
   });
 
   it('cycles through hedge states including rabattage and clearing configs', () => {
@@ -2212,17 +2215,21 @@ describe('EntryModalComponent', () => {
   });
 
   it('wires close buttons through template events', () => {
+    vi.useFakeTimers();
     const closedSpy = vi.fn();
     component.closed.subscribe(closedSpy);
     fixture.detectChanges();
 
     const headerClose = fixture.nativeElement.querySelector('.icon-btn') as HTMLButtonElement;
     headerClose.click();
+    vi.advanceTimersByTime(220);
     expect(closedSpy).toHaveBeenCalledTimes(1);
 
     const footerClose = fixture.nativeElement.querySelector('.form-footer .ghost') as HTMLButtonElement;
     footerClose.click();
+    vi.advanceTimersByTime(220);
     expect(closedSpy).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
   });
 
   it('invokes panel action buttons via template bindings', () => {

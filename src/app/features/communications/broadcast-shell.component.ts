@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  OnDestroy,
   OnInit,
   ViewChild,
   computed,
@@ -20,6 +21,7 @@ import {
 import { BroadcastFacade } from './broadcast.facade.js';
 import type {
   BroadcastChannel,
+  BroadcastConfirmationPayload,
   BroadcastCostEstimate,
   BroadcastTemplateTarget,
 } from './broadcast.types.js';
@@ -63,12 +65,15 @@ interface ManualPickerRow {
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class BroadcastShellComponent implements OnInit {
+export class BroadcastShellComponent implements OnInit, OnDestroy {
   private readonly facade = inject(BroadcastFacade);
   private confirmedChannel: BroadcastChannel | null = null;
   private readonly emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  private confirmationCloseTimer: ReturnType<typeof setTimeout> | null = null;
 
   protected readonly headingId = 'broadcast-heading';
+  protected readonly confirmationClosing = signal(false);
+  protected readonly renderedConfirmationPayload = signal<BroadcastConfirmationPayload | null>(null);
   protected readonly emailCap = signal(80);
   protected readonly smsCap = signal(200);
   protected readonly overridePanelOpen = signal(false);
@@ -122,6 +127,12 @@ export class BroadcastShellComponent implements OnInit {
   protected readonly testPhoneControl = this.facade.testPhoneControl;
   protected readonly confirmationOpen = this.facade.confirmationOpen;
   protected readonly confirmationPayload = this.facade.confirmationPayload;
+  protected readonly shouldRenderConfirmation = computed(
+    () => this.confirmationOpen() || this.confirmationClosing(),
+  );
+  protected readonly activeConfirmationPayload = computed(
+    () => this.confirmationPayload() ?? this.renderedConfirmationPayload(),
+  );
   protected readonly statusBanner = this.facade.statusBanner;
   protected readonly mergeDragTarget = signal<BroadcastTemplateTarget | null>(null);
   protected readonly serviceWindowOptions: SelectDropdownOption[] = [
@@ -505,15 +516,35 @@ export class BroadcastShellComponent implements OnInit {
   }
 
   protected openTestConfirmation(): void {
+    this.clearConfirmationCloseTimer();
+    this.confirmationClosing.set(false);
+    this.renderedConfirmationPayload.set(null);
     this.facade.openTestConfirmation();
   }
 
   protected openDispatchConfirmation(): void {
+    this.clearConfirmationCloseTimer();
+    this.confirmationClosing.set(false);
+    this.renderedConfirmationPayload.set(null);
     this.facade.openDispatchConfirmation();
   }
 
   protected closeConfirmation(): void {
-    this.facade.closeConfirmation();
+    if (this.confirmationClosing()) {
+      return;
+    }
+    const payload = this.confirmationPayload();
+    if (payload) {
+      this.renderedConfirmationPayload.set(payload);
+    }
+    this.confirmationClosing.set(true);
+    this.clearConfirmationCloseTimer();
+    this.confirmationCloseTimer = setTimeout(() => {
+      this.facade.closeConfirmation();
+      this.confirmationClosing.set(false);
+      this.renderedConfirmationPayload.set(null);
+      this.confirmationCloseTimer = null;
+    }, 220);
   }
 
   protected onConfirmationBackdropClick(event: MouseEvent): void {
@@ -523,6 +554,9 @@ export class BroadcastShellComponent implements OnInit {
   }
 
   protected confirmCurrentAction(): void {
+    this.clearConfirmationCloseTimer();
+    this.confirmationClosing.set(false);
+    this.renderedConfirmationPayload.set(null);
     void this.facade.confirmCurrentAction();
   }
 
@@ -957,5 +991,16 @@ export class BroadcastShellComponent implements OnInit {
       return 'SMS';
     }
     return 'Email + SMS';
+  }
+
+  private clearConfirmationCloseTimer(): void {
+    if (this.confirmationCloseTimer !== null) {
+      clearTimeout(this.confirmationCloseTimer);
+      this.confirmationCloseTimer = null;
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.clearConfirmationCloseTimer();
   }
 }

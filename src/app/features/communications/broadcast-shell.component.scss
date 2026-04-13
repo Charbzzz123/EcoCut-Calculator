@@ -902,6 +902,7 @@
   place-items: center;
   z-index: 50;
   padding: 1rem;
+  animation: confirmation-backdrop-in var(--motion-duration-base) var(--motion-ease-standard);
 }
 
 .confirmation-modal {
@@ -911,11 +912,70 @@
   background: var(--surface-overlay-strong);
   box-shadow: var(--shadow-elevated);
   padding: 1rem 1.1rem;
+  animation: confirmation-modal-in var(--motion-duration-panel) var(--motion-ease-standard);
+}
+
+.confirmation-backdrop--closing {
+  animation: confirmation-backdrop-out var(--motion-duration-fast) var(--motion-ease-standard)
+    forwards;
+}
+
+.confirmation-modal--closing {
+  animation: confirmation-modal-out var(--motion-duration-fast) var(--motion-ease-standard) forwards;
 }
 
 .confirmation-modal h2 {
   margin: 0;
   font-size: 1.05rem;
+}
+
+@keyframes confirmation-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes confirmation-backdrop-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes confirmation-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes confirmation-modal-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confirmation-backdrop,
+  .confirmation-modal,
+  .confirmation-backdrop--closing,
+  .confirmation-modal--closing {
+    animation: none;
+  }
 }
 
 @media (max-width: 900px) {
