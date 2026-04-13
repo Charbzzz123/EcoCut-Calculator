@@ -36,6 +36,7 @@ const MIN_SELECTION_MINUTES = 30;
 const TIMELINE_INCREMENT = 15;
 const TIMELINE_SELECTION_OFFSET = 15;
 const BUSY_BAR_FULL_MINUTES = 10 * 60;
+const DEFAULT_CALENDAR_VIEW_MODE: CalendarTimelineViewMode = 'month';
 
 export interface TimelineEventBlock {
   id: string;
@@ -133,7 +134,7 @@ export class EntryModalScheduleController {
     this.conflictConfirmed = signal(false);
     this.currentTimeMinutes = signal<number | null>(null);
     this.editingCalendarEvent = signal<CalendarEventSummary | null>(null);
-    this.calendarViewMode = signal<CalendarTimelineViewMode>('day');
+    this.calendarViewMode = signal<CalendarTimelineViewMode>(DEFAULT_CALENDAR_VIEW_MODE);
     this.weekOverviewDays = signal<CalendarOverviewDay[]>([]);
     this.monthOverviewWeeks = signal<CalendarOverviewDay[][]>([]);
     this.calendarOverviewLoading = signal(false);
@@ -268,7 +269,7 @@ export class EntryModalScheduleController {
       { date: '', startTime: '', endTime: '' },
       { emitEvent: false },
     );
-    this.calendarViewMode.set('day');
+    this.calendarViewMode.set(DEFAULT_CALENDAR_VIEW_MODE);
   }
 
   setCalendarViewMode(mode: CalendarTimelineViewMode): void {

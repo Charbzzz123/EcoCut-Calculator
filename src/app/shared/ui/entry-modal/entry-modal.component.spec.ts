@@ -1256,6 +1256,7 @@ describe('EntryModalComponent', () => {
     const timelineComponent = timelineFixture.componentInstance;
     timelineComponent.open = true;
     timelineComponent.variant = 'customer';
+    timelineComponent['setCalendarViewMode']('day');
     timelineComponent.form.get('calendar.date')?.setValue('2026-03-05');
     timelineComponent['timelineEvents'].set([
       {
@@ -1418,6 +1419,7 @@ describe('EntryModalComponent', () => {
     const previewComponent = previewFixture.componentInstance;
     previewComponent.open = true;
     previewComponent.variant = 'customer';
+    previewComponent['setCalendarViewMode']('day');
     previewComponent['calendarSlots'].set([{ id: 'slot-08', startTime: '08:00', endTime: '10:00', label: '8-10', status: 'available' }]);
     previewFixture.detectChanges();
 
@@ -1618,6 +1620,7 @@ describe('EntryModalComponent', () => {
     const slotComponent = slotFixture.componentInstance;
     slotComponent.open = true;
     slotComponent.variant = 'customer';
+    slotComponent['setCalendarViewMode']('day');
     slotComponent['calendarSlots'].set([
       { id: 'slot-08', startTime: '08:00', endTime: '10:00', label: '8-10', status: 'available' },
       { id: 'slot-10', startTime: '10:00', endTime: '12:00', label: '10-12', status: 'booked', conflictSummary: 'Existing job' },
@@ -1641,6 +1644,7 @@ describe('EntryModalComponent', () => {
     const fallbackComponent = fallbackFixture.componentInstance;
     fallbackComponent.open = true;
     fallbackComponent.variant = 'customer';
+    fallbackComponent['setCalendarViewMode']('day');
     fallbackFixture.detectChanges();
     const fallbackText = fallbackFixture.nativeElement.querySelector('.slot-picker .preview-state .helper')
       ?.textContent;
@@ -1652,6 +1656,7 @@ describe('EntryModalComponent', () => {
     const bookedComponent = bookedFixture.componentInstance;
     bookedComponent.open = true;
     bookedComponent.variant = 'customer';
+    bookedComponent['setCalendarViewMode']('day');
     bookedComponent['calendarSlots'].set([
       { id: 'slot-10', startTime: '10:00', endTime: '12:00', label: '10-12', status: 'booked', conflictSummary: 'Crew busy' },
     ]);
@@ -1687,6 +1692,7 @@ describe('EntryModalComponent', () => {
     const listComponent = listFixture.componentInstance;
     listComponent.open = true;
     listComponent.variant = 'customer';
+    listComponent['setCalendarViewMode']('day');
     vi.spyOn(listComponent as unknown as { refreshCalendarEventsForDate: (date: string) => Promise<void> }, 'refreshCalendarEventsForDate').mockResolvedValue();
     listFixture.detectChanges();
     await listFixture.whenStable();
