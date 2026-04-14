@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   OnModuleInit,
 } from '@nestjs/common';
@@ -93,6 +94,7 @@ export interface EmployeeLifecycleReportFilters {
 
 @Injectable()
 export class EmployeesService implements OnModuleInit {
+  private readonly logger = new Logger(EmployeesService.name);
   private snapshot: EmployeesSnapshot = {
     roster: [],
     hours: [],
@@ -505,6 +507,7 @@ export class EmployeesService implements OnModuleInit {
   async endAssignmentRun(
     entryId: string,
     actorRole: EmployeeOperatorRole,
+    completionNote: string | null = null,
   ): Promise<EmployeeAssignmentRunLifecycleResult> {
     this.assertOwnerOrManager(actorRole);
     const existing = this.snapshot.history.find(
@@ -531,6 +534,7 @@ export class EmployeesService implements OnModuleInit {
       );
     }
 
+    const normalizedCompletionNote = completionNote?.trim() || null;
     const nowIso = new Date().toISOString();
     const nowTimestamp = toTimestamp(nowIso);
     const updatedHistory = activeRunEntries.map((entry) => {
@@ -546,7 +550,7 @@ export class EmployeesService implements OnModuleInit {
         status: 'completed' as const,
         runEndedAt: nowIso,
         hoursWorked: durationHours,
-        runClockOutReason: null,
+        runClockOutReason: normalizedCompletionNote,
       };
     });
     const updatedHistoryIds = new Set(updatedHistory.map((entry) => entry.id));
@@ -592,6 +596,12 @@ export class EmployeesService implements OnModuleInit {
       ),
     };
     await this.persistSnapshot();
+    await this.syncLinkedEntryCompletion(
+      existing.assignmentId,
+      nowIso,
+      actorRole,
+      normalizedCompletionNote,
+    );
 
     return {
       assignmentId: existing.assignmentId,
@@ -632,7 +642,9 @@ export class EmployeesService implements OnModuleInit {
       0.25,
       Math.round(((nowTimestamp - runStartTimestamp) / 3_600_000) * 4) / 4,
     );
-    const reason = payload.reason?.trim() || null;
+    const normalizedPayloadReason =
+      typeof payload.reason === 'string' ? payload.reason.trim() : '';
+    const reason = normalizedPayloadReason || null;
     const updatedHistoryEntry: EmployeeJobHistoryRecord = {
       ...existing,
       status: 'completed',
@@ -689,6 +701,14 @@ export class EmployeesService implements OnModuleInit {
         entry.status === 'scheduled' &&
         this.isRunActive(entry),
     );
+    if (!remainingActiveEntries.length) {
+      await this.syncLinkedEntryCompletion(
+        existing.assignmentId,
+        nowIso,
+        actorRole,
+        reason,
+      );
+    }
 
     return {
       assignmentId: existing.assignmentId,
@@ -2118,6 +2138,92 @@ export class EmployeesService implements OnModuleInit {
       startAt: entry.scheduledStart,
       endAt: entry.scheduledEnd,
     };
+  }
+
+  private async syncLinkedEntryCompletion(
+    assignmentId: string,
+    endedAt: string,
+    actorRole: EmployeeOperatorRole,
+    completionNote: string | null,
+  ): Promise<void> {
+    const assignmentEntries = this.snapshot.history.filter(
+      (entry) => entry.assignmentId === assignmentId,
+    );
+    if (!assignmentEntries.length) {
+      return;
+    }
+
+    const linkedJobEntryId =
+      assignmentEntries
+        .find((entry) => Boolean(entry.jobEntryId?.trim()))
+        ?.jobEntryId?.trim() ?? null;
+    if (!linkedJobEntryId) {
+      return;
+    }
+
+    const completedEntries = assignmentEntries.filter(
+      (entry) => entry.status === 'completed',
+    );
+    if (!completedEntries.length) {
+      return;
+    }
+
+    const crewByEmployee = new Map<
+      string,
+      { employeeId: string; fullName: string; hoursWorked: number }
+    >();
+    for (const entry of completedEntries) {
+      const existingCrew = crewByEmployee.get(entry.employeeId);
+      const employeeName =
+        this.snapshot.roster.find(
+          (employee) => employee.id === entry.employeeId,
+        )?.fullName ?? entry.employeeId;
+      if (!existingCrew) {
+        crewByEmployee.set(entry.employeeId, {
+          employeeId: entry.employeeId,
+          fullName: employeeName,
+          hoursWorked: entry.hoursWorked,
+        });
+        continue;
+      }
+      existingCrew.hoursWorked += entry.hoursWorked;
+    }
+
+    const startedAt = completedEntries.reduce<string | null>(
+      (earliest, entry) => {
+        const candidate = entry.runStartedAt ?? entry.scheduledStart;
+        if (!earliest) {
+          return candidate;
+        }
+        return toTimestamp(candidate) < toTimestamp(earliest)
+          ? candidate
+          : earliest;
+      },
+      null,
+    );
+
+    const crew = Array.from(crewByEmployee.values()).map((member) => ({
+      ...member,
+      hoursWorked: Math.round(member.hoursWorked * 100) / 100,
+    }));
+
+    try {
+      await this.entriesService.applyExecutionCompletion(linkedJobEntryId, {
+        startedAt,
+        endedAt,
+        completionNote,
+        completedByRole: actorRole,
+        crew,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unknown completion sync error';
+      this.logger.warn(
+        `Could not sync completion details for linked entry "${linkedJobEntryId}" (${assignmentId}): ${message}`,
+      );
+    }
   }
 
   private async persistSnapshot(): Promise<void> {

@@ -857,6 +857,14 @@
                                   Edit schedule
                                 }
                               </button>
+                              <button
+                                type="button"
+                                class="employee-action employee-action--danger"
+                                [disabled]="!facade.canDeleteHistoryEntry(historyEntry)"
+                                (click)="removeHistoryEntry(historyEntry.id)"
+                              >
+                                Delete entry
+                              </button>
                             </div>
                           </div>
                         </header>
@@ -1300,6 +1308,14 @@
                         } @else {
                           Edit schedule
                         }
+                      </button>
+                      <button
+                        type="button"
+                        class="employee-action employee-action--danger"
+                        [disabled]="!facade.canDeleteHistoryEntry(historyEntry)"
+                        (click)="removeHistoryEntry(historyEntry.id)"
+                      >
+                        Delete entry
                       </button>
                     </div>
                   </div>

@@ -560,12 +560,18 @@ describe('StartNextJobShellComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Ongoing jobs');
     expect(fixture.nativeElement.textContent).toContain('Alex North - Downtown');
     expect(fixture.nativeElement.textContent).toContain('Crew (2): Alex North, Dana Blue');
+    vi.stubGlobal('prompt', vi.fn().mockReturnValue('Wrapped up cleanly'));
+    vi.stubGlobal('confirm', vi.fn().mockReturnValue(true));
 
     const endButton = fixture.nativeElement.querySelector(
       '.ongoing-run-card__end-btn',
     ) as HTMLButtonElement;
     endButton.click();
-    expect(facade.endHistoryRun).toHaveBeenCalledWith('job-1');
+    expect(facade.endHistoryRun).toHaveBeenCalledWith(
+      'job-1',
+      'owner',
+      'Wrapped up cleanly',
+    );
   });
 
   it('keeps analytics export button disabled when no selected history exists', () => {

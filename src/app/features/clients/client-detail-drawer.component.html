@@ -142,6 +142,36 @@
                     Schedule TBD
                   }
                 </p>
+                @if (history.execution; as execution) {
+                  <div class="history__execution">
+                    <p class="history__execution-meta">
+                      <span class="history__calendar-label">Run</span>
+                      <strong>{{ formatExecutionStatus(execution.status) }}</strong>
+                      @if (execution.startedAt) {
+                        <span>Started {{ execution.startedAt | date: 'MMM d, y, h:mm a' }}</span>
+                      }
+                      @if (execution.endedAt) {
+                        <span>Ended {{ execution.endedAt | date: 'MMM d, y, h:mm a' }}</span>
+                      }
+                      <span>Total tracked: {{ formatHours(execution.totalHours) }}</span>
+                    </p>
+                    @if (execution.completionNote) {
+                      <p class="history__note">Completion note: {{ execution.completionNote }}</p>
+                    }
+                    @if (execution.crew.length) {
+                      <div class="history__execution-crew">
+                        <p>Crew on job</p>
+                        <ul>
+                          @for (member of execution.crew; track member.employeeId) {
+                            <li>
+                              {{ member.fullName }} &middot; {{ formatHours(member.hoursWorked) }}
+                            </li>
+                          }
+                        </ul>
+                      </div>
+                    }
+                  </div>
+                }
                 @if (history.hedgePlan.length) {
                   <div class="history__hedges">
                     <p>Hedge plan</p>

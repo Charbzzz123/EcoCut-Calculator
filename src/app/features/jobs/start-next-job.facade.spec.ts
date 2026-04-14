@@ -29,7 +29,7 @@ class EmployeesDataServiceStub {
   cancelCalls: string[] = [];
   reassignCalls: { entryId: string; employeeId: string }[] = [];
   startRunCalls: string[] = [];
-  endRunCalls: string[] = [];
+  endRunCalls: { entryId: string; completionNote: string | null }[] = [];
   clockOutCalls: { entryId: string; reason: string | null }[] = [];
 
   private upsertHistory(record: EmployeeJobHistoryRecord): void {
@@ -200,8 +200,11 @@ class EmployeesDataServiceStub {
     };
   }
 
-  async endAssignmentRun(entryId: string) {
-    this.endRunCalls.push(entryId);
+  async endAssignmentRun(entryId: string, payload: { completionNote?: string } = {}) {
+    this.endRunCalls.push({
+      entryId,
+      completionNote: payload.completionNote?.trim() ?? null,
+    });
     if (this.shouldFailEndRun) {
       throw new Error('end-run-failure');
     }
@@ -1403,7 +1406,9 @@ describe('StartNextJobFacade', () => {
     expect(facade.saveMessage()).toBe('Run started. Crew clock-in is now active.');
 
     await expect(facade.endHistoryRun('hist-2', 'owner')).resolves.toBe(true);
-    expect(dataService.endRunCalls).toEqual(['hist-2']);
+    expect(dataService.endRunCalls).toEqual([
+      { entryId: 'hist-2', completionNote: null },
+    ]);
     expect(facade.saveState()).toBe('success');
     expect(facade.saveMessage()).toBe('Run ended. Remaining crew members were clocked out.');
   });

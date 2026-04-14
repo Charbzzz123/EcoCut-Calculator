@@ -153,6 +153,16 @@ export class ManageEmployeesShellComponent implements OnInit {
     void this.facade.saveHistoryEdit();
   }
 
+  protected removeHistoryEntry(entryId: string): void {
+    const confirmed = globalThis.confirm(
+      'Delete this history entry? This cannot be undone.',
+    );
+    if (!confirmed) {
+      return;
+    }
+    void this.facade.removeHistoryEntry(entryId);
+  }
+
   protected editFirstScheduledHistoryEntry(): void {
     const nextEditable = this.selectedEmployeeJobHistory().find(
       (entry) => entry.status !== 'cancelled',

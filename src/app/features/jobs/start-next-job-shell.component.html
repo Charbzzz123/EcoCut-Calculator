@@ -1147,7 +1147,7 @@
                       type="button"
                       class="history-card__action history-card__action--primary"
                       [disabled]="facade.saveState() === 'saving'"
-                      (click)="facade.endHistoryRun(item.id)"
+                      (click)="endHistoryRun(item.id)"
                     >
                       End job
                     </button>

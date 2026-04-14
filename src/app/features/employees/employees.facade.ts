@@ -830,6 +830,28 @@ export class EmployeesFacade implements OnDestroy {
     }
   }
 
+  canDeleteHistoryEntry(entry: EmployeeJobHistoryRecord): boolean {
+    return !(entry.status === 'scheduled' && !!entry.runStartedAt && !entry.runEndedAt);
+  }
+
+  async removeHistoryEntry(entryId: string): Promise<void> {
+    this.clearWorkspaceNotice();
+    try {
+      await this.data.removeJobHistoryEntry(entryId, this.roleSignal());
+      if (this.editingHistoryEntryIdSignal() === entryId) {
+        this.cancelHistoryEdit();
+      }
+      this.historyErrorsSignal.set([]);
+      this.historySuccessSignal.set('History entry removed.');
+      await this.loadRoster();
+    } catch (error) {
+      this.historySuccessSignal.set(null);
+      this.historyErrorsSignal.set([
+        this.readApiErrorMessage(error, 'Unable to remove history entry.'),
+      ]);
+    }
+  }
+
   async removeHoursEntry(entryId: string): Promise<void> {
     this.clearWorkspaceNotice();
     try {

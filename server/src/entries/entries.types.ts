@@ -1,6 +1,7 @@
 import type {
   CreateEntryDto,
   EntryCalendarDto,
+  EntryExecutionDto,
   EntryFormDto,
   EntryVariant,
   HedgeConfigDto,
@@ -37,6 +38,7 @@ export interface ClientHistoryEntry {
   desiredBudget?: string;
   additionalDetails?: string;
   calendar?: EntryCalendarDto;
+  execution?: EntryExecutionDto;
   hedges: Record<string, HedgeConfigDto>;
   hedgePlan: string[];
   form: EntryFormDto;
@@ -56,4 +58,16 @@ export interface ClientMatchResult {
   client: ClientSummary;
   matchedBy: ClientMatchReason;
   descriptor: string;
+}
+
+export interface EntryExecutionCompletionPayload {
+  startedAt: string | null;
+  endedAt: string;
+  completionNote: string | null;
+  completedByRole: 'owner' | 'manager';
+  crew: {
+    employeeId: string;
+    fullName: string;
+    hoursWorked: number;
+  }[];
 }

@@ -14,6 +14,7 @@ import type {
   EmployeeScheduledHistoryReassignPayload,
   EmployeeScheduledHistoryUpdatePayload,
   EmployeeRunMemberClockOutPayload,
+  EmployeeRunEndPayload,
   EmployeeAssignmentRunLifecycleResult,
   EmployeeStartNextJobAssignmentPayload,
   EmployeeStartNextJobAssignmentResult,
@@ -106,6 +107,17 @@ export class EmployeesDataService {
     );
   }
 
+  async removeJobHistoryEntry(
+    entryId: string,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<void> {
+    await firstValueFrom(
+      this.http.delete<void>(`${this.baseUrl}/history/${entryId}`, {
+        headers: this.operatorHeaders(actorRole),
+      }),
+    );
+  }
+
   async reassignScheduledHistoryEntry(
     entryId: string,
     payload: EmployeeScheduledHistoryReassignPayload,
@@ -139,12 +151,13 @@ export class EmployeesDataService {
 
   async endAssignmentRun(
     entryId: string,
+    payload: EmployeeRunEndPayload,
     actorRole: EmployeeOperatorRole,
   ): Promise<EmployeeAssignmentRunLifecycleResult> {
     return firstValueFrom(
       this.http.post<EmployeeAssignmentRunLifecycleResult>(
         `${this.baseUrl}/history/${entryId}/end`,
-        null,
+        payload,
         {
           headers: this.operatorHeaders(actorRole),
         },

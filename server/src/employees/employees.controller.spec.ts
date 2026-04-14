@@ -190,7 +190,11 @@ describe('EmployeesController', () => {
       'manager',
     );
     await controller.startAssignmentRun('job-1', 'manager');
-    await controller.endAssignmentRun('job-1', 'manager');
+    await controller.endAssignmentRun(
+      'job-1',
+      { completionNote: 'Wrapped up cleanly' },
+      'manager',
+    );
     await controller.clockOutAssignmentMember(
       'job-1',
       { reason: 'Left early' },
@@ -257,7 +261,11 @@ describe('EmployeesController', () => {
       'manager',
     );
     expect(startAssignmentRun).toHaveBeenCalledWith('job-1', 'manager');
-    expect(endAssignmentRun).toHaveBeenCalledWith('job-1', 'manager');
+    expect(endAssignmentRun).toHaveBeenCalledWith(
+      'job-1',
+      'manager',
+      'Wrapped up cleanly',
+    );
     expect(clockOutAssignmentMember).toHaveBeenCalledWith(
       'job-1',
       { reason: 'Left early' },

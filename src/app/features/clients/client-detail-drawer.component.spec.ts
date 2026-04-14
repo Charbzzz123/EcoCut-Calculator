@@ -32,6 +32,16 @@ const detail: ClientDetail = {
         end: '2026-03-05T11:30:00Z',
         timeZone: 'America/Toronto',
       },
+      execution: {
+        status: 'completed',
+        startedAt: '2026-03-05T10:05:00Z',
+        endedAt: '2026-03-05T11:40:00Z',
+        completionNote: 'Gate cleanup done.',
+        completedByRole: 'owner',
+        totalHours: 1.58,
+        crew: [{ employeeId: 'emp-1', fullName: 'Alex Stone', hoursWorked: 1.58 }],
+        updatedAt: '2026-03-05T11:40:00Z',
+      },
       hedges: createEmptyHedgeConfigs(),
       hedgePlan: ['Front Trim (i,t)'],
       form: {
@@ -78,6 +88,8 @@ describe('ClientDetailDrawerComponent', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Hedge Trimming');
     expect(fixture.nativeElement.textContent).toContain('(438) 555-1111');
+    expect(fixture.nativeElement.textContent).toContain('Crew on job');
+    expect(fixture.nativeElement.textContent).toContain('Gate cleanup done.');
   });
 
   it('emits retry when error state button is clicked', () => {

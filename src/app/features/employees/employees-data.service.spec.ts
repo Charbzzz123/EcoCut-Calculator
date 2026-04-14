@@ -135,7 +135,11 @@ describe('EmployeesDataService', () => {
       'manager',
     );
     const startRunPromise = service.startAssignmentRun('job-1', 'manager');
-    const endRunPromise = service.endAssignmentRun('job-1', 'owner');
+    const endRunPromise = service.endAssignmentRun(
+      'job-1',
+      { completionNote: 'Finished with gate cleanup.' },
+      'owner',
+    );
     const clockOutRunMemberPromise = service.clockOutAssignmentMember(
       'job-1',
       { reason: 'Left early' },
@@ -194,6 +198,9 @@ describe('EmployeesDataService', () => {
     expect(reassignScheduleReq.request.headers.get('x-operator-role')).toBe('manager');
     expect(startRunReq.request.headers.get('x-operator-role')).toBe('manager');
     expect(endRunReq.request.headers.get('x-operator-role')).toBe('owner');
+    expect(endRunReq.request.body).toEqual({
+      completionNote: 'Finished with gate cleanup.',
+    });
     expect(clockOutRunMemberReq.request.headers.get('x-operator-role')).toBe(
       'manager',
     );

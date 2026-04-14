@@ -28,6 +28,23 @@ export interface EntryCalendarDto {
   eventId?: string;
 }
 
+export interface EntryExecutionCrewMemberDto {
+  employeeId: string;
+  fullName: string;
+  hoursWorked: number;
+}
+
+export interface EntryExecutionDto {
+  status: 'scheduled' | 'running' | 'completed';
+  startedAt?: string | null;
+  endedAt?: string | null;
+  completionNote?: string | null;
+  completedByRole?: 'owner' | 'manager' | null;
+  totalHours: number;
+  crew: EntryExecutionCrewMemberDto[];
+  updatedAt: string;
+}
+
 export interface EntryFormDto {
   firstName: string;
   lastName: string;
@@ -45,4 +62,5 @@ export interface CreateEntryDto {
   form: EntryFormDto;
   hedges: Record<string, HedgeConfigDto>;
   calendar?: EntryCalendarDto;
+  execution?: EntryExecutionDto;
 }

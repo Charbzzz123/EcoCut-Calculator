@@ -1267,6 +1267,7 @@ export class StartNextJobFacade implements OnDestroy {
   async endHistoryRun(
     entryId: string,
     actorRole: EmployeeOperatorRole = 'owner',
+    completionNote: string | null = null,
   ): Promise<boolean> {
     const existing = this.historySignal().find((entry) => entry.id === entryId);
     if (!existing) {
@@ -1291,6 +1292,7 @@ export class StartNextJobFacade implements OnDestroy {
     );
     this.saveState.set('saving');
     this.saveMessage.set('Ending run and clocking out crew...');
+    const normalizedCompletionNote = completionNote?.trim() || null;
     this.removeSelectedHistoryIds([entryId]);
     this.applyHistoryUpserts([
       {
@@ -1298,11 +1300,15 @@ export class StartNextJobFacade implements OnDestroy {
         status: 'completed',
         runEndedAt: nowIso,
         hoursWorked: durationHours,
-        runClockOutReason: null,
+        runClockOutReason: normalizedCompletionNote,
       },
     ]);
     try {
-      const lifecycle = await this.employeesData.endAssignmentRun(entryId, actorRole);
+      const lifecycle = await this.employeesData.endAssignmentRun(
+        entryId,
+        normalizedCompletionNote ? { completionNote: normalizedCompletionNote } : {},
+        actorRole,
+      );
       this.applyHistoryUpserts(lifecycle.updatedHistory);
       this.saveState.set('success');
       this.saveMessage.set('Run ended. Remaining crew members were clocked out.');

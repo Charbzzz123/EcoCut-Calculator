@@ -184,8 +184,34 @@ export class StartNextJobShellComponent implements OnInit, OnDestroy {
   }
 
   protected endOngoingRun(entryId: string): void {
-    this.setStepFocus('history');
-    void this.facade.endHistoryRun(entryId);
+    this.requestEndRun(entryId, true);
+  }
+
+  protected endHistoryRun(entryId: string): void {
+    this.requestEndRun(entryId, false);
+  }
+
+  private requestEndRun(entryId: string, switchToHistory: boolean): void {
+    const note = globalThis.prompt(
+      'Optional completion note (leave blank to end without note):',
+      '',
+    );
+    if (note === null) {
+      return;
+    }
+    const normalizedNote = note.trim();
+    const confirmed = globalThis.confirm(
+      normalizedNote
+        ? `End this ongoing job now?\n\nNote: ${normalizedNote}`
+        : 'End this ongoing job now?',
+    );
+    if (!confirmed) {
+      return;
+    }
+    if (switchToHistory) {
+      this.setStepFocus('history');
+    }
+    void this.facade.endHistoryRun(entryId, 'owner', normalizedNote || null);
   }
 
   protected ongoingRunStateLabel(state: 'on_schedule' | 'late' | 'early_start'): string {

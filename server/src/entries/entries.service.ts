@@ -11,6 +11,7 @@ import type { UpdateClientDto } from './dto/update-client.dto';
 import { EntriesRepository } from './entries.repository';
 import type {
   ClientDetail,
+  EntryExecutionCompletionPayload,
   ClientMatchReason,
   ClientMatchResult,
   ClientSummary,
@@ -186,6 +187,7 @@ export class EntriesService implements OnModuleInit {
         desiredBudget: entry.form.desiredBudget,
         additionalDetails: entry.form.additionalDetails,
         calendar: entry.calendar,
+        execution: entry.execution,
         hedges: entry.hedges,
         hedgePlan: this.describeHedgePlan(entry.hedges),
         form: { ...entry.form },
@@ -208,6 +210,45 @@ export class EntriesService implements OnModuleInit {
       ...payload,
       id: preserved.id,
       createdAt: preserved.createdAt,
+      execution: payload.execution ?? preserved.execution,
+    };
+    this.entries[index] = updated;
+    await this.repository.saveEntries(this.entries);
+    this.rebuildClientSummaries();
+    return updated;
+  }
+
+  async applyExecutionCompletion(
+    entryId: string,
+    payload: EntryExecutionCompletionPayload,
+  ): Promise<StoredEntry> {
+    const index = this.entries.findIndex((entry) => entry.id === entryId);
+    if (index === -1) {
+      throw new NotFoundException(`Entry ${entryId} not found`);
+    }
+
+    const current = this.entries[index];
+    const nextExecution = {
+      status: 'completed' as const,
+      startedAt: payload.startedAt,
+      endedAt: payload.endedAt,
+      completionNote: payload.completionNote,
+      completedByRole: payload.completedByRole,
+      totalHours: payload.crew.reduce(
+        (sum, member) => sum + member.hoursWorked,
+        0,
+      ),
+      crew: payload.crew.map((member) => ({
+        employeeId: member.employeeId,
+        fullName: member.fullName,
+        hoursWorked: member.hoursWorked,
+      })),
+      updatedAt: payload.endedAt,
+    };
+
+    const updated: StoredEntry = {
+      ...current,
+      execution: nextExecution,
     };
     this.entries[index] = updated;
     await this.repository.saveEntries(this.entries);

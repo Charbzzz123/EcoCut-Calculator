@@ -85,6 +85,8 @@ class EmployeesFacadeStub {
     this.historyErrorsSignal.set([]);
   });
   readonly saveHistoryEdit = vi.fn(async () => true);
+  readonly removeHistoryEntry = vi.fn(async () => undefined);
+  readonly canDeleteHistoryEntry = vi.fn(() => true);
   readonly saveHoursEntry = vi.fn(async () => true);
   readonly editHoursEntry = vi.fn();
   readonly removeHoursEntry = vi.fn();
@@ -861,6 +863,34 @@ describe('ManageEmployeesShellComponent', () => {
     ) as HTMLButtonElement;
     editSchedule.click();
     expect(facade.startHistoryEdit).toHaveBeenCalledWith('history-2');
+  });
+
+  it('forwards history deletion when confirmed', () => {
+    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true);
+    facade.setViewModel({
+      loadState: 'ready',
+      roster: [activeRecord],
+      filteredRoster: [activeRecord],
+      selectedHistoryEmployeeId: activeRecord.id,
+      historyEntries: [scheduledHistoryEntry],
+    });
+
+    const fixture = TestBed.createComponent(ManageEmployeesShellComponent);
+    fixture.detectChanges();
+    const native = fixture.nativeElement as HTMLElement;
+    (native.querySelector('.employees-roster .employee-card') as HTMLElement).click();
+    fixture.detectChanges();
+    const cardActions = native.querySelectorAll('.employee-card__actions .employee-action');
+    (cardActions[0] as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    const historyActions = native.querySelectorAll('.history-card__actions .employee-action');
+    const deleteButton = historyActions[1] as HTMLButtonElement;
+    deleteButton.click();
+
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(facade.removeHistoryEntry).toHaveBeenCalledWith('history-2');
+    confirmSpy.mockRestore();
   });
 
   it('renders inline history editor and forwards save/cancel actions', () => {

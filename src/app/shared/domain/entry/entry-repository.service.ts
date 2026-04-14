@@ -35,6 +35,20 @@ export interface ClientHistoryEntry {
   desiredBudget?: string;
   additionalDetails?: string;
   calendar?: EntryModalPayload['calendar'];
+  execution?: {
+    status: 'scheduled' | 'running' | 'completed';
+    startedAt?: string | null;
+    endedAt?: string | null;
+    completionNote?: string | null;
+    completedByRole?: 'owner' | 'manager' | null;
+    totalHours: number;
+    crew: {
+      employeeId: string;
+      fullName: string;
+      hoursWorked: number;
+    }[];
+    updatedAt: string;
+  };
   hedges: EntryModalPayload['hedges'];
   hedgePlan: string[];
   form: EntryModalPayload['form'];

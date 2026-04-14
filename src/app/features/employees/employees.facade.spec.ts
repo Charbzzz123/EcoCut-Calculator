@@ -375,6 +375,18 @@ class EmployeesDataServiceStub {
     }
   }
 
+  async removeJobHistoryEntry(entryId: string) {
+    const historyIndex = this.jobHistoryRecords.findIndex((entry) => entry.id === entryId);
+    if (historyIndex >= 0) {
+      this.jobHistoryRecords.splice(historyIndex, 1);
+    }
+    for (let index = this.hoursRecords.length - 1; index >= 0; index -= 1) {
+      if (this.hoursRecords[index]?.historyEntryId === entryId) {
+        this.hoursRecords.splice(index, 1);
+      }
+    }
+  }
+
   async recordClockAction(payload: { employeeId: string; action: 'clock_in' | 'clock_out' }) {
     const now = '2026-03-21T14:00:00Z';
     if (payload.action === 'clock_in') {
@@ -967,6 +979,47 @@ describe('EmployeesFacade', () => {
     });
     await expect(facade.saveHistoryEdit()).resolves.toBe(false);
     expect(facade.historyErrorsSnapshot()[0]).toContain('Updated schedule overlaps');
+  });
+
+  it('removes history entries and reports success', async () => {
+    await facade.loadRoster();
+    facade.openJobHistory('active-1');
+
+    await facade.removeHistoryEntry('job-active-2');
+
+    expect(
+      facade
+        .selectedEmployeeJobHistorySnapshot()
+        .some((entry) => entry.id === 'job-active-2'),
+    ).toBe(false);
+    expect(facade.historySuccessSnapshot()).toBe('History entry removed.');
+  });
+
+  it('prevents deleting active-run history entries and surfaces API failures', async () => {
+    await facade.loadRoster();
+    const activeRunEntry: EmployeeJobHistoryRecord = {
+      id: 'job-active-run',
+      employeeId: 'active-1',
+      siteLabel: 'Live assignment',
+      address: '123 Current Ave',
+      scheduledStart: '2099-03-28T10:00:00Z',
+      scheduledEnd: '2099-03-28T12:00:00Z',
+      hoursWorked: 2,
+      status: 'scheduled',
+      runStartedAt: '2099-03-28T10:15:00Z',
+      runEndedAt: null,
+    };
+    expect(facade.canDeleteHistoryEntry(activeRunEntry)).toBe(false);
+
+    vi.spyOn(service, 'removeJobHistoryEntry').mockRejectedValueOnce({
+      error: { message: 'Unable to remove history entry right now.' },
+    });
+    await facade.removeHistoryEntry('job-active-1');
+
+    expect(facade.historySuccessSnapshot()).toBeNull();
+    expect(facade.historyErrorsSnapshot()[0]).toContain(
+      'Unable to remove history entry right now.',
+    );
   });
 
   it('surfaces nested and top-level API messages for profile/archive/restore failures', async () => {

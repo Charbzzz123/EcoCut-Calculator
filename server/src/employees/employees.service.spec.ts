@@ -142,11 +142,62 @@ class FakeEntriesService {
       },
     },
   ];
+  executionUpdates: {
+    entryId: string;
+    startedAt: string | null;
+    endedAt: string;
+    completionNote: string | null;
+    completedByRole: 'owner' | 'manager';
+    crew: {
+      employeeId: string;
+      fullName: string;
+      hoursWorked: number;
+    }[];
+  }[] = [];
 
   listEntries(): StoredEntry[] {
     return this.entries.map(
       (entry) => JSON.parse(JSON.stringify(entry)) as StoredEntry,
     );
+  }
+
+  applyExecutionCompletion(
+    entryId: string,
+    payload: {
+      startedAt: string | null;
+      endedAt: string;
+      completionNote: string | null;
+      completedByRole: 'owner' | 'manager';
+      crew: {
+        employeeId: string;
+        fullName: string;
+        hoursWorked: number;
+      }[];
+    },
+  ): Promise<StoredEntry> {
+    const index = this.entries.findIndex((entry) => entry.id === entryId);
+    if (index < 0) {
+      throw new NotFoundException(`Entry ${entryId} not found`);
+    }
+    const updated: StoredEntry = {
+      ...this.entries[index],
+      execution: {
+        status: 'completed',
+        startedAt: payload.startedAt,
+        endedAt: payload.endedAt,
+        completionNote: payload.completionNote,
+        completedByRole: payload.completedByRole,
+        totalHours: payload.crew.reduce(
+          (sum, member) => sum + member.hoursWorked,
+          0,
+        ),
+        crew: payload.crew,
+        updatedAt: payload.endedAt,
+      },
+    };
+    this.entries[index] = updated;
+    this.executionUpdates.push({ entryId, ...payload });
+    return Promise.resolve(updated);
   }
 }
 
@@ -532,6 +583,47 @@ describe('EmployeesService', () => {
       .find((entry) => entry.id === hoursId);
     expect(persistedHours?.clockInAt).toBeTruthy();
     expect(persistedHours?.clockOutAt).toBeTruthy();
+    expect(entriesService.executionUpdates).toHaveLength(0);
+  });
+
+  it('syncs linked client job completion details when ending an assignment run', async () => {
+    const created = await service.createStartNextJobAssignment(
+      {
+        jobLabel: 'Manual value ignored',
+        address: 'Manual value ignored',
+        scheduledStart: '2099-03-27T09:00:00.000Z',
+        scheduledEnd: '2099-03-27T11:00:00.000Z',
+        employeeIds: ['emp-owner'],
+        jobEntryId: 'entry-1',
+      },
+      'owner',
+    );
+    const entryId = created.createdHistory[0]?.id ?? '';
+
+    await service.startAssignmentRun(entryId, 'owner');
+    const ended = await service.endAssignmentRun(
+      entryId,
+      'manager',
+      'Closed out with driveway cleanup.',
+    );
+
+    expect(ended.updatedHistory[0]?.runClockOutReason).toBe(
+      'Closed out with driveway cleanup.',
+    );
+    expect(entriesService.executionUpdates).toHaveLength(1);
+    expect(entriesService.executionUpdates[0]).toEqual(
+      expect.objectContaining({
+        entryId: 'entry-1',
+        completionNote: 'Closed out with driveway cleanup.',
+        completedByRole: 'manager',
+      }),
+    );
+    expect(entriesService.executionUpdates[0]?.crew).toEqual([
+      expect.objectContaining({
+        employeeId: 'emp-owner',
+        fullName: 'Alex Nassif',
+      }),
+    ]);
   });
 
   it('supports manual mid-run clock-out for one employee without ending other active crew', async () => {

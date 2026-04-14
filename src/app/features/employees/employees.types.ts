@@ -121,6 +121,10 @@ export interface EmployeeAssignmentRunLifecycleResult {
   updatedHours: EmployeeHoursRecord[];
 }
 
+export interface EmployeeRunEndPayload {
+  completionNote?: string;
+}
+
 export interface EmployeeRunMemberClockOutPayload {
   reason?: string;
 }

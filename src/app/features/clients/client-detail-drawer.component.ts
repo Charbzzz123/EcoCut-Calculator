@@ -120,5 +120,23 @@ export class ClientDetailDrawerComponent {
   protected requestEntryDelete(history: ClientHistoryEntry): void {
     this.deleteEntry.emit(history);
   }
-}
 
+  protected formatExecutionStatus(
+    status: 'scheduled' | 'running' | 'completed' | undefined,
+  ): string {
+    if (status === 'completed') {
+      return 'Completed';
+    }
+    if (status === 'running') {
+      return 'In progress';
+    }
+    if (status === 'scheduled') {
+      return 'Scheduled';
+    }
+    return 'Unknown';
+  }
+
+  protected formatHours(value: number): string {
+    return Number.isInteger(value) ? `${value}h` : `${value.toFixed(2)}h`;
+  }
+}

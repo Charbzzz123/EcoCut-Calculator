@@ -203,4 +203,42 @@ describe('EntriesService', () => {
     });
     expect(result).toBeNull();
   });
+
+  it('applies completion execution metadata to a linked entry', async () => {
+    const created = await service.createEntry(
+      createPayload({
+        form: {
+          firstName: 'Alex',
+          lastName: 'Stone',
+          address: '123 Pine',
+          phone: '(438) 555-1111',
+          email: 'alex@example.com',
+          jobType: 'Trim',
+          jobValue: '1200',
+        },
+        calendar: {
+          start: '2026-03-06T13:00:00Z',
+          end: '2026-03-06T16:00:00Z',
+        },
+      }),
+    );
+
+    await service.applyExecutionCompletion(created.id, {
+      startedAt: '2026-03-06T13:05:00Z',
+      endedAt: '2026-03-06T16:22:00Z',
+      completionNote: 'Customer asked for extra cleanup around gate.',
+      completedByRole: 'owner',
+      crew: [
+        { employeeId: 'emp-1', fullName: 'Alex Stone', hoursWorked: 3.25 },
+        { employeeId: 'emp-2', fullName: 'Jamie Brook', hoursWorked: 3.25 },
+      ],
+    });
+
+    const detail = service.getClientDetails('alex@example.com');
+    const execution = detail.history[0]?.execution;
+    expect(execution?.status).toBe('completed');
+    expect(execution?.totalHours).toBe(6.5);
+    expect(execution?.completionNote).toContain('extra cleanup');
+    expect(execution?.crew).toHaveLength(2);
+  });
 });
