@@ -7,6 +7,21 @@ import type {
   EmployeeJobHistoryRecord,
   EmployeeStartNextJobReadiness,
 } from '../employees/employees.types.js';
+import type { AddressSuggestResponse } from '../../shared/domain/address/address-lookup.service.js';
+
+interface WritableSignalLike<T> {
+  (): T;
+  set(value: T): void;
+}
+
+interface StartNextJobFacadeInternals {
+  handleAddressQuery(value: string): Promise<void>;
+  applyAddressSuggestResult(value: AddressSuggestResponse): void;
+  showAddressSuggestions: WritableSignalLike<boolean>;
+  addressSuggestions: WritableSignalLike<readonly unknown[]>;
+  addressLookupMessage: WritableSignalLike<string | null>;
+  addressSelectionId: string | null;
+}
 
 class EmployeesDataServiceStub {
   readiness: EmployeeStartNextJobReadiness[] = [];
@@ -277,6 +292,63 @@ class EmployeesDataServiceStub {
 }
 
 class AddressLookupServiceStub {
+  nextValidateResult: {
+    verified: boolean;
+    status:
+      | 'verified'
+      | 'missing_selection'
+      | 'quota_reached'
+      | 'provider_unconfigured'
+      | 'provider_error'
+      | 'invalid';
+    normalizedAddress?: {
+      formattedAddress: string;
+      streetAddress: string;
+      city: string;
+      province: string;
+      postalCode: string;
+      countryCode: string;
+      latitude: number;
+      longitude: number;
+    };
+    message?: string;
+    usage: {
+      period: string;
+      usageCount: number;
+      softCap: number;
+      hardCap: number;
+      thresholds: {
+        warn75Reached: boolean;
+        warn90Reached: boolean;
+        hardStopReached: boolean;
+      };
+    };
+  } = {
+    verified: true,
+    status: 'verified' as const,
+    normalizedAddress: {
+      formattedAddress: '1450 Pine Ave W, Westmount, QC',
+      streetAddress: '1450 Pine Ave W',
+      city: 'Westmount',
+      province: 'QC',
+      postalCode: 'H3Y 1A1',
+      countryCode: 'CA',
+      latitude: 45,
+      longitude: -73,
+    },
+    usage: {
+      period: '2026-04',
+      usageCount: 0,
+      softCap: 800,
+      hardCap: 1000,
+      thresholds: {
+        warn75Reached: false,
+        warn90Reached: false,
+        hardStopReached: false,
+      },
+    },
+  };
+
   async suggest(query: string) {
     return {
       status: query.length >= 3 ? 'ok' : 'no_results',
@@ -286,7 +358,7 @@ class AddressLookupServiceStub {
           ? [
               {
                 id: 'addr-1',
-                fullAddress: '1450 Pine Ave W, Westmount, QC',
+                label: '1450 Pine Ave W, Westmount, QC',
                 primaryText: '1450 Pine Ave W',
                 secondaryText: 'Westmount, QC',
               },
@@ -307,22 +379,14 @@ class AddressLookupServiceStub {
   }
 
   async validate(id: string) {
-    return {
-      status: id ? 'ok' : 'invalid',
-      message: null,
-      address: '1450 Pine Ave W, Westmount, QC',
-      usage: {
-        period: '2026-04',
-        usageCount: 0,
-        softCap: 800,
-        hardCap: 1000,
-        thresholds: {
-          warn75Reached: false,
-          warn90Reached: false,
-          hardStopReached: false,
-        },
-      },
-    } as const;
+    if (!id) {
+      return {
+        ...this.nextValidateResult,
+        verified: false,
+        status: 'invalid' as const,
+      };
+    }
+    return this.nextValidateResult;
   }
 }
 
@@ -558,6 +622,97 @@ describe('StartNextJobFacade', () => {
 
     expect(facade.scheduledStartControl.value).toBe('2026-03-21T09:00');
     expect(facade.scheduledEndControl.value).toBe('2026-03-21T10:00');
+  });
+
+  it('shows and hides address suggestions using focus and blur handlers', async () => {
+    await facade.loadBoard();
+    facade.addressControl.setValue('1450 Pine');
+    facade.addressSuggestions.set([
+      {
+        id: 'addr-1',
+        label: '1450 Pine Ave W, Westmount, QC',
+        primaryText: '1450 Pine Ave W',
+        secondaryText: 'Westmount, QC',
+      },
+    ]);
+
+    facade.handleAddressFocus();
+    expect(facade.showAddressSuggestions()).toBe(true);
+
+    vi.useFakeTimers();
+    facade.handleAddressBlur();
+    vi.advanceTimersByTime(121);
+    expect(facade.showAddressSuggestions()).toBe(false);
+    vi.useRealTimers();
+
+    facade.linkedJobEntryIdControl.setValue('entry-1');
+    facade.applyLinkedJobSelection();
+    facade.handleAddressFocus();
+    expect(facade.showAddressSuggestions()).toBe(false);
+  });
+
+  it('validates selected address suggestions and reports invalid selections', async () => {
+    await facade.loadBoard();
+    addressService.nextValidateResult = {
+      ...addressService.nextValidateResult,
+      verified: true,
+      status: 'verified',
+      usage: {
+        ...addressService.nextValidateResult.usage,
+        thresholds: {
+          warn75Reached: true,
+          warn90Reached: false,
+          hardStopReached: false,
+        },
+      },
+    };
+    await facade.selectAddressSuggestion({
+      id: 'addr-1',
+      label: '1450 Pine Ave W, Westmount, QC',
+      primaryText: '1450 Pine Ave W',
+      secondaryText: 'Westmount, QC',
+    });
+    expect(facade.addressVerified()).toBe(true);
+    expect(facade.addressLookupMessage()).toContain('above 75%');
+
+    addressService.nextValidateResult = {
+      ...addressService.nextValidateResult,
+      verified: false,
+      status: 'invalid',
+      message: 'Invalid suggestion',
+      usage: {
+        ...addressService.nextValidateResult.usage,
+        thresholds: {
+          warn75Reached: false,
+          warn90Reached: false,
+          hardStopReached: false,
+        },
+      },
+    };
+    await facade.selectAddressSuggestion({
+      id: 'addr-1',
+      label: 'Invalid',
+      primaryText: 'Invalid',
+      secondaryText: 'Invalid',
+    });
+    expect(facade.addressVerified()).toBe(false);
+    expect(facade.addressLookupMessage()).toBe('Invalid suggestion');
+  });
+
+  it('ignores address suggestion selection when linked-job mode is active', async () => {
+    await facade.loadBoard();
+    facade.linkedJobEntryIdControl.setValue('entry-1');
+    facade.applyLinkedJobSelection();
+    const currentAddress = facade.addressControl.value;
+
+    await facade.selectAddressSuggestion({
+      id: 'addr-1',
+      label: 'Changed address',
+      primaryText: 'Changed address',
+      secondaryText: 'Changed city',
+    });
+
+    expect(facade.addressControl.value).toBe(currentAddress);
   });
 
   it('hides completed logged-job options by default and reveals them via advanced toggle', async () => {
@@ -1631,5 +1786,153 @@ describe('StartNextJobFacade', () => {
     expect(facade.selectedCrewHistory().find((item) => item.id === 'hist-2')?.employeeId).toBe(
       'emp-b',
     );
+  });
+
+  it('computes dispatch timing labels/summaries for both modes and invalid schedules', async () => {
+    await facade.loadBoard();
+    facade.setDispatchMode('start_now', new Date('2026-03-25T10:00:00.000Z'));
+    expect(facade.dispatchTimingLabel()).toBe('Starts now');
+    expect(facade.dispatchTimingSummary()).toContain('Starts now:');
+
+    facade.setDispatchMode('schedule_later', new Date('2026-03-25T10:00:00.000Z'));
+    expect(facade.dispatchTimingLabel()).toBe('Scheduled for later');
+    expect(facade.dispatchTimingSummary()).toContain('Scheduled for later:');
+
+    facade.scheduledStartControl.setValue('');
+    facade.scheduledEndControl.setValue('');
+    expect(facade.dispatchTimingSummary()).toBe('Set a linked job mode to establish timing.');
+
+    facade.scheduledStartControl.setValue('not-a-date');
+    facade.scheduledEndControl.setValue('not-a-date');
+    expect(facade.dispatchTimingSummary()).toBe('Set valid start and end values.');
+  });
+
+  it('covers address query cache and quota messaging branches', async () => {
+    await facade.loadBoard();
+    const privateFacade = facade as unknown as StartNextJobFacadeInternals;
+    const suggestSpy = vi.spyOn(addressService, 'suggest');
+
+    await privateFacade.handleAddressQuery('ab');
+    expect(facade.showAddressSuggestions()).toBe(false);
+    expect(facade.addressSuggestions()).toEqual([]);
+
+    await privateFacade.handleAddressQuery('westmount');
+    expect(facade.showAddressSuggestions()).toBe(true);
+    await privateFacade.handleAddressQuery('westmount');
+    expect(suggestSpy).toHaveBeenCalledTimes(1);
+
+    privateFacade.applyAddressSuggestResult({
+      status: 'ok',
+      suggestions: [],
+      message: undefined,
+      usage: {
+        monthKey: '2026-04',
+        caps: {
+          autocompleteRequests: 10_000,
+          placeDetailsRequests: 10_000,
+          addressValidationRequests: 5_000,
+        },
+        counts: {
+          autocompleteRequests: 0,
+          placeDetailsRequests: 0,
+          addressValidationRequests: 0,
+        },
+        thresholds: {
+          warn75Reached: false,
+          warn90Reached: false,
+          hardStopReached: false,
+        },
+      },
+    });
+    expect(facade.addressLookupMessage()).toBe('No matching addresses found.');
+
+    privateFacade.applyAddressSuggestResult({
+      status: 'quota_reached',
+      suggestions: [],
+      message: 'Address cap reached.',
+      usage: {
+        monthKey: '2026-04',
+        caps: {
+          autocompleteRequests: 10_000,
+          placeDetailsRequests: 10_000,
+          addressValidationRequests: 5_000,
+        },
+        counts: {
+          autocompleteRequests: 9_500,
+          placeDetailsRequests: 0,
+          addressValidationRequests: 0,
+        },
+        thresholds: {
+          warn75Reached: true,
+          warn90Reached: true,
+          hardStopReached: false,
+        },
+      },
+    });
+    expect(facade.addressLookupMessage()).toBe('Address cap reached.');
+    expect(facade.showAddressSuggestions()).toBe(false);
+
+    privateFacade.applyAddressSuggestResult({
+      status: 'ok',
+      suggestions: [
+        {
+          id: 'addr-1',
+          label: '1450 Pine Ave W, Westmount, QC',
+          primaryText: '1450 Pine Ave W',
+          secondaryText: 'Westmount, QC',
+        },
+      ],
+      usage: {
+        monthKey: '2026-04',
+        caps: {
+          autocompleteRequests: 10_000,
+          placeDetailsRequests: 10_000,
+          addressValidationRequests: 5_000,
+        },
+        counts: {
+          autocompleteRequests: 8_500,
+          placeDetailsRequests: 0,
+          addressValidationRequests: 0,
+        },
+        thresholds: {
+          warn75Reached: true,
+          warn90Reached: false,
+          hardStopReached: false,
+        },
+      },
+    });
+    expect(facade.addressLookupMessage()).toContain('above 75%');
+
+    suggestSpy.mockRejectedValueOnce(new Error('lookup-fail'));
+    await privateFacade.handleAddressQuery('montreal');
+    expect(facade.addressLookupMessage()).toBe('Unable to search addresses right now.');
+  });
+
+  it('clears save feedback and exposes active job option visibility branches', async () => {
+    await facade.loadBoard();
+    expect(facade.hasVisibleLoggedJobOptions()).toBe(true);
+    facade.clearCrewSelection();
+    expect(facade.saveState()).toBe('idle');
+    facade.dismissSaveFeedback();
+    expect(facade.saveState()).toBe('idle');
+
+    dataService.history = [
+      {
+        id: 'active-run-1',
+        employeeId: 'emp-a',
+        siteLabel: 'Live hedge',
+        address: '1450 Pine Ave W',
+        scheduledStart: '2026-03-21T13:00:00.000Z',
+        scheduledEnd: '2026-03-21T17:00:00.000Z',
+        hoursWorked: 4,
+        status: 'scheduled',
+        runStartedAt: '2026-03-21T13:05:00.000Z',
+        runEndedAt: null,
+        jobEntryId: 'entry-1',
+      },
+    ];
+    await facade.loadBoard();
+    expect(facade.visibleLoggedJobOptions()).toEqual([]);
+    expect(facade.hasVisibleLoggedJobOptions()).toBe(false);
   });
 });

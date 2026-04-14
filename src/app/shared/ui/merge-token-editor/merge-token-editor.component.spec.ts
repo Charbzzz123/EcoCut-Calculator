@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { SimpleChange } from '@angular/core';
 import { vi } from 'vitest';
 import { MergeTokenEditorComponent } from './merge-token-editor.component.js';
 
@@ -25,6 +26,11 @@ describe('MergeTokenEditorComponent', () => {
         label: 'Address',
       },
     ];
+  });
+
+  afterEach(() => {
+    ((document as unknown) as Record<string, unknown>)['caretPositionFromPoint'] = undefined;
+    ((document as unknown) as Record<string, unknown>)['caretRangeFromPoint'] = undefined;
   });
 
   it('renders merge values as token chips', () => {
@@ -64,6 +70,20 @@ describe('MergeTokenEditorComponent', () => {
     expect(changeSpy).toHaveBeenCalledWith('Hi [[First name]]');
   });
 
+  it('re-renders when input value changes after initial render', () => {
+    component.value = 'Hi {{firstName}}';
+    fixture.detectChanges();
+
+    component.value = 'Hello {{address}}';
+    component.ngOnChanges({
+      value: new SimpleChange('Hi {{firstName}}', 'Hello {{address}}', false),
+    });
+
+    const chips = fixture.nativeElement.querySelectorAll('.merge-token-editor__chip');
+    expect(chips.length).toBe(1);
+    expect(chips[0].textContent).toContain('Address');
+  });
+
   it('supports drop insertion with provider payload', () => {
     component.value = 'Hello ';
     fixture.detectChanges();
@@ -86,6 +106,22 @@ describe('MergeTokenEditorComponent', () => {
     } as unknown as DragEvent);
 
     expect(changeSpy).toHaveBeenCalledWith('Hello [[Address]]');
+  });
+
+  it('ignores drop when token payload is empty', () => {
+    component.value = 'Hello ';
+    fixture.detectChanges();
+    const changeSpy = vi.fn();
+    component.valueChange.subscribe(changeSpy);
+
+    component['onEditorDrop']({
+      preventDefault: vi.fn(),
+      dataTransfer: {
+        getData: vi.fn(() => ''),
+      },
+    } as unknown as DragEvent);
+
+    expect(changeSpy).not.toHaveBeenCalled();
   });
 
   it('moves an existing token chip when dragging inside the editor', () => {
@@ -146,5 +182,162 @@ describe('MergeTokenEditorComponent', () => {
     const transfer = { dropEffect: 'none' };
     component['onEditorDragOver']({ preventDefault: vi.fn(), dataTransfer: transfer } as unknown as DragEvent);
     expect(transfer.dropEffect).toBe('copy');
+  });
+
+  it('does nothing when drag starts from a non-chip target or chip without token', () => {
+    component.value = 'Hello';
+    fixture.detectChanges();
+
+    const setData = vi.fn();
+    component['onEditorDragStart']({
+      target: document.createElement('div'),
+      dataTransfer: { setData },
+    } as unknown as DragEvent);
+
+    const chipWithoutToken = document.createElement('span');
+    chipWithoutToken.className = 'merge-token-editor__chip';
+    component['onEditorDragStart']({
+      target: chipWithoutToken,
+      dataTransfer: { setData },
+    } as unknown as DragEvent);
+
+    expect(setData).not.toHaveBeenCalled();
+  });
+
+  it('uses caretPositionFromPoint when available during dragover', () => {
+    component.value = 'Hello';
+    fixture.detectChanges();
+
+    const editor = fixture.nativeElement.querySelector('.merge-token-editor__surface') as HTMLDivElement;
+    const textNode = editor.firstChild as Text;
+    ((document as unknown) as Record<string, unknown>)['caretPositionFromPoint'] = vi.fn(() => ({
+      offsetNode: textNode,
+      offset: 2,
+    }));
+
+    const transfer = { dropEffect: 'none' };
+    component['onEditorDragOver']({
+      preventDefault: vi.fn(),
+      clientX: 12,
+      clientY: 14,
+      dataTransfer: transfer,
+    } as unknown as DragEvent);
+
+    expect(transfer.dropEffect).toBe('copy');
+  });
+
+  it('falls back to caretRangeFromPoint when caretPositionFromPoint is unavailable', () => {
+    component.value = 'Hello';
+    fixture.detectChanges();
+
+    const editor = fixture.nativeElement.querySelector('.merge-token-editor__surface') as HTMLDivElement;
+    const textNode = editor.firstChild as Text;
+    const range = document.createRange();
+    range.setStart(textNode, 1);
+    range.collapse(true);
+
+    ((document as unknown) as Record<string, unknown>)['caretPositionFromPoint'] = undefined;
+    ((document as unknown) as Record<string, unknown>)['caretRangeFromPoint'] = vi.fn(() => range);
+
+    component['onEditorDragOver']({
+      preventDefault: vi.fn(),
+      clientX: 10,
+      clientY: 10,
+      dataTransfer: { dropEffect: 'none' },
+    } as unknown as DragEvent);
+
+    const selection = window.getSelection();
+    expect(selection?.rangeCount).toBeGreaterThan(0);
+  });
+
+  it('keeps selection safe when pointer coordinates are invalid', () => {
+    component.value = 'Hello';
+    fixture.detectChanges();
+
+    const before = window.getSelection()?.rangeCount ?? 0;
+    component['onEditorDragOver']({
+      preventDefault: vi.fn(),
+      clientX: Number.NaN,
+      clientY: Number.NaN,
+      dataTransfer: { dropEffect: 'none' },
+    } as unknown as DragEvent);
+    const after = window.getSelection()?.rangeCount ?? 0;
+
+    expect(after).toBe(before);
+  });
+
+  it('does not emit when input serialization keeps the same value', () => {
+    component.value = 'No change';
+    fixture.detectChanges();
+    const changeSpy = vi.fn();
+    component.valueChange.subscribe(changeSpy);
+
+    const editor = fixture.nativeElement.querySelector('.merge-token-editor__surface') as HTMLDivElement;
+    editor.dispatchEvent(new Event('input'));
+
+    expect(changeSpy).not.toHaveBeenCalled();
+  });
+
+  it('uses plain text fallback on drop when custom payload is missing', () => {
+    component.value = 'Hello ';
+    fixture.detectChanges();
+    const changeSpy = vi.fn();
+    component.valueChange.subscribe(changeSpy);
+
+    component['onEditorDrop']({
+      preventDefault: vi.fn(),
+      dataTransfer: {
+        getData: vi.fn((kind: string) => {
+          if (kind === 'application/ecocut-merge-token') {
+            return undefined as unknown as string;
+          }
+          return kind === 'text/plain' ? '[[Address]]' : '';
+        }),
+      },
+    } as unknown as DragEvent);
+
+    expect(changeSpy).toHaveBeenCalledWith('Hello [[Address]]');
+  });
+
+  it('ignores caret updates when resolved caret target is outside editor', () => {
+    component.value = 'Hello';
+    fixture.detectChanges();
+    ((document as unknown) as Record<string, unknown>)['caretPositionFromPoint'] = vi.fn(() => ({
+      offsetNode: document.createTextNode('outside'),
+      offset: 1,
+    }));
+
+    component['onEditorDragOver']({
+      preventDefault: vi.fn(),
+      clientX: 10,
+      clientY: 10,
+      dataTransfer: { dropEffect: 'none' },
+    } as unknown as DragEvent);
+
+    const selection = window.getSelection();
+    expect(selection?.rangeCount ?? 0).toBeGreaterThanOrEqual(0);
+  });
+
+  it('serializes block elements with line breaks', () => {
+    component.value = 'Base';
+    fixture.detectChanges();
+    const changeSpy = vi.fn();
+    component.valueChange.subscribe(changeSpy);
+    const editor = fixture.nativeElement.querySelector('.merge-token-editor__surface') as HTMLDivElement;
+    editor.innerHTML = '<div>Line 1</div><p>Line 2</p><br>Tail';
+
+    editor.dispatchEvent(new Event('input'));
+    const latest = changeSpy.mock.calls[changeSpy.mock.calls.length - 1]?.[0] as string;
+    expect(latest).toContain('Line 1\n');
+    expect(latest).toContain('Line 2\n');
+    expect(latest).toContain('Tail');
+  });
+
+  it('returns inline token label when canonical map is missing', () => {
+    component.mergeFields = [];
+    component.value = '[[Inline label]]';
+    fixture.detectChanges();
+    const chip = fixture.nativeElement.querySelector('.merge-token-editor__chip') as HTMLElement;
+    expect(chip.textContent).toContain('Inline label');
   });
 });

@@ -904,4 +904,118 @@ describe('StartNextJobShellComponent', () => {
     cancelEdit.click();
     expect(facade.cancelHistoryEdit).toHaveBeenCalled();
   });
+
+  it('ignores locked step changes and only changes when prerequisites are met', () => {
+    facade.loadState.set('ready');
+    fixture.detectChanges();
+
+    setStepFocus('crew', fixture);
+    expect(fixture.nativeElement.textContent).toContain('Step 1 - Job details');
+
+    facade.hasJobModeSelection.set(true);
+    setStepFocus('crew', fixture);
+    expect(fixture.nativeElement.textContent).toContain('Step 2 - Crew pool');
+
+    setStepFocus('review', fixture);
+    expect(fixture.nativeElement.textContent).toContain('Step 2 - Crew pool');
+
+    facade.selectedCrew.set([employee]);
+    setStepFocus('review', fixture);
+    expect(fixture.nativeElement.textContent).toContain('Step 3 - Assignment summary');
+  });
+
+  it('supports reduced-motion save toast closing without waiting for timer', () => {
+    facade.loadState.set('ready');
+    vi.stubGlobal(
+      'window',
+      Object.assign(window, {
+        matchMedia: vi.fn().mockReturnValue({ matches: true }),
+      }),
+    );
+    facade.saveState.set('success');
+    facade.saveMessage.set('Saved.');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.save-toast')).not.toBeNull();
+
+    facade.saveState.set('idle');
+    facade.saveMessage.set('');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.save-toast')).toBeNull();
+  });
+
+  it('animates save toast close when reduced motion is disabled', () => {
+    vi.useFakeTimers();
+    facade.loadState.set('ready');
+    vi.stubGlobal(
+      'window',
+      Object.assign(window, {
+        matchMedia: vi.fn().mockReturnValue({ matches: false }),
+      }),
+    );
+    facade.saveState.set('success');
+    facade.saveMessage.set('Saved.');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.save-toast')).not.toBeNull();
+
+    facade.saveState.set('idle');
+    facade.saveMessage.set('');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.save-toast')).not.toBeNull();
+
+    vi.advanceTimersByTime(220);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.save-toast')).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it('does not end run when prompt is cancelled or confirm is declined', () => {
+    vi.stubGlobal('prompt', vi.fn().mockReturnValueOnce(null).mockReturnValueOnce('note'));
+    vi.stubGlobal('confirm', vi.fn().mockReturnValue(false));
+
+    (
+      fixture.componentInstance as unknown as {
+        endOngoingRun: (entryId: string) => void;
+      }
+    ).endOngoingRun('job-1');
+    (
+      fixture.componentInstance as unknown as {
+        endOngoingRun: (entryId: string) => void;
+      }
+    ).endOngoingRun('job-1');
+
+    expect(facade.endHistoryRun).not.toHaveBeenCalled();
+  });
+
+  it('returns workflow summaries for crew and review branches', () => {
+    facade.hasJobModeSelection.set(true);
+    setStepFocus('crew', fixture);
+    expect(
+      (
+        fixture.componentInstance as unknown as {
+          workflowProgressSummary: () => string;
+        }
+      ).workflowProgressSummary(),
+    ).toContain('Select at least 1 crew member');
+
+    facade.selectedCrew.set([employee]);
+    facade.draftValidation.set({ isReady: true, blockingReasons: [] });
+    setStepFocus('review', fixture);
+    expect(
+      (
+        fixture.componentInstance as unknown as {
+          workflowProgressSummary: () => string;
+        }
+      ).workflowProgressSummary(),
+    ).toContain('Ready to save');
+  });
+
+  it('returns state labels for all ongoing run states', () => {
+    const component = fixture.componentInstance as unknown as {
+      ongoingRunStateLabel: (state: 'on_schedule' | 'late' | 'early_start') => string;
+    };
+    expect(component.ongoingRunStateLabel('late')).toBe('Late');
+    expect(component.ongoingRunStateLabel('early_start')).toBe('Early start');
+    expect(component.ongoingRunStateLabel('on_schedule')).toBe('On schedule');
+  });
 });

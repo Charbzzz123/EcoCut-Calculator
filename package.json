@@ -10,6 +10,8 @@
     "test": "npm run test:ci && start \"\" \"./coverage/ecocut-calculator/index.html\"",
     "pretest:ci": "node -e \"require('node:fs').mkdirSync('coverage/ecocut-calculator/.tmp', { recursive: true })\"",
     "test:ci": "ng test --watch=false --coverage",
+    "coverage:check": "node scripts/check-coverage.cjs --coverage coverage/ecocut-calculator/coverage-final.json --threshold 99 --per-file",
+    "test:ci:strict": "npm run test:ci && npm run coverage:check",
     "test:dev": "ng test",
     "lint": "npm run lint:workspace && npm run lint:staged",
     "lint:workspace": "ng lint",

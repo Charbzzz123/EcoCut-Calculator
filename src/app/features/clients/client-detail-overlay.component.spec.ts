@@ -99,4 +99,28 @@ describe('ClientDetailOverlayComponent', () => {
     expect(deleteEntrySpy).toHaveBeenCalled();
     vi.useRealTimers();
   });
+
+  it('ignores duplicate close requests while closing animation is active', () => {
+    vi.useFakeTimers();
+    const spy = vi.fn();
+    fixture.componentInstance.closed.subscribe(spy);
+    const backdrop = fixture.nativeElement.querySelector('.client-detail-overlay__backdrop') as HTMLButtonElement;
+    backdrop.click();
+    backdrop.click();
+    vi.advanceTimersByTime(220);
+    expect(spy).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it('clears pending close timer on destroy', () => {
+    vi.useFakeTimers();
+    const backdrop = fixture.nativeElement.querySelector('.client-detail-overlay__backdrop') as HTMLButtonElement;
+    backdrop.click();
+    expect(() => fixture.destroy()).not.toThrow();
+    vi.useRealTimers();
+  });
+
+  it('handles destroy when no close timer is active', () => {
+    expect(() => fixture.destroy()).not.toThrow();
+  });
 });

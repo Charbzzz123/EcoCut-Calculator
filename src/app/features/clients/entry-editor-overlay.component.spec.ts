@@ -63,4 +63,24 @@ describe('EntryEditorOverlayComponent', () => {
     expect(spy).toHaveBeenCalledWith(payload);
     vi.useRealTimers();
   });
+
+  it('ignores duplicate backdrop closes while closing state is active', () => {
+    vi.useFakeTimers();
+    const spy = vi.fn();
+    fixture.componentInstance.closed.subscribe(spy);
+    const backdrop = fixture.nativeElement.querySelector('.entry-editor-backdrop') as HTMLDivElement;
+    backdrop.click();
+    backdrop.click();
+    vi.advanceTimersByTime(220);
+    expect(spy).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it('clears pending close timer on destroy', () => {
+    vi.useFakeTimers();
+    const backdrop = fixture.nativeElement.querySelector('.entry-editor-backdrop') as HTMLDivElement;
+    backdrop.click();
+    expect(() => fixture.destroy()).not.toThrow();
+    vi.useRealTimers();
+  });
 });

@@ -104,6 +104,14 @@ describe('SelectDropdownComponent', () => {
     expect(fixture.nativeElement.querySelector('.select-dropdown__menu')).toBeTruthy();
   });
 
+  it('guards against disabled options when selectOption is called directly', () => {
+    const onChange = vi.fn();
+    component.registerOnChange(onChange);
+    component['selectOption']({ value: 'disabled', label: 'Disabled', disabled: true });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(component['controlValue']()).toBe('');
+  });
+
   it('falls back to first available option label for unknown value', () => {
     component.writeValue('missing');
     fixture.detectChanges();
@@ -118,5 +126,62 @@ describe('SelectDropdownComponent', () => {
 
     const trigger = fixture.nativeElement.querySelector('.select-dropdown__trigger') as HTMLButtonElement;
     expect(trigger.disabled).toBe(true);
+  });
+
+  it('closes immediately when reduced motion is enabled', () => {
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn(
+      () =>
+        ({
+          matches: true,
+          media: '(prefers-reduced-motion: reduce)',
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        }) as MediaQueryList,
+    );
+
+    const trigger = fixture.nativeElement.querySelector('.select-dropdown__trigger') as HTMLButtonElement;
+    trigger.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.select-dropdown__menu')).toBeTruthy();
+
+    trigger.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.select-dropdown__menu')).toBeNull();
+    window.matchMedia = originalMatchMedia;
+  });
+
+  it('ignores document clicks while menu is closed', () => {
+    const touched = vi.fn();
+    component.registerOnTouched(touched);
+    component['onDocumentClick']({ target: document.createElement('div') } as unknown as MouseEvent);
+    expect(touched).not.toHaveBeenCalled();
+  });
+
+  it('keeps menu open for inside clicks', () => {
+    const touched = vi.fn();
+    component.registerOnTouched(touched);
+    const trigger = fixture.nativeElement.querySelector('.select-dropdown__trigger') as HTMLButtonElement;
+    trigger.click();
+    fixture.detectChanges();
+
+    component['onDocumentClick']({ target: trigger } as unknown as MouseEvent);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.select-dropdown__menu')).toBeTruthy();
+    expect(touched).not.toHaveBeenCalled();
+  });
+
+  it('clears close timer on destroy', () => {
+    const trigger = fixture.nativeElement.querySelector('.select-dropdown__trigger') as HTMLButtonElement;
+    trigger.click();
+    fixture.detectChanges();
+    trigger.click();
+    fixture.detectChanges();
+    expect(() => fixture.destroy()).not.toThrow();
   });
 });

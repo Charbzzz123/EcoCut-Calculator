@@ -87,4 +87,48 @@ describe('AddressAutocompleteFieldComponent', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.address-suggestions')).toBeNull();
   });
+
+  it('closes suggestions immediately when reduced motion is preferred', () => {
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn(
+      () =>
+        ({
+          matches: true,
+          media: '(prefers-reduced-motion: reduce)',
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        }) as MediaQueryList,
+    );
+
+    fixture.componentRef.setInput('showSuggestions', true);
+    fixture.componentRef.setInput('suggestions', [suggestion]);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.address-suggestions')).toBeTruthy();
+
+    fixture.componentRef.setInput('showSuggestions', false);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.address-suggestions')).toBeNull();
+    window.matchMedia = originalMatchMedia;
+  });
+
+  it('prevents default mousedown behavior on suggestions', () => {
+    const event = {
+      preventDefault: vi.fn(),
+    } as unknown as MouseEvent;
+    component['onSuggestionMouseDown'](event);
+    expect(event.preventDefault).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears close timer when component is destroyed', () => {
+    fixture.componentRef.setInput('showSuggestions', true);
+    fixture.componentRef.setInput('suggestions', [suggestion]);
+    fixture.detectChanges();
+    fixture.componentRef.setInput('showSuggestions', false);
+    fixture.detectChanges();
+    expect(() => fixture.destroy()).not.toThrow();
+  });
 });

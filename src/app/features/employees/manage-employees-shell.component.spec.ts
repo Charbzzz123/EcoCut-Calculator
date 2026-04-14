@@ -962,6 +962,96 @@ describe('ManageEmployeesShellComponent', () => {
     );
   });
 
+  it('covers direct shell handlers and guard branches', async () => {
+    const fixture = TestBed.createComponent(ManageEmployeesShellComponent);
+    fixture.detectChanges();
+    const component = fixture.componentInstance as unknown as {
+      rosterSnapshot: () => EmployeeRosterRecord[];
+      filteredRosterSnapshot: () => EmployeeRosterRecord[];
+      removeHistoryEntry: (entryId: string) => void;
+      editFirstScheduledHistoryEntry: () => void;
+      saveProfile: () => Promise<void>;
+      toggleEmployeeExpansion: (employeeId: string, event?: Event) => void;
+      handleEmployeeCardKeydown: (event: KeyboardEvent, employeeId: string) => void;
+      resolveHoursLinkedJob: (entry: EmployeeHoursRecord) => EmployeeLoggedJobOption | null;
+      isLinkedHoursEntry: (entry: EmployeeHoursRecord) => boolean;
+      setWorkspaceFocus: (focus: 'roster' | 'clock' | 'profile' | 'hours' | 'history' | 'readiness') => void;
+      expandedEmployeeId: { set: (value: string | null) => void; (): string | null };
+      inlinePanel: { set: (value: 'profile' | 'hours' | 'history' | null) => void; (): string | null };
+    };
+
+    facade.setViewModel({
+      roster: [activeRecord],
+      filteredRoster: [activeRecord],
+      selectedHistoryEmployeeId: activeRecord.id,
+      historyEntries: [{ ...scheduledHistoryEntry, status: 'cancelled' }],
+      jobOptions: [loggedJobOption],
+    });
+
+    expect(component.rosterSnapshot()).toHaveLength(1);
+    expect(component.filteredRosterSnapshot()).toHaveLength(1);
+
+    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(false);
+    component.removeHistoryEntry('history-2');
+    expect(facade.removeHistoryEntry).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+
+    component.editFirstScheduledHistoryEntry();
+    expect(facade.startHistoryEdit).not.toHaveBeenCalledWith('history-2');
+
+    facade.saveProfile.mockResolvedValueOnce(false);
+    component.inlinePanel.set('profile');
+    await component.saveProfile();
+    expect(component.inlinePanel()).toBe('profile');
+
+    const inlineTarget = document.createElement('div');
+    inlineTarget.className = 'employee-inline-panel';
+    component.toggleEmployeeExpansion(activeRecord.id, { target: inlineTarget } as unknown as Event);
+    expect(component.expandedEmployeeId()).toBeNull();
+
+    component.expandedEmployeeId.set(activeRecord.id);
+    component.inlinePanel.set('hours');
+    component.toggleEmployeeExpansion(activeRecord.id);
+    expect(component.expandedEmployeeId()).toBeNull();
+    expect(facade.closeHoursEditor).toHaveBeenCalled();
+    expect(facade.closeJobHistory).toHaveBeenCalled();
+    expect(facade.cancelProfileEditor).toHaveBeenCalled();
+
+    const keyboardTarget = document.createElement('input');
+    component.handleEmployeeCardKeydown(
+      { key: 'Enter', target: keyboardTarget } as unknown as KeyboardEvent,
+      activeRecord.id,
+    );
+    expect(component.expandedEmployeeId()).toBeNull();
+
+    const noJobLink = component.resolveHoursLinkedJob({ ...manualHoursEntry, jobEntryId: null });
+    const missingJobLink = component.resolveHoursLinkedJob({ ...hoursEntry, jobEntryId: 'missing' });
+    const foundJobLink = component.resolveHoursLinkedJob(hoursEntry);
+    expect(noJobLink).toBeNull();
+    expect(missingJobLink).toBeNull();
+    expect(foundJobLink?.entryId).toBe(loggedJobOption.entryId);
+    expect(component.isLinkedHoursEntry(hoursEntry)).toBe(true);
+    expect(component.isLinkedHoursEntry({ ...hoursEntry, jobEntryId: null })).toBe(false);
+  });
+
+  it('scrolls to workspace section when target exists', () => {
+    const fixture = TestBed.createComponent(ManageEmployeesShellComponent);
+    fixture.detectChanges();
+    const component = fixture.componentInstance as unknown as {
+      setWorkspaceFocus: (focus: 'roster' | 'clock' | 'profile' | 'hours' | 'history' | 'readiness') => void;
+    };
+    const scrollIntoView = vi.fn();
+    const section = document.createElement('section');
+    section.id = 'employees-clock';
+    section.scrollIntoView = scrollIntoView;
+    document.body.appendChild(section);
+
+    component.setWorkspaceFocus('clock');
+
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+    section.remove();
+  });
+
   it('renders readiness contract cards and uses readiness trackBy', () => {
     facade.setViewModel({
       loadState: 'ready',

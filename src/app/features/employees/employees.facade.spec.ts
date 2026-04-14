@@ -10,6 +10,26 @@ import type {
   EmployeeStartNextJobReadiness,
   EmployeeRosterRecord,
 } from './employees.types.js';
+import type { AddressSuggestResponse, AddressValidationResult } from '../../shared/domain/address/address-lookup.service.js';
+
+interface WritableSignalLike<T> {
+  (): T;
+  set(value: T): void;
+}
+
+interface EmployeesFacadeInternals {
+  handleHistoryAddressQuery(value: string): Promise<void>;
+  applyHistoryAddressSuggestResult(value: AddressSuggestResponse): void;
+  showHistoryAddressSuggestionsSignal: WritableSignalLike<boolean>;
+  historyAddressSuggestionsSignal: WritableSignalLike<readonly unknown[]>;
+  historyAddressLookupLoadingSignal: WritableSignalLike<boolean>;
+  historyAddressLookupMessageSignal: WritableSignalLike<string | null>;
+  historyAddressVerifiedSignal: WritableSignalLike<boolean>;
+  historyAddressSelectionId: string | null;
+}
+
+type StubSuggestResult = Awaited<ReturnType<AddressLookupServiceStub['suggest']>>;
+type StubValidateResult = Awaited<ReturnType<AddressLookupServiceStub['validate']>>;
 
 class EmployeesDataServiceStub {
   shouldFail = false;
@@ -475,6 +495,7 @@ class AddressLookupServiceStub {
 describe('EmployeesFacade', () => {
   let facade: EmployeesFacade;
   let service: EmployeesDataServiceStub;
+  let addressLookup: AddressLookupServiceStub;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -487,6 +508,7 @@ describe('EmployeesFacade', () => {
 
     facade = TestBed.inject(EmployeesFacade);
     service = TestBed.inject(EmployeesDataService) as unknown as EmployeesDataServiceStub;
+    addressLookup = TestBed.inject(AddressLookupService) as unknown as AddressLookupServiceStub;
   });
 
   it('loads roster, hours, and computes stats', async () => {
@@ -1104,5 +1126,193 @@ describe('EmployeesFacade', () => {
     });
     await expect(facade.clockIn('active-1')).resolves.toBe(false);
     expect(facade.workspaceNotice()).toBe('Already clocked in.');
+  });
+
+  it('covers history editor guard branches and lifecycle metrics', async () => {
+    await facade.loadRoster();
+    facade.openJobHistory('active-1');
+    expect(facade.selectedHistoryLifecycleSummary()).toEqual({
+      completedOnTime: 1,
+      completedLate: 0,
+      scheduledLate: 0,
+      continuity: 0,
+    });
+    await expect(facade.saveHistoryEdit()).resolves.toBe(false);
+    expect(facade.historyErrorsSnapshot()[0]).toContain(
+      'Select a scheduled history entry before saving edits.',
+    );
+    const firstClockSummary = facade.clockSummariesSnapshot()[0]!;
+    expect(facade.trackByClockEmployeeId(0, firstClockSummary)).toBe(firstClockSummary.employeeId);
+  });
+
+  it('covers history address focus/blur and suggestion selection validation states', async () => {
+    await facade.loadRoster();
+    facade.handleHistoryAddressFocus();
+
+    facade.openJobHistory('active-1');
+    facade.startHistoryEdit('job-active-2');
+
+    const privateFacade = facade as unknown as EmployeesFacadeInternals;
+    const suggestion = {
+      id: 'addr-1',
+      label: '2331 Sherbrooke St W, Montreal, QC',
+      primaryText: '2331 Sherbrooke St W',
+      secondaryText: 'Montreal, QC',
+    };
+    privateFacade.historyAddressSuggestionsSignal.set([suggestion]);
+    privateFacade.showHistoryAddressSuggestionsSignal.set(false);
+    facade.handleHistoryAddressFocus();
+    expect(facade.showHistoryAddressSuggestions()).toBe(true);
+    facade.handleHistoryAddressBlur();
+    await new Promise((resolve) => setTimeout(resolve, 140));
+    expect(facade.showHistoryAddressSuggestions()).toBe(false);
+
+    const validatedResponse: AddressValidationResult = {
+      verified: true,
+      status: 'verified',
+      usage: {
+        monthKey: '2026-04',
+        caps: {
+          autocompleteRequests: 10000,
+          placeDetailsRequests: 10000,
+          addressValidationRequests: 5000,
+        },
+        counts: {
+          autocompleteRequests: 0,
+          placeDetailsRequests: 0,
+          addressValidationRequests: 0,
+        },
+        thresholds: {
+          warn75Reached: false,
+          warn90Reached: true,
+          hardStopReached: false,
+        },
+      },
+      normalizedAddress: {
+        formattedAddress: '2331 Sherbrooke St W, Montreal, QC, Canada',
+        streetAddress: '2331 Sherbrooke St W',
+        city: 'Montreal',
+        province: 'QC',
+        postalCode: 'H3H 1G5',
+        countryCode: 'CA',
+        latitude: null,
+        longitude: null,
+      },
+    };
+    vi.spyOn(addressLookup, 'validate').mockResolvedValueOnce(
+      validatedResponse as unknown as StubValidateResult,
+    );
+    await facade.selectHistoryAddressSuggestion(suggestion);
+    expect(facade.historyAddressVerified()).toBe(true);
+    expect(facade.historyForm.controls.address.value).toContain('Canada');
+    expect(facade.historyAddressLookupMessage()).toContain('above 90%');
+
+    facade.historyForm.controls.address.setValue('Unverified manual address');
+    if (facade.addressVerificationRequired) {
+      expect(facade.historyAddressVerified()).toBe(false);
+      await expect(facade.saveHistoryEdit()).resolves.toBe(false);
+      expect(facade.historyErrorsSnapshot()).toContain(
+        'Select a verified address from suggestions.',
+      );
+    }
+
+    vi.spyOn(addressLookup, 'validate').mockRejectedValueOnce(new Error('network'));
+    await facade.selectHistoryAddressSuggestion(suggestion);
+    expect(facade.historyAddressLookupMessage()).toContain('Unable to validate address right now');
+  });
+
+  it('covers history address lookup cache and result-state branches', async () => {
+    await facade.loadRoster();
+    facade.openJobHistory('active-1');
+    facade.startHistoryEdit('job-active-2');
+    const privateFacade = facade as unknown as EmployeesFacadeInternals;
+
+    await privateFacade.handleHistoryAddressQuery('ab');
+    expect(facade.showHistoryAddressSuggestions()).toBe(false);
+    expect(facade.historyAddressSuggestions()).toEqual([]);
+
+    const okResponse: AddressSuggestResponse = {
+      status: 'ok',
+      suggestions: [
+        {
+          id: 'addr-1',
+          label: '2390 Sherbrooke St W, Montreal, QC',
+          primaryText: '2390 Sherbrooke St W',
+          secondaryText: 'Montreal, QC',
+        },
+      ],
+      usage: {
+        monthKey: '2026-04',
+        caps: {
+          autocompleteRequests: 10000,
+          placeDetailsRequests: 10000,
+          addressValidationRequests: 5000,
+        },
+        counts: {
+          autocompleteRequests: 1,
+          placeDetailsRequests: 0,
+          addressValidationRequests: 0,
+        },
+        thresholds: {
+          warn75Reached: false,
+          warn90Reached: false,
+          hardStopReached: false,
+        },
+      },
+    };
+    const suggestSpy = vi
+      .spyOn(addressLookup, 'suggest')
+      .mockResolvedValue(okResponse as unknown as StubSuggestResult);
+    await privateFacade.handleHistoryAddressQuery('montreal');
+    expect(facade.historyAddressSuggestions()).toHaveLength(1);
+    expect(facade.showHistoryAddressSuggestions()).toBe(true);
+    await privateFacade.handleHistoryAddressQuery('montreal');
+    expect(suggestSpy).toHaveBeenCalledTimes(1);
+
+    const hardStopResponse: AddressSuggestResponse = {
+      ...okResponse,
+      usage: {
+        ...okResponse.usage,
+        thresholds: {
+          warn75Reached: true,
+          warn90Reached: true,
+          hardStopReached: true,
+        },
+      },
+    };
+    privateFacade.applyHistoryAddressSuggestResult(hardStopResponse);
+    expect(facade.historyAddressLookupMessage()).toContain('Monthly address search cap reached');
+    expect(facade.showHistoryAddressSuggestions()).toBe(false);
+
+    privateFacade.applyHistoryAddressSuggestResult({
+      ...okResponse,
+      status: 'quota_reached',
+      message: 'Quota reached.',
+    });
+    expect(facade.historyAddressLookupMessage()).toContain('Quota reached.');
+    expect(facade.showHistoryAddressSuggestions()).toBe(false);
+
+    privateFacade.applyHistoryAddressSuggestResult({
+      ...okResponse,
+      suggestions: [],
+    });
+    expect(facade.historyAddressLookupMessage()).toContain('No matching addresses found.');
+
+    privateFacade.applyHistoryAddressSuggestResult({
+      ...okResponse,
+      usage: {
+        ...okResponse.usage,
+        thresholds: {
+          warn75Reached: true,
+          warn90Reached: false,
+          hardStopReached: false,
+        },
+      },
+    });
+    expect(facade.historyAddressLookupMessage()).toContain('above 75%');
+
+    suggestSpy.mockRejectedValueOnce(new Error('lookup fail'));
+    await privateFacade.handleHistoryAddressQuery('quebec');
+    expect(facade.historyAddressLookupMessage()).toContain('Unable to search addresses right now.');
   });
 });
