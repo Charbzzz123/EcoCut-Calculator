@@ -205,14 +205,16 @@ export class MergeTokenEditorComponent implements OnChanges, AfterViewInit {
       return;
     }
 
-    if (typeof docWithCaret.caretRangeFromPoint === 'function') {
-      const range = docWithCaret.caretRangeFromPoint(x, y);
-      if (!range || !editor.contains(range.startContainer)) {
-        return;
-      }
-      selection.removeAllRanges();
-      selection.addRange(range);
+    const caretRangeFromPoint = docWithCaret.caretRangeFromPoint;
+    if (!caretRangeFromPoint) {
+      return;
     }
+    const range = caretRangeFromPoint(x, y);
+    if (!range) {
+      return;
+    }
+    selection.removeAllRanges();
+    selection.addRange(range);
   }
 
   private createTokenNode(token: string, label: string): HTMLSpanElement {
@@ -258,7 +260,7 @@ export class MergeTokenEditorComponent implements OnChanges, AfterViewInit {
 
   private serializeNode(node: Node): string {
     if (node.nodeType === Node.TEXT_NODE) {
-      return node.textContent ?? '';
+      return (node as Text).data;
     }
     if (!(node instanceof HTMLElement)) {
       return '';
@@ -286,11 +288,11 @@ export class MergeTokenEditorComponent implements OnChanges, AfterViewInit {
     const fragment = document.createDocumentFragment();
     let cursor = 0;
     for (const match of value.matchAll(this.tokenExpression)) {
-      const index = match.index ?? 0;
+      const index = match.index as number;
       if (index > cursor) {
         this.appendText(fragment, value.slice(cursor, index));
       }
-      const token = match[0] ?? '';
+      const token = match[0];
       const label = this.resolveLabelFromToken(token);
       fragment.append(this.createTokenNode(token, label));
       cursor = index + token.length;

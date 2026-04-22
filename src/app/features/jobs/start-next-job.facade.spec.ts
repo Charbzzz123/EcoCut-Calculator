@@ -1019,6 +1019,7 @@ describe('StartNextJobFacade', () => {
       },
     ];
     await facade.loadBoard();
+    facade.setAnalyticsWindow('90d');
     facade.toggleEmployeeSelection('emp-b');
 
     expect(facade.assignmentAnalytics()).toEqual({
@@ -1040,6 +1041,7 @@ describe('StartNextJobFacade', () => {
 
   it('builds an analytics CSV export for the selected crew context', async () => {
     await facade.loadBoard();
+    facade.setAnalyticsWindow('90d');
     facade.toggleEmployeeSelection('emp-b');
 
     const exportPayload = facade.createAssignmentAnalyticsExport(
