@@ -66,10 +66,19 @@ interface QuoChatProviderHealth {
   rateLimitPerSecond: number;
   phoneNumber: string | null;
   details: string;
+  mirror: QuoChatMirrorStats;
+}
+
+interface QuoChatMirrorStats {
+  conversations: number;
+  messages: number;
+  clientLinks: number;
+  cursors: number;
 }
 
 export type {
   QuoChatProviderHealth,
+  QuoChatMirrorStats,
   QuoContact,
   QuoConversation,
   QuoCreateContactInput,

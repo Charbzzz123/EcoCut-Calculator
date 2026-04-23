@@ -8,6 +8,7 @@ Living checklist for in-flight feature work so we never lose track of what€™
 | -------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | CH-0 Chats scope + UX contract freeze                                | 2026-04-22 | Locked chats epic scope, phased CH-0..CH-12 implementation plan, client->chat deep-link requirement, and theme parity constraints so future chat slices stay coherent and context-safe if sessions reset.                                                                                                                              |
 | CH-1 Quo chat provider foundation                                    | 2026-04-22 | Added typed Quo chat client wrapper (retry/backoff + error categorization), reusable provider health service, and `GET /communications/chats/health` endpoint; SMS transport now reuses the same Quo client to avoid duplicate API logic.                                                                                              |
+| CH-2 Chat mirror persistence schema                                  | 2026-04-23 | Added durable SQLite chat mirror tables (`chat_conversations`, `chat_messages`, `chat_client_links`, `chat_sync_cursors`) with idempotent upserts, restart-safe cursor storage, and mirror stats surfaced through `GET /communications/chats/health`.                                                                                  |
 | NAV-5 Alert/banner enter-exit motion                                 | 2026-04-12 | Added shared alert/toast motion utility (`motion-alert`) in global styles for validation/state/banner surfaces, plus delayed close handling for Start Next Job save toast so success/error feedback no longer appears/disappears abruptly while still respecting reduced-motion preferences.                                           |
 | NAV-4 Collapse/expand motion unification                             | 2026-04-12 | Added shared collapse utility motion (`motion-collapse`) in global styles and wired it into Start Next Job + Broadcast progressive-disclosure sections (workflow status, advanced panels, analytics panel/details, manual-add panel, per-client override) with reduced-motion fallback and hidden-state inert handling.                |
 | NAV-3C Non-shared popover/menu motion parity                         | 2026-04-12 | Audited remaining non-shared popovers and aligned Home CTA/dropdown menus with the same open-close motion baseline (fade/slide + visibility handoff + reduced-motion fallback) so they no longer pop in/out abruptly compared to shared dropdown/popover components.                                                                   |
@@ -130,7 +131,6 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 | Step   | Task                                 | Owner | Notes                                                                                                                                                                                                                         |
 | ------ | ------------------------------------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| CH-2   | Chat mirror persistence model        | —     | Add durable SQLite mirrors for conversations/messages/contact-links/sync cursors so chats survive restarts and incremental sync is replay-safe.                                                                               |
 | CH-3   | Incremental sync engine              | —     | Build paginated pull-sync (backfill + incremental) with idempotent upserts for conversations/messages and manual re-sync endpoint for recovery.                                                                               |
 | CH-4   | Quo webhook ingestion                | —     | Ingest message lifecycle webhooks (`message.received`, `message.delivered`) with signature validation and dedupe so incoming updates land in near-real-time.                                                                  |
 | CH-5   | Chats backend API surface            | —     | Expose conversation list, thread messages, send message, read-state, search, and manual sync endpoints under `/communications/chats/*`.                                                                                       |
@@ -279,12 +279,14 @@ Use this as the source of truth if chat context resets.
 
 #### CH-2 - Mirror persistence schema
 
-- Add durable SQLite mirror tables for:
-  - conversations
-  - messages
-  - contact links (`clientId <-> quoContactId`)
-  - sync cursors
-- Require idempotent keys (`conversationId`, `messageId`) and restart-safe cursors.
+- **Status**: Completed on 2026-04-23.
+- Added durable SQLite mirror tables in `communications.db`:
+  - `chat_conversations`
+  - `chat_messages`
+  - `chat_client_links` (`clientId <-> quoContactId`)
+  - `chat_sync_cursors`
+- Added idempotent upsert methods for conversation/message mirrors and restart-safe cursor persistence.
+- Added mirror counters to `GET /communications/chats/health` for quick operational verification.
 
 #### CH-3 - Pull sync engine
 

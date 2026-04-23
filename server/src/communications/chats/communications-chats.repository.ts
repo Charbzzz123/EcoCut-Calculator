@@ -1,0 +1,354 @@
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import Database from 'better-sqlite3';
+import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { resolveCommunicationsDbPath } from '../communications.db-path';
+import type { QuoConversation, QuoMessage } from './quo-chat.types';
+
+interface CountRow {
+  count: number;
+}
+
+interface CursorRow {
+  cursor_value: string;
+}
+
+interface ContactLinkRow {
+  client_id: string;
+  quo_contact_id: string;
+  source: string;
+  updated_at: string;
+}
+
+interface ChatMirrorStats {
+  conversations: number;
+  messages: number;
+  clientLinks: number;
+  cursors: number;
+}
+
+interface UpsertClientContactLinkInput {
+  clientId: string;
+  quoContactId: string;
+  source: string;
+  updatedAt?: string;
+}
+
+@Injectable()
+export class CommunicationsChatsRepository implements OnModuleDestroy {
+  private readonly logger = new Logger(CommunicationsChatsRepository.name);
+  private readonly dbPath = resolveCommunicationsDbPath();
+  private readonly db: Database.Database;
+  private readonly upsertConversationStmt: Database.Statement;
+  private readonly upsertMessageStmt: Database.Statement;
+  private readonly upsertClientLinkStmt: Database.Statement;
+  private readonly removeClientLinkStmt: Database.Statement;
+  private readonly selectClientLinkStmt: Database.Statement;
+  private readonly upsertCursorStmt: Database.Statement;
+  private readonly selectCursorStmt: Database.Statement;
+  private readonly countConversationsStmt: Database.Statement;
+  private readonly countMessagesStmt: Database.Statement;
+  private readonly countClientLinksStmt: Database.Statement;
+  private readonly countCursorsStmt: Database.Statement;
+
+  constructor() {
+    mkdirSync(dirname(this.dbPath), { recursive: true });
+    this.db = new Database(this.dbPath);
+    this.db.pragma('journal_mode = WAL');
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS chat_conversations (
+        conversation_id TEXT PRIMARY KEY,
+        last_message_at TEXT,
+        payload TEXT NOT NULL,
+        synced_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_chat_conversations_last_message_at
+        ON chat_conversations(last_message_at);
+
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        message_id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL,
+        created_at TEXT,
+        payload TEXT NOT NULL,
+        synced_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation_created_at
+        ON chat_messages(conversation_id, created_at);
+
+      CREATE TABLE IF NOT EXISTS chat_client_links (
+        client_id TEXT PRIMARY KEY,
+        quo_contact_id TEXT NOT NULL UNIQUE,
+        source TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS chat_sync_cursors (
+        cursor_key TEXT PRIMARY KEY,
+        cursor_value TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+
+    this.upsertConversationStmt = this.db.prepare(
+      `INSERT INTO chat_conversations (
+         conversation_id,
+         last_message_at,
+         payload,
+         synced_at,
+         updated_at
+       ) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(conversation_id) DO UPDATE SET
+         last_message_at = excluded.last_message_at,
+         payload = excluded.payload,
+         synced_at = excluded.synced_at,
+         updated_at = excluded.updated_at`,
+    );
+    this.upsertMessageStmt = this.db.prepare(
+      `INSERT INTO chat_messages (
+         message_id,
+         conversation_id,
+         created_at,
+         payload,
+         synced_at,
+         updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(message_id) DO UPDATE SET
+         conversation_id = excluded.conversation_id,
+         created_at = excluded.created_at,
+         payload = excluded.payload,
+         synced_at = excluded.synced_at,
+         updated_at = excluded.updated_at`,
+    );
+    this.upsertClientLinkStmt = this.db.prepare(
+      `INSERT INTO chat_client_links (
+         client_id,
+         quo_contact_id,
+         source,
+         updated_at
+       ) VALUES (?, ?, ?, ?)
+       ON CONFLICT(client_id) DO UPDATE SET
+         quo_contact_id = excluded.quo_contact_id,
+         source = excluded.source,
+         updated_at = excluded.updated_at`,
+    );
+    this.removeClientLinkStmt = this.db.prepare(
+      'DELETE FROM chat_client_links WHERE client_id = ?',
+    );
+    this.selectClientLinkStmt = this.db.prepare(
+      `SELECT client_id, quo_contact_id, source, updated_at
+       FROM chat_client_links
+       WHERE client_id = ?`,
+    );
+    this.upsertCursorStmt = this.db.prepare(
+      `INSERT INTO chat_sync_cursors (
+         cursor_key,
+         cursor_value,
+         updated_at
+       ) VALUES (?, ?, ?)
+       ON CONFLICT(cursor_key) DO UPDATE SET
+         cursor_value = excluded.cursor_value,
+         updated_at = excluded.updated_at`,
+    );
+    this.selectCursorStmt = this.db.prepare(
+      'SELECT cursor_value FROM chat_sync_cursors WHERE cursor_key = ?',
+    );
+    this.countConversationsStmt = this.db.prepare(
+      'SELECT COUNT(*) AS count FROM chat_conversations',
+    );
+    this.countMessagesStmt = this.db.prepare(
+      'SELECT COUNT(*) AS count FROM chat_messages',
+    );
+    this.countClientLinksStmt = this.db.prepare(
+      'SELECT COUNT(*) AS count FROM chat_client_links',
+    );
+    this.countCursorsStmt = this.db.prepare(
+      'SELECT COUNT(*) AS count FROM chat_sync_cursors',
+    );
+  }
+
+  upsertConversations(conversations: QuoConversation[]): number {
+    const now = new Date().toISOString();
+    const normalized = conversations
+      .map((conversation) => ({
+        conversationId: conversation.id,
+        lastMessageAt: conversation.lastMessageAt ?? null,
+        payload: JSON.stringify(conversation),
+      }))
+      .filter((conversation) => conversation.conversationId.length > 0);
+
+    const run = this.db.transaction(() => {
+      for (const conversation of normalized) {
+        this.upsertConversationStmt.run(
+          conversation.conversationId,
+          conversation.lastMessageAt,
+          conversation.payload,
+          now,
+          now,
+        );
+      }
+    });
+
+    try {
+      run();
+      return normalized.length;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to upsert chat conversations: ${this.stringifyError(error)}`,
+      );
+      return 0;
+    }
+  }
+
+  upsertMessages(
+    defaultConversationId: string,
+    messages: QuoMessage[],
+  ): number {
+    const now = new Date().toISOString();
+    const normalized = messages
+      .map((message) => ({
+        messageId: message.id,
+        conversationId: message.conversationId ?? defaultConversationId,
+        createdAt: message.createdAt ?? null,
+        payload: JSON.stringify(message),
+      }))
+      .filter(
+        (message) =>
+          message.messageId.length > 0 && message.conversationId.length > 0,
+      );
+
+    const run = this.db.transaction(() => {
+      for (const message of normalized) {
+        this.upsertMessageStmt.run(
+          message.messageId,
+          message.conversationId,
+          message.createdAt,
+          message.payload,
+          now,
+          now,
+        );
+      }
+    });
+
+    try {
+      run();
+      return normalized.length;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to upsert chat messages: ${this.stringifyError(error)}`,
+      );
+      return 0;
+    }
+  }
+
+  upsertClientContactLink(input: UpsertClientContactLinkInput): void {
+    try {
+      this.upsertClientLinkStmt.run(
+        input.clientId,
+        input.quoContactId,
+        input.source,
+        input.updatedAt ?? new Date().toISOString(),
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Failed to upsert chat client link: ${this.stringifyError(error)}`,
+      );
+    }
+  }
+
+  getClientContactLink(clientId: string): UpsertClientContactLinkInput | null {
+    try {
+      const row = this.selectClientLinkStmt.get(clientId) as
+        | ContactLinkRow
+        | undefined;
+      if (!row) {
+        return null;
+      }
+      return {
+        clientId: row.client_id,
+        quoContactId: row.quo_contact_id,
+        source: row.source,
+        updatedAt: row.updated_at,
+      };
+    } catch (error) {
+      this.logger.warn(
+        `Failed to load chat client link: ${this.stringifyError(error)}`,
+      );
+      return null;
+    }
+  }
+
+  removeClientContactLink(clientId: string): void {
+    try {
+      this.removeClientLinkStmt.run(clientId);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to remove chat client link: ${this.stringifyError(error)}`,
+      );
+    }
+  }
+
+  saveSyncCursor(cursorKey: string, cursorValue: string): void {
+    try {
+      this.upsertCursorStmt.run(
+        cursorKey,
+        cursorValue,
+        new Date().toISOString(),
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Failed to save chat sync cursor: ${this.stringifyError(error)}`,
+      );
+    }
+  }
+
+  getSyncCursor(cursorKey: string): string | null {
+    try {
+      const row = this.selectCursorStmt.get(cursorKey) as CursorRow | undefined;
+      return row?.cursor_value ?? null;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to read chat sync cursor: ${this.stringifyError(error)}`,
+      );
+      return null;
+    }
+  }
+
+  getMirrorStats(): ChatMirrorStats {
+    return {
+      conversations: this.readCount(this.countConversationsStmt),
+      messages: this.readCount(this.countMessagesStmt),
+      clientLinks: this.readCount(this.countClientLinksStmt),
+      cursors: this.readCount(this.countCursorsStmt),
+    };
+  }
+
+  onModuleDestroy(): void {
+    if (this.db.open) {
+      this.db.close();
+    }
+  }
+
+  private readCount(statement: Database.Statement): number {
+    try {
+      const row = statement.get() as CountRow | undefined;
+      return row?.count ?? 0;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to read chat mirror count: ${this.stringifyError(error)}`,
+      );
+      return 0;
+    }
+  }
+
+  private stringifyError(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    return 'Unknown error';
+  }
+}
+
+export type { ChatMirrorStats, UpsertClientContactLinkInput };

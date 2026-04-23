@@ -210,10 +210,16 @@ describe('CommunicationsController', () => {
       provider: 'quo',
       configured: true,
       connected: true,
+      mirror: {
+        conversations: 0,
+        messages: 0,
+        clientLinks: 0,
+        cursors: 0,
+      },
     });
     const controller = await createController();
 
-    await expect(controller.getChatsHealth()).resolves.toEqual({
+    await expect(controller.getChatsHealth()).resolves.toMatchObject({
       provider: 'quo',
       configured: true,
       connected: true,

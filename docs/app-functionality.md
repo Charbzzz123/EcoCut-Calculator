@@ -445,4 +445,5 @@ Update this document whenever we clarify rules or add new functionality so imple
   - Track usage for future Finance dashboards (cost/threshold monitoring).
 - **Current status**:
   - **CH-1 foundation is implemented**: typed Quo client wrapper + provider health endpoint (`GET /communications/chats/health`) are live.
-  - Remaining slices (mirror persistence, webhook ingestion, chats UI, deep-linking, rollout hardening) are tracked in `docs/work-tracker.md` under CH-2 through CH-12.
+  - **CH-2 mirror persistence is implemented**: conversations/messages/client-links/sync-cursors now persist in SQLite with idempotent upserts and restart-safe cursors.
+  - Remaining slices (sync engine, webhooks, chats UI, deep-linking, rollout hardening) are tracked in `docs/work-tracker.md` under CH-3 through CH-12.

@@ -2,19 +2,33 @@ import { CommunicationsChatsService } from './communications-chats.service';
 import { QuoApiRequestError } from './quo-chat-client.service';
 
 describe('CommunicationsChatsService', () => {
+  const mirror = {
+    conversations: 1,
+    messages: 2,
+    clientLinks: 3,
+    cursors: 4,
+  } as const;
+
   it('returns not configured when QUO credentials are missing', async () => {
     const client = {
       isConfigured: jest.fn(() => false),
       listPhoneNumbers: jest.fn(),
       getFromNumber: jest.fn(() => null),
     };
-    const service = new CommunicationsChatsService(client as never);
+    const repository = {
+      getMirrorStats: jest.fn(() => mirror),
+    };
+    const service = new CommunicationsChatsService(
+      client as never,
+      repository as never,
+    );
 
     await expect(service.getProviderHealth()).resolves.toMatchObject({
       provider: 'quo',
       configured: false,
       connected: false,
       phoneNumber: null,
+      mirror,
     });
     expect(client.listPhoneNumbers).not.toHaveBeenCalled();
   });
@@ -29,13 +43,20 @@ describe('CommunicationsChatsService', () => {
       ),
       getFromNumber: jest.fn(() => '+14388007177'),
     };
-    const service = new CommunicationsChatsService(client as never);
+    const repository = {
+      getMirrorStats: jest.fn(() => mirror),
+    };
+    const service = new CommunicationsChatsService(
+      client as never,
+      repository as never,
+    );
 
     await expect(service.getProviderHealth()).resolves.toMatchObject({
       provider: 'quo',
       configured: true,
       connected: true,
       phoneNumber: '(438) 800-7177',
+      mirror,
     });
   });
 
@@ -47,7 +68,13 @@ describe('CommunicationsChatsService', () => {
       ),
       getFromNumber: jest.fn(() => '+14388007177'),
     };
-    const service = new CommunicationsChatsService(client as never);
+    const repository = {
+      getMirrorStats: jest.fn(() => mirror),
+    };
+    const service = new CommunicationsChatsService(
+      client as never,
+      repository as never,
+    );
 
     await expect(service.getProviderHealth()).resolves.toMatchObject({
       provider: 'quo',
@@ -55,6 +82,7 @@ describe('CommunicationsChatsService', () => {
       connected: false,
       phoneNumber: '+14388007177',
       details: 'Authentication failed. Verify QUO_API_KEY and number/user IDs.',
+      mirror,
     });
   });
 });

@@ -3,15 +3,20 @@ import {
   QuoApiRequestError,
   QuoChatClientService,
 } from './quo-chat-client.service';
+import { CommunicationsChatsRepository } from './communications-chats.repository';
 import type { QuoChatProviderHealth } from './quo-chat.types';
 
 const QUO_RATE_LIMIT_PER_SECOND = 10;
 
 @Injectable()
 export class CommunicationsChatsService {
-  constructor(private readonly quoClient: QuoChatClientService) {}
+  constructor(
+    private readonly quoClient: QuoChatClientService,
+    private readonly chatsRepository: CommunicationsChatsRepository,
+  ) {}
 
   async getProviderHealth(): Promise<QuoChatProviderHealth> {
+    const mirror = this.chatsRepository.getMirrorStats();
     if (!this.quoClient.isConfigured()) {
       return {
         provider: 'quo',
@@ -22,6 +27,7 @@ export class CommunicationsChatsService {
         phoneNumber: null,
         details:
           'QUO API credentials are missing. Configure QUO_* environment variables.',
+        mirror,
       };
     }
 
@@ -39,6 +45,7 @@ export class CommunicationsChatsService {
           first?.number ??
           this.quoClient.getFromNumber(),
         details: 'Connection successful. Quo chat provider is reachable.',
+        mirror,
       };
     } catch (error) {
       const defaultDetails = 'Unable to reach Quo provider.';
@@ -55,6 +62,7 @@ export class CommunicationsChatsService {
           rateLimitPerSecond: QUO_RATE_LIMIT_PER_SECOND,
           phoneNumber: this.quoClient.getFromNumber(),
           details,
+          mirror,
         };
       }
 
@@ -68,6 +76,7 @@ export class CommunicationsChatsService {
         details: `${defaultDetails} ${
           error instanceof Error ? error.message : 'Unknown error.'
         }`,
+        mirror,
       };
     }
   }

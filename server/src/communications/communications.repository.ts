@@ -1,21 +1,18 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import Database from 'better-sqlite3';
 import { mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname } from 'node:path';
 import type { CommunicationsStateSnapshot } from './communications.types';
+import { resolveCommunicationsDbPath } from './communications.db-path';
 
 interface DbRow {
   payload: string;
 }
 
-const resolveDbPath = (): string =>
-  process.env.COMMUNICATIONS_DB_PATH ??
-  join(process.cwd(), 'server', 'data', 'communications.db');
-
 @Injectable()
 export class CommunicationsRepository implements OnModuleDestroy {
   private readonly logger = new Logger(CommunicationsRepository.name);
-  private readonly dbPath = resolveDbPath();
+  private readonly dbPath = resolveCommunicationsDbPath();
   private readonly db: Database.Database;
   private readonly selectStateStmt: Database.Statement;
   private readonly upsertStateStmt: Database.Statement;
