@@ -1,5 +1,9 @@
+import { BadRequestException } from '@nestjs/common';
+import { createHmac } from 'node:crypto';
 import { CommunicationsChatsService } from './communications-chats.service';
 import { QuoApiRequestError } from './quo-chat-client.service';
+
+const ORIGINAL_ENV = { ...process.env };
 
 describe('CommunicationsChatsService', () => {
   const mirror = {
@@ -27,6 +31,20 @@ describe('CommunicationsChatsService', () => {
     upsertConversations: jest.fn((items: unknown[]) => items.length),
     upsertMessages: jest.fn((_: string, items: unknown[]) => items.length),
     clearMirrorData: jest.fn(),
+    recordWebhookEvent: jest.fn(() => ({
+      inserted: true,
+      receivedAt: '2026-04-23T12:30:00.000Z',
+    })),
+  });
+
+  beforeEach(() => {
+    process.env = { ...ORIGINAL_ENV };
+    delete process.env.QUO_WEBHOOK_SECRET;
+    jest.clearAllMocks();
+  });
+
+  afterAll(() => {
+    process.env = ORIGINAL_ENV;
   });
 
   it('returns not configured when QUO credentials are missing', async () => {
@@ -212,5 +230,122 @@ describe('CommunicationsChatsService', () => {
       preserveClientLinks: true,
     });
     expect(result.mode).toBe('reset');
+  });
+
+  it('ingests quo webhook and mirrors message data', () => {
+    const client = {
+      isConfigured: jest.fn(() => true),
+      listPhoneNumbers: jest.fn(),
+      getFromNumber: jest.fn(() => '+14388007177'),
+    };
+    const repository = createRepository();
+    repository.getSyncCursor.mockReturnValue(null);
+    const service = new CommunicationsChatsService(
+      client as never,
+      repository as never,
+    );
+
+    const result = service.ingestQuoWebhook(
+      {
+        id: 'evt-1',
+        event: 'message.received',
+        data: {
+          conversationId: 'conv-1',
+          messageId: 'msg-1',
+          content: 'Hello',
+          timestamp: '2026-04-23T12:20:00.000Z',
+          from: '+15145550000',
+        },
+      },
+      undefined,
+    );
+
+    expect(repository.recordWebhookEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerEventId: 'evt-1',
+        eventType: 'message.received',
+        messageId: 'msg-1',
+        conversationId: 'conv-1',
+      }),
+    );
+    expect(repository.upsertConversations).toHaveBeenCalledWith([
+      {
+        id: 'conv-1',
+        lastMessageAt: '2026-04-23T12:20:00.000Z',
+      },
+    ]);
+    expect(repository.upsertMessages).toHaveBeenCalledWith('conv-1', [
+      expect.objectContaining({
+        id: 'msg-1',
+        conversationId: 'conv-1',
+        direction: 'inbound',
+      }),
+    ]);
+    expect(result.duplicate).toBe(false);
+    expect(result.mirrored).toEqual({ conversations: 1, messages: 1 });
+  });
+
+  it('returns duplicate result without re-mirroring when webhook already seen', () => {
+    const client = {
+      isConfigured: jest.fn(() => true),
+      listPhoneNumbers: jest.fn(),
+      getFromNumber: jest.fn(() => '+14388007177'),
+    };
+    const repository = createRepository();
+    repository.recordWebhookEvent.mockReturnValue({
+      inserted: false,
+      receivedAt: '2026-04-23T12:20:00.000Z',
+    });
+    const service = new CommunicationsChatsService(
+      client as never,
+      repository as never,
+    );
+
+    const result = service.ingestQuoWebhook(
+      {
+        event: 'message.delivered',
+        data: {
+          conversationId: 'conv-1',
+          messageId: 'msg-1',
+          timestamp: '2026-04-23T12:20:00.000Z',
+        },
+      },
+      undefined,
+    );
+
+    expect(result.duplicate).toBe(true);
+    expect(repository.upsertConversations).not.toHaveBeenCalled();
+    expect(repository.upsertMessages).not.toHaveBeenCalled();
+  });
+
+  it('enforces signature validation when QUO_WEBHOOK_SECRET is configured', () => {
+    process.env.QUO_WEBHOOK_SECRET = 'test-secret';
+    const client = {
+      isConfigured: jest.fn(() => true),
+      listPhoneNumbers: jest.fn(),
+      getFromNumber: jest.fn(() => '+14388007177'),
+    };
+    const repository = createRepository();
+    const service = new CommunicationsChatsService(
+      client as never,
+      repository as never,
+    );
+    const payload = {
+      event: 'message.received',
+      data: { conversationId: 'conv-1', messageId: 'msg-1' },
+    };
+    const validSignature = createHmac('sha256', 'test-secret')
+      .update(JSON.stringify(payload))
+      .digest('hex');
+
+    expect(() => service.ingestQuoWebhook(payload, undefined)).toThrow(
+      BadRequestException,
+    );
+    expect(() =>
+      service.ingestQuoWebhook(payload, 'invalid-signature'),
+    ).toThrow(BadRequestException);
+    expect(() =>
+      service.ingestQuoWebhook(payload, validSignature),
+    ).not.toThrow();
   });
 });

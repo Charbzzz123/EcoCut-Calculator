@@ -141,4 +141,28 @@ describe('CommunicationsChatsRepository', () => {
       cursors: 0,
     });
   });
+
+  it('deduplicates webhook events by provider event id', () => {
+    const first = repository.recordWebhookEvent({
+      provider: 'quo',
+      providerEventId: 'evt-1',
+      eventType: 'message.received',
+      messageId: 'msg-1',
+      conversationId: 'conv-1',
+      occurredAt: '2026-04-23T12:00:00.000Z',
+      payload: { event: 'message.received' },
+    });
+    const second = repository.recordWebhookEvent({
+      provider: 'quo',
+      providerEventId: 'evt-1',
+      eventType: 'message.received',
+      messageId: 'msg-1',
+      conversationId: 'conv-1',
+      occurredAt: '2026-04-23T12:00:00.000Z',
+      payload: { event: 'message.received' },
+    });
+
+    expect(first.inserted).toBe(true);
+    expect(second.inserted).toBe(false);
+  });
 });

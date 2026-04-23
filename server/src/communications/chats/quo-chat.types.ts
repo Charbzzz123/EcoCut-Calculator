@@ -115,12 +115,36 @@ interface QuoChatSyncResult {
   mirror: QuoChatMirrorStats;
 }
 
+type QuoChatWebhookEventType =
+  | 'message.received'
+  | 'message.sent'
+  | 'message.delivered'
+  | 'message.failed'
+  | 'message.unknown';
+
+interface QuoChatWebhookIngestResult {
+  accepted: true;
+  provider: 'quo';
+  duplicate: boolean;
+  providerEventId: string;
+  eventType: QuoChatWebhookEventType;
+  conversationId: string | null;
+  messageId: string | null;
+  receivedAt: string;
+  mirrored: {
+    conversations: number;
+    messages: number;
+  };
+}
+
 export type {
   QuoChatProviderHealth,
   QuoChatMirrorStats,
   QuoChatSyncMode,
   QuoChatSyncRequest,
   QuoChatSyncResult,
+  QuoChatWebhookEventType,
+  QuoChatWebhookIngestResult,
   QuoContact,
   QuoConversation,
   QuoCreateContactInput,

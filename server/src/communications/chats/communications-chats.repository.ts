@@ -20,6 +20,10 @@ interface ContactLinkRow {
   updated_at: string;
 }
 
+interface WebhookInsertResult {
+  changes: number;
+}
+
 interface ChatMirrorStats {
   conversations: number;
   messages: number;
@@ -36,6 +40,22 @@ interface UpsertClientContactLinkInput {
 
 interface ClearMirrorDataOptions {
   preserveClientLinks?: boolean;
+}
+
+interface RecordWebhookEventInput {
+  provider: 'quo';
+  providerEventId: string;
+  eventType: string;
+  messageId: string | null;
+  conversationId: string | null;
+  occurredAt: string | null;
+  payload: unknown;
+  receivedAt?: string;
+}
+
+interface RecordWebhookEventResult {
+  inserted: boolean;
+  receivedAt: string;
 }
 
 @Injectable()
@@ -58,6 +78,7 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
   private readonly clearConversationsStmt: Database.Statement;
   private readonly clearClientLinksStmt: Database.Statement;
   private readonly clearCursorsStmt: Database.Statement;
+  private readonly insertWebhookEventStmt: Database.Statement;
 
   constructor() {
     mkdirSync(dirname(this.dbPath), { recursive: true });
@@ -98,6 +119,19 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
         cursor_value TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS chat_webhook_events (
+        provider_event_id TEXT PRIMARY KEY,
+        provider TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        message_id TEXT,
+        conversation_id TEXT,
+        occurred_at TEXT,
+        payload TEXT NOT NULL,
+        received_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_chat_webhook_events_conversation
+        ON chat_webhook_events(conversation_id, occurred_at);
     `);
 
     this.upsertConversationStmt = this.db.prepare(
@@ -183,6 +217,19 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
       'DELETE FROM chat_client_links',
     );
     this.clearCursorsStmt = this.db.prepare('DELETE FROM chat_sync_cursors');
+    this.insertWebhookEventStmt = this.db.prepare(
+      `INSERT INTO chat_webhook_events (
+         provider_event_id,
+         provider,
+         event_type,
+         message_id,
+         conversation_id,
+         occurred_at,
+         payload,
+         received_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(provider_event_id) DO NOTHING`,
+    );
   }
 
   upsertConversations(conversations: QuoConversation[]): number {
@@ -361,6 +408,34 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
     }
   }
 
+  recordWebhookEvent(input: RecordWebhookEventInput): RecordWebhookEventResult {
+    const receivedAt = input.receivedAt ?? new Date().toISOString();
+    try {
+      const result = this.insertWebhookEventStmt.run(
+        input.providerEventId,
+        input.provider,
+        input.eventType,
+        input.messageId,
+        input.conversationId,
+        input.occurredAt,
+        JSON.stringify(input.payload),
+        receivedAt,
+      ) as WebhookInsertResult;
+      return {
+        inserted: result.changes > 0,
+        receivedAt,
+      };
+    } catch (error) {
+      this.logger.warn(
+        `Failed to persist chat webhook event: ${this.stringifyError(error)}`,
+      );
+      return {
+        inserted: false,
+        receivedAt,
+      };
+    }
+  }
+
   onModuleDestroy(): void {
     if (this.db.open) {
       this.db.close();
@@ -390,5 +465,7 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
 export type {
   ChatMirrorStats,
   ClearMirrorDataOptions,
+  RecordWebhookEventInput,
+  RecordWebhookEventResult,
   UpsertClientContactLinkInput,
 };

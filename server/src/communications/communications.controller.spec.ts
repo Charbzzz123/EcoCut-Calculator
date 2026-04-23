@@ -19,6 +19,7 @@ describe('CommunicationsController', () => {
   const ingestProviderWebhook = jest.fn();
   const getProviderHealth = jest.fn();
   const syncMirror = jest.fn();
+  const ingestQuoWebhook = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -51,6 +52,7 @@ describe('CommunicationsController', () => {
           useValue: {
             getProviderHealth,
             syncMirror,
+            ingestQuoWebhook,
           },
         },
       ],
@@ -246,5 +248,25 @@ describe('CommunicationsController', () => {
       mode: 'incremental',
       maxConversations: 20,
     });
+  });
+
+  it('forwards quo chat webhooks with signature header', async () => {
+    ingestQuoWebhook.mockReturnValue({
+      accepted: true,
+      provider: 'quo',
+      duplicate: false,
+    });
+    const controller = await createController();
+    const payload = {
+      event: 'message.delivered',
+      data: { conversationId: 'conv-1', messageId: 'msg-1' },
+    };
+
+    expect(controller.ingestQuoChatWebhook('sig-123', payload)).toMatchObject({
+      accepted: true,
+      provider: 'quo',
+      duplicate: false,
+    });
+    expect(ingestQuoWebhook).toHaveBeenCalledWith(payload, 'sig-123');
   });
 });

@@ -1,4 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import { loadWebhookSignatureConfig } from '../communications.config';
 import {
   QuoApiRequestError,
   QuoChatClientService,
@@ -8,6 +10,8 @@ import type {
   QuoChatProviderHealth,
   QuoChatSyncRequest,
   QuoChatSyncResult,
+  QuoChatWebhookEventType,
+  QuoChatWebhookIngestResult,
 } from './quo-chat.types';
 
 const QUO_RATE_LIMIT_PER_SECOND = 10;
@@ -22,8 +26,31 @@ const LAST_SYNC_AT_CURSOR_KEY = 'sync.lastCompletedAt';
 
 type SyncMode = 'incremental' | 'backfill' | 'reset';
 
+interface QuoNormalizedWebhookEvent {
+  providerEventId: string;
+  eventType: QuoChatWebhookEventType;
+  messageId: string | null;
+  conversationId: string | null;
+  occurredAt: string;
+  message: {
+    id: string;
+    conversationId: string;
+    content: string | undefined;
+    direction: 'inbound' | 'outbound';
+    createdAt: string;
+    from: string | undefined;
+    to: string | undefined;
+  };
+  conversation: {
+    id: string;
+    lastMessageAt: string;
+  };
+}
+
 @Injectable()
 export class CommunicationsChatsService {
+  private readonly webhookConfig = loadWebhookSignatureConfig();
+
   constructor(
     private readonly quoClient: QuoChatClientService,
     private readonly chatsRepository: CommunicationsChatsRepository,
@@ -310,6 +337,67 @@ export class CommunicationsChatsService {
     };
   }
 
+  ingestQuoWebhook(
+    payload: unknown,
+    signature: string | undefined,
+  ): QuoChatWebhookIngestResult {
+    this.ensureWebhookSignature(payload, signature);
+    const normalized = this.normalizeQuoWebhookEvent(payload);
+
+    const persisted = this.chatsRepository.recordWebhookEvent({
+      provider: 'quo',
+      providerEventId: normalized.providerEventId,
+      eventType: normalized.eventType,
+      messageId: normalized.messageId,
+      conversationId: normalized.conversationId,
+      occurredAt: normalized.occurredAt,
+      payload,
+    });
+
+    if (!persisted.inserted) {
+      return {
+        accepted: true,
+        provider: 'quo',
+        duplicate: true,
+        providerEventId: normalized.providerEventId,
+        eventType: normalized.eventType,
+        conversationId: normalized.conversationId,
+        messageId: normalized.messageId,
+        receivedAt: persisted.receivedAt,
+        mirrored: {
+          conversations: 0,
+          messages: 0,
+        },
+      };
+    }
+
+    const mirroredConversations = this.chatsRepository.upsertConversations([
+      normalized.conversation,
+    ]);
+    const mirroredMessages = this.chatsRepository.upsertMessages(
+      normalized.conversation.id,
+      [normalized.message],
+    );
+    this.bumpCursorIfNewer(CONVERSATION_CURSOR_KEY, normalized.occurredAt);
+    this.bumpCursorIfNewer(MESSAGE_CURSOR_KEY, normalized.occurredAt);
+    this.bumpCursorIfNewer(LAST_SYNC_AT_CURSOR_KEY, persisted.receivedAt);
+
+    return {
+      accepted: true,
+      provider: 'quo',
+      duplicate: false,
+      providerEventId: normalized.providerEventId,
+      eventType: normalized.eventType,
+      conversationId: normalized.conversationId,
+      messageId: normalized.messageId,
+      receivedAt: persisted.receivedAt,
+      mirrored: {
+        conversations: mirroredConversations,
+        messages: mirroredMessages,
+      },
+    };
+  }
+
   private normalizeMode(mode: QuoChatSyncRequest['mode']): SyncMode {
     if (mode === 'backfill' || mode === 'reset') {
       return mode;
@@ -343,5 +431,166 @@ export class CommunicationsChatsService {
       return null;
     }
     return parsed;
+  }
+
+  private ensureWebhookSignature(
+    payload: unknown,
+    signature: string | undefined,
+  ): void {
+    const secret = this.webhookConfig.quoSecret;
+    if (!secret) {
+      return;
+    }
+
+    if (!signature) {
+      throw new BadRequestException('Missing webhook signature for Quo chats.');
+    }
+
+    const expected = this.createWebhookSignature(secret, payload);
+    const received = signature.trim().toLowerCase();
+    if (!this.constantTimeEqual(expected, received)) {
+      throw new BadRequestException('Invalid webhook signature for Quo chats.');
+    }
+  }
+
+  private createWebhookSignature(secret: string, payload: unknown): string {
+    return createHmac('sha256', secret)
+      .update(JSON.stringify(payload))
+      .digest('hex');
+  }
+
+  private constantTimeEqual(a: string, b: string): boolean {
+    const left = Buffer.from(a);
+    const right = Buffer.from(b);
+    if (left.length !== right.length) {
+      return false;
+    }
+    return timingSafeEqual(left, right);
+  }
+
+  private normalizeQuoWebhookEvent(
+    payload: unknown,
+  ): QuoNormalizedWebhookEvent {
+    const source = this.toRecord(payload);
+    const data = this.toRecord(source.data);
+    const eventName =
+      this.readString(source.event) ??
+      this.readString(source.type) ??
+      'message.unknown';
+    const status = this.readString(data.status);
+    const eventType = this.mapWebhookEventType(eventName, status);
+    const occurredAt =
+      this.readString(data.timestamp) ??
+      this.readString(source.timestamp) ??
+      new Date().toISOString();
+    const messageId =
+      this.readString(data.messageId) ??
+      this.readString(data.id) ??
+      this.readString(source.messageId);
+    const conversationId =
+      this.readString(data.conversationId) ??
+      this.readString(source.conversationId) ??
+      this.readString(data.threadId) ??
+      this.readString(source.threadId);
+    const from =
+      this.readString(data.from) ??
+      this.readString(source.from) ??
+      this.readString(data.phoneNumber);
+    const to =
+      this.readString(data.to) ??
+      this.readString(source.to) ??
+      this.quoClient.getFromNumber() ??
+      undefined;
+
+    const resolvedConversationId =
+      conversationId ??
+      (messageId ? `message:${messageId}` : `conversation:${occurredAt}`);
+    const resolvedMessageId =
+      messageId ?? `${resolvedConversationId}:${eventType}:${occurredAt}`;
+    const providerEventId =
+      this.readString(source.id) ??
+      this.readString(data.eventId) ??
+      `${resolvedMessageId}:${eventType}`;
+    const direction: 'inbound' | 'outbound' =
+      eventType === 'message.received' ? 'inbound' : 'outbound';
+
+    return {
+      providerEventId,
+      eventType,
+      messageId: messageId ?? null,
+      conversationId: conversationId ?? null,
+      occurredAt,
+      message: {
+        id: resolvedMessageId,
+        conversationId: resolvedConversationId,
+        content:
+          this.readString(data.content) ??
+          this.readString(data.body) ??
+          this.readString(source.content) ??
+          undefined,
+        direction,
+        createdAt: occurredAt,
+        from: from ?? undefined,
+        to: to ?? undefined,
+      },
+      conversation: {
+        id: resolvedConversationId,
+        lastMessageAt: occurredAt,
+      },
+    };
+  }
+
+  private mapWebhookEventType(
+    eventName: string,
+    status: string | null,
+  ): QuoChatWebhookEventType {
+    const combined = `${eventName} ${status ?? ''}`.toLowerCase();
+    if (
+      combined.includes('message.received') ||
+      combined.includes('inbound') ||
+      combined.includes('received')
+    ) {
+      return 'message.received';
+    }
+    if (combined.includes('delivered')) {
+      return 'message.delivered';
+    }
+    if (
+      combined.includes('failed') ||
+      combined.includes('undeliverable') ||
+      combined.includes('errored')
+    ) {
+      return 'message.failed';
+    }
+    if (combined.includes('sent') || combined.includes('queued')) {
+      return 'message.sent';
+    }
+    return 'message.unknown';
+  }
+
+  private bumpCursorIfNewer(cursorKey: string, candidate: string): void {
+    const current = this.parseCursorDate(
+      this.chatsRepository.getSyncCursor(cursorKey),
+    );
+    const next = this.parseCursorDate(candidate);
+    if (!next) {
+      return;
+    }
+    if (!current || next > current) {
+      this.chatsRepository.saveSyncCursor(cursorKey, next.toISOString());
+    }
+  }
+
+  private toRecord(value: unknown): Record<string, unknown> {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      return value as Record<string, unknown>;
+    }
+    return {};
+  }
+
+  private readString(value: unknown): string | null {
+    return typeof value === 'string' && value.trim().length > 0
+      ? value.trim()
+      : null;
   }
 }

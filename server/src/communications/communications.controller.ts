@@ -101,4 +101,12 @@ export class CommunicationsController {
   syncChats(@Body() body: QuoChatSyncRequest = {}) {
     return this.chats.syncMirror(body);
   }
+
+  @Post('chats/webhooks/quo')
+  ingestQuoChatWebhook(
+    @Headers('x-webhook-signature') signature: string | undefined,
+    @Body() body: unknown,
+  ) {
+    return this.chats.ingestQuoWebhook(body, signature);
+  }
 }

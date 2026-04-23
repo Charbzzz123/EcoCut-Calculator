@@ -121,13 +121,14 @@ root/
   - Communications persistence is durable in SQLite (`COMMUNICATIONS_DB_PATH`) via `CommunicationsRepository`, covering campaigns, pending approvals, audit records, delivery events, and suppressions.
   - Provider webhook signatures are validated via HMAC when `QUO_WEBHOOK_SECRET` or `HOSTINGER_WEBHOOK_SECRET` are configured.
   - Next slices still pending: durable campaign persistence, queue workers, consent expiry enforcement, and idempotency keys.
-- **Chats foundation (CH-1/CH-2/CH-3 live)**:
+- **Chats foundation (CH-1/CH-2/CH-3/CH-4 live)**:
   - `GET /communications/chats/health` now returns Quo provider readiness (`configured`, `connected`, from-number visibility, diagnostics text) plus mirror counters (`conversations`, `messages`, `clientLinks`, `cursors`).
   - Quo integrations now share one typed transport wrapper (`QuoChatClientService`) with retry/backoff and categorized provider errors (auth vs transient).
   - Existing SMS sends in broadcast now reuse the same Quo transport client to avoid duplicated provider logic.
   - Chat persistence now includes durable mirror tables in `COMMUNICATIONS_DB_PATH`: `chat_conversations`, `chat_messages`, `chat_client_links`, and `chat_sync_cursors` with idempotent upserts.
   - Manual mirror sync endpoint is live at `POST /communications/chats/sync` (`incremental`, `backfill`, `reset`), using stored cursors for restart-safe incremental pulls.
-  - Remaining chat slices (webhooks, conversation/thread APIs, UI route) are planned under CH-4..CH-12 in `docs/work-tracker.md`.
+  - Webhook ingest endpoint is live at `POST /communications/chats/webhooks/quo` with optional HMAC verification (`QUO_WEBHOOK_SECRET`), provider-event dedupe, raw payload audit persistence (`chat_webhook_events`), and immediate mirror upserts.
+  - Remaining chat slices (conversation/thread APIs, UI route) are planned under CH-5..CH-12 in `docs/work-tracker.md`.
 - **Frontend proxying & dev setup**
   - `npm start` automatically passes `--proxy-config proxy.conf.json`, so `/api/*` traffic goes to `http://localhost:3000/*`. Always run `npm run server` in a second terminal before testing calendar flows locally.
   - When the Nest server or credentials are unavailable the frontend logs the failure (via `console.warn`) and surfaces the inline banner but the form remains usable.
@@ -147,7 +148,7 @@ root/
   | `EMPLOYEES_DB_PATH` | Optional | SQLite file path for persisted employees roster/hours/history snapshot (`server/data/employees.db` by default). |
   | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` | Required for email sends | Hostinger SMTP credentials used by the communications module. |
   | `QUO_API_BASE_URL`, `QUO_API_KEY`, `QUO_FROM_NUMBER`, `QUO_FROM_NUMBER_ID`, `QUO_USER_ID` | Required for SMS sends | Quo API configuration used by `QuoSmsProvider`. |
-  | `QUO_WEBHOOK_SECRET`, `HOSTINGER_WEBHOOK_SECRET` | Optional (recommended for production) | Enables signature validation on provider webhook route (`/communications/webhooks/delivery/:provider`). |
+  | `QUO_WEBHOOK_SECRET`, `HOSTINGER_WEBHOOK_SECRET` | Optional (recommended for production) | Enables signature validation on provider webhook routes (`/communications/webhooks/delivery/:provider` and `/communications/chats/webhooks/quo` for Quo chat events). |
 - Failure to provide credentials disables the calendar module gracefully but the endpoints will throw a clear error�set env vars before local dev or deployments.
 - Use `.env.example` as the template for onboarding; copy it to `.env` (or export variables via your shell profile) and fill in the credential values before running `npm run server`. Never commit the real secrets.
 - Always run backend scripts from `server/` (`npm run start:dev`, `npm run test`, etc.) so node_modules stay isolated.
@@ -191,7 +192,7 @@ All frontend services derive their HTTP targets from `environment.apiBaseUrl`, s
 - Replace placeholder Angular template with real calculator components.
 - Extend the `/clients` view into a full CRM (client detail drawer, job history timeline, edit/delete hooks) once backend persistence is durable.
 - Continue `/communications/broadcast` rollout in remaining slices: campaign history UI and final rollout checklist/integration hardening.
-- Build `/communications/chats` (Quo inbox replacement) in staged CH slices: mirror persistence, webhook sync, conversation/thread APIs, then UI/deep-link rollout.
+- Build `/communications/chats` (Quo inbox replacement) in staged CH slices: conversation/thread APIs, then UI/deep-link rollout.
 - Continue Start Next Job enhancements with deeper assignment performance drill-down (e.g., seasonal route baselines and forecasted crew demand) now that analytics, date-range filtering, per-employee trend cards, route-level variance cards, cross-run trends, optimistic lifecycle reconciliation, and CSV export are live.
 - Continue Start Next Job + Employees cross-module integrity and reporting consistency (JX-6) now that continuity and run lifecycle slices are live.
 - Automate documentation publishing (Docs site or wiki) once scope grows.
