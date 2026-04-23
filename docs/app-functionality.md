@@ -425,3 +425,24 @@ Update this document whenever we clarify rules or add new functionality so imple
 - Owners/managers can update contact info inline (first/last name, address, phone, email). Submitting emits "PATCH /entries/clients/:clientId" which updates all matching entries and refreshes the roster + drawer immediately.
 - A Delete client action removes the customer (and all related jobs) via "DELETE /entries/clients/:clientId" after confirmation.
 - Search continues to ignore punctuation in phone numbers/emails, so typing raw digits (e.g., 4385551111) still matches entries stored as (438) 555-1111.
+
+### Chats workspace (planned Quo inbox replacement)
+
+- **Goal**: ship a first-party `Chats` section that allows EcoCut operators to handle Quo SMS traffic directly inside the app (conversation list, thread view, send/reply, contact management), while keeping the existing evergreen UX language.
+- **Data contract**:
+  - Conversations are shown newest-to-oldest (recent activity first).
+  - Threads load newest messages first, with pagination for older history.
+  - Sending remains channel-safe (SMS only) and reflects `sending`, `sent`, `failed` states in the thread.
+- **Client-aware workflow (locked requirement)**:
+  - Selecting a client from Client Book should deep-link into Chats and auto-open that client's linked conversation.
+  - Chat header should show client context (last completed job, next scheduled job, total jobs) plus quick actions back into client/job views.
+- **Contact sync expectations**:
+  - New/updated EcoCut clients should auto-upsert to Quo contacts using stable external linking.
+  - Unknown inbound numbers should surface as unlinked chat records with explicit link/create-client actions.
+- **Runtime safeguards**:
+  - Enforce provider rate limits with queue/throttling.
+  - Keep read-sync operations incremental and idempotent.
+  - Track usage for future Finance dashboards (cost/threshold monitoring).
+- **Current status**:
+  - **CH-1 foundation is implemented**: typed Quo client wrapper + provider health endpoint (`GET /communications/chats/health`) are live.
+  - Remaining slices (mirror persistence, webhook ingestion, chats UI, deep-linking, rollout hardening) are tracked in `docs/work-tracker.md` under CH-2 through CH-12.

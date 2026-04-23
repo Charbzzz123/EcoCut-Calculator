@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { CommunicationsController } from './communications.controller';
 import { CommunicationsService } from './communications.service';
+import { CommunicationsChatsService } from './chats/communications-chats.service';
 
 describe('CommunicationsController', () => {
   const sendTest = jest.fn();
@@ -16,6 +17,7 @@ describe('CommunicationsController', () => {
   const upsertSuppressions = jest.fn();
   const removeSuppressions = jest.fn();
   const ingestProviderWebhook = jest.fn();
+  const getProviderHealth = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -41,6 +43,12 @@ describe('CommunicationsController', () => {
             listSuppressions,
             upsertSuppressions,
             removeSuppressions,
+          },
+        },
+        {
+          provide: CommunicationsChatsService,
+          useValue: {
+            getProviderHealth,
           },
         },
       ],
@@ -195,5 +203,21 @@ describe('CommunicationsController', () => {
       payload,
       'abc123',
     );
+  });
+
+  it('returns chats provider health status', async () => {
+    getProviderHealth.mockResolvedValue({
+      provider: 'quo',
+      configured: true,
+      connected: true,
+    });
+    const controller = await createController();
+
+    await expect(controller.getChatsHealth()).resolves.toEqual({
+      provider: 'quo',
+      configured: true,
+      connected: true,
+    });
+    expect(getProviderHealth).toHaveBeenCalledTimes(1);
   });
 });

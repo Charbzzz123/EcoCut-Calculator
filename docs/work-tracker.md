@@ -6,6 +6,8 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 | Task                                                                 | Done       | Notes                                                                                                                                                                                                                                                                                                                                  |
 | -------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CH-0 Chats scope + UX contract freeze                                | 2026-04-22 | Locked chats epic scope, phased CH-0..CH-12 implementation plan, client->chat deep-link requirement, and theme parity constraints so future chat slices stay coherent and context-safe if sessions reset.                                                                                                                              |
+| CH-1 Quo chat provider foundation                                    | 2026-04-22 | Added typed Quo chat client wrapper (retry/backoff + error categorization), reusable provider health service, and `GET /communications/chats/health` endpoint; SMS transport now reuses the same Quo client to avoid duplicate API logic.                                                                                              |
 | NAV-5 Alert/banner enter-exit motion                                 | 2026-04-12 | Added shared alert/toast motion utility (`motion-alert`) in global styles for validation/state/banner surfaces, plus delayed close handling for Start Next Job save toast so success/error feedback no longer appears/disappears abruptly while still respecting reduced-motion preferences.                                           |
 | NAV-4 Collapse/expand motion unification                             | 2026-04-12 | Added shared collapse utility motion (`motion-collapse`) in global styles and wired it into Start Next Job + Broadcast progressive-disclosure sections (workflow status, advanced panels, analytics panel/details, manual-add panel, per-client override) with reduced-motion fallback and hidden-state inert handling.                |
 | NAV-3C Non-shared popover/menu motion parity                         | 2026-04-12 | Audited remaining non-shared popovers and aligned Home CTA/dropdown menus with the same open-close motion baseline (fade/slide + visibility handoff + reduced-motion fallback) so they no longer pop in/out abruptly compared to shared dropdown/popover components.                                                                   |
@@ -126,12 +128,23 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 ## In Progress / Backlog
 
-| Step   | Task                                | Owner | Notes                                                                                                                                                                                                                         |
-| ------ | ----------------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ADDR-1 | Address strict-mode rollout         | —     | Keep `enforceVerifiedAddress=false` in development until provider credentials are configured, then run staging validation and switch strict-mode to `true` in production configs.                                             |
-| ADDR-2 | Address usage + quota UI in Finance | —     | Backend usage ledger, monthly caps, and threshold guardrails are shipped (`/addresses/usage`). Remaining work: surface this in the future Finance section with monthly cost/threshold widgets and optional auto-pause toggle. |
-| DATA-1 | Centralize job display labels       | —     | Add canonical `displayLabel` read model (client + job type) and optional `clientNameSnapshot` on history rows so labels stay consistent across Start Next Job, history, and reports even if client names change later.        |
-| DATA-2 | Migrate EntriesRepository database  | —     | Replace file-based persistence with SQLite/Postgres via a managed ORM (e.g., Prisma) when ready.                                                                                                                              |
+| Step   | Task                                 | Owner | Notes                                                                                                                                                                                                                         |
+| ------ | ------------------------------------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CH-2   | Chat mirror persistence model        | —     | Add durable SQLite mirrors for conversations/messages/contact-links/sync cursors so chats survive restarts and incremental sync is replay-safe.                                                                               |
+| CH-3   | Incremental sync engine              | —     | Build paginated pull-sync (backfill + incremental) with idempotent upserts for conversations/messages and manual re-sync endpoint for recovery.                                                                               |
+| CH-4   | Quo webhook ingestion                | —     | Ingest message lifecycle webhooks (`message.received`, `message.delivered`) with signature validation and dedupe so incoming updates land in near-real-time.                                                                  |
+| CH-5   | Chats backend API surface            | —     | Expose conversation list, thread messages, send message, read-state, search, and manual sync endpoints under `/communications/chats/*`.                                                                                       |
+| CH-6   | Client <-> Quo contact sync          | —     | Auto-upsert Quo contacts from client create/update, add link-existing flow, and handle unknown inbound numbers with explicit linking/creation actions.                                                                        |
+| CH-7   | Home + routing entrypoint            | —     | Add `Chats` quick action and route (`/communications/chats`) so operators can launch inbox directly from home.                                                                                                                |
+| CH-8   | Chats UI MVP                         | —     | Build messenger-style split view (conversation list + thread + composer), mobile stacked behavior, send states, and evergreen theme parity.                                                                                   |
+| CH-9   | Client-aware chat header + deep-link | —     | Client click should auto-open the linked chat thread; chat header must surface client context (last/upcoming jobs, totals) with quick actions back to client profile/jobs.                                                    |
+| CH-10  | Rate/cost guardrails for chats       | —     | Enforce queue/throttle (10 rps key limit), outbound pacing, usage counters, and optional auto-pause threshold for safe operations.                                                                                            |
+| CH-11  | Test + rollout hardening             | —     | Add unit/integration/e2e coverage for sync/send/webhook/linking flows, then run full quality gates before staged rollout.                                                                                                     |
+| CH-12  | Final docs + runbook                 | —     | Document architecture, env/setup, webhook ops, failure modes, and support runbook across app docs and release checklist.                                                                                                      |
+| ADDR-1 | Address strict-mode rollout          | —     | Keep `enforceVerifiedAddress=false` in development until provider credentials are configured, then run staging validation and switch strict-mode to `true` in production configs.                                             |
+| ADDR-2 | Address usage + quota UI in Finance  | —     | Backend usage ledger, monthly caps, and threshold guardrails are shipped (`/addresses/usage`). Remaining work: surface this in the future Finance section with monthly cost/threshold widgets and optional auto-pause toggle. |
+| DATA-1 | Centralize job display labels        | —     | Add canonical `displayLabel` read model (client + job type) and optional `clientNameSnapshot` on history rows so labels stay consistent across Start Next Job, history, and reports even if client names change later.        |
+| DATA-2 | Migrate EntriesRepository database   | —     | Replace file-based persistence with SQLite/Postgres via a managed ORM (e.g., Prisma) when ready.                                                                                                                              |
 
 ### JX Plan Detail (freeze this before coding)
 
@@ -245,6 +258,102 @@ Use this as the source of truth if chat context resets.
 - Configure and verify SPF, DKIM, and DMARC before enabling production email broadcasts.
 - Include one-click unsubscribe support for bulk email sends and honor unsubscribe requests within policy windows.
 - Enforce provider guardrails in-app (Quo request-rate limits and mailbox/day send caps).
+
+### CH Plan Detail (freeze this before coding)
+
+Use this as the source of truth if chat context resets.
+
+#### CH-0 - Scope + UX contract
+
+- **Status**: Completed on 2026-04-22.
+- Locked target: EcoCut-native Quo inbox replacement (conversation list, thread view, send/reply, contact sync hooks, client-aware header context).
+- Locked UX requirement: use existing evergreen tokens/components so chats feel native to the current app shell.
+- Locked deep-link requirement: selecting a client should auto-open that client's chat context.
+
+#### CH-1 - Quo provider foundation
+
+- **Status**: Completed on 2026-04-22.
+- Added typed Quo chat client wrapper with retry/backoff + error categorization.
+- Added provider health service and `GET /communications/chats/health` endpoint.
+- Reused the same client in SMS transport to avoid duplicate Quo request logic.
+
+#### CH-2 - Mirror persistence schema
+
+- Add durable SQLite mirror tables for:
+  - conversations
+  - messages
+  - contact links (`clientId <-> quoContactId`)
+  - sync cursors
+- Require idempotent keys (`conversationId`, `messageId`) and restart-safe cursors.
+
+#### CH-3 - Pull sync engine
+
+- Implement paginated backfill + incremental sync loops.
+- Use cursor/timestamp-based paging with deterministic ordering.
+- Add manual re-sync endpoint for operational recovery.
+
+#### CH-4 - Webhook ingest pipeline
+
+- Register and ingest Quo message webhooks.
+- Validate signature when secret is configured.
+- Persist raw payload audits + normalized updates.
+- Deduplicate webhook replays using provider event identity.
+
+#### CH-5 - Chats API surface
+
+- Ship server endpoints for:
+  - conversation list
+  - thread messages
+  - send message
+  - mark read
+  - search
+  - manual sync
+- Keep frontend isolated from direct Quo calls (backend only).
+
+#### CH-6 - Client-contact sync
+
+- Upsert Quo contacts from EcoCut client create/update.
+- Support link-existing contact flow for duplicates.
+- Add unlinked inbound number queue with explicit resolve action.
+
+#### CH-7 - Home + route entry
+
+- Add `Chats` quick action card + `/communications/chats` route.
+- Preserve existing home action-card hierarchy and keyboard flow.
+
+#### CH-8 - Chats UI MVP
+
+- Desktop: split view (left conversation list, right active thread/composer).
+- Mobile: stacked list->thread navigation.
+- Include sending/delivered/failed states, unread markers, empty/error/loading states.
+
+#### CH-9 - Client-aware thread context
+
+- Thread header shows client identity + quick context:
+  - last job
+  - upcoming job
+  - total jobs
+- Add quick actions back to client profile and job workflows.
+
+#### CH-10 - Guardrails (rate/cost/reliability)
+
+- Enforce queue + throttles (respect Quo 10 rps per key).
+- Add monthly usage counters + threshold warnings.
+- Optional auto-pause on threshold breach for safe operations.
+
+#### CH-11 - Test + rollout hardening
+
+- Add unit/integration/e2e coverage for sync/webhook/send/link flows.
+- Run full quality gates before rollout.
+- Validate failure-mode UX (provider down, auth failure, rate limit).
+
+#### CH-12 - Documentation + runbook
+
+- Update app-functionality + app-documentation + release checklist with:
+  - architecture
+  - env/setup
+  - webhook ops
+  - troubleshooting flows
 
 ## To Eventually Do
 

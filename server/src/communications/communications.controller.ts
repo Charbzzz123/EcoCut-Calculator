@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Headers, Param, Post } from '@nestjs/common';
 import { CommunicationsService } from './communications.service';
+import { CommunicationsChatsService } from './chats/communications-chats.service';
 import type {
   DeliveryProvider,
   DeliveryWebhookDto,
@@ -10,7 +11,10 @@ import type {
 
 @Controller('communications')
 export class CommunicationsController {
-  constructor(private readonly communications: CommunicationsService) {}
+  constructor(
+    private readonly communications: CommunicationsService,
+    private readonly chats: CommunicationsChatsService,
+  ) {}
 
   @Post('test')
   sendTest(@Body() body: SendBroadcastTestDto) {
@@ -85,5 +89,10 @@ export class CommunicationsController {
   @Post('suppressions/resubscribe')
   resubscribe(@Body() body: UpsertSuppressionDto) {
     return this.communications.removeSuppressions(body);
+  }
+
+  @Get('chats/health')
+  getChatsHealth() {
+    return this.chats.getProviderHealth();
   }
 }
