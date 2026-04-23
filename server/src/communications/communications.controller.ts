@@ -8,6 +8,7 @@ import type {
   SendBroadcastTestDto,
   UpsertSuppressionDto,
 } from './communications.types';
+import type { QuoChatSyncRequest } from './chats/quo-chat.types';
 
 @Controller('communications')
 export class CommunicationsController {
@@ -94,5 +95,10 @@ export class CommunicationsController {
   @Get('chats/health')
   getChatsHealth() {
     return this.chats.getProviderHealth();
+  }
+
+  @Post('chats/sync')
+  syncChats(@Body() body: QuoChatSyncRequest = {}) {
+    return this.chats.syncMirror(body);
   }
 }

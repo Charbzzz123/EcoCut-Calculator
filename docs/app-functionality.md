@@ -446,4 +446,5 @@ Update this document whenever we clarify rules or add new functionality so imple
 - **Current status**:
   - **CH-1 foundation is implemented**: typed Quo client wrapper + provider health endpoint (`GET /communications/chats/health`) are live.
   - **CH-2 mirror persistence is implemented**: conversations/messages/client-links/sync-cursors now persist in SQLite with idempotent upserts and restart-safe cursors.
-  - Remaining slices (sync engine, webhooks, chats UI, deep-linking, rollout hardening) are tracked in `docs/work-tracker.md` under CH-3 through CH-12.
+  - **CH-3 sync engine is implemented**: manual `POST /communications/chats/sync` now supports `incremental`, `backfill`, and `reset` modes with timestamp cursors and paginated pull-sync.
+  - Remaining slices (webhooks, chats API/UI surface, deep-linking, rollout hardening) are tracked in `docs/work-tracker.md` under CH-4 through CH-12.

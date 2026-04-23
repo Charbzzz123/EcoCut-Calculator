@@ -121,12 +121,13 @@ root/
   - Communications persistence is durable in SQLite (`COMMUNICATIONS_DB_PATH`) via `CommunicationsRepository`, covering campaigns, pending approvals, audit records, delivery events, and suppressions.
   - Provider webhook signatures are validated via HMAC when `QUO_WEBHOOK_SECRET` or `HOSTINGER_WEBHOOK_SECRET` are configured.
   - Next slices still pending: durable campaign persistence, queue workers, consent expiry enforcement, and idempotency keys.
-- **Chats foundation (CH-1/CH-2 live)**:
+- **Chats foundation (CH-1/CH-2/CH-3 live)**:
   - `GET /communications/chats/health` now returns Quo provider readiness (`configured`, `connected`, from-number visibility, diagnostics text) plus mirror counters (`conversations`, `messages`, `clientLinks`, `cursors`).
   - Quo integrations now share one typed transport wrapper (`QuoChatClientService`) with retry/backoff and categorized provider errors (auth vs transient).
   - Existing SMS sends in broadcast now reuse the same Quo transport client to avoid duplicated provider logic.
   - Chat persistence now includes durable mirror tables in `COMMUNICATIONS_DB_PATH`: `chat_conversations`, `chat_messages`, `chat_client_links`, and `chat_sync_cursors` with idempotent upserts.
-  - Remaining chat slices (sync engine, webhooks, conversation/thread APIs, UI route) are planned under CH-3..CH-12 in `docs/work-tracker.md`.
+  - Manual mirror sync endpoint is live at `POST /communications/chats/sync` (`incremental`, `backfill`, `reset`), using stored cursors for restart-safe incremental pulls.
+  - Remaining chat slices (webhooks, conversation/thread APIs, UI route) are planned under CH-4..CH-12 in `docs/work-tracker.md`.
 - **Frontend proxying & dev setup**
   - `npm start` automatically passes `--proxy-config proxy.conf.json`, so `/api/*` traffic goes to `http://localhost:3000/*`. Always run `npm run server` in a second terminal before testing calendar flows locally.
   - When the Nest server or credentials are unavailable the frontend logs the failure (via `console.warn`) and surfaces the inline banner but the form remains usable.

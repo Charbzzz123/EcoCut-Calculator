@@ -63,6 +63,7 @@ interface QuoChatProviderHealth {
   configured: boolean;
   connected: boolean;
   checkedAt: string;
+  lastSyncAt: string | null;
   rateLimitPerSecond: number;
   phoneNumber: string | null;
   details: string;
@@ -76,9 +77,50 @@ interface QuoChatMirrorStats {
   cursors: number;
 }
 
+type QuoChatSyncMode = 'incremental' | 'backfill' | 'reset';
+
+interface QuoChatSyncRequest {
+  mode?: QuoChatSyncMode;
+  conversationPageSize?: number;
+  messagePageSize?: number;
+  maxConversations?: number;
+}
+
+interface QuoChatSyncResult {
+  mode: QuoChatSyncMode;
+  startedAt: string;
+  completedAt: string;
+  durationMs: number;
+  truncated: boolean;
+  scanned: {
+    conversations: number;
+    messages: number;
+  };
+  mirrored: {
+    conversations: number;
+    messages: number;
+  };
+  pages: {
+    conversations: number;
+    messages: number;
+  };
+  cursors: {
+    previousConversationCursor: string | null;
+    nextConversationCursor: string | null;
+    previousMessageCursor: string | null;
+    nextMessageCursor: string | null;
+    previousSyncAt: string | null;
+    lastSyncAt: string;
+  };
+  mirror: QuoChatMirrorStats;
+}
+
 export type {
   QuoChatProviderHealth,
   QuoChatMirrorStats,
+  QuoChatSyncMode,
+  QuoChatSyncRequest,
+  QuoChatSyncResult,
   QuoContact,
   QuoConversation,
   QuoCreateContactInput,

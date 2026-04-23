@@ -106,4 +106,39 @@ describe('CommunicationsChatsRepository', () => {
     expect(repository.getClientContactLink('client-1')).toBeNull();
     expect(repository.getMirrorStats().clientLinks).toBe(0);
   });
+
+  it('clears mirror rows and optionally preserves client links', () => {
+    repository.upsertConversations([
+      { id: 'conv-1', lastMessageAt: '2026-04-23T10:00:00.000Z' },
+    ]);
+    repository.upsertMessages('conv-1', [
+      {
+        id: 'msg-1',
+        conversationId: 'conv-1',
+        createdAt: '2026-04-23T10:01:00.000Z',
+      },
+    ]);
+    repository.upsertClientContactLink({
+      clientId: 'client-1',
+      quoContactId: 'contact-1',
+      source: 'auto',
+    });
+    repository.saveSyncCursor('cursor-key', 'cursor-value');
+
+    repository.clearMirrorData({ preserveClientLinks: true });
+    expect(repository.getMirrorStats()).toEqual({
+      conversations: 0,
+      messages: 0,
+      clientLinks: 1,
+      cursors: 0,
+    });
+
+    repository.clearMirrorData({ preserveClientLinks: false });
+    expect(repository.getMirrorStats()).toEqual({
+      conversations: 0,
+      messages: 0,
+      clientLinks: 0,
+      cursors: 0,
+    });
+  });
 });

@@ -18,6 +18,7 @@ describe('CommunicationsController', () => {
   const removeSuppressions = jest.fn();
   const ingestProviderWebhook = jest.fn();
   const getProviderHealth = jest.fn();
+  const syncMirror = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -49,6 +50,7 @@ describe('CommunicationsController', () => {
           provide: CommunicationsChatsService,
           useValue: {
             getProviderHealth,
+            syncMirror,
           },
         },
       ],
@@ -225,5 +227,24 @@ describe('CommunicationsController', () => {
       connected: true,
     });
     expect(getProviderHealth).toHaveBeenCalledTimes(1);
+  });
+
+  it('forwards manual chat sync requests', async () => {
+    syncMirror.mockResolvedValue({
+      mode: 'incremental',
+      mirrored: { conversations: 1, messages: 2 },
+    });
+    const controller = await createController();
+
+    await expect(
+      controller.syncChats({ mode: 'incremental', maxConversations: 20 }),
+    ).resolves.toMatchObject({
+      mode: 'incremental',
+      mirrored: { conversations: 1, messages: 2 },
+    });
+    expect(syncMirror).toHaveBeenCalledWith({
+      mode: 'incremental',
+      maxConversations: 20,
+    });
   });
 });

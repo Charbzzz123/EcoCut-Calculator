@@ -34,6 +34,10 @@ interface UpsertClientContactLinkInput {
   updatedAt?: string;
 }
 
+interface ClearMirrorDataOptions {
+  preserveClientLinks?: boolean;
+}
+
 @Injectable()
 export class CommunicationsChatsRepository implements OnModuleDestroy {
   private readonly logger = new Logger(CommunicationsChatsRepository.name);
@@ -50,6 +54,10 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
   private readonly countMessagesStmt: Database.Statement;
   private readonly countClientLinksStmt: Database.Statement;
   private readonly countCursorsStmt: Database.Statement;
+  private readonly clearMessagesStmt: Database.Statement;
+  private readonly clearConversationsStmt: Database.Statement;
+  private readonly clearClientLinksStmt: Database.Statement;
+  private readonly clearCursorsStmt: Database.Statement;
 
   constructor() {
     mkdirSync(dirname(this.dbPath), { recursive: true });
@@ -167,6 +175,14 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
     this.countCursorsStmt = this.db.prepare(
       'SELECT COUNT(*) AS count FROM chat_sync_cursors',
     );
+    this.clearMessagesStmt = this.db.prepare('DELETE FROM chat_messages');
+    this.clearConversationsStmt = this.db.prepare(
+      'DELETE FROM chat_conversations',
+    );
+    this.clearClientLinksStmt = this.db.prepare(
+      'DELETE FROM chat_client_links',
+    );
+    this.clearCursorsStmt = this.db.prepare('DELETE FROM chat_sync_cursors');
   }
 
   upsertConversations(conversations: QuoConversation[]): number {
@@ -325,6 +341,26 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
     };
   }
 
+  clearMirrorData(options?: ClearMirrorDataOptions): void {
+    const preserveClientLinks = options?.preserveClientLinks ?? true;
+    const run = this.db.transaction(() => {
+      this.clearMessagesStmt.run();
+      this.clearConversationsStmt.run();
+      this.clearCursorsStmt.run();
+      if (!preserveClientLinks) {
+        this.clearClientLinksStmt.run();
+      }
+    });
+
+    try {
+      run();
+    } catch (error) {
+      this.logger.warn(
+        `Failed to clear chat mirror data: ${this.stringifyError(error)}`,
+      );
+    }
+  }
+
   onModuleDestroy(): void {
     if (this.db.open) {
       this.db.close();
@@ -351,4 +387,8 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
   }
 }
 
-export type { ChatMirrorStats, UpsertClientContactLinkInput };
+export type {
+  ChatMirrorStats,
+  ClearMirrorDataOptions,
+  UpsertClientContactLinkInput,
+};
