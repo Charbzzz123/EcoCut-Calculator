@@ -20,6 +20,27 @@ interface ContactLinkRow {
   updated_at: string;
 }
 
+interface ConversationSummaryRow {
+  conversation_id: string;
+  last_message_at: string | null;
+  conversation_payload: string;
+  last_read_at: string;
+  last_message_payload: string | null;
+  last_message_created_at: string | null;
+  unread_count: number;
+}
+
+interface ConversationCountRow {
+  total: number;
+}
+
+interface MessageMirrorRow {
+  message_id: string;
+  conversation_id: string;
+  created_at: string | null;
+  payload: string;
+}
+
 interface WebhookInsertResult {
   changes: number;
 }
@@ -58,6 +79,18 @@ interface RecordWebhookEventResult {
   receivedAt: string;
 }
 
+interface ListMirrorConversationsOptions {
+  limit: number;
+  offset: number;
+  query: string;
+}
+
+interface ListMirrorMessagesOptions {
+  conversationId: string;
+  limit: number;
+  offset: number;
+}
+
 @Injectable()
 export class CommunicationsChatsRepository implements OnModuleDestroy {
   private readonly logger = new Logger(CommunicationsChatsRepository.name);
@@ -79,6 +112,13 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
   private readonly clearClientLinksStmt: Database.Statement;
   private readonly clearCursorsStmt: Database.Statement;
   private readonly insertWebhookEventStmt: Database.Statement;
+  private readonly listConversationSummariesStmt: Database.Statement;
+  private readonly countConversationSummariesStmt: Database.Statement;
+  private readonly selectConversationSummaryByIdStmt: Database.Statement;
+  private readonly listMessagesForConversationStmt: Database.Statement;
+  private readonly countMessagesForConversationStmt: Database.Statement;
+  private readonly selectConversationExistsStmt: Database.Statement;
+  private readonly upsertConversationReadStmt: Database.Statement;
 
   constructor() {
     mkdirSync(dirname(this.dbPath), { recursive: true });
@@ -132,6 +172,12 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
       );
       CREATE INDEX IF NOT EXISTS idx_chat_webhook_events_conversation
         ON chat_webhook_events(conversation_id, occurred_at);
+
+      CREATE TABLE IF NOT EXISTS chat_conversation_reads (
+        conversation_id TEXT PRIMARY KEY,
+        last_read_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
     `);
 
     this.upsertConversationStmt = this.db.prepare(
@@ -229,6 +275,109 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
          received_at
        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(provider_event_id) DO NOTHING`,
+    );
+    this.listConversationSummariesStmt = this.db.prepare(
+      `SELECT
+         c.conversation_id,
+         c.last_message_at,
+         c.payload AS conversation_payload,
+         COALESCE(rs.last_read_at, '') AS last_read_at,
+         lm.payload AS last_message_payload,
+         lm.created_at AS last_message_created_at,
+         (
+           SELECT COUNT(*)
+           FROM chat_messages m2
+           WHERE m2.conversation_id = c.conversation_id
+             AND COALESCE(m2.created_at, '') > COALESCE(rs.last_read_at, '')
+             AND lower(COALESCE(json_extract(m2.payload, '$.direction'), '')) = 'inbound'
+         ) AS unread_count
+       FROM chat_conversations c
+       LEFT JOIN chat_conversation_reads rs
+         ON rs.conversation_id = c.conversation_id
+       LEFT JOIN chat_messages lm
+         ON lm.message_id = (
+           SELECT m.message_id
+           FROM chat_messages m
+           WHERE m.conversation_id = c.conversation_id
+           ORDER BY COALESCE(m.created_at, '') DESC, m.message_id DESC
+           LIMIT 1
+         )
+       WHERE (? = '' OR lower(c.payload) LIKE ? OR lower(COALESCE(lm.payload, '')) LIKE ?)
+       ORDER BY COALESCE(c.last_message_at, lm.created_at, c.updated_at) DESC, c.conversation_id DESC
+       LIMIT ? OFFSET ?`,
+    );
+    this.countConversationSummariesStmt = this.db.prepare(
+      `SELECT COUNT(*) AS total
+       FROM chat_conversations c
+       LEFT JOIN chat_messages lm
+         ON lm.message_id = (
+           SELECT m.message_id
+           FROM chat_messages m
+           WHERE m.conversation_id = c.conversation_id
+           ORDER BY COALESCE(m.created_at, '') DESC, m.message_id DESC
+           LIMIT 1
+         )
+       WHERE (? = '' OR lower(c.payload) LIKE ? OR lower(COALESCE(lm.payload, '')) LIKE ?)`,
+    );
+    this.selectConversationSummaryByIdStmt = this.db.prepare(
+      `SELECT
+         c.conversation_id,
+         c.last_message_at,
+         c.payload AS conversation_payload,
+         COALESCE(rs.last_read_at, '') AS last_read_at,
+         lm.payload AS last_message_payload,
+         lm.created_at AS last_message_created_at,
+         (
+           SELECT COUNT(*)
+           FROM chat_messages m2
+           WHERE m2.conversation_id = c.conversation_id
+             AND COALESCE(m2.created_at, '') > COALESCE(rs.last_read_at, '')
+             AND lower(COALESCE(json_extract(m2.payload, '$.direction'), '')) = 'inbound'
+         ) AS unread_count
+       FROM chat_conversations c
+       LEFT JOIN chat_conversation_reads rs
+         ON rs.conversation_id = c.conversation_id
+       LEFT JOIN chat_messages lm
+         ON lm.message_id = (
+           SELECT m.message_id
+           FROM chat_messages m
+           WHERE m.conversation_id = c.conversation_id
+           ORDER BY COALESCE(m.created_at, '') DESC, m.message_id DESC
+           LIMIT 1
+         )
+       WHERE c.conversation_id = ?
+       LIMIT 1`,
+    );
+    this.listMessagesForConversationStmt = this.db.prepare(
+      `SELECT
+         message_id,
+         conversation_id,
+         created_at,
+         payload
+       FROM chat_messages
+       WHERE conversation_id = ?
+       ORDER BY COALESCE(created_at, '') DESC, message_id DESC
+       LIMIT ? OFFSET ?`,
+    );
+    this.countMessagesForConversationStmt = this.db.prepare(
+      `SELECT COUNT(*) AS total
+       FROM chat_messages
+       WHERE conversation_id = ?`,
+    );
+    this.selectConversationExistsStmt = this.db.prepare(
+      `SELECT COUNT(*) AS count
+       FROM chat_conversations
+       WHERE conversation_id = ?`,
+    );
+    this.upsertConversationReadStmt = this.db.prepare(
+      `INSERT INTO chat_conversation_reads (
+         conversation_id,
+         last_read_at,
+         updated_at
+       ) VALUES (?, ?, ?)
+       ON CONFLICT(conversation_id) DO UPDATE SET
+         last_read_at = excluded.last_read_at,
+         updated_at = excluded.updated_at`,
     );
   }
 
@@ -436,6 +585,118 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
     }
   }
 
+  listMirrorConversations(
+    options: ListMirrorConversationsOptions,
+  ): ConversationSummaryRow[] {
+    const normalizedQuery = options.query.trim().toLowerCase();
+    const wildcard = `%${normalizedQuery}%`;
+    try {
+      return this.listConversationSummariesStmt.all(
+        normalizedQuery,
+        wildcard,
+        wildcard,
+        options.limit,
+        options.offset,
+      ) as ConversationSummaryRow[];
+    } catch (error) {
+      this.logger.warn(
+        `Failed to list chat conversations: ${this.stringifyError(error)}`,
+      );
+      return [];
+    }
+  }
+
+  countMirrorConversations(query: string): number {
+    const normalizedQuery = query.trim().toLowerCase();
+    const wildcard = `%${normalizedQuery}%`;
+    try {
+      const row = this.countConversationSummariesStmt.get(
+        normalizedQuery,
+        wildcard,
+        wildcard,
+      ) as ConversationCountRow | undefined;
+      return row?.total ?? 0;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to count chat conversations: ${this.stringifyError(error)}`,
+      );
+      return 0;
+    }
+  }
+
+  listMirrorMessages(options: ListMirrorMessagesOptions): MessageMirrorRow[] {
+    try {
+      return this.listMessagesForConversationStmt.all(
+        options.conversationId,
+        options.limit,
+        options.offset,
+      ) as MessageMirrorRow[];
+    } catch (error) {
+      this.logger.warn(
+        `Failed to list chat messages: ${this.stringifyError(error)}`,
+      );
+      return [];
+    }
+  }
+
+  getMirrorConversationById(
+    conversationId: string,
+  ): ConversationSummaryRow | null {
+    try {
+      const row = this.selectConversationSummaryByIdStmt.get(conversationId) as
+        | ConversationSummaryRow
+        | undefined;
+      return row ?? null;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to load chat conversation: ${this.stringifyError(error)}`,
+      );
+      return null;
+    }
+  }
+
+  countMirrorMessages(conversationId: string): number {
+    try {
+      const row = this.countMessagesForConversationStmt.get(conversationId) as
+        | ConversationCountRow
+        | undefined;
+      return row?.total ?? 0;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to count chat messages: ${this.stringifyError(error)}`,
+      );
+      return 0;
+    }
+  }
+
+  hasConversation(conversationId: string): boolean {
+    try {
+      const row = this.selectConversationExistsStmt.get(conversationId) as
+        | CountRow
+        | undefined;
+      return (row?.count ?? 0) > 0;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to check conversation existence: ${this.stringifyError(error)}`,
+      );
+      return false;
+    }
+  }
+
+  markConversationRead(conversationId: string, readAt: string): void {
+    try {
+      this.upsertConversationReadStmt.run(
+        conversationId,
+        readAt,
+        new Date().toISOString(),
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Failed to mark chat conversation read: ${this.stringifyError(error)}`,
+      );
+    }
+  }
+
   onModuleDestroy(): void {
     if (this.db.open) {
       this.db.close();
@@ -465,6 +726,10 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
 export type {
   ChatMirrorStats,
   ClearMirrorDataOptions,
+  ConversationSummaryRow,
+  ListMirrorConversationsOptions,
+  ListMirrorMessagesOptions,
+  MessageMirrorRow,
   RecordWebhookEventInput,
   RecordWebhookEventResult,
   UpsertClientContactLinkInput,

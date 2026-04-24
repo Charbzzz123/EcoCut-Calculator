@@ -448,4 +448,5 @@ Update this document whenever we clarify rules or add new functionality so imple
   - **CH-2 mirror persistence is implemented**: conversations/messages/client-links/sync-cursors now persist in SQLite with idempotent upserts and restart-safe cursors.
   - **CH-3 sync engine is implemented**: manual `POST /communications/chats/sync` now supports `incremental`, `backfill`, and `reset` modes with timestamp cursors and paginated pull-sync.
   - **CH-4 webhook ingestion is implemented**: Quo chat webhooks now ingest via `POST /communications/chats/webhooks/quo` with optional HMAC validation, replay dedupe, and immediate mirror updates.
-  - Remaining slices (chats API/UI surface, deep-linking, rollout hardening) are tracked in `docs/work-tracker.md` under CH-5 through CH-12.
+  - **CH-5 chats API surface is implemented**: mirror-backed conversation list/search/thread/send/read endpoints are live under `/communications/chats/*` with pagination and unread tracking.
+  - Remaining slices (client-contact sync, chats UI, deep-linking, rollout hardening) are tracked in `docs/work-tracker.md` under CH-6 through CH-12.

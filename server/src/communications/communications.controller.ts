@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Headers, Param, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { CommunicationsService } from './communications.service';
 import { CommunicationsChatsService } from './chats/communications-chats.service';
 import type {
@@ -8,7 +16,13 @@ import type {
   SendBroadcastTestDto,
   UpsertSuppressionDto,
 } from './communications.types';
-import type { QuoChatSyncRequest } from './chats/quo-chat.types';
+import type {
+  ListChatConversationsRequest,
+  ListChatMessagesRequest,
+  MarkConversationReadDto,
+  QuoChatSyncRequest,
+  SendChatMessageDto,
+} from './chats/quo-chat.types';
 
 @Controller('communications')
 export class CommunicationsController {
@@ -108,5 +122,76 @@ export class CommunicationsController {
     @Body() body: unknown,
   ) {
     return this.chats.ingestQuoWebhook(body, signature);
+  }
+
+  @Get('chats/conversations')
+  listChatConversations(@Query() query: ListChatConversationsRequest) {
+    return this.chats.listConversations(this.normalizeConversationQuery(query));
+  }
+
+  @Get('chats/search')
+  searchChatConversations(@Query() query: ListChatConversationsRequest) {
+    return this.chats.searchConversations(
+      this.normalizeConversationQuery(query),
+    );
+  }
+
+  @Get('chats/conversations/:conversationId/messages')
+  listChatMessages(
+    @Param('conversationId') conversationId: string,
+    @Query() query: ListChatMessagesRequest,
+  ) {
+    return this.chats.listConversationMessages(
+      conversationId,
+      this.normalizeMessageQuery(query),
+    );
+  }
+
+  @Post('chats/conversations/:conversationId/messages')
+  sendChatMessage(
+    @Param('conversationId') conversationId: string,
+    @Body() body: SendChatMessageDto,
+  ) {
+    return this.chats.sendMessage(conversationId, body);
+  }
+
+  @Post('chats/conversations/:conversationId/read')
+  markChatConversationRead(
+    @Param('conversationId') conversationId: string,
+    @Body() body: MarkConversationReadDto = {},
+  ) {
+    return this.chats.markConversationRead(conversationId, body);
+  }
+
+  private normalizeConversationQuery(
+    query: ListChatConversationsRequest,
+  ): ListChatConversationsRequest {
+    return {
+      query: query.query,
+      limit: this.parseOptionalNumber(query.limit),
+      offset: this.parseOptionalNumber(query.offset),
+    };
+  }
+
+  private normalizeMessageQuery(
+    query: ListChatMessagesRequest,
+  ): ListChatMessagesRequest {
+    return {
+      limit: this.parseOptionalNumber(query.limit),
+      offset: this.parseOptionalNumber(query.offset),
+    };
+  }
+
+  private parseOptionalNumber(
+    value: number | string | undefined,
+  ): number | undefined {
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : undefined;
+    }
+    if (typeof value === 'string' && value.trim().length > 0) {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    }
+    return undefined;
   }
 }

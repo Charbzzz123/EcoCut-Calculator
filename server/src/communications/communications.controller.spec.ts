@@ -20,6 +20,11 @@ describe('CommunicationsController', () => {
   const getProviderHealth = jest.fn();
   const syncMirror = jest.fn();
   const ingestQuoWebhook = jest.fn();
+  const listConversations = jest.fn();
+  const searchConversations = jest.fn();
+  const listConversationMessages = jest.fn();
+  const sendMessage = jest.fn();
+  const markConversationRead = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -53,6 +58,11 @@ describe('CommunicationsController', () => {
             getProviderHealth,
             syncMirror,
             ingestQuoWebhook,
+            listConversations,
+            searchConversations,
+            listConversationMessages,
+            sendMessage,
+            markConversationRead,
           },
         },
       ],
@@ -268,5 +278,116 @@ describe('CommunicationsController', () => {
       duplicate: false,
     });
     expect(ingestQuoWebhook).toHaveBeenCalledWith(payload, 'sig-123');
+  });
+
+  it('forwards chat conversation listing and search queries', async () => {
+    listConversations.mockReturnValue({
+      items: [],
+      total: 0,
+      limit: 25,
+      offset: 0,
+    });
+    searchConversations.mockReturnValue({
+      items: [],
+      total: 0,
+      limit: 25,
+      offset: 0,
+    });
+    const controller = await createController();
+
+    expect(
+      controller.listChatConversations({
+        limit: 25,
+        offset: 0,
+        query: 'abi',
+      }),
+    ).toEqual({
+      items: [],
+      total: 0,
+      limit: 25,
+      offset: 0,
+    });
+    expect(
+      controller.searchChatConversations({
+        limit: 25,
+        offset: 10,
+        query: 'karam',
+      }),
+    ).toEqual({
+      items: [],
+      total: 0,
+      limit: 25,
+      offset: 0,
+    });
+    expect(listConversations).toHaveBeenCalledWith({
+      limit: 25,
+      offset: 0,
+      query: 'abi',
+    });
+    expect(searchConversations).toHaveBeenCalledWith({
+      limit: 25,
+      offset: 10,
+      query: 'karam',
+    });
+  });
+
+  it('forwards chat thread, send message, and read-state endpoints', async () => {
+    listConversationMessages.mockReturnValue({
+      conversationId: 'conv-1',
+      items: [],
+      total: 0,
+      limit: 50,
+      offset: 0,
+    });
+    sendMessage.mockResolvedValue({
+      conversationId: 'conv-1',
+      messageId: 'msg-1',
+      sentAt: '2026-04-23T15:00:00.000Z',
+    });
+    markConversationRead.mockReturnValue({
+      conversationId: 'conv-1',
+      readAt: '2026-04-23T15:00:00.000Z',
+    });
+    const controller = await createController();
+
+    expect(
+      controller.listChatMessages('conv-1', {
+        limit: 10,
+        offset: 5,
+      }),
+    ).toEqual({
+      conversationId: 'conv-1',
+      items: [],
+      total: 0,
+      limit: 50,
+      offset: 0,
+    });
+    await expect(
+      controller.sendChatMessage('conv-1', {
+        content: 'Hello there',
+      }),
+    ).resolves.toEqual({
+      conversationId: 'conv-1',
+      messageId: 'msg-1',
+      sentAt: '2026-04-23T15:00:00.000Z',
+    });
+    expect(
+      controller.markChatConversationRead('conv-1', {
+        readAt: '2026-04-23T15:00:00.000Z',
+      }),
+    ).toEqual({
+      conversationId: 'conv-1',
+      readAt: '2026-04-23T15:00:00.000Z',
+    });
+    expect(listConversationMessages).toHaveBeenCalledWith('conv-1', {
+      limit: 10,
+      offset: 5,
+    });
+    expect(sendMessage).toHaveBeenCalledWith('conv-1', {
+      content: 'Hello there',
+    });
+    expect(markConversationRead).toHaveBeenCalledWith('conv-1', {
+      readAt: '2026-04-23T15:00:00.000Z',
+    });
   });
 });

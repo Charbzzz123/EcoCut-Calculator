@@ -137,7 +137,81 @@ interface QuoChatWebhookIngestResult {
   };
 }
 
+interface ListChatConversationsRequest {
+  limit?: number;
+  offset?: number;
+  query?: string;
+}
+
+interface ChatConversationSummary {
+  conversationId: string;
+  displayName: string | null;
+  participantPhone: string | null;
+  lastMessageAt: string | null;
+  lastMessagePreview: string | null;
+  lastMessageDirection: 'inbound' | 'outbound' | 'unknown';
+  unreadCount: number;
+}
+
+interface ListChatConversationsResult {
+  items: ChatConversationSummary[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+interface ListChatMessagesRequest {
+  limit?: number;
+  offset?: number;
+}
+
+interface ChatMessageView {
+  messageId: string;
+  conversationId: string;
+  direction: 'inbound' | 'outbound' | 'unknown';
+  content: string | null;
+  from: string | null;
+  to: string | null;
+  createdAt: string | null;
+}
+
+interface ListChatMessagesResult {
+  conversationId: string;
+  items: ChatMessageView[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+interface SendChatMessageDto {
+  content: string;
+  to?: string;
+}
+
+interface SendChatMessageResult {
+  conversationId: string;
+  messageId: string;
+  sentAt: string;
+}
+
+interface MarkConversationReadDto {
+  readAt?: string;
+}
+
+interface MarkConversationReadResult {
+  conversationId: string;
+  readAt: string;
+}
+
 export type {
+  ChatConversationSummary,
+  ChatMessageView,
+  ListChatConversationsRequest,
+  ListChatConversationsResult,
+  ListChatMessagesRequest,
+  ListChatMessagesResult,
+  MarkConversationReadDto,
+  MarkConversationReadResult,
   QuoChatProviderHealth,
   QuoChatMirrorStats,
   QuoChatSyncMode,
@@ -151,6 +225,8 @@ export type {
   QuoListResponse,
   QuoMessage,
   QuoPhoneNumber,
+  SendChatMessageDto,
+  SendChatMessageResult,
   QuoSendMessageInput,
   QuoUpdateContactInput,
 };

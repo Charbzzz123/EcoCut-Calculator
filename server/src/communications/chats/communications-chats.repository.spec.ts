@@ -165,4 +165,62 @@ describe('CommunicationsChatsRepository', () => {
     expect(first.inserted).toBe(true);
     expect(second.inserted).toBe(false);
   });
+
+  it('lists conversations/messages and tracks read state', () => {
+    repository.upsertConversations([
+      {
+        id: 'conv-1',
+        displayName: 'Karam',
+        lastMessageAt: '2026-04-23T13:00:00.000Z',
+      },
+      {
+        id: 'conv-2',
+        displayName: 'Maryam',
+        lastMessageAt: '2026-04-23T14:00:00.000Z',
+      },
+    ]);
+    repository.upsertMessages('conv-1', [
+      {
+        id: 'msg-1',
+        conversationId: 'conv-1',
+        direction: 'inbound',
+        from: '+15145550000',
+        content: 'Hi',
+        createdAt: '2026-04-23T13:00:00.000Z',
+      },
+    ]);
+    repository.upsertMessages('conv-2', [
+      {
+        id: 'msg-2',
+        conversationId: 'conv-2',
+        direction: 'outbound',
+        to: '+15145551111',
+        content: 'Hello',
+        createdAt: '2026-04-23T14:00:00.000Z',
+      },
+    ]);
+
+    expect(repository.countMirrorConversations('')).toBe(2);
+    expect(
+      repository.listMirrorConversations({
+        limit: 10,
+        offset: 0,
+        query: 'karam',
+      }),
+    ).toHaveLength(1);
+    expect(
+      repository.listMirrorMessages({
+        conversationId: 'conv-1',
+        limit: 10,
+        offset: 0,
+      }),
+    ).toHaveLength(1);
+    expect(repository.countMirrorMessages('conv-1')).toBe(1);
+    expect(repository.hasConversation('conv-1')).toBe(true);
+    expect(repository.hasConversation('conv-missing')).toBe(false);
+
+    repository.markConversationRead('conv-1', '2026-04-23T13:10:00.000Z');
+    const row = repository.getMirrorConversationById('conv-1');
+    expect(row?.unread_count).toBe(0);
+  });
 });

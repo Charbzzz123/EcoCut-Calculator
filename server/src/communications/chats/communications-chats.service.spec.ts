@@ -31,6 +31,13 @@ describe('CommunicationsChatsService', () => {
     upsertConversations: jest.fn((items: unknown[]) => items.length),
     upsertMessages: jest.fn((_: string, items: unknown[]) => items.length),
     clearMirrorData: jest.fn(),
+    listMirrorConversations: jest.fn(() => []),
+    countMirrorConversations: jest.fn(() => 0),
+    listMirrorMessages: jest.fn(() => []),
+    countMirrorMessages: jest.fn(() => 0),
+    hasConversation: jest.fn(() => true),
+    markConversationRead: jest.fn(),
+    getMirrorConversationById: jest.fn(() => null),
     recordWebhookEvent: jest.fn(() => ({
       inserted: true,
       receivedAt: '2026-04-23T12:30:00.000Z',
@@ -230,6 +237,198 @@ describe('CommunicationsChatsService', () => {
       preserveClientLinks: true,
     });
     expect(result.mode).toBe('reset');
+  });
+
+  it('lists mirrored conversations with unread metadata', () => {
+    const client = {
+      isConfigured: jest.fn(() => true),
+      listPhoneNumbers: jest.fn(),
+      getFromNumber: jest.fn(() => '+14388007177'),
+    };
+    const repository = createRepository();
+    repository.listMirrorConversations.mockReturnValue([
+      {
+        conversation_id: 'conv-1',
+        last_message_at: '2026-04-23T13:00:00.000Z',
+        conversation_payload: JSON.stringify({ displayName: 'Karam' }),
+        last_read_at: '2026-04-23T12:00:00.000Z',
+        last_message_payload: JSON.stringify({
+          content: 'Bonjour',
+          direction: 'inbound',
+          from: '+15145550000',
+        }),
+        last_message_created_at: '2026-04-23T13:00:00.000Z',
+        unread_count: 2,
+      },
+    ]);
+    repository.countMirrorConversations.mockReturnValue(1);
+    const service = new CommunicationsChatsService(
+      client as never,
+      repository as never,
+    );
+
+    expect(
+      service.listConversations({ limit: 20, offset: 0, query: 'karam' }),
+    ).toEqual({
+      items: [
+        {
+          conversationId: 'conv-1',
+          displayName: 'Karam',
+          participantPhone: '+15145550000',
+          lastMessageAt: '2026-04-23T13:00:00.000Z',
+          lastMessagePreview: 'Bonjour',
+          lastMessageDirection: 'inbound',
+          unreadCount: 2,
+        },
+      ],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    });
+    expect(repository.listMirrorConversations).toHaveBeenCalledWith({
+      limit: 20,
+      offset: 0,
+      query: 'karam',
+    });
+  });
+
+  it('lists conversation messages with pagination', () => {
+    const client = {
+      isConfigured: jest.fn(() => true),
+      listPhoneNumbers: jest.fn(),
+      getFromNumber: jest.fn(() => '+14388007177'),
+    };
+    const repository = createRepository();
+    repository.listMirrorMessages.mockReturnValue([
+      {
+        message_id: 'msg-1',
+        conversation_id: 'conv-1',
+        created_at: '2026-04-23T13:00:00.000Z',
+        payload: JSON.stringify({
+          content: 'Allo',
+          direction: 'outbound',
+          from: '+14388007177',
+          to: '+15145550000',
+        }),
+      },
+    ]);
+    repository.countMirrorMessages.mockReturnValue(1);
+    const service = new CommunicationsChatsService(
+      client as never,
+      repository as never,
+    );
+
+    expect(
+      service.listConversationMessages('conv-1', { limit: 10, offset: 0 }),
+    ).toEqual({
+      conversationId: 'conv-1',
+      items: [
+        {
+          messageId: 'msg-1',
+          conversationId: 'conv-1',
+          direction: 'outbound',
+          content: 'Allo',
+          from: '+14388007177',
+          to: '+15145550000',
+          createdAt: '2026-04-23T13:00:00.000Z',
+        },
+      ],
+      total: 1,
+      limit: 10,
+      offset: 0,
+    });
+  });
+
+  it('marks a mirrored conversation as read', () => {
+    const client = {
+      isConfigured: jest.fn(() => true),
+      listPhoneNumbers: jest.fn(),
+      getFromNumber: jest.fn(() => '+14388007177'),
+    };
+    const repository = createRepository();
+    const service = new CommunicationsChatsService(
+      client as never,
+      repository as never,
+    );
+
+    expect(
+      service.markConversationRead('conv-1', {
+        readAt: '2026-04-23T14:00:00.000Z',
+      }),
+    ).toEqual({
+      conversationId: 'conv-1',
+      readAt: '2026-04-23T14:00:00.000Z',
+    });
+    expect(repository.markConversationRead).toHaveBeenCalledWith(
+      'conv-1',
+      '2026-04-23T14:00:00.000Z',
+    );
+  });
+
+  it('sends messages using inferred recipient phone when dto.to is absent', async () => {
+    const client = {
+      isConfigured: jest.fn(() => true),
+      listPhoneNumbers: jest.fn(),
+      getFromNumber: jest.fn(() => '+14388007177'),
+      sendTextMessage: jest.fn(() => Promise.resolve('msg-out-1')),
+    };
+    const repository = createRepository();
+    repository.listMirrorMessages.mockReturnValue([
+      {
+        message_id: 'msg-in-1',
+        conversation_id: 'conv-1',
+        created_at: '2026-04-23T14:00:00.000Z',
+        payload: JSON.stringify({
+          direction: 'inbound',
+          from: '+15145550000',
+          content: 'Need quote update',
+        }),
+      },
+    ]);
+    const service = new CommunicationsChatsService(
+      client as never,
+      repository as never,
+    );
+
+    await expect(
+      service.sendMessage('conv-1', {
+        content: 'We are on our way',
+      }),
+    ).resolves.toMatchObject({
+      conversationId: 'conv-1',
+      messageId: 'msg-out-1',
+    });
+    expect(client.sendTextMessage).toHaveBeenCalledWith({
+      to: '+15145550000',
+      content: 'We are on our way',
+    });
+    expect(repository.upsertMessages).toHaveBeenCalledWith(
+      'conv-1',
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'msg-out-1',
+          direction: 'outbound',
+        }),
+      ]),
+    );
+  });
+
+  it('throws when attempting chat actions on unknown conversations', () => {
+    const client = {
+      isConfigured: jest.fn(() => true),
+      listPhoneNumbers: jest.fn(),
+      getFromNumber: jest.fn(() => '+14388007177'),
+    };
+    const repository = createRepository();
+    repository.hasConversation.mockReturnValue(false);
+    const service = new CommunicationsChatsService(
+      client as never,
+      repository as never,
+    );
+
+    expect(() =>
+      service.listConversationMessages('missing-conv', { limit: 10 }),
+    ).toThrow('missing-conv');
   });
 
   it('ingests quo webhook and mirrors message data', () => {
