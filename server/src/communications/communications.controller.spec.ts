@@ -25,6 +25,13 @@ describe('CommunicationsController', () => {
   const listConversationMessages = jest.fn();
   const sendMessage = jest.fn();
   const markConversationRead = jest.fn();
+  const syncClientContact = jest.fn();
+  const listClientContactLinks = jest.fn();
+  const getClientContactLink = jest.fn();
+  const linkClientToContact = jest.fn();
+  const unlinkClientContact = jest.fn();
+  const listUnlinkedConversations = jest.fn();
+  const resolveUnlinkedConversation = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -63,6 +70,13 @@ describe('CommunicationsController', () => {
             listConversationMessages,
             sendMessage,
             markConversationRead,
+            syncClientContact,
+            listClientContactLinks,
+            getClientContactLink,
+            linkClientToContact,
+            unlinkClientContact,
+            listUnlinkedConversations,
+            resolveUnlinkedConversation,
           },
         },
       ],
@@ -388,6 +402,132 @@ describe('CommunicationsController', () => {
     });
     expect(markConversationRead).toHaveBeenCalledWith('conv-1', {
       readAt: '2026-04-23T15:00:00.000Z',
+    });
+  });
+
+  it('forwards chat client-link sync and manual link/unlink endpoints', async () => {
+    syncClientContact.mockResolvedValue({
+      clientId: 'client-1',
+      quoContactId: 'contact-1',
+      source: 'entries-auto-sync',
+      status: 'linked-existing',
+    });
+    listClientContactLinks.mockReturnValue([
+      {
+        clientId: 'client-1',
+        quoContactId: 'contact-1',
+        source: 'manual-link',
+        updatedAt: '2026-04-24T15:00:00.000Z',
+      },
+    ]);
+    getClientContactLink.mockReturnValue({
+      clientId: 'client-1',
+      quoContactId: 'contact-1',
+      source: 'manual-link',
+      updatedAt: '2026-04-24T15:00:00.000Z',
+    });
+    linkClientToContact.mockResolvedValue({
+      clientId: 'client-1',
+      quoContactId: 'contact-2',
+      source: 'manual-link',
+      updatedAt: '2026-04-24T15:10:00.000Z',
+    });
+    unlinkClientContact.mockReturnValue({ removed: true });
+    const controller = await createController();
+
+    await expect(
+      controller.syncChatClientContact({
+        clientId: 'client-1',
+        firstName: 'Karam',
+        phone: '(514) 555-0101',
+      }),
+    ).resolves.toMatchObject({
+      clientId: 'client-1',
+      quoContactId: 'contact-1',
+      status: 'linked-existing',
+    });
+    expect(controller.listChatClientLinks()).toHaveLength(1);
+    expect(controller.getChatClientLink('client-1')).toMatchObject({
+      clientId: 'client-1',
+      quoContactId: 'contact-1',
+    });
+    await expect(
+      controller.linkChatClientContact('client-1', {
+        quoContactId: 'contact-2',
+      }),
+    ).resolves.toMatchObject({
+      clientId: 'client-1',
+      quoContactId: 'contact-2',
+    });
+    expect(controller.unlinkChatClientContact('client-1')).toEqual({
+      removed: true,
+    });
+
+    expect(syncClientContact).toHaveBeenCalledWith({
+      clientId: 'client-1',
+      firstName: 'Karam',
+      phone: '(514) 555-0101',
+    });
+    expect(getClientContactLink).toHaveBeenCalledWith('client-1');
+    expect(linkClientToContact).toHaveBeenCalledWith('client-1', {
+      quoContactId: 'contact-2',
+    });
+    expect(unlinkClientContact).toHaveBeenCalledWith('client-1');
+  });
+
+  it('forwards unlinked conversation queue and resolve actions', async () => {
+    listUnlinkedConversations.mockReturnValue({
+      items: [
+        {
+          conversationId: 'conv-1',
+          quoContactId: null,
+          displayName: null,
+          participantPhone: '+15145550000',
+          lastMessageAt: '2026-04-24T12:00:00.000Z',
+          unreadCount: 2,
+        },
+      ],
+      total: 1,
+      limit: 10,
+      offset: 0,
+    });
+    resolveUnlinkedConversation.mockResolvedValue({
+      conversationId: 'conv-1',
+      clientId: 'client-1',
+      quoContactId: 'contact-1',
+      source: 'manual-resolve',
+      linkedAt: '2026-04-24T12:05:00.000Z',
+    });
+    const controller = await createController();
+
+    expect(
+      controller.listUnlinkedChatConversations({
+        limit: 10,
+        offset: 0,
+        query: '514',
+      }),
+    ).toMatchObject({
+      total: 1,
+      limit: 10,
+      offset: 0,
+    });
+    await expect(
+      controller.resolveUnlinkedChatConversation('conv-1', {
+        clientId: 'client-1',
+      }),
+    ).resolves.toMatchObject({
+      conversationId: 'conv-1',
+      clientId: 'client-1',
+      quoContactId: 'contact-1',
+    });
+
+    expect(listUnlinkedConversations).toHaveBeenCalledWith({
+      limit: 10,
+      offset: 0,
+      query: '514',
+    });
+    expect(resolveUnlinkedConversation).toHaveBeenCalledWith('conv-1', {
+      clientId: 'client-1',
     });
   });
 });

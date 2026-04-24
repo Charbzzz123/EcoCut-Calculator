@@ -121,7 +121,7 @@ root/
   - Communications persistence is durable in SQLite (`COMMUNICATIONS_DB_PATH`) via `CommunicationsRepository`, covering campaigns, pending approvals, audit records, delivery events, and suppressions.
   - Provider webhook signatures are validated via HMAC when `QUO_WEBHOOK_SECRET` or `HOSTINGER_WEBHOOK_SECRET` are configured.
   - Next slices still pending: durable campaign persistence, queue workers, consent expiry enforcement, and idempotency keys.
-- **Chats foundation (CH-1..CH-5 live)**:
+- **Chats foundation (CH-1..CH-6 live)**:
   - `GET /communications/chats/health` now returns Quo provider readiness (`configured`, `connected`, from-number visibility, diagnostics text) plus mirror counters (`conversations`, `messages`, `clientLinks`, `cursors`).
   - Quo integrations now share one typed transport wrapper (`QuoChatClientService`) with retry/backoff and categorized provider errors (auth vs transient).
   - Existing SMS sends in broadcast now reuse the same Quo transport client to avoid duplicated provider logic.
@@ -134,8 +134,17 @@ root/
     - `GET /communications/chats/conversations/:conversationId/messages`
     - `POST /communications/chats/conversations/:conversationId/messages`
     - `POST /communications/chats/conversations/:conversationId/read`
+  - Client-contact sync APIs are now live:
+    - `POST /communications/chats/clients/sync`
+    - `GET /communications/chats/links`
+    - `GET /communications/chats/links/:clientId`
+    - `POST /communications/chats/links/:clientId`
+    - `DELETE /communications/chats/links/:clientId`
+    - `GET /communications/chats/conversations/unlinked`
+    - `POST /communications/chats/conversations/:conversationId/resolve`
+  - Entries create/update and client profile edits now trigger best-effort Quo contact sync so contact links stay warm before the Chats UI ships.
   - Read-state persistence is tracked in `chat_conversation_reads` for unread-count rendering.
-  - Remaining chat slices (client sync + UI route/deep-link rollout) are planned under CH-6..CH-12 in `docs/work-tracker.md`.
+  - Remaining chat slices (home entrypoint + UI/deep-link rollout + guardrails/runbook) are planned under CH-7..CH-12 in `docs/work-tracker.md`.
 - **Frontend proxying & dev setup**
   - `npm start` automatically passes `--proxy-config proxy.conf.json`, so `/api/*` traffic goes to `http://localhost:3000/*`. Always run `npm run server` in a second terminal before testing calendar flows locally.
   - When the Nest server or credentials are unavailable the frontend logs the failure (via `console.warn`) and surfaces the inline banner but the form remains usable.

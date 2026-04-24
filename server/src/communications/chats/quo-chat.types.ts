@@ -38,6 +38,7 @@ interface QuoContact {
   lastName?: string;
   email?: string;
   phone?: string;
+  externalId?: string;
 }
 
 interface QuoCreateContactInput {
@@ -203,15 +204,97 @@ interface MarkConversationReadResult {
   readAt: string;
 }
 
+interface SyncChatClientContactDto {
+  clientId: string;
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
+  phone?: string;
+  email?: string;
+  source?: string;
+}
+
+interface SyncChatClientContactResult {
+  clientId: string;
+  quoContactId: string | null;
+  source: string;
+  status:
+    | 'linked-existing'
+    | 'updated-linked'
+    | 'created-and-linked'
+    | 'skipped-unconfigured'
+    | 'skipped-missing-contact-info';
+}
+
+interface LinkClientContactDto {
+  quoContactId: string;
+  source?: string;
+}
+
+interface ChatClientContactLinkView {
+  clientId: string;
+  quoContactId: string;
+  source: string;
+  updatedAt: string;
+}
+
+interface ListUnlinkedChatConversationsRequest {
+  limit?: number;
+  offset?: number;
+  query?: string;
+}
+
+interface UnlinkedChatConversationSummary {
+  conversationId: string;
+  quoContactId: string | null;
+  displayName: string | null;
+  participantPhone: string | null;
+  lastMessageAt: string | null;
+  unreadCount: number;
+}
+
+interface ListUnlinkedChatConversationsResult {
+  items: UnlinkedChatConversationSummary[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+interface ResolveUnlinkedConversationDto {
+  clientId: string;
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
+  phone?: string;
+  email?: string;
+  source?: string;
+}
+
+interface ResolveUnlinkedConversationResult {
+  conversationId: string;
+  clientId: string;
+  quoContactId: string;
+  source: string;
+  linkedAt: string;
+}
+
 export type {
   ChatConversationSummary,
+  ChatClientContactLinkView,
   ChatMessageView,
+  LinkClientContactDto,
   ListChatConversationsRequest,
   ListChatConversationsResult,
   ListChatMessagesRequest,
   ListChatMessagesResult,
+  ListUnlinkedChatConversationsRequest,
+  ListUnlinkedChatConversationsResult,
   MarkConversationReadDto,
   MarkConversationReadResult,
+  ResolveUnlinkedConversationDto,
+  ResolveUnlinkedConversationResult,
+  SyncChatClientContactDto,
+  SyncChatClientContactResult,
   QuoChatProviderHealth,
   QuoChatMirrorStats,
   QuoChatSyncMode,
@@ -229,4 +312,5 @@ export type {
   SendChatMessageResult,
   QuoSendMessageInput,
   QuoUpdateContactInput,
+  UnlinkedChatConversationSummary,
 };

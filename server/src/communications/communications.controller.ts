@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   Param,
@@ -17,11 +18,15 @@ import type {
   UpsertSuppressionDto,
 } from './communications.types';
 import type {
+  LinkClientContactDto,
   ListChatConversationsRequest,
   ListChatMessagesRequest,
+  ListUnlinkedChatConversationsRequest,
   MarkConversationReadDto,
   QuoChatSyncRequest,
+  ResolveUnlinkedConversationDto,
   SendChatMessageDto,
+  SyncChatClientContactDto,
 } from './chats/quo-chat.types';
 
 @Controller('communications')
@@ -163,8 +168,53 @@ export class CommunicationsController {
     return this.chats.markConversationRead(conversationId, body);
   }
 
+  @Post('chats/clients/sync')
+  syncChatClientContact(@Body() body: SyncChatClientContactDto) {
+    return this.chats.syncClientContact(body);
+  }
+
+  @Get('chats/links')
+  listChatClientLinks() {
+    return this.chats.listClientContactLinks();
+  }
+
+  @Get('chats/links/:clientId')
+  getChatClientLink(@Param('clientId') clientId: string) {
+    return this.chats.getClientContactLink(clientId);
+  }
+
+  @Post('chats/links/:clientId')
+  linkChatClientContact(
+    @Param('clientId') clientId: string,
+    @Body() body: LinkClientContactDto,
+  ) {
+    return this.chats.linkClientToContact(clientId, body);
+  }
+
+  @Delete('chats/links/:clientId')
+  unlinkChatClientContact(@Param('clientId') clientId: string) {
+    return this.chats.unlinkClientContact(clientId);
+  }
+
+  @Get('chats/conversations/unlinked')
+  listUnlinkedChatConversations(
+    @Query() query: ListUnlinkedChatConversationsRequest,
+  ) {
+    return this.chats.listUnlinkedConversations(
+      this.normalizeConversationQuery(query),
+    );
+  }
+
+  @Post('chats/conversations/:conversationId/resolve')
+  resolveUnlinkedChatConversation(
+    @Param('conversationId') conversationId: string,
+    @Body() body: ResolveUnlinkedConversationDto,
+  ) {
+    return this.chats.resolveUnlinkedConversation(conversationId, body);
+  }
+
   private normalizeConversationQuery(
-    query: ListChatConversationsRequest,
+    query: ListChatConversationsRequest | ListUnlinkedChatConversationsRequest,
   ): ListChatConversationsRequest {
     return {
       query: query.query,

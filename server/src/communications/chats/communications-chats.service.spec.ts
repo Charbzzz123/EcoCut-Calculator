@@ -38,6 +38,13 @@ describe('CommunicationsChatsService', () => {
     hasConversation: jest.fn(() => true),
     markConversationRead: jest.fn(),
     getMirrorConversationById: jest.fn(() => null),
+    getClientContactLink: jest.fn(() => null),
+    getClientLinkByContactId: jest.fn(() => null),
+    listClientContactLinks: jest.fn(() => []),
+    upsertClientContactLink: jest.fn(),
+    removeClientContactLink: jest.fn(),
+    listUnlinkedConversations: jest.fn(() => []),
+    countUnlinkedConversations: jest.fn(() => 0),
     recordWebhookEvent: jest.fn(() => ({
       inserted: true,
       receivedAt: '2026-04-23T12:30:00.000Z',
@@ -410,6 +417,146 @@ describe('CommunicationsChatsService', () => {
           direction: 'outbound',
         }),
       ]),
+    );
+  });
+
+  it('syncs client contacts by matching existing Quo contact and storing link', async () => {
+    const client = {
+      isConfigured: jest.fn(() => true),
+      listPhoneNumbers: jest.fn(),
+      getFromNumber: jest.fn(() => '+14388007177'),
+      listContacts: jest.fn(() =>
+        Promise.resolve({
+          data: [
+            {
+              id: 'contact-1',
+              phone: '+15145550101',
+            },
+          ],
+          hasNextPage: false,
+          nextPageToken: null,
+        }),
+      ),
+      updateContact: jest.fn(() => Promise.resolve({ id: 'contact-1' })),
+      createContact: jest.fn(),
+    };
+    const repository = createRepository();
+    const service = new CommunicationsChatsService(
+      client as never,
+      repository as never,
+    );
+
+    await expect(
+      service.syncClientContact({
+        clientId: 'client-1',
+        firstName: 'Karam',
+        lastName: 'AbiNassif',
+        phone: '(514) 555-0101',
+      }),
+    ).resolves.toEqual({
+      clientId: 'client-1',
+      quoContactId: 'contact-1',
+      source: 'entries-auto-sync',
+      status: 'linked-existing',
+    });
+    expect(repository.upsertClientContactLink).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: 'client-1',
+        quoContactId: 'contact-1',
+        source: 'entries-auto-sync',
+      }),
+    );
+    expect(client.createContact).not.toHaveBeenCalled();
+  });
+
+  it('skips sync when provider is unconfigured or client has no contact info', async () => {
+    const unconfiguredClient = {
+      isConfigured: jest.fn(() => false),
+      listPhoneNumbers: jest.fn(),
+      getFromNumber: jest.fn(() => null),
+    };
+    const repository = createRepository();
+    const service = new CommunicationsChatsService(
+      unconfiguredClient as never,
+      repository as never,
+    );
+
+    await expect(
+      service.syncClientContact({
+        clientId: 'client-1',
+        firstName: 'Karam',
+      }),
+    ).resolves.toEqual({
+      clientId: 'client-1',
+      quoContactId: null,
+      source: 'entries-auto-sync',
+      status: 'skipped-unconfigured',
+    });
+    expect(repository.upsertClientContactLink).not.toHaveBeenCalled();
+
+    const configuredClient = {
+      isConfigured: jest.fn(() => true),
+      listPhoneNumbers: jest.fn(),
+      getFromNumber: jest.fn(() => '+14388007177'),
+    };
+    const configuredService = new CommunicationsChatsService(
+      configuredClient as never,
+      repository as never,
+    );
+    await expect(
+      configuredService.syncClientContact({
+        clientId: 'client-2',
+      }),
+    ).resolves.toEqual({
+      clientId: 'client-2',
+      quoContactId: null,
+      source: 'entries-auto-sync',
+      status: 'skipped-missing-contact-info',
+    });
+  });
+
+  it('resolves unlinked conversations by creating a client-contact link', async () => {
+    const client = {
+      isConfigured: jest.fn(() => true),
+      listPhoneNumbers: jest.fn(),
+      getFromNumber: jest.fn(() => '+14388007177'),
+      updateContact: jest.fn(() => Promise.resolve({ id: 'contact-1' })),
+    };
+    const repository = createRepository();
+    repository.getMirrorConversationById.mockReturnValue({
+      conversation_id: 'conv-1',
+      contact_id: 'contact-1',
+      last_message_at: '2026-04-24T12:00:00.000Z',
+      conversation_payload: JSON.stringify({
+        contactId: 'contact-1',
+        displayName: 'Karam',
+      }),
+      last_read_at: '',
+      last_message_payload: JSON.stringify({ direction: 'inbound' }),
+      last_message_created_at: '2026-04-24T12:00:00.000Z',
+      unread_count: 1,
+    });
+    const service = new CommunicationsChatsService(
+      client as never,
+      repository as never,
+    );
+
+    await expect(
+      service.resolveUnlinkedConversation('conv-1', {
+        clientId: 'client-1',
+      }),
+    ).resolves.toMatchObject({
+      conversationId: 'conv-1',
+      clientId: 'client-1',
+      quoContactId: 'contact-1',
+      source: 'manual-resolve',
+    });
+    expect(repository.upsertClientContactLink).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: 'client-1',
+        quoContactId: 'contact-1',
+        source: 'manual-resolve',
+      }),
     );
   });
 

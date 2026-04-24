@@ -21,5 +21,6 @@ import { SMS_PROVIDER } from './providers/sms-provider';
     { provide: EMAIL_PROVIDER, useClass: HostingerEmailProvider },
     { provide: SMS_PROVIDER, useClass: QuoSmsProvider },
   ],
+  exports: [CommunicationsChatsService],
 })
 export class CommunicationsModule {}

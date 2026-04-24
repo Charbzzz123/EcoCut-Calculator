@@ -19,6 +19,7 @@ class FakeEntriesRepository {
 describe('EntriesService', () => {
   let service: EntriesService;
   let repository: FakeEntriesRepository;
+  const syncClientContact = jest.fn();
 
   const createPayload = (
     overrides: Partial<CreateEntryDto> = {},
@@ -39,8 +40,14 @@ describe('EntriesService', () => {
   });
 
   beforeEach(async () => {
+    syncClientContact.mockReset();
     repository = new FakeEntriesRepository();
-    service = new EntriesService(repository as unknown as EntriesRepository);
+    service = new EntriesService(
+      repository as unknown as EntriesRepository,
+      {
+        syncClientContact,
+      } as never,
+    );
     await service.onModuleInit();
   });
 
@@ -59,6 +66,14 @@ describe('EntriesService', () => {
     expect(entries).toHaveLength(1);
     expect(entries[0].id).toBe(created.id);
     expect(repository.snapshot).toHaveLength(1);
+    expect(syncClientContact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: '4385551111::123 pine',
+        firstName: 'Alex',
+        lastName: 'Stone',
+        source: 'entries-create',
+      }),
+    );
   });
 
   it('deduplicates clients by email/phone when listing summaries', async () => {

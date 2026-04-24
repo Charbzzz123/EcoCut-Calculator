@@ -1,5 +1,12 @@
-import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnModuleInit,
+  Optional,
+} from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import { CommunicationsChatsService } from '../communications/chats/communications-chats.service';
 import type {
   CreateEntryDto,
   EntryFormDto,
@@ -45,10 +52,15 @@ type HedgeConfigMap = Record<string, HedgeConfigDto>;
 
 @Injectable()
 export class EntriesService implements OnModuleInit {
+  private readonly logger = new Logger(EntriesService.name);
   private entries: StoredEntry[] = [];
   private clients = new Map<string, ClientSummary>();
 
-  constructor(private readonly repository: EntriesRepository) {}
+  constructor(
+    private readonly repository: EntriesRepository,
+    @Optional()
+    private readonly chats?: CommunicationsChatsService,
+  ) {}
 
   async onModuleInit(): Promise<void> {
     const stored = await this.repository.loadEntries();
@@ -65,6 +77,7 @@ export class EntriesService implements OnModuleInit {
     this.entries.push(created);
     this.upsertClientSummary(created);
     await this.repository.saveEntries(this.entries);
+    await this.syncClientContactFromEntry(created, 'entries-create');
     return created;
   }
 
@@ -215,6 +228,7 @@ export class EntriesService implements OnModuleInit {
     this.entries[index] = updated;
     await this.repository.saveEntries(this.entries);
     this.rebuildClientSummaries();
+    await this.syncClientContactFromEntry(updated, 'entries-update');
     return updated;
   }
 
@@ -302,6 +316,7 @@ export class EntriesService implements OnModuleInit {
     if (!summary) {
       throw new NotFoundException(`Client ${newKey} not found after update`);
     }
+    await this.syncClientContactFromSummary(summary, 'client-update');
     return summary;
   }
 
@@ -443,6 +458,62 @@ export class EntriesService implements OnModuleInit {
         ([, value]) => value !== undefined && value !== '',
       ),
     ) as UpdateClientDto;
+  }
+
+  private async syncClientContactFromEntry(
+    entry: StoredEntry,
+    source: string,
+  ): Promise<void> {
+    if (!this.chats) {
+      return;
+    }
+    try {
+      await this.chats.syncClientContact({
+        clientId: this.computeClientKey(entry),
+        firstName: entry.form.firstName,
+        lastName: entry.form.lastName,
+        fullName: `${entry.form.firstName} ${entry.form.lastName}`.trim(),
+        phone: entry.form.phone,
+        email: entry.form.email,
+        source,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Client/chat sync skipped for entry ${entry.id}: ${this.describeError(
+          error,
+        )}`,
+      );
+    }
+  }
+
+  private async syncClientContactFromSummary(
+    client: ClientSummary,
+    source: string,
+  ): Promise<void> {
+    if (!this.chats) {
+      return;
+    }
+    try {
+      await this.chats.syncClientContact({
+        clientId: client.clientId,
+        firstName: client.firstName,
+        lastName: client.lastName,
+        fullName: client.fullName,
+        phone: client.phone,
+        email: client.email,
+        source,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Client/chat sync skipped for client ${client.clientId}: ${this.describeError(
+          error,
+        )}`,
+      );
+    }
+  }
+
+  private describeError(error: unknown): string {
+    return error instanceof Error ? error.message : 'Unknown error';
   }
 
   private normalizeEmail(value?: string): string | null {

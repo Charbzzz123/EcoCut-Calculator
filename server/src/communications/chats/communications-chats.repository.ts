@@ -20,6 +20,13 @@ interface ContactLinkRow {
   updated_at: string;
 }
 
+interface ClientContactLinkRow {
+  client_id: string;
+  quo_contact_id: string;
+  source: string;
+  updated_at: string;
+}
+
 interface ConversationSummaryRow {
   conversation_id: string;
   last_message_at: string | null;
@@ -39,6 +46,17 @@ interface MessageMirrorRow {
   conversation_id: string;
   created_at: string | null;
   payload: string;
+}
+
+interface UnlinkedConversationSummaryRow {
+  conversation_id: string;
+  contact_id: string | null;
+  last_message_at: string | null;
+  conversation_payload: string;
+  last_read_at: string;
+  last_message_payload: string | null;
+  last_message_created_at: string | null;
+  unread_count: number;
 }
 
 interface WebhookInsertResult {
@@ -91,6 +109,12 @@ interface ListMirrorMessagesOptions {
   offset: number;
 }
 
+interface ListUnlinkedConversationsOptions {
+  limit: number;
+  offset: number;
+  query: string;
+}
+
 @Injectable()
 export class CommunicationsChatsRepository implements OnModuleDestroy {
   private readonly logger = new Logger(CommunicationsChatsRepository.name);
@@ -119,6 +143,10 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
   private readonly countMessagesForConversationStmt: Database.Statement;
   private readonly selectConversationExistsStmt: Database.Statement;
   private readonly upsertConversationReadStmt: Database.Statement;
+  private readonly selectClientLinkByContactStmt: Database.Statement;
+  private readonly listClientLinksStmt: Database.Statement;
+  private readonly listUnlinkedConversationsStmt: Database.Statement;
+  private readonly countUnlinkedConversationsStmt: Database.Statement;
 
   constructor() {
     mkdirSync(dirname(this.dbPath), { recursive: true });
@@ -229,6 +257,16 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
       `SELECT client_id, quo_contact_id, source, updated_at
        FROM chat_client_links
        WHERE client_id = ?`,
+    );
+    this.selectClientLinkByContactStmt = this.db.prepare(
+      `SELECT client_id, quo_contact_id, source, updated_at
+       FROM chat_client_links
+       WHERE quo_contact_id = ?`,
+    );
+    this.listClientLinksStmt = this.db.prepare(
+      `SELECT client_id, quo_contact_id, source, updated_at
+       FROM chat_client_links
+       ORDER BY updated_at DESC, client_id ASC`,
     );
     this.upsertCursorStmt = this.db.prepare(
       `INSERT INTO chat_sync_cursors (
@@ -376,8 +414,68 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
          updated_at
        ) VALUES (?, ?, ?)
        ON CONFLICT(conversation_id) DO UPDATE SET
-         last_read_at = excluded.last_read_at,
-         updated_at = excluded.updated_at`,
+          last_read_at = excluded.last_read_at,
+          updated_at = excluded.updated_at`,
+    );
+    this.listUnlinkedConversationsStmt = this.db.prepare(
+      `SELECT
+         c.conversation_id,
+         NULLIF(COALESCE(json_extract(c.payload, '$.contactId'), ''), '') AS contact_id,
+         c.last_message_at,
+         c.payload AS conversation_payload,
+         COALESCE(rs.last_read_at, '') AS last_read_at,
+         lm.payload AS last_message_payload,
+         lm.created_at AS last_message_created_at,
+         (
+           SELECT COUNT(*)
+           FROM chat_messages m2
+           WHERE m2.conversation_id = c.conversation_id
+             AND COALESCE(m2.created_at, '') > COALESCE(rs.last_read_at, '')
+             AND lower(COALESCE(json_extract(m2.payload, '$.direction'), '')) = 'inbound'
+         ) AS unread_count
+       FROM chat_conversations c
+       LEFT JOIN chat_conversation_reads rs
+         ON rs.conversation_id = c.conversation_id
+       LEFT JOIN chat_messages lm
+         ON lm.message_id = (
+           SELECT m.message_id
+           FROM chat_messages m
+           WHERE m.conversation_id = c.conversation_id
+           ORDER BY COALESCE(m.created_at, '') DESC, m.message_id DESC
+           LIMIT 1
+         )
+       WHERE (? = '' OR lower(c.payload) LIKE ? OR lower(COALESCE(lm.payload, '')) LIKE ?)
+         AND (
+           COALESCE(json_extract(c.payload, '$.contactId'), '') = ''
+           OR NOT EXISTS (
+             SELECT 1
+             FROM chat_client_links cl
+             WHERE cl.quo_contact_id = json_extract(c.payload, '$.contactId')
+           )
+         )
+       ORDER BY COALESCE(c.last_message_at, lm.created_at, c.updated_at) DESC, c.conversation_id DESC
+       LIMIT ? OFFSET ?`,
+    );
+    this.countUnlinkedConversationsStmt = this.db.prepare(
+      `SELECT COUNT(*) AS total
+       FROM chat_conversations c
+       LEFT JOIN chat_messages lm
+         ON lm.message_id = (
+           SELECT m.message_id
+           FROM chat_messages m
+           WHERE m.conversation_id = c.conversation_id
+           ORDER BY COALESCE(m.created_at, '') DESC, m.message_id DESC
+           LIMIT 1
+         )
+       WHERE (? = '' OR lower(c.payload) LIKE ? OR lower(COALESCE(lm.payload, '')) LIKE ?)
+         AND (
+           COALESCE(json_extract(c.payload, '$.contactId'), '') = ''
+           OR NOT EXISTS (
+             SELECT 1
+             FROM chat_client_links cl
+             WHERE cl.quo_contact_id = json_extract(c.payload, '$.contactId')
+           )
+         )`,
     );
   }
 
@@ -456,13 +554,26 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
   }
 
   upsertClientContactLink(input: UpsertClientContactLinkInput): void {
-    try {
+    const linkedAt = input.updatedAt ?? new Date().toISOString();
+    const run = this.db.transaction(() => {
+      const existingForContact = this.selectClientLinkByContactStmt.get(
+        input.quoContactId,
+      ) as ContactLinkRow | undefined;
+      if (
+        existingForContact &&
+        existingForContact.client_id !== input.clientId
+      ) {
+        this.removeClientLinkStmt.run(existingForContact.client_id);
+      }
       this.upsertClientLinkStmt.run(
         input.clientId,
         input.quoContactId,
         input.source,
-        input.updatedAt ?? new Date().toISOString(),
+        linkedAt,
       );
+    });
+    try {
+      run();
     } catch (error) {
       this.logger.warn(
         `Failed to upsert chat client link: ${this.stringifyError(error)}`,
@@ -489,6 +600,47 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
         `Failed to load chat client link: ${this.stringifyError(error)}`,
       );
       return null;
+    }
+  }
+
+  getClientLinkByContactId(
+    quoContactId: string,
+  ): UpsertClientContactLinkInput | null {
+    try {
+      const row = this.selectClientLinkByContactStmt.get(quoContactId) as
+        | ContactLinkRow
+        | undefined;
+      if (!row) {
+        return null;
+      }
+      return {
+        clientId: row.client_id,
+        quoContactId: row.quo_contact_id,
+        source: row.source,
+        updatedAt: row.updated_at,
+      };
+    } catch (error) {
+      this.logger.warn(
+        `Failed to load chat client link by contact id: ${this.stringifyError(error)}`,
+      );
+      return null;
+    }
+  }
+
+  listClientContactLinks(): UpsertClientContactLinkInput[] {
+    try {
+      const rows = this.listClientLinksStmt.all() as ClientContactLinkRow[];
+      return rows.map((row) => ({
+        clientId: row.client_id,
+        quoContactId: row.quo_contact_id,
+        source: row.source,
+        updatedAt: row.updated_at,
+      }));
+    } catch (error) {
+      this.logger.warn(
+        `Failed to list chat client links: ${this.stringifyError(error)}`,
+      );
+      return [];
     }
   }
 
@@ -603,6 +755,45 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
         `Failed to list chat conversations: ${this.stringifyError(error)}`,
       );
       return [];
+    }
+  }
+
+  listUnlinkedConversations(
+    options: ListUnlinkedConversationsOptions,
+  ): UnlinkedConversationSummaryRow[] {
+    const normalizedQuery = options.query.trim().toLowerCase();
+    const wildcard = `%${normalizedQuery}%`;
+    try {
+      return this.listUnlinkedConversationsStmt.all(
+        normalizedQuery,
+        wildcard,
+        wildcard,
+        options.limit,
+        options.offset,
+      ) as UnlinkedConversationSummaryRow[];
+    } catch (error) {
+      this.logger.warn(
+        `Failed to list unlinked chat conversations: ${this.stringifyError(error)}`,
+      );
+      return [];
+    }
+  }
+
+  countUnlinkedConversations(query: string): number {
+    const normalizedQuery = query.trim().toLowerCase();
+    const wildcard = `%${normalizedQuery}%`;
+    try {
+      const row = this.countUnlinkedConversationsStmt.get(
+        normalizedQuery,
+        wildcard,
+        wildcard,
+      ) as ConversationCountRow | undefined;
+      return row?.total ?? 0;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to count unlinked chat conversations: ${this.stringifyError(error)}`,
+      );
+      return 0;
     }
   }
 
@@ -729,8 +920,10 @@ export type {
   ConversationSummaryRow,
   ListMirrorConversationsOptions,
   ListMirrorMessagesOptions,
+  ListUnlinkedConversationsOptions,
   MessageMirrorRow,
   RecordWebhookEventInput,
   RecordWebhookEventResult,
+  UnlinkedConversationSummaryRow,
   UpsertClientContactLinkInput,
 };

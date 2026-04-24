@@ -91,6 +91,18 @@ describe('CommunicationsChatsRepository', () => {
       quoContactId: 'contact-2',
       source: 'manual',
     });
+    expect(repository.getClientLinkByContactId('contact-2')).toMatchObject({
+      clientId: 'client-1',
+      quoContactId: 'contact-2',
+    });
+    expect(repository.listClientContactLinks()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          clientId: 'client-1',
+          quoContactId: 'contact-2',
+        }),
+      ]),
+    );
 
     repository.saveSyncCursor('conversations:global', 'cursor-123');
     expect(repository.getSyncCursor('conversations:global')).toBe('cursor-123');
@@ -105,6 +117,26 @@ describe('CommunicationsChatsRepository', () => {
     repository.removeClientContactLink('client-1');
     expect(repository.getClientContactLink('client-1')).toBeNull();
     expect(repository.getMirrorStats().clientLinks).toBe(0);
+  });
+
+  it('reassigns an existing quo contact link to a new client id', () => {
+    repository.upsertClientContactLink({
+      clientId: 'client-old',
+      quoContactId: 'contact-1',
+      source: 'entries-auto-sync',
+    });
+    repository.upsertClientContactLink({
+      clientId: 'client-new',
+      quoContactId: 'contact-1',
+      source: 'client-update',
+    });
+
+    expect(repository.getClientContactLink('client-old')).toBeNull();
+    expect(repository.getClientContactLink('client-new')).toMatchObject({
+      clientId: 'client-new',
+      quoContactId: 'contact-1',
+      source: 'client-update',
+    });
   });
 
   it('clears mirror rows and optionally preserves client links', () => {
@@ -222,5 +254,57 @@ describe('CommunicationsChatsRepository', () => {
     repository.markConversationRead('conv-1', '2026-04-23T13:10:00.000Z');
     const row = repository.getMirrorConversationById('conv-1');
     expect(row?.unread_count).toBe(0);
+  });
+
+  it('lists unlinked conversations that are not mapped to a client link', () => {
+    repository.upsertConversations([
+      {
+        id: 'conv-1',
+        contactId: 'contact-linked',
+        displayName: 'Linked contact',
+        lastMessageAt: '2026-04-24T12:00:00.000Z',
+      },
+      {
+        id: 'conv-2',
+        contactId: 'contact-unlinked',
+        displayName: 'Unlinked contact',
+        lastMessageAt: '2026-04-24T13:00:00.000Z',
+      },
+    ]);
+    repository.upsertClientContactLink({
+      clientId: 'client-1',
+      quoContactId: 'contact-linked',
+      source: 'manual-link',
+    });
+    repository.upsertMessages('conv-1', [
+      {
+        id: 'msg-1',
+        conversationId: 'conv-1',
+        direction: 'inbound',
+        from: '+15145550000',
+        content: 'Linked',
+        createdAt: '2026-04-24T12:01:00.000Z',
+      },
+    ]);
+    repository.upsertMessages('conv-2', [
+      {
+        id: 'msg-2',
+        conversationId: 'conv-2',
+        direction: 'inbound',
+        from: '+15145551111',
+        content: 'Unlinked',
+        createdAt: '2026-04-24T13:01:00.000Z',
+      },
+    ]);
+
+    const unlinked = repository.listUnlinkedConversations({
+      limit: 10,
+      offset: 0,
+      query: '',
+    });
+
+    expect(unlinked).toHaveLength(1);
+    expect(unlinked[0]?.conversation_id).toBe('conv-2');
+    expect(repository.countUnlinkedConversations('')).toBe(1);
   });
 });
