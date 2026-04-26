@@ -89,6 +89,13 @@ export class HomeDataService {
         command: 'broadcast-clients',
       },
       {
+        id: 'chats',
+        label: 'Chats',
+        description: 'Reply to client texts',
+        icon: '\u{1F4F1}',
+        command: 'open-chats',
+      },
+      {
         id: 'advanced-options',
         label: 'Advanced Options',
         description: 'Adjust calculation rules',

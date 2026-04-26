@@ -55,10 +55,11 @@ describe('HomeDataService', () => {
 
   it('lists all quick actions and commands', () => {
     const quickActions = service.getQuickActions();
-    expect(quickActions).toHaveLength(8);
+    expect(quickActions).toHaveLength(9);
     const commands = quickActions.map((action) => action.command);
     expect(commands).toContain('view-finances');
     expect(commands).toContain('manage-employees');
+    expect(commands).toContain('open-chats');
     expect(commands).not.toContain('new-job');
     expect(commands).not.toContain('undo-job');
     expect(commands).not.toContain('view-employee-directory');

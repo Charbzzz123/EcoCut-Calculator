@@ -20,7 +20,8 @@ export type QuickActionCommand =
   | 'view-upcoming-pay'
   | 'start-next-job'
   | 'view-performance'
-  | 'broadcast-clients';
+  | 'broadcast-clients'
+  | 'open-chats';
 
 export interface QuickAction {
   id: string;

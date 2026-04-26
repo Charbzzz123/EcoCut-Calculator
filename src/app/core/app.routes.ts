@@ -23,6 +23,12 @@ export const routes: Routes = [
     title: 'EcoCut | Broadcast',
   },
   {
+    path: 'communications/chats',
+    loadComponent: () =>
+      import('../features/communications/chats-shell.component.js').then((m) => m.ChatsShellComponent),
+    title: 'EcoCut | Chats',
+  },
+  {
     path: 'employees/manage',
     loadComponent: () =>
       import('../features/employees/manage-employees-shell.component.js').then(

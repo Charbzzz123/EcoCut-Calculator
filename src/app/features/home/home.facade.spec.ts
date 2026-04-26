@@ -50,6 +50,7 @@ describe('HomeFacade', () => {
       { command: 'view-upcoming-pay', url: '/payroll/upcoming' },
       { command: 'view-performance', url: '/analytics/performance' },
       { command: 'broadcast-clients', url: '/communications/broadcast' },
+      { command: 'open-chats', url: '/communications/chats' },
       { command: 'advanced-options', url: '/admin/advanced' },
     ];
 

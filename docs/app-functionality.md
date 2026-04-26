@@ -450,4 +450,5 @@ Update this document whenever we clarify rules or add new functionality so imple
   - **CH-4 webhook ingestion is implemented**: Quo chat webhooks now ingest via `POST /communications/chats/webhooks/quo` with optional HMAC validation, replay dedupe, and immediate mirror updates.
   - **CH-5 chats API surface is implemented**: mirror-backed conversation list/search/thread/send/read endpoints are live under `/communications/chats/*` with pagination and unread tracking.
   - **CH-6 client-contact sync is implemented**: client create/update now auto-syncs Quo contacts, manual link/unlink APIs are live under `/communications/chats/links/*`, and unknown inbound conversation resolution is live under `/communications/chats/conversations/unlinked` + `/resolve`.
-  - Remaining slices (home entrypoint, chats UI, deep-linking, rollout hardening) are tracked in `docs/work-tracker.md` under CH-7 through CH-12.
+  - **CH-7 home entrypoint is implemented**: the dashboard has a `Chats` quick action that opens `/communications/chats`, and the route renders a theme-aligned launch shell while the inbox UI is built.
+  - Remaining slices (chats UI, deep-linking, rollout hardening) are tracked in `docs/work-tracker.md` under CH-8 through CH-12.

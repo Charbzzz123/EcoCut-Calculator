@@ -1,0 +1,42 @@
+<section class="chats-shell" [attr.aria-labelledby]="headingId">
+  <article class="chats-hero">
+    <app-brand-banner></app-brand-banner>
+
+    <header class="chats-shell__header">
+      <div class="hero-copy">
+        <p class="eyebrow">Client conversations</p>
+        <h1 [id]="headingId">Chats</h1>
+        <p class="subtitle">
+          Launch the Quo inbox workspace from EcoCut while the messaging backend stays linked to
+          client records.
+        </p>
+      </div>
+      <app-back-chip routerLink="/home" label="Back to dashboard"></app-back-chip>
+    </header>
+  </article>
+
+  <section class="chats-summary" aria-label="Chats setup status">
+    @for (card of launchCards; track card.label) {
+      <article class="summary-card">
+        <p class="summary-card__label">{{ card.label }}</p>
+        <p class="summary-card__value">{{ card.value }}</p>
+        <p class="summary-card__hint">{{ card.hint }}</p>
+      </article>
+    }
+  </section>
+
+  <article class="chats-preview" aria-label="Chats workspace preview">
+    <div class="conversation-list">
+      <p class="panel-eyebrow">Inbox</p>
+      <h2>Conversation list</h2>
+      <p>CH-8 will render mirrored Quo conversations here with search and unread state.</p>
+    </div>
+    <div class="thread-preview">
+      <p class="panel-eyebrow">Thread</p>
+      <h2>Client chat</h2>
+      <p>
+        Selected conversations will open with client context, message history, and a safe reply box.
+      </p>
+    </div>
+  </article>
+</section>

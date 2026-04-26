@@ -69,6 +69,10 @@ export class HomeFacade {
     this.navigateWhenReady('/communications/broadcast');
   }
 
+  openChats(): void {
+    this.navigateWhenReady('/communications/chats');
+  }
+
   openAdvancedOptions(): void {
     this.navigateWhenReady('/admin/advanced');
   }
@@ -116,6 +120,9 @@ export class HomeFacade {
         break;
       case 'broadcast-clients':
         this.openClientBroadcast();
+        break;
+      case 'open-chats':
+        this.openChats();
         break;
       case 'advanced-options':
         this.openAdvancedOptions();
