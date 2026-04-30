@@ -15,6 +15,7 @@ Living checklist for in-flight feature work so we never lose track of what€™
 | CH-6 Client <-> Quo contact sync                                     | 2026-04-24 | Added client-contact sync hooks on entries create/update/client-edit, link management endpoints (`/communications/chats/links/*`), unlinked conversation queue/resolve endpoints, and safer link reassignment so one Quo contact can be re-bound to a new canonical client id without breaking mappings.                               |
 | CH-7 Home + routing entrypoint                                       | 2026-04-24 | Added `/communications/chats` as a lazy frontend route with a theme-aligned launch shell and a `Chats` quick action on the home dashboard so operators can open the future Quo inbox workspace directly.                                                                                                                               |
 | CH-8 Chats UI MVP                                                    | 2026-04-26 | Added the messenger-style `/communications/chats` UI with provider/mirror status cards, searchable conversation list, active thread view, composer send feedback, unread clearing, empty/error/loading states, and mobile stacked list-to-thread behavior.                                                                             |
+| CH-8B Chats manual sync UX                                           | 2026-04-29 | Added an operator-facing `Sync Quo chats` action in the Chats inbox, sync success/error feedback, and empty-state guidance so connected-but-empty mirrors can be populated from the UI without using PowerShell.                                                                                                                       |
 | NAV-5 Alert/banner enter-exit motion                                 | 2026-04-12 | Added shared alert/toast motion utility (`motion-alert`) in global styles for validation/state/banner surfaces, plus delayed close handling for Start Next Job save toast so success/error feedback no longer appears/disappears abruptly while still respecting reduced-motion preferences.                                           |
 | NAV-4 Collapse/expand motion unification                             | 2026-04-12 | Added shared collapse utility motion (`motion-collapse`) in global styles and wired it into Start Next Job + Broadcast progressive-disclosure sections (workflow status, advanced panels, analytics panel/details, manual-add panel, per-client override) with reduced-motion fallback and hidden-state inert handling.                |
 | NAV-3C Non-shared popover/menu motion parity                         | 2026-04-12 | Audited remaining non-shared popovers and aligned Home CTA/dropdown menus with the same open-close motion baseline (fade/slide + visibility handoff + reduced-motion fallback) so they no longer pop in/out abruptly compared to shared dropdown/popover components.                                                                   |
@@ -346,6 +347,13 @@ Use this as the source of truth if chat context resets.
 - Mobile: stacked list->thread navigation.
 - Include sending/delivered/failed states, unread markers, empty/error/loading states.
 - Added provider/mirror summary cards, searchable conversation loading/error/empty states, unread clearing on read, and composer sent/failed feedback.
+
+#### CH-8B - Manual sync UX
+
+- **Status**: Completed on 2026-04-29.
+- Added `Sync Quo chats` to the inbox controls and empty state.
+- Calls the existing `POST /communications/chats/sync` incremental mirror endpoint from the UI.
+- Shows sync progress, success counts, and failure guidance, then refreshes provider/mirror counters and the conversation list.
 
 #### CH-9 - Client-aware thread context
 

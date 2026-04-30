@@ -39,6 +39,10 @@ export class ChatsShellComponent implements OnInit {
     void this.facade.selectConversation(conversation.conversationId);
   }
 
+  protected syncChats(): void {
+    void this.facade.syncChats();
+  }
+
   protected sendMessage(): void {
     void this.facade.sendMessage();
   }

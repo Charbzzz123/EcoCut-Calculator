@@ -146,6 +146,7 @@ root/
   - Read-state persistence is tracked in `chat_conversation_reads` for unread-count rendering.
   - Frontend entrypoint is live at `/communications/chats` and the home dashboard exposes a `Chats` quick action that routes there.
   - Chats UI MVP now uses `ChatsApiService` + route-scoped `ChatsFacade` to render provider/mirror status cards, searchable conversation list, unread markers, active thread view, SMS reply composer, send states, and mobile stacked list-to-thread behavior.
+  - Chats manual sync UX now exposes `POST /communications/chats/sync` as a `Sync Quo chats` inbox action with progress, mirrored-count success feedback, and failure guidance for connected-but-empty mirrors.
   - Remaining chat slices (client deep-link rollout + guardrails/runbook) are planned under CH-9..CH-12 in `docs/work-tracker.md`.
 - **Frontend proxying & dev setup**
   - `npm start` automatically passes `--proxy-config proxy.conf.json`, so `/api/*` traffic goes to `http://localhost:3000/*`. Always run `npm run server` in a second terminal before testing calendar flows locally.

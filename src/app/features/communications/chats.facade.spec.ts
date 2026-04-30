@@ -76,8 +76,20 @@ const health: ChatProviderHealth = {
   mirror: { conversations: 2, messages: 4, clientLinks: 1, cursors: 2 },
 };
 
+const syncResult = {
+  mode: 'incremental' as const,
+  startedAt: '2026-04-24T12:00:00.000Z',
+  completedAt: '2026-04-24T12:00:01.000Z',
+  durationMs: 1000,
+  truncated: false,
+  scanned: { conversations: 3, messages: 9 },
+  mirrored: { conversations: 2, messages: 5 },
+  mirror: { conversations: 2, messages: 5, clientLinks: 1, cursors: 2 },
+};
+
 const createApiMock = () => ({
   getHealth: vi.fn().mockResolvedValue(health),
+  syncChats: vi.fn().mockResolvedValue(syncResult),
   listConversations: vi.fn().mockResolvedValue(conversationResult),
   searchConversations: vi.fn().mockResolvedValue(conversationResult),
   listMessages: vi.fn().mockResolvedValue(messageResult),
@@ -109,6 +121,45 @@ describe('ChatsFacade', () => {
     expect(facade.conversations()).toHaveLength(2);
     expect(facade.conversationTotal()).toBe(2);
     expect(facade.unreadTotal()).toBe(2);
+  });
+
+  it('syncs Quo chats and refreshes the mirror state', async () => {
+    await facade.init();
+
+    await facade.syncChats();
+
+    expect(api.syncChats).toHaveBeenCalled();
+    expect(api.getHealth).toHaveBeenCalledTimes(2);
+    expect(api.listConversations).toHaveBeenCalledTimes(2);
+    expect(facade.syncState()).toBe('synced');
+    expect(facade.lastSyncResult()).toMatchObject({ mirrored: { conversations: 2, messages: 5 } });
+  });
+
+  it('does not start a second sync while one is running', async () => {
+    let resolveSync: (value: typeof syncResult) => void = () => undefined;
+    api.syncChats.mockReturnValueOnce(
+      new Promise<typeof syncResult>((resolve) => {
+        resolveSync = resolve;
+      }),
+    );
+
+    const firstSync = facade.syncChats();
+    const secondSync = facade.syncChats();
+
+    expect(api.syncChats).toHaveBeenCalledTimes(1);
+    resolveSync(syncResult);
+    await Promise.all([firstSync, secondSync]);
+    expect(facade.syncState()).toBe('synced');
+  });
+
+  it('surfaces sync failures', async () => {
+    api.syncChats.mockRejectedValueOnce(new Error('sync failed'));
+
+    await facade.syncChats();
+
+    expect(facade.syncState()).toBe('failed');
+    expect(facade.lastSyncResult()).toBeNull();
+    expect(facade.error()).toContain('Unable to sync');
   });
 
   it('searches conversations after debounce', async () => {

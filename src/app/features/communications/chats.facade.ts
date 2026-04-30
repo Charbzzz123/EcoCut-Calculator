@@ -4,11 +4,13 @@ import type {
   ChatConversationSummary,
   ChatMessageView,
   ChatProviderHealth,
+  SyncChatsResult,
 } from '@shared/domain/communications/chats-api.service.js';
 import { ChatsApiService } from '@shared/domain/communications/chats-api.service.js';
 
 export type ChatsLoadState = 'idle' | 'loading' | 'ready' | 'error';
 export type ChatSendState = 'idle' | 'sending' | 'sent' | 'failed';
+export type ChatSyncState = 'idle' | 'syncing' | 'synced' | 'failed';
 
 const CONVERSATION_LIMIT = 40;
 const MESSAGE_LIMIT = 80;
@@ -30,6 +32,8 @@ export class ChatsFacade {
   private readonly conversationsStateSignal = signal<ChatsLoadState>('idle');
   private readonly threadStateSignal = signal<ChatsLoadState>('idle');
   private readonly sendStateSignal = signal<ChatSendState>('idle');
+  private readonly syncStateSignal = signal<ChatSyncState>('idle');
+  private readonly lastSyncResultSignal = signal<SyncChatsResult | null>(null);
   private readonly errorSignal = signal<string | null>(null);
   private readonly composerTextSignal = signal('');
   /* c8 ignore stop */
@@ -42,6 +46,8 @@ export class ChatsFacade {
   readonly conversationsState = this.conversationsStateSignal.asReadonly();
   readonly threadState = this.threadStateSignal.asReadonly();
   readonly sendState = this.sendStateSignal.asReadonly();
+  readonly syncState = this.syncStateSignal.asReadonly();
+  readonly lastSyncResult = this.lastSyncResultSignal.asReadonly();
   readonly error = this.errorSignal.asReadonly();
 
   /* c8 ignore start - computed signal wrappers create synthetic branch metadata. */
@@ -72,6 +78,25 @@ export class ChatsFacade {
 
   async refresh(): Promise<void> {
     await Promise.all([this.refreshHealth(), this.loadConversations(this.searchControl.value)]);
+  }
+
+  async syncChats(): Promise<void> {
+    if (this.syncStateSignal() === 'syncing') {
+      return;
+    }
+
+    this.syncStateSignal.set('syncing');
+    this.lastSyncResultSignal.set(null);
+    this.errorSignal.set(null);
+    try {
+      const result = await this.api.syncChats();
+      this.lastSyncResultSignal.set(result);
+      this.syncStateSignal.set('synced');
+      await this.refresh();
+    } catch {
+      this.syncStateSignal.set('failed');
+      this.errorSignal.set('Unable to sync Quo conversations right now.');
+    }
   }
 
   async refreshHealth(): Promise<void> {

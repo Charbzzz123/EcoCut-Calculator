@@ -75,8 +75,20 @@ const messages: ChatMessageListResult = {
   ],
 };
 
+const syncResult = {
+  mode: 'incremental' as const,
+  startedAt: '2026-04-24T12:00:00.000Z',
+  completedAt: '2026-04-24T12:00:01.000Z',
+  durationMs: 1000,
+  truncated: false,
+  scanned: { conversations: 2, messages: 5 },
+  mirrored: { conversations: 1, messages: 3 },
+  mirror: { conversations: 2, messages: 5, clientLinks: 1, cursors: 2 },
+};
+
 const createApiMock = () => ({
   getHealth: vi.fn().mockResolvedValue(health),
+  syncChats: vi.fn().mockResolvedValue(syncResult),
   listConversations: vi.fn().mockResolvedValue(conversations),
   searchConversations: vi.fn().mockResolvedValue(conversations),
   listMessages: vi.fn().mockResolvedValue(messages),
@@ -234,6 +246,38 @@ describe('ChatsShellComponent', () => {
     expect(api.getHealth).toHaveBeenCalled();
   });
 
+  it('runs manual sync from the inbox empty state', async () => {
+    api.listConversations.mockResolvedValueOnce({ items: [], total: 0, limit: 40, offset: 0 });
+    clickRefresh();
+    await settle();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('Run a sync to import existing Quo conversation history');
+
+    const syncButton = Array.from(compiled.querySelectorAll<HTMLButtonElement>('.refresh-btn')).find((button) =>
+      button.textContent?.includes('Sync Quo chats'),
+    );
+    syncButton?.click();
+    fixture.detectChanges();
+    await settle();
+
+    expect(api.syncChats).toHaveBeenCalled();
+    expect(compiled.textContent).toContain('Synced 1 conversation(s) and 3 message(s).');
+  });
+
+  it('shows sync failure feedback', async () => {
+    api.syncChats.mockRejectedValueOnce(new Error('sync failed'));
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    compiled.querySelector<HTMLButtonElement>('.refresh-btn--primary')!.click();
+    fixture.detectChanges();
+    await settle();
+
+    expect(compiled.textContent).toContain('Unable to sync Quo conversations right now.');
+    expect(compiled.textContent).toContain('Sync failed. Check Quo credentials');
+  });
+
   it('provides a dashboard back link', () => {
     const link = fixture.nativeElement.querySelector('app-back-chip a') as HTMLAnchorElement;
 
@@ -248,6 +292,9 @@ describe('ChatsShellComponent', () => {
   }
 
   function clickRefresh(): void {
-    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.refresh-btn')!.click();
+    const refreshButton = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.refresh-btn'),
+    ).find((button) => button.textContent?.includes('Refresh'));
+    refreshButton?.click();
   }
 });

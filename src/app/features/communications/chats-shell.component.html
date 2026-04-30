@@ -61,8 +61,33 @@
           <p class="panel-eyebrow">Inbox</p>
           <h2>Conversations</h2>
         </div>
-        <button type="button" class="refresh-btn" (click)="facade.refresh()">Refresh</button>
+        <div class="panel-actions">
+          <button
+            type="button"
+            class="refresh-btn refresh-btn--primary"
+            [disabled]="facade.syncState() === 'syncing'"
+            (click)="syncChats()"
+          >
+            @if (facade.syncState() === 'syncing') {
+              Syncing...
+            } @else {
+              Sync Quo chats
+            }
+          </button>
+          <button type="button" class="refresh-btn" (click)="facade.refresh()">Refresh</button>
+        </div>
       </header>
+
+      @if (facade.syncState() === 'synced' && facade.lastSyncResult(); as result) {
+        <p class="sync-status sync-status--success" role="status">
+          Synced {{ result.mirrored.conversations }} conversation(s) and
+          {{ result.mirrored.messages }} message(s).
+        </p>
+      } @else if (facade.syncState() === 'failed') {
+        <p class="sync-status sync-status--error" role="alert">
+          Sync failed. Check Quo credentials or provider response, then try again.
+        </p>
+      }
 
       <label class="search-field">
         <span>Search chats</span>
@@ -78,7 +103,18 @@
       } @else if (facade.conversationsState() === 'error') {
         <p class="empty-state">Could not load conversations.</p>
       } @else if (!facade.conversations().length) {
-        <p class="empty-state">No mirrored Quo conversations yet.</p>
+        <div class="empty-state empty-state--actionable">
+          <p>No mirrored Quo conversations yet.</p>
+          <p>Run a sync to import existing Quo conversation history into EcoCut.</p>
+          <button
+            type="button"
+            class="refresh-btn refresh-btn--primary"
+            [disabled]="facade.syncState() === 'syncing'"
+            (click)="syncChats()"
+          >
+            Sync Quo chats
+          </button>
+        </div>
       } @else {
         <div class="conversation-list__items">
           @for (conversation of facade.conversations(); track conversation.conversationId) {

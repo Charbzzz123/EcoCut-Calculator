@@ -452,4 +452,5 @@ Update this document whenever we clarify rules or add new functionality so imple
   - **CH-6 client-contact sync is implemented**: client create/update now auto-syncs Quo contacts, manual link/unlink APIs are live under `/communications/chats/links/*`, and unknown inbound conversation resolution is live under `/communications/chats/conversations/unlinked` + `/resolve`.
   - **CH-7 home entrypoint is implemented**: the dashboard has a `Chats` quick action that opens `/communications/chats`.
   - **CH-8 chats UI MVP is implemented**: `/communications/chats` now renders provider/mirror status cards, searchable conversation list, unread markers, active thread view, SMS reply composer, send feedback, empty/error/loading states, and mobile list-to-thread behavior.
+  - **CH-8B manual sync UX is implemented**: the inbox has a `Sync Quo chats` action that runs incremental mirror sync from the UI, reports mirrored conversation/message counts, and explains the connected-but-empty state.
   - Remaining slices (client-aware deep-linking, guardrails, rollout hardening) are tracked in `docs/work-tracker.md` under CH-9 through CH-12.

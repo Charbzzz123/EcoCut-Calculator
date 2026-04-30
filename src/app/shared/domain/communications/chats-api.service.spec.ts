@@ -40,6 +40,25 @@ describe('ChatsApiService', () => {
     await expect(promise).resolves.toMatchObject({ connected: true });
   });
 
+  it('runs an incremental chat sync', async () => {
+    const promise = service.syncChats();
+    const req = httpMock.expectOne(`${baseUrl}/sync`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ mode: 'incremental' });
+    req.flush({
+      mode: 'incremental',
+      startedAt: '2026-04-24T12:00:00.000Z',
+      completedAt: '2026-04-24T12:00:01.000Z',
+      durationMs: 1000,
+      truncated: false,
+      scanned: { conversations: 3, messages: 9 },
+      mirrored: { conversations: 2, messages: 5 },
+      mirror: { conversations: 2, messages: 5, clientLinks: 1, cursors: 2 },
+    });
+
+    await expect(promise).resolves.toMatchObject({ mirrored: { conversations: 2, messages: 5 } });
+  });
+
   it('lists and searches conversations with query params', async () => {
     const listPromise = service.listConversations({ limit: 10, offset: 5 });
     const listReq = httpMock.expectOne(`${baseUrl}/conversations?limit=10&offset=5`);

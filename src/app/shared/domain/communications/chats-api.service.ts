@@ -63,6 +63,28 @@ export interface ChatProviderHealth {
   };
 }
 
+export interface SyncChatsResult {
+  mode: 'incremental' | 'backfill' | 'reset';
+  startedAt: string;
+  completedAt: string;
+  durationMs: number;
+  truncated: boolean;
+  scanned: {
+    conversations: number;
+    messages: number;
+  };
+  mirrored: {
+    conversations: number;
+    messages: number;
+  };
+  mirror: {
+    conversations: number;
+    messages: number;
+    clientLinks: number;
+    cursors: number;
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class ChatsApiService {
   private readonly http = inject(HttpClient);
@@ -70,6 +92,14 @@ export class ChatsApiService {
 
   async getHealth(): Promise<ChatProviderHealth> {
     return firstValueFrom(this.http.get<ChatProviderHealth>(`${this.baseUrl}/health`));
+  }
+
+  async syncChats(): Promise<SyncChatsResult> {
+    return firstValueFrom(
+      this.http.post<SyncChatsResult>(`${this.baseUrl}/sync`, {
+        mode: 'incremental',
+      }),
+    );
   }
 
   async listConversations(options: {
