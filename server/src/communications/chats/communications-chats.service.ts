@@ -24,6 +24,7 @@ import type {
   MarkConversationReadDto,
   MarkConversationReadResult,
   QuoChatProviderHealth,
+  QuoConversation,
   QuoChatSyncRequest,
   QuoChatSyncResult,
   QuoChatWebhookEventType,
@@ -515,7 +516,7 @@ export class CommunicationsChatsService {
       request?.maxConversations,
     );
 
-    const conversationIds = new Set<string>();
+    const conversationsById = new Map<string, QuoConversation>();
     const scanned = { conversations: 0, messages: 0 };
     const mirrored = { conversations: 0, messages: 0 };
     const pages = { conversations: 0, messages: 0 };
@@ -539,7 +540,7 @@ export class CommunicationsChatsService {
       const freshConversations: typeof batch = [];
       for (const conversation of batch) {
         const conversationDate = this.parseCursorDate(
-          conversation.lastMessageAt,
+          this.resolveConversationTimestamp(conversation),
         );
         if (
           conversationCursorDate &&
@@ -555,7 +556,7 @@ export class CommunicationsChatsService {
         }
 
         freshConversations.push(conversation);
-        conversationIds.add(conversation.id);
+        conversationsById.set(conversation.id, conversation);
         if (
           conversationDate &&
           (!newestConversationDate || conversationDate > newestConversationDate)
@@ -567,7 +568,7 @@ export class CommunicationsChatsService {
       mirrored.conversations +=
         this.chatsRepository.upsertConversations(freshConversations);
 
-      if (conversationIds.size >= maxConversations) {
+      if (conversationsById.size >= maxConversations) {
         truncated = true;
         break;
       }
@@ -576,27 +577,27 @@ export class CommunicationsChatsService {
         break;
       }
 
-      if (!response.hasNextPage || !response.nextPageToken) {
+      if (!response.nextPageToken) {
         break;
       }
       conversationPageToken = response.nextPageToken;
     }
 
     let newestMessageDate = messageCursorDate;
-    const selectedConversationIds = Array.from(conversationIds).slice(
+    const selectedConversations = Array.from(conversationsById.values()).slice(
       0,
       maxConversations,
     );
-    if (selectedConversationIds.length < conversationIds.size) {
+    if (selectedConversations.length < conversationsById.size) {
       truncated = true;
     }
 
-    for (const conversationId of selectedConversationIds) {
+    for (const conversation of selectedConversations) {
       let messagePageToken: string | undefined;
       let reachedMessageWatermark = false;
       while (true) {
         const response = await this.quoClient.listMessages(
-          conversationId,
+          conversation,
           messagePageToken,
           messagePageSize,
         );
@@ -629,7 +630,7 @@ export class CommunicationsChatsService {
         }
 
         mirrored.messages += this.chatsRepository.upsertMessages(
-          conversationId,
+          conversation.id,
           freshMessages,
         );
 
@@ -637,7 +638,7 @@ export class CommunicationsChatsService {
           break;
         }
 
-        if (!response.hasNextPage || !response.nextPageToken) {
+        if (!response.nextPageToken) {
           break;
         }
         messagePageToken = response.nextPageToken;
@@ -943,7 +944,8 @@ export class CommunicationsChatsService {
     const displayName =
       this.readString(conversationPayload.displayName) ??
       this.readString(conversationPayload.name) ??
-      this.readString(conversationPayload.contactName);
+      this.readString(conversationPayload.contactName) ??
+      participantPhone;
     return {
       conversationId: row.conversation_id,
       quoContactId: row.contact_id,
@@ -997,6 +999,7 @@ export class CommunicationsChatsService {
       this.readString(payload.phoneNumber),
       this.readString(payload.phone),
       this.readString(payload.participantPhone),
+      this.readStringArray(payload.participants).at(0) ?? null,
       this.readString(payload.number),
     ];
     for (const candidate of candidates) {
@@ -1024,9 +1027,11 @@ export class CommunicationsChatsService {
     const displayName =
       this.readString(conversationPayload.displayName) ??
       this.readString(conversationPayload.name) ??
-      this.readString(conversationPayload.contactName);
+      this.readString(conversationPayload.contactName) ??
+      participantPhone;
     const preview =
       this.readString(lastMessagePayload.content) ??
+      this.readString(lastMessagePayload.text) ??
       this.readString(lastMessagePayload.body);
 
     return {
@@ -1055,7 +1060,8 @@ export class CommunicationsChatsService {
     }
     if (direction === 'outbound') {
       const outbound = this.normalizePhone(
-        this.readString(lastMessagePayload.to),
+        this.readString(lastMessagePayload.to) ??
+          this.readStringArray(lastMessagePayload.to).at(0),
       );
       if (outbound) {
         return outbound;
@@ -1065,6 +1071,7 @@ export class CommunicationsChatsService {
       this.readString(conversationPayload.phoneNumber),
       this.readString(conversationPayload.phone),
       this.readString(conversationPayload.participantPhone),
+      this.readStringArray(conversationPayload.participants).at(0) ?? null,
       this.readString(conversationPayload.number),
     ];
     for (const candidate of conversationCandidates) {
@@ -1084,11 +1091,18 @@ export class CommunicationsChatsService {
       direction: this.normalizeDirection(this.readString(payload.direction)),
       content:
         this.readString(payload.content) ??
+        this.readString(payload.text) ??
         this.readString(payload.body) ??
         null,
       from: this.readString(payload.from),
-      to: this.readString(payload.to),
-      createdAt: row.created_at ?? this.readString(payload.createdAt),
+      to:
+        this.readString(payload.to) ??
+        this.readStringArray(payload.to).at(0) ??
+        null,
+      createdAt:
+        row.created_at ??
+        this.readString(payload.createdAt) ??
+        this.readString(payload.updatedAt),
     };
   }
 
@@ -1107,13 +1121,24 @@ export class CommunicationsChatsService {
     value: string | null,
   ): 'inbound' | 'outbound' | 'unknown' {
     const normalized = value?.toLowerCase();
-    if (normalized === 'inbound') {
+    if (normalized === 'inbound' || normalized === 'incoming') {
       return 'inbound';
     }
-    if (normalized === 'outbound') {
+    if (normalized === 'outbound' || normalized === 'outgoing') {
       return 'outbound';
     }
     return 'unknown';
+  }
+
+  private resolveConversationTimestamp(
+    conversation: QuoConversation,
+  ): string | undefined {
+    return (
+      conversation.lastMessageAt ??
+      conversation.lastActivityAt ??
+      conversation.updatedAt ??
+      conversation.createdAt
+    );
   }
 
   private normalizePhone(value: string | null | undefined): string | null {
@@ -1370,5 +1395,15 @@ export class CommunicationsChatsService {
     return typeof value === 'string' && value.trim().length > 0
       ? value.trim()
       : null;
+  }
+
+  private readStringArray(value: unknown): string[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    return value
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
   }
 }

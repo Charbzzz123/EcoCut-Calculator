@@ -484,7 +484,12 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
     const normalized = conversations
       .map((conversation) => ({
         conversationId: conversation.id,
-        lastMessageAt: conversation.lastMessageAt ?? null,
+        lastMessageAt:
+          conversation.lastMessageAt ??
+          conversation.lastActivityAt ??
+          conversation.updatedAt ??
+          conversation.createdAt ??
+          null,
         payload: JSON.stringify(conversation),
       }))
       .filter((conversation) => conversation.conversationId.length > 0);
@@ -521,7 +526,7 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
       .map((message) => ({
         messageId: message.id,
         conversationId: message.conversationId ?? defaultConversationId,
-        createdAt: message.createdAt ?? null,
+        createdAt: message.createdAt ?? message.updatedAt ?? null,
         payload: JSON.stringify(message),
       }))
       .filter(

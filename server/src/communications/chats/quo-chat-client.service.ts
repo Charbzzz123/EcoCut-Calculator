@@ -58,7 +58,7 @@ export class QuoChatClientService {
 
   async listPhoneNumbers(limit = 1): Promise<QuoListResponse<QuoPhoneNumber>> {
     return this.get<QuoListResponse<QuoPhoneNumber>>('/phone-numbers', {
-      limit,
+      maxResults: limit,
     });
   }
 
@@ -68,22 +68,31 @@ export class QuoChatClientService {
   ): Promise<QuoListResponse<QuoConversation>> {
     return this.get<QuoListResponse<QuoConversation>>('/conversations', {
       pageToken,
-      limit,
+      maxResults: limit,
     });
   }
 
   async listMessages(
-    conversationId: string,
+    conversation: Pick<
+      QuoConversation,
+      'id' | 'participants' | 'phoneNumberId'
+    >,
     pageToken?: string,
     limit = 50,
   ): Promise<QuoListResponse<QuoMessage>> {
-    return this.get<QuoListResponse<QuoMessage>>(
-      `/conversations/${encodeURIComponent(conversationId)}/messages`,
-      {
-        pageToken,
-        limit,
-      },
+    const participant = conversation.participants?.find(
+      (value) => value.trim().length > 0,
     );
+    if (!participant || !conversation.phoneNumberId) {
+      return { data: [], nextPageToken: null, totalItems: 0 };
+    }
+
+    return this.get<QuoListResponse<QuoMessage>>('/messages', {
+      phoneNumberId: conversation.phoneNumberId,
+      participants: participant,
+      pageToken,
+      maxResults: limit,
+    });
   }
 
   async listContacts(
@@ -92,7 +101,7 @@ export class QuoChatClientService {
   ): Promise<QuoListResponse<QuoContact>> {
     return this.get<QuoListResponse<QuoContact>>('/contacts', {
       pageToken,
-      limit,
+      maxResults: limit,
     });
   }
 

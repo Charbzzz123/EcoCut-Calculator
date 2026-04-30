@@ -4,6 +4,7 @@ interface QuoListResponse<TItem> {
   data: TItem[];
   hasNextPage?: boolean;
   nextPageToken?: string | null;
+  totalItems?: number;
 }
 
 interface QuoPhoneNumber {
@@ -18,6 +19,12 @@ interface QuoConversation {
   phoneNumberId?: QuoEntityId;
   contactId?: QuoEntityId;
   displayName?: string;
+  name?: string | null;
+  participants?: string[];
+  createdAt?: string;
+  updatedAt?: string;
+  lastActivityAt?: string;
+  lastActivityId?: string;
   lastMessageAt?: string;
 }
 
@@ -25,10 +32,13 @@ interface QuoMessage {
   id: QuoEntityId;
   conversationId?: QuoEntityId;
   from?: string;
-  to?: string;
+  to?: string | string[];
   content?: string;
-  direction?: 'inbound' | 'outbound';
+  text?: string;
+  body?: string;
+  direction?: 'incoming' | 'outgoing' | 'inbound' | 'outbound';
   createdAt?: string;
+  updatedAt?: string;
 }
 
 interface QuoContact {

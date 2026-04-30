@@ -49,13 +49,43 @@ describe('QuoChatClientService', () => {
     });
     const requestCall = fetchMock.mock.calls[0];
     expect(requestCall?.[0]).toBe(
-      'https://api.quo.com/v1/phone-numbers?limit=1',
+      'https://api.quo.com/v1/phone-numbers?maxResults=1',
     );
     const requestInit = requestCall?.[1];
     expect(requestInit?.method).toBe('GET');
     const requestHeaders = requestInit?.headers as Record<string, string>;
     expect(requestHeaders.Authorization).toBe('quo-key');
     expect(requestHeaders['Content-Type']).toBe('application/json');
+  });
+
+  it('lists messages through the provider messages endpoint', async () => {
+    process.env.QUO_API_BASE_URL = 'https://api.quo.com/v1';
+    process.env.QUO_API_KEY = 'quo-key';
+    process.env.QUO_FROM_NUMBER = '+14388007177';
+    process.env.QUO_FROM_NUMBER_ID = 'PN123';
+    process.env.QUO_USER_ID = 'USR123';
+
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ data: [] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    const service = new QuoChatClientService();
+    await service.listMessages(
+      {
+        id: 'CN123',
+        phoneNumberId: 'PN123',
+        participants: ['+15145550000'],
+      },
+      'cursor-1',
+      25,
+    );
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      'https://api.quo.com/v1/messages?phoneNumberId=PN123&participants=%2B15145550000&pageToken=cursor-1&maxResults=25',
+    );
   });
 
   it('throws a typed quo request error on non-retryable responses', async () => {

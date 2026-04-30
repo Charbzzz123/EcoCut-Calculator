@@ -144,10 +144,14 @@ describe('CommunicationsChatsService', () => {
           data: [
             {
               id: 'conv-fresh',
+              phoneNumberId: 'PN123',
+              participants: ['+15145550000'],
               lastMessageAt: '2026-04-23T12:10:00.000Z',
             },
             {
               id: 'conv-old',
+              phoneNumberId: 'PN123',
+              participants: ['+15145550001'],
               lastMessageAt: '2026-04-23T10:00:00.000Z',
             },
           ],
@@ -187,13 +191,20 @@ describe('CommunicationsChatsService', () => {
 
     expect(client.listConversations).toHaveBeenCalledWith(undefined, 10);
     expect(client.listMessages).toHaveBeenCalledWith(
-      'conv-fresh',
+      {
+        id: 'conv-fresh',
+        phoneNumberId: 'PN123',
+        participants: ['+15145550000'],
+        lastMessageAt: '2026-04-23T12:10:00.000Z',
+      },
       undefined,
       10,
     );
     expect(repository.upsertConversations).toHaveBeenCalledWith([
       {
         id: 'conv-fresh',
+        phoneNumberId: 'PN123',
+        participants: ['+15145550000'],
         lastMessageAt: '2026-04-23T12:10:00.000Z',
       },
     ]);
@@ -296,6 +307,57 @@ describe('CommunicationsChatsService', () => {
       limit: 20,
       offset: 0,
       query: 'karam',
+    });
+  });
+
+  it('normalizes current Quo conversation and message payload fields', () => {
+    const client = {
+      isConfigured: jest.fn(() => true),
+      listPhoneNumbers: jest.fn(),
+      getFromNumber: jest.fn(() => '+14388007177'),
+    };
+    const repository = createRepository();
+    repository.listMirrorConversations.mockReturnValue([
+      {
+        conversation_id: 'CN123',
+        last_message_at: '2026-04-28T23:00:41.510Z',
+        conversation_payload: JSON.stringify({
+          name: null,
+          participants: ['+15145550000'],
+          lastActivityAt: '2026-04-28T23:00:41.510Z',
+        }),
+        last_read_at: null,
+        last_message_payload: JSON.stringify({
+          text: 'Bonjour',
+          direction: 'incoming',
+          from: '+15145550000',
+          to: ['+14388007177'],
+        }),
+        last_message_created_at: '2026-04-28T23:00:41.444Z',
+        unread_count: 0,
+      },
+    ]);
+    repository.countMirrorConversations.mockReturnValue(1);
+    const service = new CommunicationsChatsService(
+      client as never,
+      repository as never,
+    );
+
+    expect(service.listConversations({ limit: 10, offset: 0 })).toEqual({
+      items: [
+        {
+          conversationId: 'CN123',
+          displayName: '+15145550000',
+          participantPhone: '+15145550000',
+          lastMessageAt: '2026-04-28T23:00:41.510Z',
+          lastMessagePreview: 'Bonjour',
+          lastMessageDirection: 'inbound',
+          unreadCount: 0,
+        },
+      ],
+      total: 1,
+      limit: 10,
+      offset: 0,
     });
   });
 
