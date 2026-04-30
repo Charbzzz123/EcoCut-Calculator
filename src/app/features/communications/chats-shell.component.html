@@ -1,4 +1,4 @@
-<section class="chats-shell" [attr.aria-labelledby]="headingId">
+﻿<section class="chats-shell" [attr.aria-labelledby]="headingId">
   <article class="chats-hero">
     <app-brand-banner></app-brand-banner>
 
@@ -7,36 +7,174 @@
         <p class="eyebrow">Client conversations</p>
         <h1 [id]="headingId">Chats</h1>
         <p class="subtitle">
-          Launch the Quo inbox workspace from EcoCut while the messaging backend stays linked to
-          client records.
+          Reply to mirrored Quo conversations from EcoCut while client contact links stay synced in
+          the background.
         </p>
       </div>
       <app-back-chip routerLink="/home" label="Back to dashboard"></app-back-chip>
     </header>
   </article>
 
-  <section class="chats-summary" aria-label="Chats setup status">
-    @for (card of launchCards; track card.label) {
-      <article class="summary-card">
-        <p class="summary-card__label">{{ card.label }}</p>
-        <p class="summary-card__value">{{ card.value }}</p>
-        <p class="summary-card__hint">{{ card.hint }}</p>
-      </article>
-    }
+  <section class="chats-summary" aria-label="Chats status">
+    <article class="summary-card">
+      <p class="summary-card__label">Provider</p>
+      <p class="summary-card__value">
+        @if (facade.health()?.connected) {
+          Connected
+        } @else if (facade.health()?.configured) {
+          Needs attention
+        } @else {
+          Not configured
+        }
+      </p>
+      <p class="summary-card__hint">
+        {{ facade.health()?.details ?? 'Checking Quo provider status...' }}
+      </p>
+    </article>
+    <article class="summary-card">
+      <p class="summary-card__label">Conversations</p>
+      <p class="summary-card__value">{{ facade.conversationTotal() }}</p>
+      <p class="summary-card__hint">{{ facade.unreadTotal() }} unread message(s).</p>
+    </article>
+    <article class="summary-card">
+      <p class="summary-card__label">Mirror</p>
+      <p class="summary-card__value">{{ facade.health()?.mirror?.messages ?? 0 }}</p>
+      <p class="summary-card__hint">Mirrored message records available for the inbox.</p>
+    </article>
   </section>
 
-  <article class="chats-preview" aria-label="Chats workspace preview">
-    <div class="conversation-list">
-      <p class="panel-eyebrow">Inbox</p>
-      <h2>Conversation list</h2>
-      <p>CH-8 will render mirrored Quo conversations here with search and unread state.</p>
-    </div>
-    <div class="thread-preview">
-      <p class="panel-eyebrow">Thread</p>
-      <h2>Client chat</h2>
-      <p>
-        Selected conversations will open with client context, message history, and a safe reply box.
-      </p>
-    </div>
+  @if (facade.error()) {
+    <p class="state-banner state-banner--error" role="alert">
+      {{ facade.error() }}
+      <button type="button" class="text-action" (click)="facade.refresh()">Retry</button>
+    </p>
+  }
+
+  <article
+    class="chats-workspace"
+    [class.chats-workspace--thread-open]="facade.hasActiveThread()"
+    aria-label="Chats inbox"
+  >
+    <section class="conversation-list" aria-label="Conversation list">
+      <header class="panel-header">
+        <div>
+          <p class="panel-eyebrow">Inbox</p>
+          <h2>Conversations</h2>
+        </div>
+        <button type="button" class="refresh-btn" (click)="facade.refresh()">Refresh</button>
+      </header>
+
+      <label class="search-field">
+        <span>Search chats</span>
+        <input
+          type="search"
+          [formControl]="facade.searchControl"
+          placeholder="Name, phone, or message"
+        />
+      </label>
+
+      @if (facade.conversationsState() === 'loading') {
+        <p class="empty-state">Loading conversations...</p>
+      } @else if (facade.conversationsState() === 'error') {
+        <p class="empty-state">Could not load conversations.</p>
+      } @else if (!facade.conversations().length) {
+        <p class="empty-state">No mirrored Quo conversations yet.</p>
+      } @else {
+        <div class="conversation-list__items">
+          @for (conversation of facade.conversations(); track conversation.conversationId) {
+            <button
+              type="button"
+              class="conversation-card"
+              [class.conversation-card--active]="
+                facade.selectedConversationId() === conversation.conversationId
+              "
+              (click)="selectConversation(conversation)"
+            >
+              <span class="conversation-card__main">
+                <strong>{{ conversationTitle(conversation) }}</strong>
+                <small>{{ conversationSubtitle(conversation) }}</small>
+                <span>{{ conversation.lastMessagePreview || 'No recent preview.' }}</span>
+              </span>
+              <span class="conversation-card__meta">
+                @if (conversation.unreadCount > 0) {
+                  <span class="unread-pill">{{ conversation.unreadCount }}</span>
+                }
+                <small>{{ conversation.lastMessageAt | date: 'MMM d, h:mm a' }}</small>
+              </span>
+            </button>
+          }
+        </div>
+      }
+    </section>
+
+    <section class="thread-panel" aria-label="Selected conversation">
+      @if (facade.selectedConversation(); as conversation) {
+        <header class="thread-header">
+          <button type="button" class="back-to-list" (click)="facade.clearThread()">
+            Back to inbox
+          </button>
+          <div>
+            <p class="panel-eyebrow">Thread</p>
+            <h2>{{ conversationTitle(conversation) }}</h2>
+            <p>{{ conversation.participantPhone ?? 'No phone number on this thread.' }}</p>
+          </div>
+        </header>
+
+        @if (facade.threadState() === 'loading') {
+          <p class="empty-state">Loading messages...</p>
+        } @else if (facade.threadState() === 'error') {
+          <p class="empty-state">Could not load this thread.</p>
+        } @else {
+          <div class="thread-messages">
+            @if (!facade.messages().length) {
+              <p class="empty-state">No messages mirrored for this conversation yet.</p>
+            } @else {
+              @for (message of facade.messages(); track message.messageId) {
+                <article
+                  class="message-bubble"
+                  [class.message-bubble--outbound]="message.direction === 'outbound'"
+                  [class.message-bubble--inbound]="message.direction !== 'outbound'"
+                >
+                  <p>{{ messageBody(message) }}</p>
+                  <small>
+                    {{ message.createdAt | date: 'MMM d, h:mm a' }}
+                    @if (message.direction === 'outbound') {
+                      <span>Sent</span>
+                    }
+                  </small>
+                </article>
+              }
+            }
+          </div>
+        }
+
+        <form class="composer" (ngSubmit)="sendMessage()">
+          <label>
+            <span>Reply by SMS</span>
+            <textarea
+              [formControl]="facade.composerControl"
+              rows="3"
+              placeholder="Type a reply..."
+            ></textarea>
+          </label>
+          <div class="composer__actions">
+            @if (facade.sendState() === 'sent') {
+              <span class="send-status send-status--sent">Message sent.</span>
+            } @else if (facade.sendState() === 'failed') {
+              <span class="send-status send-status--failed">Send failed. Try again.</span>
+            } @else if (facade.sendState() === 'sending') {
+              <span class="send-status">Sending...</span>
+            }
+            <button type="submit" class="send-btn" [disabled]="!facade.canSend()">Send</button>
+          </div>
+        </form>
+      } @else {
+        <div class="thread-empty">
+          <p class="panel-eyebrow">Thread</p>
+          <h2>Select a conversation</h2>
+          <p>Choose a Quo conversation from the inbox to read history and reply from EcoCut.</p>
+        </div>
+      }
+    </section>
   </article>
 </section>

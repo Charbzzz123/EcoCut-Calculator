@@ -121,7 +121,7 @@ root/
   - Communications persistence is durable in SQLite (`COMMUNICATIONS_DB_PATH`) via `CommunicationsRepository`, covering campaigns, pending approvals, audit records, delivery events, and suppressions.
   - Provider webhook signatures are validated via HMAC when `QUO_WEBHOOK_SECRET` or `HOSTINGER_WEBHOOK_SECRET` are configured.
   - Next slices still pending: durable campaign persistence, queue workers, consent expiry enforcement, and idempotency keys.
-- **Chats foundation (CH-1..CH-7 live)**:
+- **Chats foundation (CH-1..CH-8 live)**:
   - `GET /communications/chats/health` now returns Quo provider readiness (`configured`, `connected`, from-number visibility, diagnostics text) plus mirror counters (`conversations`, `messages`, `clientLinks`, `cursors`).
   - Quo integrations now share one typed transport wrapper (`QuoChatClientService`) with retry/backoff and categorized provider errors (auth vs transient).
   - Existing SMS sends in broadcast now reuse the same Quo transport client to avoid duplicated provider logic.
@@ -142,10 +142,11 @@ root/
     - `DELETE /communications/chats/links/:clientId`
     - `GET /communications/chats/conversations/unlinked`
     - `POST /communications/chats/conversations/:conversationId/resolve`
-  - Entries create/update and client profile edits now trigger best-effort Quo contact sync so contact links stay warm before the Chats UI ships.
+  - Entries create/update and client profile edits now trigger best-effort Quo contact sync so contact links stay warm before client-aware chat deep-links ship.
   - Read-state persistence is tracked in `chat_conversation_reads` for unread-count rendering.
   - Frontend entrypoint is live at `/communications/chats` and the home dashboard exposes a `Chats` quick action that routes there.
-  - Remaining chat slices (UI/deep-link rollout + guardrails/runbook) are planned under CH-8..CH-12 in `docs/work-tracker.md`.
+  - Chats UI MVP now uses `ChatsApiService` + route-scoped `ChatsFacade` to render provider/mirror status cards, searchable conversation list, unread markers, active thread view, SMS reply composer, send states, and mobile stacked list-to-thread behavior.
+  - Remaining chat slices (client deep-link rollout + guardrails/runbook) are planned under CH-9..CH-12 in `docs/work-tracker.md`.
 - **Frontend proxying & dev setup**
   - `npm start` automatically passes `--proxy-config proxy.conf.json`, so `/api/*` traffic goes to `http://localhost:3000/*`. Always run `npm run server` in a second terminal before testing calendar flows locally.
   - When the Nest server or credentials are unavailable the frontend logs the failure (via `console.warn`) and surfaces the inline banner but the form remains usable.
@@ -209,7 +210,7 @@ All frontend services derive their HTTP targets from `environment.apiBaseUrl`, s
 - Replace placeholder Angular template with real calculator components.
 - Extend the `/clients` view into a full CRM (client detail drawer, job history timeline, edit/delete hooks) once backend persistence is durable.
 - Continue `/communications/broadcast` rollout in remaining slices: campaign history UI and final rollout checklist/integration hardening.
-- Continue `/communications/chats` (Quo inbox replacement) in staged CH slices: messenger UI, client deep-link rollout, guardrails, and runbook.
+- Continue `/communications/chats` (Quo inbox replacement) in staged CH slices: client deep-link rollout, guardrails, and runbook.
 - Continue Start Next Job enhancements with deeper assignment performance drill-down (e.g., seasonal route baselines and forecasted crew demand) now that analytics, date-range filtering, per-employee trend cards, route-level variance cards, cross-run trends, optimistic lifecycle reconciliation, and CSV export are live.
 - Continue Start Next Job + Employees cross-module integrity and reporting consistency (JX-6) now that continuity and run lifecycle slices are live.
 - Automate documentation publishing (Docs site or wiki) once scope grows.

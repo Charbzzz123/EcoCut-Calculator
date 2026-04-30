@@ -431,7 +431,7 @@ Update this document whenever we clarify rules or add new functionality so imple
 - **Goal**: ship a first-party `Chats` section that allows EcoCut operators to handle Quo SMS traffic directly inside the app (conversation list, thread view, send/reply, contact management), while keeping the existing evergreen UX language.
 - **Data contract**:
   - Conversations are shown newest-to-oldest (recent activity first).
-  - Threads load newest messages first, with pagination for older history.
+  - Threads render chronologically after loading from the mirror, with pagination-ready API contracts for older history.
   - Sending remains channel-safe (SMS only) and reflects `sending`, `sent`, `failed` states in the thread.
 - **Client-aware workflow (locked requirement)**:
   - Selecting a client from Client Book should deep-link into Chats and auto-open that client's linked conversation.
@@ -450,5 +450,6 @@ Update this document whenever we clarify rules or add new functionality so imple
   - **CH-4 webhook ingestion is implemented**: Quo chat webhooks now ingest via `POST /communications/chats/webhooks/quo` with optional HMAC validation, replay dedupe, and immediate mirror updates.
   - **CH-5 chats API surface is implemented**: mirror-backed conversation list/search/thread/send/read endpoints are live under `/communications/chats/*` with pagination and unread tracking.
   - **CH-6 client-contact sync is implemented**: client create/update now auto-syncs Quo contacts, manual link/unlink APIs are live under `/communications/chats/links/*`, and unknown inbound conversation resolution is live under `/communications/chats/conversations/unlinked` + `/resolve`.
-  - **CH-7 home entrypoint is implemented**: the dashboard has a `Chats` quick action that opens `/communications/chats`, and the route renders a theme-aligned launch shell while the inbox UI is built.
-  - Remaining slices (chats UI, deep-linking, rollout hardening) are tracked in `docs/work-tracker.md` under CH-8 through CH-12.
+  - **CH-7 home entrypoint is implemented**: the dashboard has a `Chats` quick action that opens `/communications/chats`.
+  - **CH-8 chats UI MVP is implemented**: `/communications/chats` now renders provider/mirror status cards, searchable conversation list, unread markers, active thread view, SMS reply composer, send feedback, empty/error/loading states, and mobile list-to-thread behavior.
+  - Remaining slices (client-aware deep-linking, guardrails, rollout hardening) are tracked in `docs/work-tracker.md` under CH-9 through CH-12.

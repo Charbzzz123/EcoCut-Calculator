@@ -14,6 +14,7 @@ Living checklist for in-flight feature work so we never lose track of what€™
 | CH-5 Chats backend API surface                                       | 2026-04-23 | Added chats API endpoints for conversation list/search/thread/read/send (`/communications/chats/conversations`, `/search`, `/conversations/:id/messages`, `/conversations/:id/read`), backed by mirror-query pagination, unread tracking, and outbound send persistence through the shared Quo transport.                              |
 | CH-6 Client <-> Quo contact sync                                     | 2026-04-24 | Added client-contact sync hooks on entries create/update/client-edit, link management endpoints (`/communications/chats/links/*`), unlinked conversation queue/resolve endpoints, and safer link reassignment so one Quo contact can be re-bound to a new canonical client id without breaking mappings.                               |
 | CH-7 Home + routing entrypoint                                       | 2026-04-24 | Added `/communications/chats` as a lazy frontend route with a theme-aligned launch shell and a `Chats` quick action on the home dashboard so operators can open the future Quo inbox workspace directly.                                                                                                                               |
+| CH-8 Chats UI MVP                                                    | 2026-04-26 | Added the messenger-style `/communications/chats` UI with provider/mirror status cards, searchable conversation list, active thread view, composer send feedback, unread clearing, empty/error/loading states, and mobile stacked list-to-thread behavior.                                                                             |
 | NAV-5 Alert/banner enter-exit motion                                 | 2026-04-12 | Added shared alert/toast motion utility (`motion-alert`) in global styles for validation/state/banner surfaces, plus delayed close handling for Start Next Job save toast so success/error feedback no longer appears/disappears abruptly while still respecting reduced-motion preferences.                                           |
 | NAV-4 Collapse/expand motion unification                             | 2026-04-12 | Added shared collapse utility motion (`motion-collapse`) in global styles and wired it into Start Next Job + Broadcast progressive-disclosure sections (workflow status, advanced panels, analytics panel/details, manual-add panel, per-client override) with reduced-motion fallback and hidden-state inert handling.                |
 | NAV-3C Non-shared popover/menu motion parity                         | 2026-04-12 | Audited remaining non-shared popovers and aligned Home CTA/dropdown menus with the same open-close motion baseline (fade/slide + visibility handoff + reduced-motion fallback) so they no longer pop in/out abruptly compared to shared dropdown/popover components.                                                                   |
@@ -136,7 +137,6 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 | Step   | Task                                 | Owner | Notes                                                                                                                                                                                                                         |
 | ------ | ------------------------------------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| CH-8   | Chats UI MVP                         | —     | Build messenger-style split view (conversation list + thread + composer), mobile stacked behavior, send states, and evergreen theme parity.                                                                                   |
 | CH-9   | Client-aware chat header + deep-link | —     | Client click should auto-open the linked chat thread; chat header must surface client context (last/upcoming jobs, totals) with quick actions back to client profile/jobs.                                                    |
 | CH-10  | Rate/cost guardrails for chats       | —     | Enforce queue/throttle (10 rps key limit), outbound pacing, usage counters, and optional auto-pause threshold for safe operations.                                                                                            |
 | CH-11  | Test + rollout hardening             | —     | Add unit/integration/e2e coverage for sync/send/webhook/linking flows, then run full quality gates before staged rollout.                                                                                                     |
@@ -335,14 +335,17 @@ Use this as the source of truth if chat context resets.
 
 #### CH-7 - Home + route entry
 
+- **Status**: Completed on 2026-04-24.
 - Add `Chats` quick action card + `/communications/chats` route.
 - Preserve existing home action-card hierarchy and keyboard flow.
 
 #### CH-8 - Chats UI MVP
 
+- **Status**: Completed on 2026-04-26.
 - Desktop: split view (left conversation list, right active thread/composer).
 - Mobile: stacked list->thread navigation.
 - Include sending/delivered/failed states, unread markers, empty/error/loading states.
+- Added provider/mirror summary cards, searchable conversation loading/error/empty states, unread clearing on read, and composer sent/failed feedback.
 
 #### CH-9 - Client-aware thread context
 

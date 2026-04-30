@@ -1,39 +1,45 @@
-import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+﻿import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
+import { ReactiveFormsModule } from '@angular/forms';
+import type { ChatConversationSummary, ChatMessageView } from '@shared/domain/communications/chats-api.service.js';
 import { BackChipComponent } from '@shared/ui/back-chip/back-chip.component.js';
 import { BrandBannerComponent } from '@shared/ui/brand-banner/brand-banner.component.js';
-
-interface ChatLaunchCard {
-  readonly label: string;
-  readonly value: string;
-  readonly hint: string;
-}
+import { ChatsFacade } from './chats.facade.js';
 
 @Component({
   standalone: true,
   selector: 'app-chats-shell',
-  imports: [CommonModule, BrandBannerComponent, BackChipComponent],
+  imports: [CommonModule, ReactiveFormsModule, BrandBannerComponent, BackChipComponent],
   templateUrl: './chats-shell.component.html',
   styleUrl: './chats-shell.component.scss',
+  providers: [ChatsFacade],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ChatsShellComponent {
+export class ChatsShellComponent implements OnInit {
+  protected readonly facade = inject(ChatsFacade);
   protected readonly headingId = 'chats-heading';
-  protected readonly launchCards: ChatLaunchCard[] = [
-    {
-      label: 'Mirror status',
-      value: 'Ready',
-      hint: 'Quo conversations and messages are persisted by the backend mirror.',
-    },
-    {
-      label: 'Client links',
-      value: 'Synced',
-      hint: 'Client creates and edits now keep Quo contact links warm.',
-    },
-    {
-      label: 'Next slice',
-      value: 'Inbox UI',
-      hint: 'Conversation list, thread view, and composer ship in CH-8.',
-    },
-  ];
+
+  ngOnInit(): void {
+    void this.facade.init();
+  }
+
+  protected conversationTitle(conversation: ChatConversationSummary | null): string {
+    return conversation?.displayName ?? conversation?.participantPhone ?? 'Unknown contact';
+  }
+
+  protected conversationSubtitle(conversation: ChatConversationSummary): string {
+    return conversation.participantPhone ?? 'No phone number';
+  }
+
+  protected messageBody(message: ChatMessageView): string {
+    return message.content?.trim() || '(No message content)';
+  }
+
+  protected selectConversation(conversation: ChatConversationSummary): void {
+    void this.facade.selectConversation(conversation.conversationId);
+  }
+
+  protected sendMessage(): void {
+    void this.facade.sendMessage();
+  }
 }
