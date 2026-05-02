@@ -16,6 +16,7 @@ Living checklist for in-flight feature work so we never lose track of what€™
 | CH-7 Home + routing entrypoint                                       | 2026-04-24 | Added `/communications/chats` as a lazy frontend route with a theme-aligned launch shell and a `Chats` quick action on the home dashboard so operators can open the future Quo inbox workspace directly.                                                                                                                               |
 | CH-8 Chats UI MVP                                                    | 2026-04-26 | Added the messenger-style `/communications/chats` UI with provider/mirror status cards, searchable conversation list, active thread view, composer send feedback, unread clearing, empty/error/loading states, and mobile stacked list-to-thread behavior.                                                                             |
 | CH-8B Chats manual sync UX                                           | 2026-04-29 | Added an operator-facing `Sync Quo chats` action in the Chats inbox, sync success/error feedback, and empty-state guidance so connected-but-empty mirrors can be populated from the UI without using PowerShell.                                                                                                                       |
+| CH-8C Quo contact hydration + older chat paging                      | 2026-04-30 | Manual chat sync now runs a larger backfill, hydrates conversation names/emails from Quo contacts by matching participant phone numbers, and the Chats inbox can load older conversation pages beyond the first visible batch.                                                                                                         |
 | NAV-5 Alert/banner enter-exit motion                                 | 2026-04-12 | Added shared alert/toast motion utility (`motion-alert`) in global styles for validation/state/banner surfaces, plus delayed close handling for Start Next Job save toast so success/error feedback no longer appears/disappears abruptly while still respecting reduced-motion preferences.                                           |
 | NAV-4 Collapse/expand motion unification                             | 2026-04-12 | Added shared collapse utility motion (`motion-collapse`) in global styles and wired it into Start Next Job + Broadcast progressive-disclosure sections (workflow status, advanced panels, analytics panel/details, manual-add panel, per-client override) with reduced-motion fallback and hidden-state inert handling.                |
 | NAV-3C Non-shared popover/menu motion parity                         | 2026-04-12 | Audited remaining non-shared popovers and aligned Home CTA/dropdown menus with the same open-close motion baseline (fade/slide + visibility handoff + reduced-motion fallback) so they no longer pop in/out abruptly compared to shared dropdown/popover components.                                                                   |
@@ -136,16 +137,19 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 ## In Progress / Backlog
 
-| Step   | Task                                 | Owner | Notes                                                                                                                                                                                                                         |
-| ------ | ------------------------------------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| CH-9   | Client-aware chat header + deep-link | —     | Client click should auto-open the linked chat thread; chat header must surface client context (last/upcoming jobs, totals) with quick actions back to client profile/jobs.                                                    |
-| CH-10  | Rate/cost guardrails for chats       | —     | Enforce queue/throttle (10 rps key limit), outbound pacing, usage counters, and optional auto-pause threshold for safe operations.                                                                                            |
-| CH-11  | Test + rollout hardening             | —     | Add unit/integration/e2e coverage for sync/send/webhook/linking flows, then run full quality gates before staged rollout.                                                                                                     |
-| CH-12  | Final docs + runbook                 | —     | Document architecture, env/setup, webhook ops, failure modes, and support runbook across app docs and release checklist.                                                                                                      |
-| ADDR-1 | Address strict-mode rollout          | —     | Keep `enforceVerifiedAddress=false` in development until provider credentials are configured, then run staging validation and switch strict-mode to `true` in production configs.                                             |
-| ADDR-2 | Address usage + quota UI in Finance  | —     | Backend usage ledger, monthly caps, and threshold guardrails are shipped (`/addresses/usage`). Remaining work: surface this in the future Finance section with monthly cost/threshold widgets and optional auto-pause toggle. |
-| DATA-1 | Centralize job display labels        | —     | Add canonical `displayLabel` read model (client + job type) and optional `clientNameSnapshot` on history rows so labels stay consistent across Start Next Job, history, and reports even if client names change later.        |
-| DATA-2 | Migrate EntriesRepository database   | —     | Replace file-based persistence with SQLite/Postgres via a managed ORM (e.g., Prisma) when ready.                                                                                                                              |
+| Step   | Task                                         | Owner | Notes                                                                                                                                                                                                                                                        |
+| ------ | -------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| CH-8D  | Quo sync diagnostics + visibility            | —     | Next priority before CH-9+: surface exact sync results in the Chats UI/API (`contacts scanned`, `conversations synced`, `messages synced`, `names hydrated`, `more pages`, `last sync`, provider errors) so operators can verify what Quo actually returned. |
+| CH-8E  | Local Quo contact cache + freshness          | —     | Add a durable local Quo contact cache with sync status/cursors, freshness markers, and client/contact match metadata so new or renamed Quo contacts do not require blind full scans every time.                                                              |
+| CH-8F  | EcoCut client -> Quo contact source of truth | —     | Wire client create/update flows to create/update the matching Quo contact immediately, then reconcile with the local contact cache so EcoCut clients, Quo contacts, and chat names stay linked by default.                                                   |
+| CH-9   | Client-aware chat header + deep-link         | —     | Client click should auto-open the linked chat thread; chat header must surface client context (last/upcoming jobs, totals) with quick actions back to client profile/jobs.                                                                                   |
+| CH-10  | Rate/cost guardrails for chats               | —     | Enforce queue/throttle (10 rps key limit), outbound pacing, usage counters, and optional auto-pause threshold for safe operations.                                                                                                                           |
+| CH-11  | Test + rollout hardening                     | —     | Add unit/integration/e2e coverage for sync/send/webhook/linking flows, then run full quality gates before staged rollout.                                                                                                                                    |
+| CH-12  | Final docs + runbook                         | —     | Document architecture, env/setup, webhook ops, failure modes, and support runbook across app docs and release checklist.                                                                                                                                     |
+| ADDR-1 | Address strict-mode rollout                  | —     | Keep `enforceVerifiedAddress=false` in development until provider credentials are configured, then run staging validation and switch strict-mode to `true` in production configs.                                                                            |
+| ADDR-2 | Address usage + quota UI in Finance          | —     | Backend usage ledger, monthly caps, and threshold guardrails are shipped (`/addresses/usage`). Remaining work: surface this in the future Finance section with monthly cost/threshold widgets and optional auto-pause toggle.                                |
+| DATA-1 | Centralize job display labels                | —     | Add canonical `displayLabel` read model (client + job type) and optional `clientNameSnapshot` on history rows so labels stay consistent across Start Next Job, history, and reports even if client names change later.                                       |
+| DATA-2 | Migrate EntriesRepository database           | —     | Replace file-based persistence with SQLite/Postgres via a managed ORM (e.g., Prisma) when ready.                                                                                                                                                             |
 
 ### JX Plan Detail (freeze this before coding)
 
@@ -352,8 +356,87 @@ Use this as the source of truth if chat context resets.
 
 - **Status**: Completed on 2026-04-29.
 - Added `Sync Quo chats` to the inbox controls and empty state.
-- Calls the existing `POST /communications/chats/sync` incremental mirror endpoint from the UI.
+- Calls the existing `POST /communications/chats/sync` mirror endpoint from the UI.
 - Shows sync progress, success counts, and failure guidance, then refreshes provider/mirror counters and the conversation list.
+
+#### CH-8C - Contact hydration + older chat paging
+
+- **Status**: Completed on 2026-04-30.
+- Manual `Sync Quo chats` now requests a larger backfill so older Quo threads can be imported instead of only the first recent batch.
+- Sync hydrates conversation labels from Quo contacts by matching normalized participant phone numbers, then stores the contact id/name/email on the mirrored conversation payload.
+- The Chats inbox now shows a `Load older conversations` action when the mirror has more conversations than the current page.
+
+#### CH-8D - Quo sync diagnostics + visibility
+
+- **Status**: In progress / next priority.
+- **Goal**
+  - Make sync results transparent so operators know exactly what was fetched, hydrated, skipped, or blocked.
+- **Backend**
+  - Extend manual sync response with diagnostics:
+    - contacts scanned
+    - contact pages fetched
+    - conversations scanned/synced
+    - messages scanned/synced
+    - conversation names hydrated
+    - whether more pages exist
+    - sync started/completed timestamps
+    - provider failure code/message when Quo rejects a request
+  - Keep Quo contact requests capped at `50` per request and continue paging by `nextPageToken`.
+- **Frontend**
+  - Show the latest sync result near `Sync Quo chats`.
+  - Use clear success/partial/error states:
+    - "Synced X conversations, scanned Y contacts, updated Z names."
+    - "More Quo pages are available. Load older conversations or run deep sync."
+  - Keep current dark evergreen visual system and existing alert/button patterns.
+- **Tests**
+  - Cover successful sync diagnostics, partial/no-change sync, and provider failure messaging.
+- **Done when**
+  - A user can tell whether the app checked all available Quo pages or stopped because of a cap/error.
+
+#### CH-8E - Local Quo contact cache + freshness
+
+- **Status**: Queued immediately after CH-8D.
+- **Goal**
+  - Stop relying on repeated blind full contact scans and make contact hydration durable.
+- **Backend**
+  - Add durable contact mirror/cache storage for Quo contacts:
+    - Quo contact id
+    - normalized phone numbers
+    - display name
+    - email
+    - external EcoCut client id when present
+    - last synced/seen timestamp
+    - stale/deleted marker if Quo no longer returns it
+  - Add contact sync cursor/status row separate from message/conversation cursors.
+  - Upsert contact cache during normal chat sync and during explicit deep contact sync.
+  - Hydrate chat conversations from the local contact cache first, then fall back to Quo page scans only when needed.
+- **Frontend**
+  - Add "contact cache" stats to sync diagnostics once backend exposes them.
+  - Make stale/unmatched contact states visible without blocking normal chat usage.
+- **Tests**
+  - Cover cache upsert, phone normalization, stale detection, and conversation hydration from cache.
+- **Done when**
+  - Existing Quo names remain available after restart and new syncs do not need to rescan every contact unless requested.
+
+#### CH-8F - EcoCut client -> Quo contact source of truth
+
+- **Status**: Queued after CH-8E.
+- **Goal**
+  - When EcoCut client records change, Quo contact records should be created/updated automatically so chats stay named and linked.
+- **Backend**
+  - On client create/update:
+    - create Quo contact if no linked contact exists
+    - update Quo contact name/phone/email if linked contact exists
+    - store the Quo contact id in the local cache/link table
+  - Keep failures non-blocking for client save, but surface a retryable sync warning.
+  - Avoid duplicate Quo contacts by matching normalized phone/email before creating a new one.
+- **Frontend**
+  - Surface a lightweight client contact sync status in client details when available.
+  - Keep chat deep-link behavior ready for CH-9.
+- **Tests**
+  - Cover create/update/link/retry paths and duplicate-prevention rules.
+- **Done when**
+  - New EcoCut clients naturally appear in Quo/contact cache without requiring a manual full sync.
 
 #### CH-9 - Client-aware thread context
 

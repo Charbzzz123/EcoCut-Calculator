@@ -33,6 +33,7 @@ export class ChatsFacade {
   private readonly threadStateSignal = signal<ChatsLoadState>('idle');
   private readonly sendStateSignal = signal<ChatSendState>('idle');
   private readonly syncStateSignal = signal<ChatSyncState>('idle');
+  private readonly loadingMoreConversationsSignal = signal(false);
   private readonly lastSyncResultSignal = signal<SyncChatsResult | null>(null);
   private readonly errorSignal = signal<string | null>(null);
   private readonly composerTextSignal = signal('');
@@ -47,6 +48,7 @@ export class ChatsFacade {
   readonly threadState = this.threadStateSignal.asReadonly();
   readonly sendState = this.sendStateSignal.asReadonly();
   readonly syncState = this.syncStateSignal.asReadonly();
+  readonly loadingMoreConversations = this.loadingMoreConversationsSignal.asReadonly();
   readonly lastSyncResult = this.lastSyncResultSignal.asReadonly();
   readonly error = this.errorSignal.asReadonly();
 
@@ -62,6 +64,7 @@ export class ChatsFacade {
     this.conversationsSignal().reduce((total, conversation) => total + conversation.unreadCount, 0),
   );
 
+  readonly hasMoreConversations = computed(() => this.conversationsSignal().length < this.conversationTotalSignal());
   readonly canSend = computed(() => this.sendStateSignal() !== 'sending' && this.composerTextSignal().trim().length > 0);
   /* c8 ignore stop */
 
@@ -89,13 +92,41 @@ export class ChatsFacade {
     this.lastSyncResultSignal.set(null);
     this.errorSignal.set(null);
     try {
-      const result = await this.api.syncChats();
+      const result = await this.api.syncChats({ mode: 'backfill', maxConversations: 500 });
       this.lastSyncResultSignal.set(result);
       this.syncStateSignal.set('synced');
       await this.refresh();
     } catch {
       this.syncStateSignal.set('failed');
       this.errorSignal.set('Unable to sync Quo conversations right now.');
+    }
+  }
+
+  async loadMoreConversations(): Promise<void> {
+    if (
+      this.conversationsStateSignal() === 'loading' ||
+      this.loadingMoreConversationsSignal() ||
+      !this.hasMoreConversations()
+    ) {
+      return;
+    }
+
+    this.loadingMoreConversationsSignal.set(true);
+    this.errorSignal.set(null);
+    const offset = this.conversationsSignal().length;
+    const query = this.searchControl.value.trim();
+    try {
+      const result = query
+        ? await this.api.searchConversations({ query, limit: CONVERSATION_LIMIT, offset })
+        : await this.api.listConversations({ limit: CONVERSATION_LIMIT, offset });
+      this.conversationsSignal.update((items) => [...items, ...result.items]);
+      this.conversationTotalSignal.set(result.total);
+      this.conversationsStateSignal.set('ready');
+    } catch {
+      this.conversationsStateSignal.set('ready');
+      this.errorSignal.set('Unable to load more chat conversations right now.');
+    } finally {
+      this.loadingMoreConversationsSignal.set(false);
     }
   }
 

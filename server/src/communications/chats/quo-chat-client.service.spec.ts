@@ -88,6 +88,28 @@ describe('QuoChatClientService', () => {
     );
   });
 
+  it('caps contact list defaults to the Quo provider maximum', async () => {
+    process.env.QUO_API_BASE_URL = 'https://api.quo.com/v1';
+    process.env.QUO_API_KEY = 'quo-key';
+    process.env.QUO_FROM_NUMBER = '+14388007177';
+    process.env.QUO_FROM_NUMBER_ID = 'PN123';
+    process.env.QUO_USER_ID = 'USR123';
+
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ data: [] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    const service = new QuoChatClientService();
+    await service.listContacts();
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      'https://api.quo.com/v1/contacts?maxResults=50',
+    );
+  });
+
   it('throws a typed quo request error on non-retryable responses', async () => {
     process.env.QUO_API_BASE_URL = 'https://api.quo.com/v1';
     process.env.QUO_API_KEY = 'quo-key';

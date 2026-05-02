@@ -94,10 +94,13 @@ export class ChatsApiService {
     return firstValueFrom(this.http.get<ChatProviderHealth>(`${this.baseUrl}/health`));
   }
 
-  async syncChats(): Promise<SyncChatsResult> {
+  async syncChats(
+    options: { mode?: SyncChatsResult['mode']; maxConversations?: number } = {},
+  ): Promise<SyncChatsResult> {
     return firstValueFrom(
       this.http.post<SyncChatsResult>(`${this.baseUrl}/sync`, {
-        mode: 'incremental',
+        mode: options.mode ?? 'incremental',
+        maxConversations: options.maxConversations,
       }),
     );
   }

@@ -128,7 +128,7 @@ describe('ChatsFacade', () => {
 
     await facade.syncChats();
 
-    expect(api.syncChats).toHaveBeenCalled();
+    expect(api.syncChats).toHaveBeenCalledWith({ mode: 'backfill', maxConversations: 500 });
     expect(api.getHealth).toHaveBeenCalledTimes(2);
     expect(api.listConversations).toHaveBeenCalledTimes(2);
     expect(facade.syncState()).toBe('synced');
@@ -170,6 +170,35 @@ describe('ChatsFacade', () => {
 
     expect(api.searchConversations).toHaveBeenCalledWith({ query: 'alex', limit: 40 });
     expect(api.searchConversations).toHaveBeenCalledTimes(1);
+  });
+
+  it('loads older conversations when more pages are available', async () => {
+    api.listConversations.mockResolvedValueOnce({
+      ...conversationResult,
+      total: 3,
+    });
+    await facade.init();
+    api.listConversations.mockResolvedValueOnce({
+      items: [
+        {
+          ...conversations[0],
+          conversationId: 'conv-older',
+          displayName: 'Older chat',
+        },
+      ],
+      total: 3,
+      limit: 40,
+      offset: 2,
+    });
+
+    await facade.loadMoreConversations();
+
+    expect(api.listConversations).toHaveBeenLastCalledWith({ limit: 40, offset: 2 });
+    expect(facade.conversations().map((conversation) => conversation.conversationId)).toEqual([
+      'conv-1',
+      'conv-2',
+      'conv-older',
+    ]);
   });
 
   it('selects a conversation, sorts messages, and marks it read', async () => {

@@ -139,6 +139,20 @@
               </span>
             </button>
           }
+          @if (facade.hasMoreConversations()) {
+            <button
+              type="button"
+              class="load-more-btn"
+              [disabled]="facade.loadingMoreConversations()"
+              (click)="loadMoreConversations()"
+            >
+              {{
+                facade.loadingMoreConversations()
+                  ? 'Loading older conversations...'
+                  : 'Load older conversations'
+              }}
+            </button>
+          }
         </div>
       }
     </section>

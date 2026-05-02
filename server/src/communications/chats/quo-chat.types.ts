@@ -19,6 +19,9 @@ interface QuoConversation {
   phoneNumberId?: QuoEntityId;
   contactId?: QuoEntityId;
   displayName?: string;
+  participantPhone?: string;
+  contactName?: string;
+  contactEmail?: string;
   name?: string | null;
   participants?: string[];
   createdAt?: string;
@@ -49,6 +52,13 @@ interface QuoContact {
   email?: string;
   phone?: string;
   externalId?: string;
+  defaultFields?: {
+    company?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+    emails?: string[] | { value?: string | null }[];
+    phoneNumbers?: { value?: string | null }[];
+  };
 }
 
 interface QuoCreateContactInput {

@@ -43,6 +43,10 @@ export class ChatsShellComponent implements OnInit {
     void this.facade.syncChats();
   }
 
+  protected loadMoreConversations(): void {
+    void this.facade.loadMoreConversations();
+  }
+
   protected sendMessage(): void {
     void this.facade.sendMessage();
   }

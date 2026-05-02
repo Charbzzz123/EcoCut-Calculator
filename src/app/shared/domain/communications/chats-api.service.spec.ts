@@ -40,13 +40,13 @@ describe('ChatsApiService', () => {
     await expect(promise).resolves.toMatchObject({ connected: true });
   });
 
-  it('runs an incremental chat sync', async () => {
-    const promise = service.syncChats();
+  it('runs a chat sync with requested mode and cap', async () => {
+    const promise = service.syncChats({ mode: 'backfill', maxConversations: 500 });
     const req = httpMock.expectOne(`${baseUrl}/sync`);
     expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ mode: 'incremental' });
+    expect(req.request.body).toEqual({ mode: 'backfill', maxConversations: 500 });
     req.flush({
-      mode: 'incremental',
+      mode: 'backfill',
       startedAt: '2026-04-24T12:00:00.000Z',
       completedAt: '2026-04-24T12:00:01.000Z',
       durationMs: 1000,

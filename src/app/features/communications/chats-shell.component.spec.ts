@@ -144,6 +144,33 @@ describe('ChatsShellComponent', () => {
     expect(compiled.textContent).toContain('Yes, we can.');
   });
 
+  it('offers loading older conversations when total exceeds current page', async () => {
+    api.listConversations.mockResolvedValueOnce({
+      ...conversations,
+      total: 3,
+    });
+    fixture = TestBed.createComponent(ChatsShellComponent);
+    fixture.detectChanges();
+    await settle();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const loadMore = Array.from(compiled.querySelectorAll<HTMLButtonElement>('button')).find((button) =>
+      button.textContent?.includes('Load older conversations'),
+    );
+    expect(loadMore).toBeTruthy();
+
+    api.listConversations.mockResolvedValueOnce({
+      items: [],
+      total: 3,
+      limit: 40,
+      offset: 2,
+    });
+    loadMore?.click();
+    await settle();
+
+    expect(api.listConversations).toHaveBeenLastCalledWith({ limit: 40, offset: 2 });
+  });
+
   it('falls back gracefully when contact or message fields are missing', async () => {
     api.listConversations.mockResolvedValueOnce({
       items: [

@@ -24,6 +24,7 @@ import type {
   MarkConversationReadDto,
   MarkConversationReadResult,
   QuoChatProviderHealth,
+  QuoContact,
   QuoConversation,
   QuoChatSyncRequest,
   QuoChatSyncResult,
@@ -45,12 +46,12 @@ import type {
 const QUO_RATE_LIMIT_PER_SECOND = 10;
 const DEFAULT_CONVERSATION_PAGE_SIZE = 40;
 const DEFAULT_MESSAGE_PAGE_SIZE = 50;
-const DEFAULT_MAX_CONVERSATIONS = 200;
+const DEFAULT_MAX_CONVERSATIONS = 500;
 const MAX_PAGE_SIZE = 100;
 const DEFAULT_CONVERSATION_LIST_LIMIT = 30;
 const DEFAULT_MESSAGE_LIST_LIMIT = 50;
 const DEFAULT_UNLINKED_CONVERSATION_LIST_LIMIT = 30;
-const CONTACT_LIST_PAGE_SIZE = 100;
+const CONTACT_LIST_PAGE_SIZE = 50;
 
 const CONVERSATION_CURSOR_KEY = 'conversations.lastMessageAt';
 const MESSAGE_CURSOR_KEY = 'messages.lastCreatedAt';
@@ -77,6 +78,13 @@ interface QuoNormalizedWebhookEvent {
     id: string;
     lastMessageAt: string;
   };
+}
+
+interface QuoContactLookupEntry {
+  id: string;
+  displayName: string | null;
+  phone: string | null;
+  email: string | null;
 }
 
 @Injectable()
@@ -517,6 +525,7 @@ export class CommunicationsChatsService {
     );
 
     const conversationsById = new Map<string, QuoConversation>();
+    const contactsByPhone = await this.buildContactsByPhone();
     const scanned = { conversations: 0, messages: 0 };
     const mirrored = { conversations: 0, messages: 0 };
     const pages = { conversations: 0, messages: 0 };
@@ -555,8 +564,12 @@ export class CommunicationsChatsService {
           continue;
         }
 
-        freshConversations.push(conversation);
-        conversationsById.set(conversation.id, conversation);
+        const enrichedConversation = this.enrichConversationWithContact(
+          conversation,
+          contactsByPhone,
+        );
+        freshConversations.push(enrichedConversation);
+        conversationsById.set(enrichedConversation.id, enrichedConversation);
         if (
           conversationDate &&
           (!newestConversationDate || conversationDate > newestConversationDate)
@@ -878,6 +891,69 @@ export class CommunicationsChatsService {
     };
   }
 
+  private async buildContactsByPhone(): Promise<
+    Map<string, QuoContactLookupEntry>
+  > {
+    const contactsByPhone = new Map<string, QuoContactLookupEntry>();
+    let pageToken: string | undefined;
+    let scannedContacts = 0;
+    while (scannedContacts < DEFAULT_MAX_CONVERSATIONS) {
+      const response = await this.quoClient.listContacts(
+        pageToken,
+        CONTACT_LIST_PAGE_SIZE,
+      );
+      const contacts = response.data ?? [];
+      if (contacts.length === 0) {
+        break;
+      }
+      scannedContacts += contacts.length;
+      for (const contact of contacts) {
+        const displayName = this.resolveContactDisplayName(contact);
+        const email = this.resolveContactEmail(contact);
+        for (const phone of this.resolveContactPhones(contact)) {
+          contactsByPhone.set(phone, {
+            id: contact.id,
+            displayName,
+            phone,
+            email,
+          });
+        }
+      }
+      if (!response.nextPageToken) {
+        break;
+      }
+      pageToken = response.nextPageToken;
+    }
+    return contactsByPhone;
+  }
+
+  private enrichConversationWithContact(
+    conversation: QuoConversation,
+    contactsByPhone: Map<string, QuoContactLookupEntry>,
+  ): QuoConversation {
+    const participantPhone = this.normalizePhone(
+      conversation.participants?.[0],
+    );
+    const contact = participantPhone
+      ? contactsByPhone.get(participantPhone)
+      : undefined;
+    if (!contact) {
+      return conversation;
+    }
+    return {
+      ...conversation,
+      contactId: conversation.contactId ?? contact.id,
+      displayName:
+        conversation.displayName ??
+        conversation.name ??
+        contact.displayName ??
+        undefined,
+      participantPhone: contact.phone ?? participantPhone ?? undefined,
+      contactName: contact.displayName ?? undefined,
+      contactEmail: contact.email ?? undefined,
+    };
+  }
+
   private async findMatchingContactId(client: {
     clientId: string;
     phone: string | null;
@@ -895,16 +971,17 @@ export class CommunicationsChatsService {
         if (externalId && externalId === client.clientId) {
           return contact.id;
         }
-        const phone = this.normalizePhone(contact.phone);
-        if (client.phone && phone && phone === client.phone) {
-          return contact.id;
+        for (const phone of this.resolveContactPhones(contact)) {
+          if (client.phone && phone === client.phone) {
+            return contact.id;
+          }
         }
-        const email = this.normalizeEmail(contact.email);
+        const email = this.resolveContactEmail(contact);
         if (client.email && email && email === client.email) {
           return contact.id;
         }
       }
-      hasNextPage = Boolean(response.hasNextPage && response.nextPageToken);
+      hasNextPage = Boolean(response.nextPageToken);
       pageToken = response.nextPageToken ?? undefined;
     }
     return null;
@@ -1405,5 +1482,55 @@ export class CommunicationsChatsService {
       .filter((item): item is string => typeof item === 'string')
       .map((item) => item.trim())
       .filter((item) => item.length > 0);
+  }
+
+  private resolveContactDisplayName(contact: QuoContact): string | null {
+    const firstName =
+      this.readString(contact.firstName) ??
+      this.readString(contact.defaultFields?.firstName);
+    const lastName =
+      this.readString(contact.lastName) ??
+      this.readString(contact.defaultFields?.lastName);
+    const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
+    return (
+      this.readString(contact.name) ??
+      (fullName.length > 0 ? fullName : null) ??
+      this.readString(contact.defaultFields?.company)
+    );
+  }
+
+  private resolveContactEmail(contact: QuoContact): string | null {
+    const directEmail = this.normalizeEmail(contact.email);
+    if (directEmail) {
+      return directEmail;
+    }
+    const emails = contact.defaultFields?.emails;
+    if (!Array.isArray(emails)) {
+      return null;
+    }
+    for (const email of emails) {
+      const value =
+        typeof email === 'string' ? email : this.readString(email.value);
+      const normalized = this.normalizeEmail(value);
+      if (normalized) {
+        return normalized;
+      }
+    }
+    return null;
+  }
+
+  private resolveContactPhones(contact: QuoContact): string[] {
+    const phones = new Set<string>();
+    const directPhone = this.normalizePhone(contact.phone);
+    if (directPhone) {
+      phones.add(directPhone);
+    }
+    for (const phone of contact.defaultFields?.phoneNumbers ?? []) {
+      const normalized = this.normalizePhone(phone.value);
+      if (normalized) {
+        phones.add(normalized);
+      }
+    }
+    return [...phones];
   }
 }

@@ -97,7 +97,7 @@ export class QuoChatClientService {
 
   async listContacts(
     pageToken?: string,
-    limit = 100,
+    limit = 50,
   ): Promise<QuoListResponse<QuoContact>> {
     return this.get<QuoListResponse<QuoContact>>('/contacts', {
       pageToken,

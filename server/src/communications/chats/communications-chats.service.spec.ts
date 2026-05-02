@@ -139,6 +139,20 @@ describe('CommunicationsChatsService', () => {
       isConfigured: jest.fn(() => true),
       listPhoneNumbers: jest.fn(),
       getFromNumber: jest.fn(() => '+14388007177'),
+      listContacts: jest.fn(() =>
+        Promise.resolve({
+          data: [
+            {
+              id: 'contact-1',
+              defaultFields: {
+                company: 'Fresh Client',
+                phoneNumbers: [{ value: '+15145550000' }],
+              },
+            },
+          ],
+          nextPageToken: null,
+        }),
+      ),
       listConversations: jest.fn(() =>
         Promise.resolve({
           data: [
@@ -190,10 +204,16 @@ describe('CommunicationsChatsService', () => {
     });
 
     expect(client.listConversations).toHaveBeenCalledWith(undefined, 10);
+    expect(client.listContacts).toHaveBeenCalledWith(undefined, 50);
     expect(client.listMessages).toHaveBeenCalledWith(
       {
         id: 'conv-fresh',
+        contactEmail: undefined,
+        contactId: 'contact-1',
+        contactName: 'Fresh Client',
+        displayName: 'Fresh Client',
         phoneNumberId: 'PN123',
+        participantPhone: '+15145550000',
         participants: ['+15145550000'],
         lastMessageAt: '2026-04-23T12:10:00.000Z',
       },
@@ -203,6 +223,10 @@ describe('CommunicationsChatsService', () => {
     expect(repository.upsertConversations).toHaveBeenCalledWith([
       {
         id: 'conv-fresh',
+        contactId: 'contact-1',
+        displayName: 'Fresh Client',
+        participantPhone: '+15145550000',
+        contactName: 'Fresh Client',
         phoneNumberId: 'PN123',
         participants: ['+15145550000'],
         lastMessageAt: '2026-04-23T12:10:00.000Z',
@@ -234,6 +258,12 @@ describe('CommunicationsChatsService', () => {
       isConfigured: jest.fn(() => true),
       listPhoneNumbers: jest.fn(),
       getFromNumber: jest.fn(() => '+14388007177'),
+      listContacts: jest.fn(() =>
+        Promise.resolve({
+          data: [],
+          nextPageToken: null,
+        }),
+      ),
       listConversations: jest.fn(() =>
         Promise.resolve({
           data: [],

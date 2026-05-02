@@ -269,6 +269,23 @@
   background: var(--workspace-action-primary-bg);
 }
 
+.load-more-btn {
+  align-self: stretch;
+  border: 1px dashed var(--border-soft);
+  border-radius: 1rem;
+  padding: 0.85rem 1rem;
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.load-more-btn:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .conversation-card__main,
 .conversation-card__meta {
   display: flex;
