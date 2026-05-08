@@ -454,4 +454,5 @@ Update this document whenever we clarify rules or add new functionality so imple
   - **CH-8 chats UI MVP is implemented**: `/communications/chats` now renders provider/mirror status cards, searchable conversation list, unread markers, active thread view, SMS reply composer, send feedback, empty/error/loading states, and mobile list-to-thread behavior.
   - **CH-8B manual sync UX is implemented**: the inbox has a `Sync Quo chats` action that runs incremental mirror sync from the UI, reports mirrored conversation/message counts, and explains the connected-but-empty state.
   - **CH-8C contact hydration + older paging is implemented**: manual sync runs a larger backfill, mirrored conversations are labeled from matching Quo contacts when possible, and the inbox can load older conversation pages from the mirror.
+  - **CH-8D sync diagnostics are implemented**: manual sync now shows contact scans/pages, matched phone numbers, hydrated-name counts, page-availability flags, and provider failure detail in the Chats workspace.
   - Remaining slices (client-aware deep-linking, guardrails, rollout hardening) are tracked in `docs/work-tracker.md` under CH-9 through CH-12.

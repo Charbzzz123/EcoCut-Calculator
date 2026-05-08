@@ -53,6 +53,10 @@ describe('ChatsApiService', () => {
       truncated: false,
       scanned: { conversations: 3, messages: 9 },
       mirrored: { conversations: 2, messages: 5 },
+      pages: { conversations: 1, messages: 2 },
+      contacts: { scanned: 3, pages: 1, matchedPhoneNumbers: 3 },
+      hydrated: { conversationNames: 2 },
+      hasMorePages: { contacts: false, conversations: false, messages: false },
       mirror: { conversations: 2, messages: 5, clientLinks: 1, cursors: 2 },
     });
 

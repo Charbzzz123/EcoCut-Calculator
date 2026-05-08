@@ -77,6 +77,23 @@ export interface SyncChatsResult {
     conversations: number;
     messages: number;
   };
+  pages: {
+    conversations: number;
+    messages: number;
+  };
+  contacts: {
+    scanned: number;
+    pages: number;
+    matchedPhoneNumbers: number;
+  };
+  hydrated: {
+    conversationNames: number;
+  };
+  hasMorePages: {
+    contacts: boolean;
+    conversations: boolean;
+    messages: boolean;
+  };
   mirror: {
     conversations: number;
     messages: number;

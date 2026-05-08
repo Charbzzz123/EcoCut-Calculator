@@ -84,6 +84,10 @@ const syncResult = {
   truncated: false,
   scanned: { conversations: 3, messages: 9 },
   mirrored: { conversations: 2, messages: 5 },
+  pages: { conversations: 1, messages: 2 },
+  contacts: { scanned: 3, pages: 1, matchedPhoneNumbers: 3 },
+  hydrated: { conversationNames: 1 },
+  hasMorePages: { contacts: false, conversations: false, messages: false },
   mirror: { conversations: 2, messages: 5, clientLinks: 1, cursors: 2 },
 };
 
@@ -133,6 +137,8 @@ describe('ChatsFacade', () => {
     expect(api.listConversations).toHaveBeenCalledTimes(2);
     expect(facade.syncState()).toBe('synced');
     expect(facade.lastSyncResult()).toMatchObject({ mirrored: { conversations: 2, messages: 5 } });
+    expect(facade.syncSummary()).toContain('scanned 3 Quo contact(s)');
+    expect(facade.syncSummary()).toContain('updated 1 name(s)');
   });
 
   it('does not start a second sync while one is running', async () => {

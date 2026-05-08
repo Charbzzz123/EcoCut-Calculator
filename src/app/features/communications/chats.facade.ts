@@ -66,6 +66,33 @@ export class ChatsFacade {
 
   readonly hasMoreConversations = computed(() => this.conversationsSignal().length < this.conversationTotalSignal());
   readonly canSend = computed(() => this.sendStateSignal() !== 'sending' && this.composerTextSignal().trim().length > 0);
+  readonly syncSummary = computed(() => {
+    const result = this.lastSyncResultSignal();
+    if (!result) {
+      return null;
+    }
+
+    const details = [
+      `Synced ${result.mirrored.conversations} conversation(s)`,
+      `${result.mirrored.messages} message(s)`,
+      `scanned ${result.contacts.scanned} Quo contact(s)`,
+    ];
+
+    if (result.hydrated.conversationNames > 0) {
+      details.push(`updated ${result.hydrated.conversationNames} name(s)`);
+    }
+
+    if (
+      result.truncated ||
+      result.hasMorePages.contacts ||
+      result.hasMorePages.conversations ||
+      result.hasMorePages.messages
+    ) {
+      details.push('more Quo pages may be available');
+    }
+
+    return `${details.join(', ')}.`;
+  });
   /* c8 ignore stop */
 
   async init(): Promise<void> {
@@ -96,9 +123,9 @@ export class ChatsFacade {
       this.lastSyncResultSignal.set(result);
       this.syncStateSignal.set('synced');
       await this.refresh();
-    } catch {
+    } catch (error) {
       this.syncStateSignal.set('failed');
-      this.errorSignal.set('Unable to sync Quo conversations right now.');
+      this.errorSignal.set(this.resolveSyncErrorMessage(error));
     }
   }
 
@@ -250,5 +277,22 @@ export class ChatsFacade {
       const rightTime = right.createdAt ? Date.parse(right.createdAt) : 0;
       return leftTime - rightTime;
     });
+  }
+
+  private resolveSyncErrorMessage(error: unknown): string {
+    const fallback = 'Unable to sync Quo conversations right now.';
+    if (!error || typeof error !== 'object' || !('error' in error)) {
+      return fallback;
+    }
+
+    const payload = (error as { error?: { message?: unknown; details?: unknown } }).error;
+    const details =
+      typeof payload?.message === 'string'
+        ? payload.message
+        : typeof payload?.details === 'string'
+          ? payload.details
+          : null;
+
+    return details ? `${fallback} ${details}` : fallback;
   }
 }

@@ -251,6 +251,17 @@ describe('CommunicationsChatsService', () => {
       result.completedAt,
     );
     expect(result.mirrored).toEqual({ conversations: 1, messages: 1 });
+    expect(result.contacts).toEqual({
+      scanned: 1,
+      pages: 1,
+      matchedPhoneNumbers: 1,
+    });
+    expect(result.hydrated).toEqual({ conversationNames: 1 });
+    expect(result.hasMorePages).toEqual({
+      contacts: false,
+      conversations: false,
+      messages: false,
+    });
   });
 
   it('runs reset mode by clearing mirror data before syncing', async () => {

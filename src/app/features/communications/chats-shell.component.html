@@ -78,10 +78,9 @@
         </div>
       </header>
 
-      @if (facade.syncState() === 'synced' && facade.lastSyncResult(); as result) {
+      @if (facade.syncState() === 'synced' && facade.syncSummary(); as summary) {
         <p class="sync-status sync-status--success" role="status">
-          Synced {{ result.mirrored.conversations }} conversation(s) and
-          {{ result.mirrored.messages }} message(s).
+          {{ summary }}
         </p>
       } @else if (facade.syncState() === 'failed') {
         <p class="sync-status sync-status--error" role="alert">

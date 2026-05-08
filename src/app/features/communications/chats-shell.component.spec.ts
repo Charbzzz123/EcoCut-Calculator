@@ -83,6 +83,10 @@ const syncResult = {
   truncated: false,
   scanned: { conversations: 2, messages: 5 },
   mirrored: { conversations: 1, messages: 3 },
+  pages: { conversations: 1, messages: 2 },
+  contacts: { scanned: 4, pages: 1, matchedPhoneNumbers: 4 },
+  hydrated: { conversationNames: 1 },
+  hasMorePages: { contacts: false, conversations: false, messages: false },
   mirror: { conversations: 2, messages: 5, clientLinks: 1, cursors: 2 },
 };
 
@@ -290,7 +294,9 @@ describe('ChatsShellComponent', () => {
     await settle();
 
     expect(api.syncChats).toHaveBeenCalled();
-    expect(compiled.textContent).toContain('Synced 1 conversation(s) and 3 message(s).');
+    expect(compiled.textContent).toContain(
+      'Synced 1 conversation(s), 3 message(s), scanned 4 Quo contact(s), updated 1 name(s).',
+    );
   });
 
   it('shows sync failure feedback', async () => {

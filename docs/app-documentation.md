@@ -148,6 +148,7 @@ root/
   - Chats UI MVP now uses `ChatsApiService` + route-scoped `ChatsFacade` to render provider/mirror status cards, searchable conversation list, unread markers, active thread view, SMS reply composer, send states, and mobile stacked list-to-thread behavior.
   - Chats manual sync UX now exposes `POST /communications/chats/sync` as a `Sync Quo chats` inbox action with progress, mirrored-count success feedback, and failure guidance for connected-but-empty mirrors.
   - Manual sync now requests a larger backfill, hydrates mirrored conversation names/emails from Quo contacts by normalized phone match, and the inbox exposes a `Load older conversations` action when more mirror rows exist.
+  - Manual sync diagnostics now report contact pages/scans, matched phone numbers, hydrated conversation-name counts, provider page availability flags, and clearer provider failure detail so operators can verify what Quo returned.
   - Remaining chat slices (client deep-link rollout + guardrails/runbook) are planned under CH-9..CH-12 in `docs/work-tracker.md`.
 - **Frontend proxying & dev setup**
   - `npm start` automatically passes `--proxy-config proxy.conf.json`, so `/api/*` traffic goes to `http://localhost:3000/*`. Always run `npm run server` in a second terminal before testing calendar flows locally.

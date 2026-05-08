@@ -17,6 +17,7 @@ Living checklist for in-flight feature work so we never lose track of what€™
 | CH-8 Chats UI MVP                                                    | 2026-04-26 | Added the messenger-style `/communications/chats` UI with provider/mirror status cards, searchable conversation list, active thread view, composer send feedback, unread clearing, empty/error/loading states, and mobile stacked list-to-thread behavior.                                                                             |
 | CH-8B Chats manual sync UX                                           | 2026-04-29 | Added an operator-facing `Sync Quo chats` action in the Chats inbox, sync success/error feedback, and empty-state guidance so connected-but-empty mirrors can be populated from the UI without using PowerShell.                                                                                                                       |
 | CH-8C Quo contact hydration + older chat paging                      | 2026-04-30 | Manual chat sync now runs a larger backfill, hydrates conversation names/emails from Quo contacts by matching participant phone numbers, and the Chats inbox can load older conversation pages beyond the first visible batch.                                                                                                         |
+| CH-8D Quo sync diagnostics + visibility                              | 2026-05-07 | Sync responses now include contact scan/page counts, matched phones, hydrated-name counts, provider page availability flags, and the Chats UI shows a clear operator-facing sync summary plus provider error detail when sync fails.                                                                                                      |
 | NAV-5 Alert/banner enter-exit motion                                 | 2026-04-12 | Added shared alert/toast motion utility (`motion-alert`) in global styles for validation/state/banner surfaces, plus delayed close handling for Start Next Job save toast so success/error feedback no longer appears/disappears abruptly while still respecting reduced-motion preferences.                                           |
 | NAV-4 Collapse/expand motion unification                             | 2026-04-12 | Added shared collapse utility motion (`motion-collapse`) in global styles and wired it into Start Next Job + Broadcast progressive-disclosure sections (workflow status, advanced panels, analytics panel/details, manual-add panel, per-client override) with reduced-motion fallback and hidden-state inert handling.                |
 | NAV-3C Non-shared popover/menu motion parity                         | 2026-04-12 | Audited remaining non-shared popovers and aligned Home CTA/dropdown menus with the same open-close motion baseline (fade/slide + visibility handoff + reduced-motion fallback) so they no longer pop in/out abruptly compared to shared dropdown/popover components.                                                                   |
@@ -139,7 +140,6 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 | Step   | Task                                         | Owner | Notes                                                                                                                                                                                                                                                        |
 | ------ | -------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| CH-8D  | Quo sync diagnostics + visibility            | —     | Next priority before CH-9+: surface exact sync results in the Chats UI/API (`contacts scanned`, `conversations synced`, `messages synced`, `names hydrated`, `more pages`, `last sync`, provider errors) so operators can verify what Quo actually returned. |
 | CH-8E  | Local Quo contact cache + freshness          | —     | Add a durable local Quo contact cache with sync status/cursors, freshness markers, and client/contact match metadata so new or renamed Quo contacts do not require blind full scans every time.                                                              |
 | CH-8F  | EcoCut client -> Quo contact source of truth | —     | Wire client create/update flows to create/update the matching Quo contact immediately, then reconcile with the local contact cache so EcoCut clients, Quo contacts, and chat names stay linked by default.                                                   |
 | CH-9   | Client-aware chat header + deep-link         | —     | Client click should auto-open the linked chat thread; chat header must surface client context (last/upcoming jobs, totals) with quick actions back to client profile/jobs.                                                                                   |
@@ -368,7 +368,7 @@ Use this as the source of truth if chat context resets.
 
 #### CH-8D - Quo sync diagnostics + visibility
 
-- **Status**: In progress / next priority.
+- **Status**: Completed on 2026-05-07.
 - **Goal**
   - Make sync results transparent so operators know exactly what was fetched, hydrated, skipped, or blocked.
 - **Backend**
@@ -392,6 +392,9 @@ Use this as the source of truth if chat context resets.
   - Cover successful sync diagnostics, partial/no-change sync, and provider failure messaging.
 - **Done when**
   - A user can tell whether the app checked all available Quo pages or stopped because of a cap/error.
+- **Delivered**
+  - `POST /communications/chats/sync` reports contact scans/pages, matched phone numbers, hydrated conversation names, provider page availability, cursors, and mirror totals.
+  - `/communications/chats` summarizes those diagnostics after manual sync and keeps provider error details visible when Quo rejects a request.
 
 #### CH-8E - Local Quo contact cache + freshness
 

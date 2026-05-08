@@ -87,6 +87,14 @@ interface QuoContactLookupEntry {
   email: string | null;
 }
 
+interface QuoContactLookupResult {
+  contactsByPhone: Map<string, QuoContactLookupEntry>;
+  scanned: number;
+  pages: number;
+  matchedPhoneNumbers: number;
+  hasMorePages: boolean;
+}
+
 @Injectable()
 export class CommunicationsChatsService {
   private readonly webhookConfig = loadWebhookSignatureConfig();
@@ -525,10 +533,16 @@ export class CommunicationsChatsService {
     );
 
     const conversationsById = new Map<string, QuoConversation>();
-    const contactsByPhone = await this.buildContactsByPhone();
+    const contactLookup = await this.buildContactsByPhone();
     const scanned = { conversations: 0, messages: 0 };
     const mirrored = { conversations: 0, messages: 0 };
     const pages = { conversations: 0, messages: 0 };
+    const hydrated = { conversationNames: 0 };
+    const hasMorePages = {
+      contacts: contactLookup.hasMorePages,
+      conversations: false,
+      messages: false,
+    };
     let truncated = false;
     let reachedConversationWatermark = false;
 
@@ -566,8 +580,16 @@ export class CommunicationsChatsService {
 
         const enrichedConversation = this.enrichConversationWithContact(
           conversation,
-          contactsByPhone,
+          contactLookup.contactsByPhone,
         );
+        if (
+          this.wasConversationHydratedFromContact(
+            conversation,
+            enrichedConversation,
+          )
+        ) {
+          hydrated.conversationNames += 1;
+        }
         freshConversations.push(enrichedConversation);
         conversationsById.set(enrichedConversation.id, enrichedConversation);
         if (
@@ -583,10 +605,14 @@ export class CommunicationsChatsService {
 
       if (conversationsById.size >= maxConversations) {
         truncated = true;
+        hasMorePages.conversations =
+          Boolean(response.nextPageToken) || Boolean(response.hasNextPage);
         break;
       }
 
       if (reachedConversationWatermark) {
+        hasMorePages.conversations =
+          Boolean(response.nextPageToken) || Boolean(response.hasNextPage);
         break;
       }
 
@@ -648,6 +674,8 @@ export class CommunicationsChatsService {
         );
 
         if (reachedMessageWatermark) {
+          hasMorePages.messages ||=
+            Boolean(response.nextPageToken) || Boolean(response.hasNextPage);
           break;
         }
 
@@ -689,6 +717,13 @@ export class CommunicationsChatsService {
       scanned,
       mirrored,
       pages,
+      contacts: {
+        scanned: contactLookup.scanned,
+        pages: contactLookup.pages,
+        matchedPhoneNumbers: contactLookup.matchedPhoneNumbers,
+      },
+      hydrated,
+      hasMorePages,
       cursors: {
         previousConversationCursor,
         nextConversationCursor,
@@ -891,17 +926,18 @@ export class CommunicationsChatsService {
     };
   }
 
-  private async buildContactsByPhone(): Promise<
-    Map<string, QuoContactLookupEntry>
-  > {
+  private async buildContactsByPhone(): Promise<QuoContactLookupResult> {
     const contactsByPhone = new Map<string, QuoContactLookupEntry>();
     let pageToken: string | undefined;
     let scannedContacts = 0;
+    let pages = 0;
+    let hasMorePages = false;
     while (scannedContacts < DEFAULT_MAX_CONVERSATIONS) {
       const response = await this.quoClient.listContacts(
         pageToken,
         CONTACT_LIST_PAGE_SIZE,
       );
+      pages += 1;
       const contacts = response.data ?? [];
       if (contacts.length === 0) {
         break;
@@ -920,11 +956,20 @@ export class CommunicationsChatsService {
         }
       }
       if (!response.nextPageToken) {
+        hasMorePages = Boolean(response.hasNextPage);
         break;
       }
+      hasMorePages =
+        Boolean(response.nextPageToken) || Boolean(response.hasNextPage);
       pageToken = response.nextPageToken;
     }
-    return contactsByPhone;
+    return {
+      contactsByPhone,
+      scanned: scannedContacts,
+      pages,
+      matchedPhoneNumbers: contactsByPhone.size,
+      hasMorePages,
+    };
   }
 
   private enrichConversationWithContact(
@@ -952,6 +997,18 @@ export class CommunicationsChatsService {
       contactName: contact.displayName ?? undefined,
       contactEmail: contact.email ?? undefined,
     };
+  }
+
+  private wasConversationHydratedFromContact(
+    original: QuoConversation,
+    enriched: QuoConversation,
+  ): boolean {
+    const originalLabel = original.displayName ?? original.name ?? null;
+    return Boolean(
+      enriched.contactName &&
+      enriched.displayName &&
+      enriched.displayName !== originalLabel,
+    );
   }
 
   private async findMatchingContactId(client: {

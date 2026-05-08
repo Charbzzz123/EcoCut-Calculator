@@ -125,6 +125,19 @@ interface QuoChatSyncResult {
     conversations: number;
     messages: number;
   };
+  contacts: {
+    scanned: number;
+    pages: number;
+    matchedPhoneNumbers: number;
+  };
+  hydrated: {
+    conversationNames: number;
+  };
+  hasMorePages: {
+    contacts: boolean;
+    conversations: boolean;
+    messages: boolean;
+  };
   cursors: {
     previousConversationCursor: string | null;
     nextConversationCursor: string | null;
