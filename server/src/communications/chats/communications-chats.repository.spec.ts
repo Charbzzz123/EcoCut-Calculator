@@ -119,6 +119,64 @@ describe('CommunicationsChatsRepository', () => {
     expect(repository.getMirrorStats().clientLinks).toBe(0);
   });
 
+  it('stores Quo contact cache rows for conversation name hydration', () => {
+    expect(
+      repository.upsertQuoContacts([
+        {
+          id: 'contact-1',
+          displayName: 'Fresh Client',
+          email: 'fresh@example.com',
+          externalId: 'client-1',
+          phones: ['+15145550000'],
+          payload: { id: 'contact-1' },
+          syncedAt: '2026-04-23T12:00:00.000Z',
+        },
+      ]),
+    ).toBe(1);
+    expect(
+      repository.upsertQuoContacts([
+        {
+          id: 'contact-1',
+          displayName: 'Fresh Client Updated',
+          email: 'fresh@example.com',
+          externalId: 'client-1',
+          phones: ['+15145550001'],
+          payload: { id: 'contact-1', name: 'Fresh Client Updated' },
+          syncedAt: '2026-04-23T13:00:00.000Z',
+        },
+      ]),
+    ).toBe(1);
+
+    expect(repository.getQuoContactCacheStats()).toEqual({
+      contacts: 1,
+      phoneNumbers: 1,
+      lastSyncedAt: '2026-04-23T13:00:00.000Z',
+    });
+    expect(repository.listQuoContactLookupRows()).toEqual([
+      expect.objectContaining({
+        contact_id: 'contact-1',
+        display_name: 'Fresh Client Updated',
+        email: 'fresh@example.com',
+        phone: '+15145550001',
+      }),
+    ]);
+    expect(
+      repository.markMissingQuoContactsStale(
+        ['contact-1'],
+        '2026-04-23T14:00:00.000Z',
+      ),
+    ).toBe(0);
+    expect(
+      repository.markMissingQuoContactsStale([], '2026-04-23T15:00:00.000Z'),
+    ).toBe(1);
+    expect(repository.getQuoContactCacheStats()).toEqual({
+      contacts: 0,
+      phoneNumbers: 0,
+      lastSyncedAt: null,
+    });
+    expect(repository.listQuoContactLookupRows()).toEqual([]);
+  });
+
   it('reassigns an existing quo contact link to a new client id', () => {
     repository.upsertClientContactLink({
       clientId: 'client-old',

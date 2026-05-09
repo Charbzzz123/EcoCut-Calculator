@@ -75,8 +75,13 @@ export class ChatsFacade {
     const details = [
       `Synced ${result.mirrored.conversations} conversation(s)`,
       `${result.mirrored.messages} message(s)`,
-      `scanned ${result.contacts.scanned} Quo contact(s)`,
     ];
+
+    if (result.contacts.scanned > 0) {
+      details.push(`scanned ${result.contacts.scanned} Quo contact(s)`);
+    } else if (result.contactCache.reused) {
+      details.push(`used ${result.contactCache.phoneNumbers} cached Quo phone(s)`);
+    }
 
     if (result.hydrated.conversationNames > 0) {
       details.push(`updated ${result.hydrated.conversationNames} name(s)`);

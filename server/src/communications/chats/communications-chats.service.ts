@@ -40,6 +40,7 @@ import type {
 import type {
   ConversationSummaryRow,
   MessageMirrorRow,
+  QuoContactLookupRow,
   UnlinkedConversationSummaryRow,
 } from './communications-chats.repository';
 
@@ -52,10 +53,12 @@ const DEFAULT_CONVERSATION_LIST_LIMIT = 30;
 const DEFAULT_MESSAGE_LIST_LIMIT = 50;
 const DEFAULT_UNLINKED_CONVERSATION_LIST_LIMIT = 30;
 const CONTACT_LIST_PAGE_SIZE = 50;
+const CONTACT_CACHE_FRESH_MS = 15 * 60 * 1000;
 
 const CONVERSATION_CURSOR_KEY = 'conversations.lastMessageAt';
 const MESSAGE_CURSOR_KEY = 'messages.lastCreatedAt';
 const LAST_SYNC_AT_CURSOR_KEY = 'sync.lastCompletedAt';
+const CONTACT_SYNC_CURSOR_KEY = 'contacts.lastCompletedAt';
 
 type SyncMode = 'incremental' | 'backfill' | 'reset';
 
@@ -93,6 +96,14 @@ interface QuoContactLookupResult {
   pages: number;
   matchedPhoneNumbers: number;
   hasMorePages: boolean;
+  cache: {
+    reused: boolean;
+    refreshed: boolean;
+    contacts: number;
+    phoneNumbers: number;
+    lastSyncedAt: string | null;
+    fresh: boolean;
+  };
 }
 
 @Injectable()
@@ -722,6 +733,7 @@ export class CommunicationsChatsService {
         pages: contactLookup.pages,
         matchedPhoneNumbers: contactLookup.matchedPhoneNumbers,
       },
+      contactCache: contactLookup.cache,
       hydrated,
       hasMorePages,
       cursors: {
@@ -927,11 +939,34 @@ export class CommunicationsChatsService {
   }
 
   private async buildContactsByPhone(): Promise<QuoContactLookupResult> {
-    const contactsByPhone = new Map<string, QuoContactLookupEntry>();
+    const cacheStats = this.chatsRepository.getQuoContactCacheStats();
+    const cachedContactsByPhone = this.loadCachedContactsByPhone();
+    if (
+      cachedContactsByPhone.size > 0 &&
+      this.isContactCacheFresh(cacheStats.lastSyncedAt)
+    ) {
+      return {
+        contactsByPhone: cachedContactsByPhone,
+        scanned: 0,
+        pages: 0,
+        matchedPhoneNumbers: cachedContactsByPhone.size,
+        hasMorePages: false,
+        cache: {
+          reused: true,
+          refreshed: false,
+          contacts: cacheStats.contacts,
+          phoneNumbers: cacheStats.phoneNumbers,
+          lastSyncedAt: cacheStats.lastSyncedAt,
+          fresh: true,
+        },
+      };
+    }
+
     let pageToken: string | undefined;
     let scannedContacts = 0;
     let pages = 0;
     let hasMorePages = false;
+    const seenContactIds = new Set<string>();
     while (scannedContacts < DEFAULT_MAX_CONVERSATIONS) {
       const response = await this.quoClient.listContacts(
         pageToken,
@@ -944,17 +979,21 @@ export class CommunicationsChatsService {
       }
       scannedContacts += contacts.length;
       for (const contact of contacts) {
-        const displayName = this.resolveContactDisplayName(contact);
-        const email = this.resolveContactEmail(contact);
-        for (const phone of this.resolveContactPhones(contact)) {
-          contactsByPhone.set(phone, {
-            id: contact.id,
-            displayName,
-            phone,
-            email,
-          });
+        const contactId = contact.id.trim();
+        if (contactId.length > 0) {
+          seenContactIds.add(contactId);
         }
       }
+      this.chatsRepository.upsertQuoContacts(
+        contacts.map((contact) => ({
+          id: contact.id,
+          displayName: this.resolveContactDisplayName(contact),
+          email: this.resolveContactEmail(contact),
+          externalId: this.readString(contact.externalId),
+          phones: this.resolveContactPhones(contact),
+          payload: contact,
+        })),
+      );
       if (!response.nextPageToken) {
         hasMorePages = Boolean(response.hasNextPage);
         break;
@@ -963,13 +1002,61 @@ export class CommunicationsChatsService {
         Boolean(response.nextPageToken) || Boolean(response.hasNextPage);
       pageToken = response.nextPageToken;
     }
+    const completedAt = new Date().toISOString();
+    if (!hasMorePages) {
+      this.chatsRepository.markMissingQuoContactsStale(
+        [...seenContactIds],
+        completedAt,
+      );
+    }
+    this.chatsRepository.saveSyncCursor(CONTACT_SYNC_CURSOR_KEY, completedAt);
+    const refreshedStats = this.chatsRepository.getQuoContactCacheStats();
+    const contactsByPhone = this.loadCachedContactsByPhone();
     return {
       contactsByPhone,
       scanned: scannedContacts,
       pages,
       matchedPhoneNumbers: contactsByPhone.size,
       hasMorePages,
+      cache: {
+        reused: false,
+        refreshed: scannedContacts > 0,
+        contacts: refreshedStats.contacts,
+        phoneNumbers: refreshedStats.phoneNumbers,
+        lastSyncedAt: refreshedStats.lastSyncedAt ?? completedAt,
+        fresh: this.isContactCacheFresh(refreshedStats.lastSyncedAt),
+      },
     };
+  }
+
+  private loadCachedContactsByPhone(): Map<string, QuoContactLookupEntry> {
+    const contactsByPhone = new Map<string, QuoContactLookupEntry>();
+    for (const row of this.chatsRepository.listQuoContactLookupRows()) {
+      const contact = this.toCachedContactLookup(row);
+      if (contact.phone) {
+        contactsByPhone.set(contact.phone, contact);
+      }
+    }
+    return contactsByPhone;
+  }
+
+  private toCachedContactLookup(
+    row: QuoContactLookupRow,
+  ): QuoContactLookupEntry {
+    return {
+      id: row.contact_id,
+      displayName: row.display_name,
+      phone: row.phone,
+      email: row.email,
+    };
+  }
+
+  private isContactCacheFresh(lastSyncedAt: string | null): boolean {
+    const lastSyncedDate = this.parseCursorDate(lastSyncedAt);
+    if (!lastSyncedDate) {
+      return false;
+    }
+    return Date.now() - lastSyncedDate.getTime() <= CONTACT_CACHE_FRESH_MS;
   }
 
   private enrichConversationWithContact(
@@ -1016,6 +1103,11 @@ export class CommunicationsChatsService {
     phone: string | null;
     email: string | null;
   }): Promise<string | null> {
+    const cachedContactId = this.findCachedMatchingContactId(client);
+    if (cachedContactId) {
+      return cachedContactId;
+    }
+
     let pageToken: string | undefined;
     let hasNextPage = true;
     while (hasNextPage) {
@@ -1040,6 +1132,21 @@ export class CommunicationsChatsService {
       }
       hasNextPage = Boolean(response.nextPageToken);
       pageToken = response.nextPageToken ?? undefined;
+    }
+    return null;
+  }
+
+  private findCachedMatchingContactId(client: {
+    phone: string | null;
+    email: string | null;
+  }): string | null {
+    for (const row of this.chatsRepository.listQuoContactLookupRows()) {
+      if (client.phone && row.phone === client.phone) {
+        return row.contact_id;
+      }
+      if (client.email && row.email === client.email) {
+        return row.contact_id;
+      }
     }
     return null;
   }

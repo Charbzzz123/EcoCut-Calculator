@@ -1,4 +1,4 @@
-﻿import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { environment } from '../../../../environments/environment';
 import { ChatsApiService } from './chats-api.service';
@@ -55,6 +55,14 @@ describe('ChatsApiService', () => {
       mirrored: { conversations: 2, messages: 5 },
       pages: { conversations: 1, messages: 2 },
       contacts: { scanned: 3, pages: 1, matchedPhoneNumbers: 3 },
+  contactCache: {
+    reused: false,
+    refreshed: true,
+    contacts: 3,
+    phoneNumbers: 3,
+    lastSyncedAt: '2026-04-24T12:00:00.000Z',
+    fresh: true,
+  },
       hydrated: { conversationNames: 2 },
       hasMorePages: { contacts: false, conversations: false, messages: false },
       mirror: { conversations: 2, messages: 5, clientLinks: 1, cursors: 2 },
@@ -113,3 +121,4 @@ describe('ChatsApiService', () => {
     await expect(sendPromise).resolves.toMatchObject({ messageId: 'msg-2' });
   });
 });
+

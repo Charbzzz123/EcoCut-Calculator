@@ -130,6 +130,14 @@ interface QuoChatSyncResult {
     pages: number;
     matchedPhoneNumbers: number;
   };
+  contactCache: {
+    reused: boolean;
+    refreshed: boolean;
+    contacts: number;
+    phoneNumbers: number;
+    lastSyncedAt: string | null;
+    fresh: boolean;
+  };
   hydrated: {
     conversationNames: number;
   };

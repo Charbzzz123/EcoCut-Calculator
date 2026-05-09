@@ -1,4 +1,4 @@
-﻿import { TestBed } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import type {
   ChatConversationListResult,
@@ -86,6 +86,14 @@ const syncResult = {
   mirrored: { conversations: 2, messages: 5 },
   pages: { conversations: 1, messages: 2 },
   contacts: { scanned: 3, pages: 1, matchedPhoneNumbers: 3 },
+  contactCache: {
+    reused: false,
+    refreshed: true,
+    contacts: 3,
+    phoneNumbers: 3,
+    lastSyncedAt: '2026-04-24T12:00:00.000Z',
+    fresh: true,
+  },
   hydrated: { conversationNames: 1 },
   hasMorePages: { contacts: false, conversations: false, messages: false },
   mirror: { conversations: 2, messages: 5, clientLinks: 1, cursors: 2 },
@@ -341,3 +349,4 @@ describe('ChatsFacade', () => {
     expect(facade.composerControl.value).toBe('');
   });
 });
+

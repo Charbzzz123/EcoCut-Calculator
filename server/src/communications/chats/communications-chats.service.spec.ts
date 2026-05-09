@@ -30,6 +30,14 @@ describe('CommunicationsChatsService', () => {
     saveSyncCursor: jest.fn(),
     upsertConversations: jest.fn((items: unknown[]) => items.length),
     upsertMessages: jest.fn((_: string, items: unknown[]) => items.length),
+    upsertQuoContacts: jest.fn((items: unknown[]) => items.length),
+    listQuoContactLookupRows: jest.fn(() => []),
+    getQuoContactCacheStats: jest.fn(() => ({
+      contacts: 0,
+      phoneNumbers: 0,
+      lastSyncedAt: null,
+    })),
+    markMissingQuoContactsStale: jest.fn(),
     clearMirrorData: jest.fn(),
     listMirrorConversations: jest.fn(() => []),
     countMirrorConversations: jest.fn(() => 0),
@@ -191,6 +199,22 @@ describe('CommunicationsChatsService', () => {
       ),
     };
     const repository = createRepository();
+    repository.listQuoContactLookupRows.mockReturnValue([
+      {
+        contact_id: 'contact-1',
+        display_name: 'Fresh Client',
+        email: null,
+        phone: '+15145550000',
+        synced_at: '2026-04-23T12:12:00.000Z',
+        last_seen_at: '2026-04-23T12:12:00.000Z',
+        stale_at: null,
+      },
+    ]);
+    repository.getQuoContactCacheStats.mockReturnValue({
+      contacts: 1,
+      phoneNumbers: 1,
+      lastSyncedAt: '2026-04-23T12:12:00.000Z',
+    });
     const service = new CommunicationsChatsService(
       client as never,
       repository as never,
@@ -256,6 +280,12 @@ describe('CommunicationsChatsService', () => {
       pages: 1,
       matchedPhoneNumbers: 1,
     });
+    expect(result.contactCache).toMatchObject({
+      reused: false,
+      refreshed: true,
+      contacts: 1,
+      phoneNumbers: 1,
+    });
     expect(result.hydrated).toEqual({ conversationNames: 1 });
     expect(result.hasMorePages).toEqual({
       contacts: false,
@@ -296,6 +326,82 @@ describe('CommunicationsChatsService', () => {
       preserveClientLinks: true,
     });
     expect(result.mode).toBe('reset');
+  });
+
+  it('hydrates conversation names from fresh cached Quo contacts', async () => {
+    const client = {
+      isConfigured: jest.fn(() => true),
+      listPhoneNumbers: jest.fn(),
+      getFromNumber: jest.fn(() => '+14388007177'),
+      listContacts: jest.fn(),
+      listConversations: jest.fn(() =>
+        Promise.resolve({
+          data: [
+            {
+              id: 'conv-fresh',
+              participants: ['+15145550000'],
+              lastMessageAt: '2026-04-23T12:10:00.000Z',
+            },
+          ],
+          hasNextPage: false,
+          nextPageToken: null,
+        }),
+      ),
+      listMessages: jest.fn(() =>
+        Promise.resolve({
+          data: [],
+          hasNextPage: false,
+          nextPageToken: null,
+        }),
+      ),
+    };
+    const repository = createRepository();
+    repository.getQuoContactCacheStats.mockReturnValue({
+      contacts: 1,
+      phoneNumbers: 1,
+      lastSyncedAt: new Date().toISOString(),
+    });
+    repository.listQuoContactLookupRows.mockReturnValue([
+      {
+        contact_id: 'contact-1',
+        display_name: 'Cached Client',
+        email: 'cached@example.com',
+        phone: '+15145550000',
+        synced_at: new Date().toISOString(),
+        last_seen_at: new Date().toISOString(),
+        stale_at: null,
+      },
+    ]);
+    const service = new CommunicationsChatsService(
+      client as never,
+      repository as never,
+    );
+
+    const result = await service.syncMirror({ mode: 'backfill' });
+
+    expect(client.listContacts).not.toHaveBeenCalled();
+    expect(repository.upsertConversations).toHaveBeenCalledWith([
+      expect.objectContaining({
+        id: 'conv-fresh',
+        contactId: 'contact-1',
+        displayName: 'Cached Client',
+        contactName: 'Cached Client',
+        contactEmail: 'cached@example.com',
+      }),
+    ]);
+    expect(result.contacts).toEqual({
+      scanned: 0,
+      pages: 0,
+      matchedPhoneNumbers: 1,
+    });
+    expect(result.contactCache).toMatchObject({
+      reused: true,
+      refreshed: false,
+      contacts: 1,
+      phoneNumbers: 1,
+      fresh: true,
+    });
+    expect(result.hydrated).toEqual({ conversationNames: 1 });
   });
 
   it('lists mirrored conversations with unread metadata', () => {

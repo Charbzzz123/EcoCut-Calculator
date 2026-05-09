@@ -70,6 +70,38 @@ interface ChatMirrorStats {
   cursors: number;
 }
 
+interface QuoContactCacheEntryInput {
+  id: string;
+  displayName: string | null;
+  email: string | null;
+  externalId: string | null;
+  phones: string[];
+  payload: unknown;
+  syncedAt?: string;
+}
+
+interface QuoContactLookupRow {
+  contact_id: string;
+  display_name: string | null;
+  email: string | null;
+  phone: string | null;
+  synced_at: string;
+  last_seen_at: string;
+  stale_at: string | null;
+}
+
+interface QuoContactCacheStats {
+  contacts: number;
+  phoneNumbers: number;
+  lastSyncedAt: string | null;
+}
+
+interface ContactCacheStatsRow {
+  contacts: number;
+  phone_numbers: number;
+  last_synced_at: string | null;
+}
+
 interface UpsertClientContactLinkInput {
   clientId: string;
   quoContactId: string;
@@ -147,6 +179,11 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
   private readonly listClientLinksStmt: Database.Statement;
   private readonly listUnlinkedConversationsStmt: Database.Statement;
   private readonly countUnlinkedConversationsStmt: Database.Statement;
+  private readonly upsertQuoContactStmt: Database.Statement;
+  private readonly deleteQuoContactPhonesStmt: Database.Statement;
+  private readonly upsertQuoContactPhoneStmt: Database.Statement;
+  private readonly listQuoContactLookupRowsStmt: Database.Statement;
+  private readonly selectQuoContactCacheStatsStmt: Database.Statement;
 
   constructor() {
     mkdirSync(dirname(this.dbPath), { recursive: true });
@@ -206,7 +243,30 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
         last_read_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS chat_quo_contacts (
+        contact_id TEXT PRIMARY KEY,
+        display_name TEXT,
+        email TEXT,
+        external_id TEXT,
+        payload TEXT NOT NULL,
+        synced_at TEXT NOT NULL,
+        last_seen_at TEXT NOT NULL,
+        stale_at TEXT,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_chat_quo_contacts_last_seen_at
+        ON chat_quo_contacts(last_seen_at);
+
+      CREATE TABLE IF NOT EXISTS chat_quo_contact_phones (
+        phone TEXT PRIMARY KEY,
+        contact_id TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_chat_quo_contact_phones_contact_id
+        ON chat_quo_contact_phones(contact_id);
     `);
+    this.ensureColumn('chat_quo_contacts', 'stale_at', 'TEXT');
 
     this.upsertConversationStmt = this.db.prepare(
       `INSERT INTO chat_conversations (
@@ -474,8 +534,69 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
              SELECT 1
              FROM chat_client_links cl
              WHERE cl.quo_contact_id = json_extract(c.payload, '$.contactId')
-           )
-         )`,
+         )
+       )`,
+    );
+    this.upsertQuoContactStmt = this.db.prepare(
+      `INSERT INTO chat_quo_contacts (
+         contact_id,
+         display_name,
+         email,
+         external_id,
+         payload,
+         synced_at,
+         last_seen_at,
+         stale_at,
+         updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(contact_id) DO UPDATE SET
+         display_name = excluded.display_name,
+         email = excluded.email,
+         external_id = excluded.external_id,
+         payload = excluded.payload,
+         synced_at = excluded.synced_at,
+         last_seen_at = excluded.last_seen_at,
+         stale_at = excluded.stale_at,
+         updated_at = excluded.updated_at`,
+    );
+    this.deleteQuoContactPhonesStmt = this.db.prepare(
+      'DELETE FROM chat_quo_contact_phones WHERE contact_id = ?',
+    );
+    this.upsertQuoContactPhoneStmt = this.db.prepare(
+      `INSERT INTO chat_quo_contact_phones (
+         phone,
+         contact_id,
+         updated_at
+       ) VALUES (?, ?, ?)
+       ON CONFLICT(phone) DO UPDATE SET
+         contact_id = excluded.contact_id,
+         updated_at = excluded.updated_at`,
+    );
+    this.listQuoContactLookupRowsStmt = this.db.prepare(
+      `SELECT
+         c.contact_id,
+         c.display_name,
+         c.email,
+         p.phone,
+         c.synced_at,
+         c.last_seen_at,
+         c.stale_at
+       FROM chat_quo_contacts c
+       LEFT JOIN chat_quo_contact_phones p
+         ON p.contact_id = c.contact_id
+       WHERE c.stale_at IS NULL
+       ORDER BY c.last_seen_at DESC, c.contact_id ASC`,
+    );
+    this.selectQuoContactCacheStatsStmt = this.db.prepare(
+      `SELECT
+         (SELECT COUNT(*) FROM chat_quo_contacts WHERE stale_at IS NULL) AS contacts,
+         (
+           SELECT COUNT(*)
+           FROM chat_quo_contact_phones p
+           INNER JOIN chat_quo_contacts c ON c.contact_id = p.contact_id
+           WHERE c.stale_at IS NULL
+         ) AS phone_numbers,
+         (SELECT MAX(last_seen_at) FROM chat_quo_contacts WHERE stale_at IS NULL) AS last_synced_at`,
     );
   }
 
@@ -553,6 +674,118 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
     } catch (error) {
       this.logger.warn(
         `Failed to upsert chat messages: ${this.stringifyError(error)}`,
+      );
+      return 0;
+    }
+  }
+
+  upsertQuoContacts(contacts: QuoContactCacheEntryInput[]): number {
+    const now = new Date().toISOString();
+    const normalized = contacts
+      .map((contact) => ({
+        ...contact,
+        id: contact.id.trim(),
+        syncedAt: contact.syncedAt ?? now,
+        phones: [
+          ...new Set(contact.phones.map((phone) => phone.trim())),
+        ].filter((phone) => phone.length > 0),
+      }))
+      .filter((contact) => contact.id.length > 0);
+
+    const run = this.db.transaction(() => {
+      for (const contact of normalized) {
+        this.upsertQuoContactStmt.run(
+          contact.id,
+          contact.displayName,
+          contact.email,
+          contact.externalId,
+          JSON.stringify(contact.payload),
+          contact.syncedAt,
+          contact.syncedAt,
+          null,
+          now,
+        );
+        this.deleteQuoContactPhonesStmt.run(contact.id);
+        for (const phone of contact.phones) {
+          this.upsertQuoContactPhoneStmt.run(phone, contact.id, now);
+        }
+      }
+    });
+
+    try {
+      run();
+      return normalized.length;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to upsert Quo contact cache: ${this.stringifyError(error)}`,
+      );
+      return 0;
+    }
+  }
+
+  listQuoContactLookupRows(): QuoContactLookupRow[] {
+    try {
+      return this.listQuoContactLookupRowsStmt.all() as QuoContactLookupRow[];
+    } catch (error) {
+      this.logger.warn(
+        `Failed to list Quo contact cache: ${this.stringifyError(error)}`,
+      );
+      return [];
+    }
+  }
+
+  getQuoContactCacheStats(): QuoContactCacheStats {
+    try {
+      const row = this.selectQuoContactCacheStatsStmt.get() as
+        | ContactCacheStatsRow
+        | undefined;
+      return {
+        contacts: row?.contacts ?? 0,
+        phoneNumbers: row?.phone_numbers ?? 0,
+        lastSyncedAt: row?.last_synced_at ?? null,
+      };
+    } catch (error) {
+      this.logger.warn(
+        `Failed to read Quo contact cache stats: ${this.stringifyError(error)}`,
+      );
+      return { contacts: 0, phoneNumbers: 0, lastSyncedAt: null };
+    }
+  }
+
+  markMissingQuoContactsStale(
+    activeContactIds: string[],
+    staleAt?: string,
+  ): number {
+    const markedAt = staleAt ?? new Date().toISOString();
+    const normalizedIds = [
+      ...new Set(activeContactIds.map((id) => id.trim()).filter(Boolean)),
+    ];
+
+    try {
+      if (normalizedIds.length === 0) {
+        const result = this.db
+          .prepare(
+            `UPDATE chat_quo_contacts
+             SET stale_at = ?, updated_at = ?
+             WHERE stale_at IS NULL`,
+          )
+          .run(markedAt, markedAt) as { changes: number };
+        return result.changes;
+      }
+
+      const placeholders = normalizedIds.map(() => '?').join(', ');
+      const result = this.db
+        .prepare(
+          `UPDATE chat_quo_contacts
+           SET stale_at = ?, updated_at = ?
+           WHERE stale_at IS NULL
+             AND contact_id NOT IN (${placeholders})`,
+        )
+        .run(markedAt, markedAt, ...normalizedIds) as { changes: number };
+      return result.changes;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to mark stale Quo contacts: ${this.stringifyError(error)}`,
       );
       return 0;
     }
@@ -899,6 +1132,28 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
     }
   }
 
+  private ensureColumn(
+    tableName: string,
+    columnName: string,
+    definition: string,
+  ): void {
+    try {
+      const columns = this.db.pragma(`table_info(${tableName})`) as {
+        name?: string;
+      }[];
+      if (columns.some((column) => column.name === columnName)) {
+        return;
+      }
+      this.db.exec(
+        `ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Failed to migrate ${tableName}.${columnName}: ${this.stringifyError(error)}`,
+      );
+    }
+  }
+
   private readCount(statement: Database.Statement): number {
     try {
       const row = statement.get() as CountRow | undefined;
@@ -927,6 +1182,9 @@ export type {
   ListMirrorMessagesOptions,
   ListUnlinkedConversationsOptions,
   MessageMirrorRow,
+  QuoContactCacheEntryInput,
+  QuoContactCacheStats,
+  QuoContactLookupRow,
   RecordWebhookEventInput,
   RecordWebhookEventResult,
   UnlinkedConversationSummaryRow,
