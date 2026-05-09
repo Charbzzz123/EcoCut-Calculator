@@ -675,6 +675,14 @@ describe('CommunicationsChatsService', () => {
         source: 'entries-auto-sync',
       }),
     );
+    expect(repository.upsertQuoContacts).toHaveBeenCalledWith([
+      expect.objectContaining({
+        id: 'contact-1',
+        displayName: 'Karam AbiNassif',
+        externalId: 'client-1',
+        phones: ['+15145550101'],
+      }),
+    ]);
     expect(client.createContact).not.toHaveBeenCalled();
   });
 

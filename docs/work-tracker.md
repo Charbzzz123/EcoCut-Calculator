@@ -19,6 +19,7 @@ Living checklist for in-flight feature work so we never lose track of what€™
 | CH-8C Quo contact hydration + older chat paging                      | 2026-04-30 | Manual chat sync now runs a larger backfill, hydrates conversation names/emails from Quo contacts by matching participant phone numbers, and the Chats inbox can load older conversation pages beyond the first visible batch.                                                                                                         |
 | CH-8D Quo sync diagnostics + visibility                              | 2026-05-07 | Sync responses now include contact scan/page counts, matched phones, hydrated-name counts, provider page availability flags, and the Chats UI shows a clear operator-facing sync summary plus provider error detail when sync fails.                                                                                                   |
 | CH-8E Local Quo contact cache + freshness                            | 2026-05-08 | Added durable Quo contact cache tables, cache-first chat name hydration, contact-cache freshness diagnostics, and tests so synced Quo names survive restarts without blind full scans every sync.                                                                                                                                      |
+| CH-8F EcoCut client -> Quo contact source of truth                   | 2026-05-08 | Client create/update flows now create or update the matching Quo contact, persist the client-contact link, and immediately reconcile the local Quo contact cache so chat names stay hydrated without waiting for a full sync.                                                                                                           |
 | NAV-5 Alert/banner enter-exit motion                                 | 2026-04-12 | Added shared alert/toast motion utility (`motion-alert`) in global styles for validation/state/banner surfaces, plus delayed close handling for Start Next Job save toast so success/error feedback no longer appears/disappears abruptly while still respecting reduced-motion preferences.                                           |
 | NAV-4 Collapse/expand motion unification                             | 2026-04-12 | Added shared collapse utility motion (`motion-collapse`) in global styles and wired it into Start Next Job + Broadcast progressive-disclosure sections (workflow status, advanced panels, analytics panel/details, manual-add panel, per-client override) with reduced-motion fallback and hidden-state inert handling.                |
 | NAV-3C Non-shared popover/menu motion parity                         | 2026-04-12 | Audited remaining non-shared popovers and aligned Home CTA/dropdown menus with the same open-close motion baseline (fade/slide + visibility handoff + reduced-motion fallback) so they no longer pop in/out abruptly compared to shared dropdown/popover components.                                                                   |
@@ -141,7 +142,6 @@ Living checklist for in-flight feature work so we never lose track of what€™
 
 | Step   | Task                                         | Owner | Notes                                                                                                                                                                                                                         |
 | ------ | -------------------------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| CH-8F  | EcoCut client -> Quo contact source of truth | —     | Wire client create/update flows to create/update the matching Quo contact immediately, then reconcile with the local contact cache so EcoCut clients, Quo contacts, and chat names stay linked by default.                    |
 | CH-9   | Client-aware chat header + deep-link         | —     | Client click should auto-open the linked chat thread; chat header must surface client context (last/upcoming jobs, totals) with quick actions back to client profile/jobs.                                                    |
 | CH-10  | Rate/cost guardrails for chats               | —     | Enforce queue/throttle (10 rps key limit), outbound pacing, usage counters, and optional auto-pause threshold for safe operations.                                                                                            |
 | CH-11  | Test + rollout hardening                     | —     | Add unit/integration/e2e coverage for sync/send/webhook/linking flows, then run full quality gates before staged rollout.                                                                                                     |
@@ -428,7 +428,7 @@ Use this as the source of truth if chat context resets.
 
 #### CH-8F - EcoCut client -> Quo contact source of truth
 
-- **Status**: Queued after CH-8E.
+- **Status**: Completed on 2026-05-08.
 - **Goal**
   - When EcoCut client records change, Quo contact records should be created/updated automatically so chats stay named and linked.
 - **Backend**
@@ -445,6 +445,10 @@ Use this as the source of truth if chat context resets.
   - Cover create/update/link/retry paths and duplicate-prevention rules.
 - **Done when**
   - New EcoCut clients naturally appear in Quo/contact cache without requiring a manual full sync.
+- **Delivered**
+  - Entry create/update and client profile updates already call the chat contact sync service.
+  - Contact sync now creates or updates the matching Quo contact, stores the client-contact link, and upserts the same contact into the local Quo contact cache.
+  - Cached contact reconciliation means chat names can update from EcoCut client saves immediately instead of waiting for the next full Quo contact scan.
 
 #### CH-9 - Client-aware thread context
 

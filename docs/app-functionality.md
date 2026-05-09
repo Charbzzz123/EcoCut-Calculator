@@ -456,4 +456,5 @@ Update this document whenever we clarify rules or add new functionality so imple
   - **CH-8C contact hydration + older paging is implemented**: manual sync runs a larger backfill, mirrored conversations are labeled from matching Quo contacts when possible, and the inbox can load older conversation pages from the mirror.
   - **CH-8D sync diagnostics are implemented**: manual sync now shows contact scans/pages, matched phone numbers, hydrated-name counts, page-availability flags, and provider failure detail in the Chats workspace.
   - **CH-8E local Quo contact cache is implemented**: manual sync now reuses fresh cached Quo contacts for name hydration, persists contact phone/email/name metadata locally, and reports whether the contact cache was reused or refreshed.
+  - **CH-8F EcoCut client -> Quo contact source of truth is implemented**: entry/client saves create or update the matching Quo contact, persist the local client-contact link, and reconcile the local contact cache immediately.
   - Remaining slices (client-aware deep-linking, guardrails, rollout hardening) are tracked in `docs/work-tracker.md` under CH-9 through CH-12.

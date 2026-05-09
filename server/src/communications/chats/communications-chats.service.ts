@@ -332,6 +332,11 @@ export class CommunicationsChatsService {
     }
 
     const linked = await this.resolveLinkedContact(client);
+    this.upsertSyncedClientContactCache(
+      linked.quoContactId,
+      client,
+      linked.contact,
+    );
     this.chatsRepository.upsertClientContactLink({
       clientId: client.clientId,
       quoContactId: linked.quoContactId,
@@ -852,19 +857,21 @@ export class CommunicationsChatsService {
   }): Promise<{
     quoContactId: string;
     status: 'linked-existing' | 'updated-linked' | 'created-and-linked';
+    contact: QuoContact | null;
   }> {
     const existingLink = this.chatsRepository.getClientContactLink(
       client.clientId,
     );
     if (existingLink) {
       try {
-        await this.quoClient.updateContact(
+        const updated = await this.quoClient.updateContact(
           existingLink.quoContactId,
           this.buildContactPatchPayload(client),
         );
         return {
           quoContactId: existingLink.quoContactId,
           status: 'updated-linked',
+          contact: updated,
         };
       } catch (error) {
         if (
@@ -880,13 +887,14 @@ export class CommunicationsChatsService {
 
     const discovered = await this.findMatchingContactId(client);
     if (discovered) {
-      await this.quoClient.updateContact(
+      const updated = await this.quoClient.updateContact(
         discovered,
         this.buildContactPatchPayload(client),
       );
       return {
         quoContactId: discovered,
         status: 'linked-existing',
+        contact: updated,
       };
     }
 
@@ -899,7 +907,50 @@ export class CommunicationsChatsService {
     return {
       quoContactId: created.id,
       status: 'created-and-linked',
+      contact: created,
     };
+  }
+
+  private upsertSyncedClientContactCache(
+    quoContactId: string,
+    client: {
+      clientId: string;
+      firstName: string | null;
+      lastName: string | null;
+      fullName: string | null;
+      phone: string | null;
+      email: string | null;
+    },
+    contact: QuoContact | null,
+  ): void {
+    const phones = contact ? this.resolveContactPhones(contact) : [];
+    if (client.phone) {
+      phones.push(client.phone);
+    }
+
+    this.chatsRepository.upsertQuoContacts([
+      {
+        id: quoContactId,
+        displayName: contact
+          ? (this.resolveContactDisplayName(contact) ?? client.fullName)
+          : client.fullName,
+        email: contact
+          ? (this.resolveContactEmail(contact) ?? client.email)
+          : client.email,
+        externalId: this.readString(contact?.externalId) ?? client.clientId,
+        phones,
+        payload:
+          contact ??
+          this.buildContactCreatePayload({
+            clientId: client.clientId,
+            firstName: client.firstName,
+            lastName: client.lastName,
+            fullName: client.fullName,
+            phone: client.phone,
+            email: client.email,
+          }),
+      },
+    ]);
   }
 
   private buildContactCreatePayload(client: {
