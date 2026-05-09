@@ -414,6 +414,7 @@ describe('CommunicationsChatsService', () => {
     repository.listMirrorConversations.mockReturnValue([
       {
         conversation_id: 'conv-1',
+        linked_client_id: 'client-1',
         last_message_at: '2026-04-23T13:00:00.000Z',
         conversation_payload: JSON.stringify({ displayName: 'Karam' }),
         last_read_at: '2026-04-23T12:00:00.000Z',
@@ -438,6 +439,7 @@ describe('CommunicationsChatsService', () => {
       items: [
         {
           conversationId: 'conv-1',
+          linkedClientId: 'client-1',
           displayName: 'Karam',
           participantPhone: '+15145550000',
           lastMessageAt: '2026-04-23T13:00:00.000Z',
@@ -467,6 +469,7 @@ describe('CommunicationsChatsService', () => {
     repository.listMirrorConversations.mockReturnValue([
       {
         conversation_id: 'CN123',
+        linked_client_id: null,
         last_message_at: '2026-04-28T23:00:41.510Z',
         conversation_payload: JSON.stringify({
           name: null,
@@ -494,6 +497,7 @@ describe('CommunicationsChatsService', () => {
       items: [
         {
           conversationId: 'CN123',
+          linkedClientId: null,
           displayName: '+15145550000',
           participantPhone: '+15145550000',
           lastMessageAt: '2026-04-28T23:00:41.510Z',
@@ -742,6 +746,7 @@ describe('CommunicationsChatsService', () => {
     const repository = createRepository();
     repository.getMirrorConversationById.mockReturnValue({
       conversation_id: 'conv-1',
+      linked_client_id: 'client-1',
       contact_id: 'contact-1',
       last_message_at: '2026-04-24T12:00:00.000Z',
       conversation_payload: JSON.stringify({

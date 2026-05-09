@@ -1328,6 +1328,7 @@ export class CommunicationsChatsService {
 
     return {
       conversationId: row.conversation_id,
+      linkedClientId: row.linked_client_id ?? null,
       displayName,
       participantPhone,
       lastMessageAt: row.last_message_at ?? row.last_message_created_at ?? null,

@@ -1,6 +1,7 @@
 ﻿import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import type { ChatConversationSummary, ChatMessageView } from '@shared/domain/communications/chats-api.service.js';
 import { BackChipComponent } from '@shared/ui/back-chip/back-chip.component.js';
 import { BrandBannerComponent } from '@shared/ui/brand-banner/brand-banner.component.js';
@@ -9,7 +10,7 @@ import { ChatsFacade } from './chats.facade.js';
 @Component({
   standalone: true,
   selector: 'app-chats-shell',
-  imports: [CommonModule, ReactiveFormsModule, BrandBannerComponent, BackChipComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, BrandBannerComponent, BackChipComponent],
   templateUrl: './chats-shell.component.html',
   styleUrl: './chats-shell.component.scss',
   providers: [ChatsFacade],

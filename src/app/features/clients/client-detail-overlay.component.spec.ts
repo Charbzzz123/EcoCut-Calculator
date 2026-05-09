@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { RouterTestingModule } from '@angular/router/testing';
 import { vi } from 'vitest';
 import { By } from '@angular/platform-browser';
 import type {
@@ -30,7 +31,7 @@ describe('ClientDetailOverlayComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [ClientDetailOverlayComponent],
+      imports: [ClientDetailOverlayComponent, RouterTestingModule],
     }).compileComponents();
 
     fixture = TestBed.createComponent(ClientDetailOverlayComponent);

@@ -151,7 +151,8 @@ root/
   - Manual sync diagnostics now report contact pages/scans, matched phone numbers, hydrated conversation-name counts, provider page availability flags, and clearer provider failure detail so operators can verify what Quo returned.
   - Quo contact hydration uses a durable local cache (`chat_quo_contacts`, `chat_quo_contact_phones`) with freshness stats before falling back to provider scans, so known contact names survive restarts and routine syncs avoid unnecessary blind contact pulls.
   - Entry/client saves call the chat contact sync service, which creates or updates Quo contacts, stores the local client-contact link, and updates the same local contact cache used by chat hydration.
-  - Remaining chat slices (client deep-link rollout + guardrails/runbook) are planned under CH-9..CH-12 in `docs/work-tracker.md`.
+  - Client detail drawers can route to `/communications/chats?clientId=...`; chat summaries expose `linkedClientId`, the Chats facade auto-opens the matching linked conversation, and the thread header displays client context (jobs/last/next) for CRM continuity.
+  - Remaining chat slices (guardrails/runbook) are planned under CH-10..CH-12 in `docs/work-tracker.md`.
 - **Frontend proxying & dev setup**
   - `npm start` automatically passes `--proxy-config proxy.conf.json`, so `/api/*` traffic goes to `http://localhost:3000/*`. Always run `npm run server` in a second terminal before testing calendar flows locally.
   - When the Nest server or credentials are unavailable the frontend logs the failure (via `console.warn`) and surfaces the inline banner but the form remains usable.

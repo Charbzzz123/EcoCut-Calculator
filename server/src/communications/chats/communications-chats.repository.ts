@@ -29,6 +29,7 @@ interface ClientContactLinkRow {
 
 interface ConversationSummaryRow {
   conversation_id: string;
+  linked_client_id: string | null;
   last_message_at: string | null;
   conversation_payload: string;
   last_read_at: string;
@@ -377,6 +378,7 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
     this.listConversationSummariesStmt = this.db.prepare(
       `SELECT
          c.conversation_id,
+         cl.client_id AS linked_client_id,
          c.last_message_at,
          c.payload AS conversation_payload,
          COALESCE(rs.last_read_at, '') AS last_read_at,
@@ -400,7 +402,14 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
            ORDER BY COALESCE(m.created_at, '') DESC, m.message_id DESC
            LIMIT 1
          )
-       WHERE (? = '' OR lower(c.payload) LIKE ? OR lower(COALESCE(lm.payload, '')) LIKE ?)
+       LEFT JOIN chat_client_links cl
+         ON cl.quo_contact_id = json_extract(c.payload, '$.contactId')
+       WHERE (
+         ? = ''
+         OR lower(c.payload) LIKE ?
+         OR lower(COALESCE(lm.payload, '')) LIKE ?
+         OR lower(COALESCE(cl.client_id, '')) LIKE ?
+       )
        ORDER BY COALESCE(c.last_message_at, lm.created_at, c.updated_at) DESC, c.conversation_id DESC
        LIMIT ? OFFSET ?`,
     );
@@ -415,11 +424,19 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
            ORDER BY COALESCE(m.created_at, '') DESC, m.message_id DESC
            LIMIT 1
          )
-       WHERE (? = '' OR lower(c.payload) LIKE ? OR lower(COALESCE(lm.payload, '')) LIKE ?)`,
+       LEFT JOIN chat_client_links cl
+         ON cl.quo_contact_id = json_extract(c.payload, '$.contactId')
+       WHERE (
+         ? = ''
+         OR lower(c.payload) LIKE ?
+         OR lower(COALESCE(lm.payload, '')) LIKE ?
+         OR lower(COALESCE(cl.client_id, '')) LIKE ?
+       )`,
     );
     this.selectConversationSummaryByIdStmt = this.db.prepare(
       `SELECT
          c.conversation_id,
+         cl.client_id AS linked_client_id,
          c.last_message_at,
          c.payload AS conversation_payload,
          COALESCE(rs.last_read_at, '') AS last_read_at,
@@ -443,6 +460,8 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
            ORDER BY COALESCE(m.created_at, '') DESC, m.message_id DESC
            LIMIT 1
          )
+       LEFT JOIN chat_client_links cl
+         ON cl.quo_contact_id = json_extract(c.payload, '$.contactId')
        WHERE c.conversation_id = ?
        LIMIT 1`,
     );
@@ -985,6 +1004,7 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
         normalizedQuery,
         wildcard,
         wildcard,
+        wildcard,
         options.limit,
         options.offset,
       ) as ConversationSummaryRow[];
@@ -1041,6 +1061,7 @@ export class CommunicationsChatsRepository implements OnModuleDestroy {
     try {
       const row = this.countConversationSummariesStmt.get(
         normalizedQuery,
+        wildcard,
         wildcard,
         wildcard,
       ) as ConversationCountRow | undefined;

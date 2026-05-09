@@ -1,4 +1,5 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { FormControl } from '@angular/forms';
 import type {
   ChatConversationSummary,
@@ -7,6 +8,8 @@ import type {
   SyncChatsResult,
 } from '@shared/domain/communications/chats-api.service.js';
 import { ChatsApiService } from '@shared/domain/communications/chats-api.service.js';
+import type { ClientDetail } from '@shared/domain/entry/entry-repository.service.js';
+import { EntryRepositoryService } from '@shared/domain/entry/entry-repository.service.js';
 
 export type ChatsLoadState = 'idle' | 'loading' | 'ready' | 'error';
 export type ChatSendState = 'idle' | 'sending' | 'sent' | 'failed';
@@ -18,6 +21,8 @@ const MESSAGE_LIMIT = 80;
 @Injectable()
 export class ChatsFacade {
   private readonly api = inject(ChatsApiService);
+  private readonly entries = inject(EntryRepositoryService);
+  private readonly route = inject(ActivatedRoute);
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
   readonly searchControl = new FormControl('', { nonNullable: true });
@@ -33,6 +38,7 @@ export class ChatsFacade {
   private readonly threadStateSignal = signal<ChatsLoadState>('idle');
   private readonly sendStateSignal = signal<ChatSendState>('idle');
   private readonly syncStateSignal = signal<ChatSyncState>('idle');
+  private readonly selectedClientContextSignal = signal<ClientDetail | null>(null);
   private readonly loadingMoreConversationsSignal = signal(false);
   private readonly lastSyncResultSignal = signal<SyncChatsResult | null>(null);
   private readonly errorSignal = signal<string | null>(null);
@@ -48,6 +54,7 @@ export class ChatsFacade {
   readonly threadState = this.threadStateSignal.asReadonly();
   readonly sendState = this.sendStateSignal.asReadonly();
   readonly syncState = this.syncStateSignal.asReadonly();
+  readonly selectedClientContext = this.selectedClientContextSignal.asReadonly();
   readonly loadingMoreConversations = this.loadingMoreConversationsSignal.asReadonly();
   readonly lastSyncResult = this.lastSyncResultSignal.asReadonly();
   readonly error = this.errorSignal.asReadonly();
@@ -109,6 +116,7 @@ export class ChatsFacade {
       }
     });
     await Promise.all([this.refreshHealth(), this.loadConversations()]);
+    await this.openRequestedClientThread();
   }
 
   async refresh(): Promise<void> {
@@ -196,6 +204,10 @@ export class ChatsFacade {
     this.threadStateSignal.set('loading');
     this.sendStateSignal.set('idle');
     this.errorSignal.set(null);
+    const selectedConversation = this.conversationsSignal().find(
+      (conversation) => conversation.conversationId === conversationId,
+    );
+    await this.loadSelectedClientContext(selectedConversation?.linkedClientId ?? null);
     try {
       const result = await this.api.listMessages(conversationId, { limit: MESSAGE_LIMIT });
       this.messagesSignal.set(this.sortMessagesAscending(result.items));
@@ -215,6 +227,7 @@ export class ChatsFacade {
   clearThread(): void {
     this.selectedConversationIdSignal.set(null);
     this.messagesSignal.set([]);
+    this.selectedClientContextSignal.set(null);
     this.threadStateSignal.set('idle');
     this.sendStateSignal.set('idle');
     this.composerControl.setValue('', { emitEvent: false });
@@ -299,5 +312,48 @@ export class ChatsFacade {
           : null;
 
     return details ? `${fallback} ${details}` : fallback;
+  }
+
+  private async openRequestedClientThread(): Promise<void> {
+    const clientId = this.route.snapshot.queryParamMap.get('clientId')?.trim();
+    if (!clientId) {
+      return;
+    }
+
+    try {
+      let conversation = this.conversationsSignal().find(
+        (item) => item.linkedClientId === clientId,
+      );
+      if (!conversation) {
+        const result = await this.api.searchConversations({
+          query: clientId,
+          limit: CONVERSATION_LIMIT,
+        });
+        this.conversationsSignal.set(result.items);
+        this.conversationTotalSignal.set(result.total);
+        conversation = result.items.find((item) => item.linkedClientId === clientId);
+      }
+
+      if (conversation) {
+        await this.selectConversation(conversation.conversationId);
+      } else {
+        this.errorSignal.set('No linked chat conversation exists for this client yet.');
+      }
+    } catch {
+      this.errorSignal.set('Unable to open the linked client chat right now.');
+    }
+  }
+
+  private async loadSelectedClientContext(clientId: string | null): Promise<void> {
+    if (!clientId) {
+      this.selectedClientContextSignal.set(null);
+      return;
+    }
+
+    try {
+      this.selectedClientContextSignal.set(await this.entries.getClientDetail(clientId));
+    } catch {
+      this.selectedClientContextSignal.set(null);
+    }
   }
 }

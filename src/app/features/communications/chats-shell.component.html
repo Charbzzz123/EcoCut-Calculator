@@ -169,6 +169,43 @@
           </div>
         </header>
 
+        @if (facade.selectedClientContext(); as client) {
+          <section class="client-context" aria-label="Linked client context">
+            <div>
+              <p class="panel-eyebrow">Linked client</p>
+              <h3>{{ client.fullName }}</h3>
+              <p>{{ client.address }}</p>
+            </div>
+            <dl>
+              <div>
+                <dt>Jobs</dt>
+                <dd>{{ client.jobsCount }}</dd>
+              </div>
+              <div>
+                <dt>Last</dt>
+                <dd>
+                  @if (client.lastJobDate) {
+                    {{ client.lastJobDate | date: 'MMM d' }}
+                  } @else {
+                    --
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Next</dt>
+                <dd>
+                  @if (client.nextJobDate) {
+                    {{ client.nextJobDate | date: 'MMM d' }}
+                  } @else {
+                    --
+                  }
+                </dd>
+              </div>
+            </dl>
+            <a class="client-context__link" routerLink="/clients">Open client book</a>
+          </section>
+        }
+
         @if (facade.threadState() === 'loading') {
           <p class="empty-state">Loading messages...</p>
         } @else if (facade.threadState() === 'error') {

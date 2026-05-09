@@ -14,6 +14,13 @@
     </div>
     <div class="client-drawer__header-actions">
       @if (!editingClient) {
+        <a
+          class="ghost"
+          routerLink="/communications/chats"
+          [queryParams]="{ clientId: client.clientId }"
+        >
+          Open chat
+        </a>
         <button type="button" class="ghost" (click)="startClientEdit()">Edit client</button>
         <button type="button" class="ghost danger" (click)="requestClientDelete()">
           Delete client

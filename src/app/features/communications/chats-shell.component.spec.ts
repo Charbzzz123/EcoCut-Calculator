@@ -7,6 +7,7 @@ import type {
   ChatProviderHealth,
 } from '@shared/domain/communications/chats-api.service.js';
 import { ChatsApiService } from '@shared/domain/communications/chats-api.service.js';
+import { EntryRepositoryService } from '@shared/domain/entry/entry-repository.service.js';
 import { ChatsFacade } from './chats.facade.js';
 import { ChatsShellComponent } from './chats-shell.component.js';
 
@@ -29,6 +30,7 @@ const conversations: ChatConversationListResult = {
   items: [
     {
       conversationId: 'conv-1',
+      linkedClientId: 'client-1',
       displayName: 'Alex North',
       participantPhone: '+15145550101',
       lastMessageAt: '2026-04-24T12:00:00.000Z',
@@ -38,6 +40,7 @@ const conversations: ChatConversationListResult = {
     },
     {
       conversationId: 'conv-2',
+      linkedClientId: null,
       displayName: null,
       participantPhone: '+15145550202',
       lastMessageAt: null,
@@ -98,6 +101,21 @@ const syncResult = {
   mirror: { conversations: 2, messages: 5, clientLinks: 1, cursors: 2 },
 };
 
+const createEntryRepositoryMock = () => ({
+  getClientDetail: vi.fn().mockResolvedValue({
+    clientId: 'client-1',
+    firstName: 'Alex',
+    lastName: 'North',
+    fullName: 'Alex North',
+    address: '123 Main',
+    phone: '+15145550101',
+    jobsCount: 3,
+    lastJobDate: '2026-04-20T12:00:00.000Z',
+    nextJobDate: '2026-04-28T12:00:00.000Z',
+    history: [],
+  }),
+});
+
 const createApiMock = () => ({
   getHealth: vi.fn().mockResolvedValue(health),
   syncChats: vi.fn().mockResolvedValue(syncResult),
@@ -115,12 +133,17 @@ const createApiMock = () => ({
 describe('ChatsShellComponent', () => {
   let fixture: ComponentFixture<ChatsShellComponent>;
   let api: ReturnType<typeof createApiMock>;
+  let entries: ReturnType<typeof createEntryRepositoryMock>;
 
   beforeEach(async () => {
     api = createApiMock();
+    entries = createEntryRepositoryMock();
     await TestBed.configureTestingModule({
       imports: [ChatsShellComponent, RouterTestingModule],
-      providers: [{ provide: ChatsApiService, useValue: api }],
+      providers: [
+        { provide: ChatsApiService, useValue: api },
+        { provide: EntryRepositoryService, useValue: entries },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(ChatsShellComponent);
@@ -152,6 +175,9 @@ describe('ChatsShellComponent', () => {
 
     expect(api.listMessages).toHaveBeenCalledWith('conv-1', { limit: 80 });
     expect(api.markConversationRead).toHaveBeenCalledWith('conv-1');
+    expect(entries.getClientDetail).toHaveBeenCalledWith('client-1');
+    expect(compiled.textContent).toContain('Linked client');
+    expect(compiled.textContent).toContain('3');
     expect(compiled.textContent).toContain('Can you come tomorrow?');
     expect(compiled.textContent).toContain('Yes, we can.');
   });
@@ -188,6 +214,7 @@ describe('ChatsShellComponent', () => {
       items: [
         {
           conversationId: 'conv-empty',
+          linkedClientId: null,
           displayName: null,
           participantPhone: null,
           lastMessageAt: null,

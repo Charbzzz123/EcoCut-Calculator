@@ -25,6 +25,7 @@
 }
 
 .client-drawer__header-actions button,
+.client-drawer__header-actions a,
 .client-drawer__section-heading button,
 .history__actions button {
   --btn-border: var(--border-muted-strong);
@@ -39,6 +40,7 @@
   background: var(--btn-bg);
   color: var(--btn-color);
   cursor: pointer;
+  text-decoration: none;
   transition:
     background var(--motion-duration-base) var(--motion-ease-standard),
     border-color var(--motion-duration-base) var(--motion-ease-standard),
@@ -47,6 +49,7 @@
 }
 
 .client-drawer__header-actions button:hover,
+.client-drawer__header-actions a:hover,
 .client-drawer__section-heading button:hover,
 .history__actions button:hover {
   background: var(--surface-input);
@@ -73,6 +76,7 @@
 }
 
 .client-drawer__header-actions button.ghost,
+.client-drawer__header-actions a.ghost,
 .history__actions button.ghost {
   background: var(--surface-card-deep);
 }

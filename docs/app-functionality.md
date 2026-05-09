@@ -457,4 +457,5 @@ Update this document whenever we clarify rules or add new functionality so imple
   - **CH-8D sync diagnostics are implemented**: manual sync now shows contact scans/pages, matched phone numbers, hydrated-name counts, page-availability flags, and provider failure detail in the Chats workspace.
   - **CH-8E local Quo contact cache is implemented**: manual sync now reuses fresh cached Quo contacts for name hydration, persists contact phone/email/name metadata locally, and reports whether the contact cache was reused or refreshed.
   - **CH-8F EcoCut client -> Quo contact source of truth is implemented**: entry/client saves create or update the matching Quo contact, persist the local client-contact link, and reconcile the local contact cache immediately.
-  - Remaining slices (client-aware deep-linking, guardrails, rollout hardening) are tracked in `docs/work-tracker.md` under CH-9 through CH-12.
+  - **CH-9 client-aware thread context is implemented**: Client Book can open `/communications/chats?clientId=...`, the linked conversation auto-opens, and the chat header shows client identity with total jobs, last job, and next job context.
+  - Remaining slices (guardrails, rollout hardening, runbook) are tracked in `docs/work-tracker.md` under CH-10 through CH-12.

@@ -8,6 +8,7 @@ import {
   inject,
 } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import type {
   ClientDetail,
   ClientHistoryEntry,
@@ -21,7 +22,7 @@ import type { ClientDetailState } from './clients.types.js';
   selector: 'app-client-detail-drawer',
   templateUrl: './client-detail-drawer.component.html',
   styleUrls: ['./client-detail-drawer.component.scss'],
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ClientDetailDrawerComponent {

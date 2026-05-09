@@ -187,6 +187,7 @@ interface ListChatConversationsRequest {
 
 interface ChatConversationSummary {
   conversationId: string;
+  linkedClientId: string | null;
   displayName: string | null;
   participantPhone: string | null;
   lastMessageAt: string | null;

@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
+import { ActivatedRoute } from '@angular/router';
 import type {
   ChatConversationListResult,
   ChatConversationSummary,
@@ -7,11 +8,13 @@ import type {
   ChatProviderHealth,
 } from '@shared/domain/communications/chats-api.service.js';
 import { ChatsApiService } from '@shared/domain/communications/chats-api.service.js';
+import { EntryRepositoryService } from '@shared/domain/entry/entry-repository.service.js';
 import { ChatsFacade } from './chats.facade.js';
 
 const conversations: ChatConversationSummary[] = [
   {
     conversationId: 'conv-1',
+    linkedClientId: 'client-1',
     displayName: 'Alex North',
     participantPhone: '+15145550101',
     lastMessageAt: '2026-04-24T12:00:00.000Z',
@@ -21,6 +24,7 @@ const conversations: ChatConversationSummary[] = [
   },
   {
     conversationId: 'conv-2',
+    linkedClientId: null,
     displayName: null,
     participantPhone: '+15145550202',
     lastMessageAt: '2026-04-23T12:00:00.000Z',
@@ -99,6 +103,30 @@ const syncResult = {
   mirror: { conversations: 2, messages: 5, clientLinks: 1, cursors: 2 },
 };
 
+const createEntryRepositoryMock = () => ({
+  getClientDetail: vi.fn().mockResolvedValue({
+    clientId: 'client-1',
+    firstName: 'Alex',
+    lastName: 'North',
+    fullName: 'Alex North',
+    address: '123 Main',
+    phone: '+15145550101',
+    email: 'alex@example.com',
+    jobsCount: 3,
+    lastJobDate: '2026-04-20T12:00:00.000Z',
+    nextJobDate: '2026-04-28T12:00:00.000Z',
+    history: [],
+  }),
+});
+
+const createRouteMock = (clientId: string | null = null) => ({
+  snapshot: {
+    queryParamMap: {
+      get: vi.fn((key: string) => (key === 'clientId' ? clientId : null)),
+    },
+  },
+});
+
 const createApiMock = () => ({
   getHealth: vi.fn().mockResolvedValue(health),
   syncChats: vi.fn().mockResolvedValue(syncResult),
@@ -116,11 +144,18 @@ const createApiMock = () => ({
 describe('ChatsFacade', () => {
   let facade: ChatsFacade;
   let api: ReturnType<typeof createApiMock>;
+  let entries: ReturnType<typeof createEntryRepositoryMock>;
 
   beforeEach(() => {
     api = createApiMock();
+    entries = createEntryRepositoryMock();
     TestBed.configureTestingModule({
-      providers: [ChatsFacade, { provide: ChatsApiService, useValue: api }],
+      providers: [
+        ChatsFacade,
+        { provide: ChatsApiService, useValue: api },
+        { provide: EntryRepositoryService, useValue: entries },
+        { provide: ActivatedRoute, useValue: createRouteMock() },
+      ],
     });
     facade = TestBed.inject(ChatsFacade);
   });
@@ -197,6 +232,7 @@ describe('ChatsFacade', () => {
         {
           ...conversations[0],
           conversationId: 'conv-older',
+          linkedClientId: null,
           displayName: 'Older chat',
         },
       ],
@@ -222,8 +258,31 @@ describe('ChatsFacade', () => {
 
     expect(api.listMessages).toHaveBeenCalledWith('conv-1', { limit: 80 });
     expect(api.markConversationRead).toHaveBeenCalledWith('conv-1');
+    expect(entries.getClientDetail).toHaveBeenCalledWith('client-1');
+    expect(facade.selectedClientContext()?.fullName).toBe('Alex North');
     expect(facade.messages().map((message) => message.messageId)).toEqual(['msg-old', 'msg-new']);
     expect(facade.conversations()[0].unreadCount).toBe(0);
+  });
+
+  it('opens a linked client thread from the route query', async () => {
+    TestBed.resetTestingModule();
+    api = createApiMock();
+    entries = createEntryRepositoryMock();
+    TestBed.configureTestingModule({
+      providers: [
+        ChatsFacade,
+        { provide: ChatsApiService, useValue: api },
+        { provide: EntryRepositoryService, useValue: entries },
+        { provide: ActivatedRoute, useValue: createRouteMock('client-1') },
+      ],
+    });
+    facade = TestBed.inject(ChatsFacade);
+
+    await facade.init();
+
+    expect(facade.selectedConversationId()).toBe('conv-1');
+    expect(entries.getClientDetail).toHaveBeenCalledWith('client-1');
+    expect(api.listMessages).toHaveBeenCalledWith('conv-1', { limit: 80 });
   });
 
   it('sends a reply and appends the sent message', async () => {
@@ -345,6 +404,7 @@ describe('ChatsFacade', () => {
     facade.clearThread();
 
     expect(facade.selectedConversation()).toBeNull();
+    expect(facade.selectedClientContext()).toBeNull();
     expect(facade.messages()).toEqual([]);
     expect(facade.composerControl.value).toBe('');
   });

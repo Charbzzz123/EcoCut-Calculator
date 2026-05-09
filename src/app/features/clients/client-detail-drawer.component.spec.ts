@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { RouterTestingModule } from '@angular/router/testing';
 import { vi } from 'vitest';
 import type { ClientDetail } from '@shared/domain/entry/entry-repository.service.js';
 import { createEmptyHedgeConfigs } from '@shared/domain/entry/entry-modal.models.js';
@@ -64,7 +65,7 @@ describe('ClientDetailDrawerComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [ClientDetailDrawerComponent],
+      imports: [ClientDetailDrawerComponent, RouterTestingModule],
     }).compileComponents();
     fixture = TestBed.createComponent(ClientDetailDrawerComponent);
     fixture.componentInstance.client = detail;

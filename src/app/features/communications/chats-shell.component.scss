@@ -327,6 +327,61 @@
   padding-bottom: 1rem;
 }
 
+.client-context {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto auto;
+  gap: 1rem;
+  align-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--accent-primary) 10%, var(--surface-card-deep));
+  padding: 0.9rem 1rem;
+}
+
+.client-context h3,
+.client-context p,
+.client-context dl {
+  margin: 0;
+}
+
+.client-context p,
+.client-context dt {
+  color: var(--text-muted);
+}
+
+.client-context dl {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.client-context dl div {
+  min-width: 4rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.85rem;
+  padding: 0.55rem 0.7rem;
+  background: var(--surface-card-deep);
+}
+
+.client-context dt {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.client-context dd {
+  margin: 0.15rem 0 0;
+  font-weight: 800;
+}
+
+.client-context__link {
+  justify-self: end;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--text-primary);
+  padding: 0.55rem 0.85rem;
+  text-decoration: none;
+}
+
 .thread-messages {
   display: flex;
   flex: 1 1 auto;
@@ -454,5 +509,13 @@
 
   .message-bubble {
     max-width: 88%;
+  }
+
+  .client-context {
+    grid-template-columns: 1fr;
+  }
+
+  .client-context__link {
+    justify-self: start;
   }
 }
