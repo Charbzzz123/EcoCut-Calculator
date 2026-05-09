@@ -1,5 +1,13 @@
 ﻿import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
+import {
+  AfterViewChecked,
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  OnInit,
+  ViewChild,
+  inject,
+} from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import type { ChatConversationSummary, ChatMessageView } from '@shared/domain/communications/chats-api.service.js';
@@ -16,12 +24,27 @@ import { ChatsFacade } from './chats.facade.js';
   providers: [ChatsFacade],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ChatsShellComponent implements OnInit {
+export class ChatsShellComponent implements OnInit, AfterViewChecked {
+  @ViewChild('threadMessages') private threadMessages?: ElementRef<HTMLElement>;
+
   protected readonly facade = inject(ChatsFacade);
   protected readonly headingId = 'chats-heading';
+  private lastThreadScrollKey = '';
 
   ngOnInit(): void {
     void this.facade.init();
+  }
+
+  ngAfterViewChecked(): void {
+    const conversationId = this.facade.selectedConversationId() ?? '';
+    const latestMessageId = this.facade.messages().at(-1)?.messageId ?? '';
+    const scrollKey = `${conversationId}:${this.facade.messages().length}:${latestMessageId}`;
+    if (scrollKey === this.lastThreadScrollKey) {
+      return;
+    }
+
+    this.lastThreadScrollKey = scrollKey;
+    this.scheduleThreadScrollToBottom();
   }
 
   protected conversationTitle(conversation: ChatConversationSummary | null): string {
@@ -37,7 +60,10 @@ export class ChatsShellComponent implements OnInit {
   }
 
   protected selectConversation(conversation: ChatConversationSummary): void {
-    void this.facade.selectConversation(conversation.conversationId);
+    this.lastThreadScrollKey = '';
+    void this.facade.selectConversation(conversation.conversationId).then(() => {
+      this.scheduleThreadScrollToBottom();
+    });
   }
 
   protected syncChats(): void {
@@ -49,6 +75,29 @@ export class ChatsShellComponent implements OnInit {
   }
 
   protected sendMessage(): void {
-    void this.facade.sendMessage();
+    void this.facade.sendMessage().then(() => {
+      this.lastThreadScrollKey = '';
+      this.scheduleThreadScrollToBottom();
+    });
+  }
+
+  private scheduleThreadScrollToBottom(): void {
+    const run = (callback: () => void) => {
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(callback);
+        return;
+      }
+
+      setTimeout(callback, 0);
+    };
+
+    run(() => {
+      run(() => {
+        const element = this.threadMessages?.nativeElement;
+        if (element) {
+          element.scrollTop = element.scrollHeight;
+        }
+      });
+    });
   }
 }

@@ -211,7 +211,7 @@
         } @else if (facade.threadState() === 'error') {
           <p class="empty-state">Could not load this thread.</p>
         } @else {
-          <div class="thread-messages">
+          <div #threadMessages class="thread-messages">
             @if (!facade.messages().length) {
               <p class="empty-state">No messages mirrored for this conversation yet.</p>
             } @else {
