@@ -1,0 +1,60 @@
+<section class="clients-roster" aria-live="polite">
+  @switch (loadState) {
+    @case ('loading') {
+      <div class="clients-roster__state">Loading client roster&hellip;</div>
+    }
+    @case ('error') {
+      <div class="clients-roster__state clients-roster__state--error">
+        <p>We couldn't load clients right now.</p>
+        <button type="button" (click)="reload.emit()">Try again</button>
+      </div>
+    }
+    @case ('ready') {
+      @if (clients.length) {
+        <ul class="client-list">
+          @for (client of clients; track trackByClient($index, client); let idx = $index) {
+            <li>
+              <button type="button" class="client-card" (click)="selectClient.emit(client)">
+                <div class="client-card__header">
+                  <p class="client-card__name">{{ client.fullName }}</p>
+                  <p class="client-card__jobs">{{ client.jobsCount }} job(s)</p>
+                </div>
+                <p class="client-card__contact">
+                  <span>{{ client.phone }}</span>
+                  @if (client.email) {
+                    <span>&middot; {{ client.email }}</span>
+                  }
+                </p>
+                <p class="client-card__address">{{ client.address }}</p>
+                <p class="client-card__meta">
+                  Last job:
+                  <strong>
+                    @if (client.lastJobDate) {
+                      {{ client.lastJobDate | date: 'MMM d, y h:mm a' }}
+                    } @else {
+                      &mdash;
+                    }
+                  </strong>
+                </p>
+                <p class="client-card__meta client-card__meta--upcoming">
+                  Next job:
+                  <strong>
+                    @if (client.nextJobDate) {
+                      {{ client.nextJobDate | date: 'MMM d, y h:mm a' }}
+                    } @else {
+                      &mdash;
+                    }
+                  </strong>
+                </p>
+              </button>
+            </li>
+          }
+        </ul>
+      } @else {
+        <div class="clients-roster__state clients-roster__state--empty">
+          No clients match that search yet.
+        </div>
+      }
+    }
+  }
+</section>

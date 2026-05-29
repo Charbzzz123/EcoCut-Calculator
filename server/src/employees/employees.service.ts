@@ -1,0 +1,2232 @@
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnModuleInit,
+} from '@nestjs/common';
+import type { CreateEmployeeDto } from './dto/create-employee.dto';
+import type { CreateClockActionDto } from './dto/create-clock-action.dto';
+import type { ClockOutAssignmentMemberDto } from './dto/clock-out-assignment-member.dto';
+import type { CreateHoursEntryDto } from './dto/create-hours-entry.dto';
+import type { CreateStartNextJobAssignmentDto } from './dto/create-start-next-job-assignment.dto';
+import type { ReassignScheduledHistoryDto } from './dto/reassign-scheduled-history.dto';
+import type { UpdateScheduledHistoryDto } from './dto/update-scheduled-history.dto';
+import type { UpdateEmployeeDto } from './dto/update-employee.dto';
+import type { UpdateHoursEntryDto } from './dto/update-hours-entry.dto';
+import { EmployeesRepository } from './employees.repository';
+import { EntriesService } from '../entries/entries.service';
+import type { StoredEntry } from '../entries/entries.types';
+import type {
+  EmployeeAvailabilityWindow,
+  EmployeeAssignmentRunLifecycleResult,
+  EmployeeClockAction,
+  EmployeeContinuityCategory,
+  EmployeeLifecycleReport,
+  EmployeeLifecycleReportRow,
+  EmployeeLoggedJobOption,
+  EmployeeLoggedJobStatus,
+  EmployeeHoursRecord,
+  EmployeeJobHistoryRecord,
+  EmployeeOperatorRole,
+  EmployeeProfileRecord,
+  EmployeeStartNextJobAssignmentResult,
+  EmployeeStartNextJobReadiness,
+  EmployeesSnapshot,
+} from './employees.types';
+import { computeHistoryLifecycleSummary } from './history-lifecycle.metrics';
+
+const digitsOnly = (value: string): string => value.replace(/\D/g, '');
+const normalizeText = (value: string): string => value.trim().toLowerCase();
+const normalizeName = (firstName: string, lastName: string): string =>
+  `${normalizeText(firstName)}|${normalizeText(lastName)}`;
+const formatFullName = (firstName: string, lastName: string): string =>
+  `${firstName.trim()} ${lastName.trim()}`.trim();
+const toTimestamp = (value: string): number => {
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+const loggedJobStatusRank: Record<EmployeeLoggedJobStatus, number> = {
+  scheduled: 0,
+  late: 1,
+  completed: 2,
+};
+const sortByHistoryStartDesc = (
+  left: EmployeeJobHistoryRecord,
+  right: EmployeeJobHistoryRecord,
+): number => right.scheduledStart.localeCompare(left.scheduledStart);
+const sortByHistoryStartAsc = (
+  left: EmployeeJobHistoryRecord,
+  right: EmployeeJobHistoryRecord,
+): number => left.scheduledStart.localeCompare(right.scheduledStart);
+const overlapsRange = (
+  startA: number,
+  endA: number,
+  startB: number,
+  endB: number,
+): boolean => startA < endB && endA > startB;
+
+const phonePattern = /^\(\d{3}\)\s\d{3}-\d{4}$/;
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MANUAL_CORRECTION_SITE_LABEL = 'Manual correction';
+const continuityCategoryLabels: Record<EmployeeContinuityCategory, string> = {
+  issue_return: 'Issue return',
+  touch_up: 'Touch-up',
+  client_change: 'Client change',
+  weather_delay: 'Weather delay',
+  access_issue: 'Access issue',
+  other: 'Other',
+};
+
+interface AssignmentContinuityContext {
+  category: EmployeeContinuityCategory;
+  reason: string;
+  sourceHistoryEntry: EmployeeJobHistoryRecord;
+}
+
+export interface EmployeeLifecycleReportFilters {
+  from?: string | null;
+  to?: string | null;
+  employeeIds?: string[];
+}
+
+@Injectable()
+export class EmployeesService implements OnModuleInit {
+  private readonly logger = new Logger(EmployeesService.name);
+  private snapshot: EmployeesSnapshot = {
+    roster: [],
+    hours: [],
+    history: [],
+  };
+
+  constructor(
+    private readonly repository: EmployeesRepository,
+    private readonly entriesService: EntriesService,
+  ) {}
+
+  async onModuleInit(): Promise<void> {
+    this.snapshot = this.normalizeSnapshot(
+      await this.repository.loadSnapshot(),
+    );
+  }
+
+  listRoster(): EmployeeProfileRecord[] {
+    return this.snapshot.roster;
+  }
+
+  listHoursEntries(): EmployeeHoursRecord[] {
+    return this.snapshot.hours;
+  }
+
+  async recordClockAction(
+    payload: CreateClockActionDto,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeHoursRecord> {
+    this.assertOwnerOrManager(actorRole);
+    const employee = this.requireEmployee(payload.employeeId);
+    if (employee.status === 'inactive') {
+      throw new BadRequestException(
+        `Employee "${employee.fullName}" is inactive and cannot be clocked in/out.`,
+      );
+    }
+
+    const action = this.normalizeClockAction(payload.action);
+    const now = new Date();
+    const nowIso = now.toISOString();
+
+    if (action === 'clock_in') {
+      const existingOpenSession = this.findOpenClockSession(employee.id);
+      if (existingOpenSession) {
+        throw new ConflictException(
+          `Employee "${employee.fullName}" is already clocked in.`,
+        );
+      }
+
+      const created: EmployeeHoursRecord = {
+        id: this.createHoursEntryId(employee.id),
+        employeeId: employee.id,
+        workDate: nowIso.slice(0, 10),
+        siteLabel: this.normalizeClockSiteLabel(payload.siteLabel),
+        hours: 0,
+        source: 'clock',
+        clockInAt: nowIso,
+        clockOutAt: null,
+        updatedByRole: actorRole,
+        updatedAt: nowIso,
+      };
+
+      this.snapshot = {
+        ...this.snapshot,
+        hours: [created, ...this.snapshot.hours],
+        roster: this.snapshot.roster.map((record) =>
+          record.id === employee.id
+            ? { ...record, lastActivityAt: nowIso }
+            : record,
+        ),
+      };
+      await this.persistSnapshot();
+      return created;
+    }
+
+    const openSession = this.findOpenClockSession(employee.id);
+    if (!openSession) {
+      throw new ConflictException(
+        `Employee "${employee.fullName}" is not currently clocked in.`,
+      );
+    }
+    if (!openSession.clockInAt) {
+      throw new ConflictException(
+        `Employee "${employee.fullName}" has an invalid open clock session.`,
+      );
+    }
+
+    const clockInTimestamp = toTimestamp(openSession.clockInAt);
+    if (clockInTimestamp <= 0) {
+      throw new ConflictException(
+        `Employee "${employee.fullName}" has an invalid open clock session.`,
+      );
+    }
+    const nowTimestamp = now.getTime();
+    const elapsedHours = Math.max(
+      0.25,
+      (nowTimestamp - clockInTimestamp) / 3_600_000,
+    );
+    const roundedElapsedHours = Math.round(elapsedHours * 4) / 4;
+    const updated: EmployeeHoursRecord = {
+      ...openSession,
+      hours: roundedElapsedHours,
+      clockOutAt: nowIso,
+      updatedByRole: actorRole,
+      updatedAt: nowIso,
+    };
+
+    this.snapshot = {
+      ...this.snapshot,
+      hours: this.snapshot.hours.map((entry) =>
+        entry.id === openSession.id ? updated : entry,
+      ),
+      roster: this.snapshot.roster.map((record) =>
+        record.id === employee.id
+          ? { ...record, lastActivityAt: nowIso }
+          : record,
+      ),
+    };
+    await this.persistSnapshot();
+    return updated;
+  }
+
+  listJobHistoryEntries(): EmployeeJobHistoryRecord[] {
+    return this.snapshot.history;
+  }
+
+  listStartNextJobReadiness(): EmployeeStartNextJobReadiness[] {
+    return this.computeReadiness(this.snapshot.roster, this.snapshot.history);
+  }
+
+  listLoggedJobOptions(): EmployeeLoggedJobOption[] {
+    return this.entriesService
+      .listEntries()
+      .map((entry) => this.toLoggedJobOption(entry))
+      .sort((left, right) => {
+        const rankDiff =
+          loggedJobStatusRank[left.status] - loggedJobStatusRank[right.status];
+        if (rankDiff !== 0) {
+          return rankDiff;
+        }
+        return right.scheduledStart.localeCompare(left.scheduledStart);
+      });
+  }
+
+  getLifecycleReport(
+    filters: EmployeeLifecycleReportFilters = {},
+  ): EmployeeLifecycleReport {
+    const window = this.normalizeLifecycleReportWindow(filters);
+    const filteredEmployeeIds = new Set(
+      (filters.employeeIds ?? [])
+        .map((employeeId) => employeeId.trim())
+        .filter(Boolean),
+    );
+    const rosterScope = this.snapshot.roster.filter((employee) =>
+      filteredEmployeeIds.size ? filteredEmployeeIds.has(employee.id) : true,
+    );
+    const rosterScopeIds = new Set(rosterScope.map((employee) => employee.id));
+    const scopedHistory = this.filterHistoryByLifecycleWindow(
+      this.snapshot.history.filter((entry) =>
+        rosterScopeIds.has(entry.employeeId),
+      ),
+      window,
+    );
+
+    const perEmployee: EmployeeLifecycleReportRow[] = rosterScope
+      .map((employee) => {
+        const employeeHistory = scopedHistory.filter(
+          (entry) => entry.employeeId === employee.id,
+        );
+        const lifecycle = computeHistoryLifecycleSummary(employeeHistory);
+        return {
+          employeeId: employee.id,
+          fullName: employee.fullName,
+          completedOnTime: lifecycle.completedOnTime,
+          completedLate: lifecycle.completedLate,
+          scheduledLate: lifecycle.scheduledLate,
+          continuity: lifecycle.continuity,
+          totalTracked: employeeHistory.length,
+        };
+      })
+      .sort((left, right) => left.fullName.localeCompare(right.fullName));
+
+    const totals = perEmployee.reduce(
+      (accumulator, row) => ({
+        completedOnTime: accumulator.completedOnTime + row.completedOnTime,
+        completedLate: accumulator.completedLate + row.completedLate,
+        scheduledLate: accumulator.scheduledLate + row.scheduledLate,
+        continuity: accumulator.continuity + row.continuity,
+        totalTracked: accumulator.totalTracked + row.totalTracked,
+      }),
+      {
+        completedOnTime: 0,
+        completedLate: 0,
+        scheduledLate: 0,
+        continuity: 0,
+        totalTracked: 0,
+      },
+    );
+
+    return {
+      generatedAt: new Date().toISOString(),
+      window,
+      totals,
+      perEmployee,
+    };
+  }
+
+  async createStartNextJobAssignment(
+    payload: CreateStartNextJobAssignmentDto,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeStartNextJobAssignmentResult> {
+    this.assertOwnerOrManager(actorRole);
+    const normalized = this.normalizeStartNextJobPayload(payload);
+    const selectedJob = this.resolveJobSelection(normalized.jobEntryId);
+    const continuityContext = this.resolveAssignmentContinuityContext(
+      selectedJob,
+      normalized,
+    );
+    const assignmentWindow = this.resolveAssignmentWindow(
+      normalized,
+      selectedJob,
+    );
+    this.validateStartNextJobPayload({
+      ...normalized,
+      ...assignmentWindow,
+    });
+    const startTimestamp = toTimestamp(assignmentWindow.scheduledStart);
+    const endTimestamp = toTimestamp(assignmentWindow.scheduledEnd);
+
+    const conflicts = this.collectAssignmentConflicts(
+      normalized.employeeIds,
+      startTimestamp,
+      endTimestamp,
+    );
+    if (conflicts.length) {
+      throw new ConflictException(
+        `Cannot assign crew due to scheduling conflicts: ${conflicts.join('; ')}`,
+      );
+    }
+
+    const assignmentId = `assign-${Date.now()}`;
+    const nowIso = new Date().toISOString();
+    const durationHours = Math.max(
+      0.25,
+      Math.round(((endTimestamp - startTimestamp) / 3_600_000) * 4) / 4,
+    );
+
+    const createdHistory = normalized.employeeIds.map((employeeId, index) => ({
+      id: `${assignmentId}-history-${index + 1}`,
+      employeeId,
+      siteLabel: assignmentWindow.jobLabel,
+      address: assignmentWindow.address,
+      scheduledStart: assignmentWindow.scheduledStart,
+      scheduledEnd: assignmentWindow.scheduledEnd,
+      hoursWorked: durationHours,
+      status: 'scheduled' as const,
+      runStartedAt: null,
+      runEndedAt: null,
+      runClockOutReason: null,
+      continuitySourceHistoryEntryId:
+        continuityContext?.sourceHistoryEntry.id ?? null,
+      continuityCategory: continuityContext?.category ?? null,
+      continuityReason: continuityContext?.reason ?? null,
+      jobEntryId: selectedJob?.entryId ?? null,
+      assignmentId,
+    }));
+
+    const createdHours = createdHistory.map((entry, index) => ({
+      id: `${assignmentId}-hours-${index + 1}`,
+      employeeId: entry.employeeId,
+      workDate: assignmentWindow.scheduledStart.slice(0, 10),
+      siteLabel: assignmentWindow.jobLabel,
+      hours: durationHours,
+      source: 'assignment' as const,
+      jobEntryId: selectedJob?.entryId ?? null,
+      correctionNote: this.buildContinuityCorrectionNote(continuityContext),
+      assignmentId,
+      historyEntryId: entry.id,
+      clockInAt: null,
+      clockOutAt: null,
+      updatedByRole: actorRole,
+      updatedAt: nowIso,
+    }));
+
+    this.snapshot = {
+      ...this.snapshot,
+      history: [...createdHistory, ...this.snapshot.history],
+      hours: [...createdHours, ...this.snapshot.hours],
+      roster: this.snapshot.roster.map((record) =>
+        normalized.employeeIds.includes(record.id)
+          ? { ...record, lastActivityAt: nowIso }
+          : record,
+      ),
+    };
+    await this.persistSnapshot();
+
+    return {
+      assignmentId,
+      createdHistory,
+      createdHours,
+    };
+  }
+
+  async startAssignmentRun(
+    entryId: string,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeAssignmentRunLifecycleResult> {
+    this.assertOwnerOrManager(actorRole);
+    const existing = this.snapshot.history.find(
+      (entry) => entry.id === entryId,
+    );
+    if (!existing) {
+      throw new NotFoundException(`Job history entry "${entryId}" not found.`);
+    }
+    if (existing.status !== 'scheduled') {
+      throw new ConflictException(
+        `Only scheduled entries can be started (entry "${entryId}").`,
+      );
+    }
+    if (!existing.assignmentId) {
+      throw new ConflictException(
+        `Entry "${entryId}" is not part of an assignment run.`,
+      );
+    }
+
+    const assignmentEntries = this.snapshot.history.filter(
+      (entry) =>
+        entry.assignmentId === existing.assignmentId &&
+        entry.status === 'scheduled',
+    );
+    const activeEntries = assignmentEntries.filter((entry) =>
+      this.isRunActive(entry),
+    );
+    if (activeEntries.length) {
+      throw new ConflictException(
+        `Assignment "${existing.assignmentId}" is already active.`,
+      );
+    }
+
+    const assignmentEmployeeIds = new Set(
+      assignmentEntries.map((entry) => entry.employeeId),
+    );
+    const blockingActiveEntry = this.snapshot.history.find(
+      (entry) =>
+        this.isRunActive(entry) &&
+        entry.assignmentId !== existing.assignmentId &&
+        assignmentEmployeeIds.has(entry.employeeId),
+    );
+    if (blockingActiveEntry) {
+      const blockingEmployee = this.requireEmployee(
+        blockingActiveEntry.employeeId,
+      );
+      throw new ConflictException(
+        `Employee "${blockingEmployee.fullName}" is already active on another run.`,
+      );
+    }
+
+    const nowIso = new Date().toISOString();
+    const updatedHistory = assignmentEntries.map((entry) => ({
+      ...entry,
+      runStartedAt: nowIso,
+      runEndedAt: null,
+      runClockOutReason: null,
+    }));
+    const updatedHistoryIds = new Set(updatedHistory.map((entry) => entry.id));
+    const updatedHours: EmployeeHoursRecord[] = [];
+
+    this.snapshot = {
+      ...this.snapshot,
+      history: this.snapshot.history.map((entry) => {
+        if (!updatedHistoryIds.has(entry.id)) {
+          return entry;
+        }
+        return updatedHistory.find((record) => record.id === entry.id) ?? entry;
+      }),
+      hours: this.snapshot.hours.map((entry) => {
+        if (entry.source !== 'assignment' || !entry.historyEntryId) {
+          return entry;
+        }
+        if (!updatedHistoryIds.has(entry.historyEntryId)) {
+          return entry;
+        }
+        const next: EmployeeHoursRecord = {
+          ...entry,
+          clockInAt: nowIso,
+          clockOutAt: null,
+          updatedByRole: actorRole,
+          updatedAt: nowIso,
+        };
+        updatedHours.push(next);
+        return next;
+      }),
+      roster: this.snapshot.roster.map((employee) =>
+        assignmentEmployeeIds.has(employee.id)
+          ? { ...employee, lastActivityAt: nowIso }
+          : employee,
+      ),
+    };
+    await this.persistSnapshot();
+
+    return {
+      assignmentId: existing.assignmentId,
+      runStartedAt: nowIso,
+      runEndedAt: null,
+      updatedHistory,
+      updatedHours,
+    };
+  }
+
+  async endAssignmentRun(
+    entryId: string,
+    actorRole: EmployeeOperatorRole,
+    completionNote: string | null = null,
+  ): Promise<EmployeeAssignmentRunLifecycleResult> {
+    this.assertOwnerOrManager(actorRole);
+    const existing = this.snapshot.history.find(
+      (entry) => entry.id === entryId,
+    );
+    if (!existing) {
+      throw new NotFoundException(`Job history entry "${entryId}" not found.`);
+    }
+    if (!existing.assignmentId) {
+      throw new ConflictException(
+        `Entry "${entryId}" is not part of an assignment run.`,
+      );
+    }
+
+    const activeRunEntries = this.snapshot.history.filter(
+      (entry) =>
+        entry.assignmentId === existing.assignmentId &&
+        entry.status === 'scheduled' &&
+        this.isRunActive(entry),
+    );
+    if (!activeRunEntries.length) {
+      throw new ConflictException(
+        `Assignment "${existing.assignmentId}" is not currently active.`,
+      );
+    }
+
+    const normalizedCompletionNote = completionNote?.trim() || null;
+    const nowIso = new Date().toISOString();
+    const nowTimestamp = toTimestamp(nowIso);
+    const updatedHistory = activeRunEntries.map((entry) => {
+      const runStartTimestamp =
+        toTimestamp(entry.runStartedAt ?? '') ||
+        toTimestamp(entry.scheduledStart);
+      const durationHours = Math.max(
+        0.25,
+        Math.round(((nowTimestamp - runStartTimestamp) / 3_600_000) * 4) / 4,
+      );
+      return {
+        ...entry,
+        status: 'completed' as const,
+        runEndedAt: nowIso,
+        hoursWorked: durationHours,
+        runClockOutReason: normalizedCompletionNote,
+      };
+    });
+    const updatedHistoryIds = new Set(updatedHistory.map((entry) => entry.id));
+    const affectedEmployeeIds = new Set(
+      updatedHistory.map((entry) => entry.employeeId),
+    );
+    const updatedHours: EmployeeHoursRecord[] = [];
+
+    this.snapshot = {
+      ...this.snapshot,
+      history: this.snapshot.history.map((entry) => {
+        if (!updatedHistoryIds.has(entry.id)) {
+          return entry;
+        }
+        return updatedHistory.find((record) => record.id === entry.id) ?? entry;
+      }),
+      hours: this.snapshot.hours.map((entry) => {
+        if (entry.source !== 'assignment' || !entry.historyEntryId) {
+          return entry;
+        }
+        const historyUpdate = updatedHistory.find(
+          (historyEntry) => historyEntry.id === entry.historyEntryId,
+        );
+        if (!historyUpdate) {
+          return entry;
+        }
+        const next: EmployeeHoursRecord = {
+          ...entry,
+          workDate: historyUpdate.scheduledStart.slice(0, 10),
+          hours: historyUpdate.hoursWorked,
+          clockInAt: historyUpdate.runStartedAt ?? entry.clockInAt,
+          clockOutAt: nowIso,
+          updatedByRole: actorRole,
+          updatedAt: nowIso,
+        };
+        updatedHours.push(next);
+        return next;
+      }),
+      roster: this.snapshot.roster.map((employee) =>
+        affectedEmployeeIds.has(employee.id)
+          ? { ...employee, lastActivityAt: nowIso }
+          : employee,
+      ),
+    };
+    await this.persistSnapshot();
+    await this.syncLinkedEntryCompletion(
+      existing.assignmentId,
+      nowIso,
+      actorRole,
+      normalizedCompletionNote,
+    );
+
+    return {
+      assignmentId: existing.assignmentId,
+      runStartedAt: activeRunEntries[0]?.runStartedAt ?? null,
+      runEndedAt: nowIso,
+      updatedHistory,
+      updatedHours,
+    };
+  }
+
+  async clockOutAssignmentMember(
+    entryId: string,
+    payload: ClockOutAssignmentMemberDto,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeAssignmentRunLifecycleResult> {
+    this.assertOwnerOrManager(actorRole);
+    const existing = this.snapshot.history.find(
+      (entry) => entry.id === entryId,
+    );
+    if (!existing) {
+      throw new NotFoundException(`Job history entry "${entryId}" not found.`);
+    }
+    if (!existing.assignmentId) {
+      throw new ConflictException(
+        `Entry "${entryId}" is not part of an assignment run.`,
+      );
+    }
+    if (!this.isRunActive(existing)) {
+      throw new ConflictException(`Entry "${entryId}" is not active in a run.`);
+    }
+
+    const nowIso = new Date().toISOString();
+    const nowTimestamp = toTimestamp(nowIso);
+    const runStartTimestamp =
+      toTimestamp(existing.runStartedAt ?? '') ||
+      toTimestamp(existing.scheduledStart);
+    const durationHours = Math.max(
+      0.25,
+      Math.round(((nowTimestamp - runStartTimestamp) / 3_600_000) * 4) / 4,
+    );
+    const normalizedPayloadReason =
+      typeof payload.reason === 'string' ? payload.reason.trim() : '';
+    const reason = normalizedPayloadReason || null;
+    const updatedHistoryEntry: EmployeeJobHistoryRecord = {
+      ...existing,
+      status: 'completed',
+      runEndedAt: nowIso,
+      hoursWorked: durationHours,
+      runClockOutReason: reason,
+    };
+    const updatedHoursIds = this.findLinkedAssignmentHoursEntryIds(existing);
+    const updatedHours: EmployeeHoursRecord[] = [];
+    const assignmentRunStart =
+      existing.runStartedAt ??
+      this.snapshot.history.find(
+        (entry) =>
+          entry.assignmentId === existing.assignmentId &&
+          entry.status === 'scheduled' &&
+          entry.runStartedAt &&
+          !entry.runEndedAt,
+      )?.runStartedAt ??
+      null;
+
+    this.snapshot = {
+      ...this.snapshot,
+      history: this.snapshot.history.map((entry) =>
+        entry.id === existing.id ? updatedHistoryEntry : entry,
+      ),
+      hours: this.snapshot.hours.map((entry) => {
+        if (!updatedHoursIds.has(entry.id)) {
+          return entry;
+        }
+        const next: EmployeeHoursRecord = {
+          ...entry,
+          workDate: updatedHistoryEntry.scheduledStart.slice(0, 10),
+          hours: updatedHistoryEntry.hoursWorked,
+          clockInAt: updatedHistoryEntry.runStartedAt ?? entry.clockInAt,
+          clockOutAt: nowIso,
+          correctionNote: reason ?? entry.correctionNote ?? null,
+          updatedByRole: actorRole,
+          updatedAt: nowIso,
+        };
+        updatedHours.push(next);
+        return next;
+      }),
+      roster: this.snapshot.roster.map((employee) =>
+        employee.id === updatedHistoryEntry.employeeId
+          ? { ...employee, lastActivityAt: nowIso }
+          : employee,
+      ),
+    };
+    await this.persistSnapshot();
+
+    const remainingActiveEntries = this.snapshot.history.filter(
+      (entry) =>
+        entry.assignmentId === existing.assignmentId &&
+        entry.status === 'scheduled' &&
+        this.isRunActive(entry),
+    );
+    if (!remainingActiveEntries.length) {
+      await this.syncLinkedEntryCompletion(
+        existing.assignmentId,
+        nowIso,
+        actorRole,
+        reason,
+      );
+    }
+
+    return {
+      assignmentId: existing.assignmentId,
+      runStartedAt: assignmentRunStart,
+      runEndedAt: remainingActiveEntries.length ? null : nowIso,
+      updatedHistory: [updatedHistoryEntry],
+      updatedHours,
+    };
+  }
+
+  async completeJobHistoryEntry(
+    entryId: string,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeJobHistoryRecord> {
+    this.assertOwnerOrManager(actorRole);
+    const existing = this.snapshot.history.find(
+      (entry) => entry.id === entryId,
+    );
+    if (!existing) {
+      throw new NotFoundException(`Job history entry "${entryId}" not found.`);
+    }
+    if (existing.status === 'completed') {
+      throw new ConflictException(
+        `Job history entry "${entryId}" is already completed.`,
+      );
+    }
+    if (this.isRunActive(existing)) {
+      throw new ConflictException(
+        `Entry "${entryId}" is active. Use end-run action instead.`,
+      );
+    }
+
+    const now = new Date().toISOString();
+    const completed: EmployeeJobHistoryRecord = {
+      ...existing,
+      status: 'completed',
+      runEndedAt: now,
+    };
+
+    this.snapshot = {
+      ...this.snapshot,
+      history: this.snapshot.history.map((entry) =>
+        entry.id === entryId ? completed : entry,
+      ),
+      roster: this.snapshot.roster.map((employee) =>
+        employee.id === existing.employeeId
+          ? { ...employee, lastActivityAt: now }
+          : employee,
+      ),
+    };
+    await this.persistSnapshot();
+    return completed;
+  }
+
+  async updateScheduledHistoryEntry(
+    entryId: string,
+    payload: UpdateScheduledHistoryDto,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeJobHistoryRecord> {
+    this.assertOwnerOrManager(actorRole);
+    const existing = this.snapshot.history.find(
+      (entry) => entry.id === entryId,
+    );
+    if (!existing) {
+      throw new NotFoundException(`Job history entry "${entryId}" not found.`);
+    }
+    if (existing.status === 'cancelled') {
+      throw new ConflictException(
+        `Cancelled entries cannot be edited (entry "${entryId}").`,
+      );
+    }
+    if (this.isRunActive(existing)) {
+      throw new ConflictException(
+        `Active runs cannot be edited (entry "${entryId}"). End the run first.`,
+      );
+    }
+
+    const normalized = this.normalizeScheduledHistoryPatch(payload);
+    const updated: EmployeeJobHistoryRecord = {
+      ...existing,
+      siteLabel: normalized.siteLabel ?? existing.siteLabel,
+      address: normalized.address ?? existing.address,
+      scheduledStart: normalized.scheduledStart ?? existing.scheduledStart,
+      scheduledEnd: normalized.scheduledEnd ?? existing.scheduledEnd,
+    };
+    this.validateScheduledHistoryWindow(updated);
+
+    const conflictingEntry = this.snapshot.history.find(
+      (entry) =>
+        entry.id !== entryId &&
+        entry.employeeId === existing.employeeId &&
+        entry.status === 'scheduled' &&
+        overlapsRange(
+          toTimestamp(updated.scheduledStart),
+          toTimestamp(updated.scheduledEnd),
+          toTimestamp(entry.scheduledStart),
+          toTimestamp(entry.scheduledEnd),
+        ),
+    );
+    if (conflictingEntry) {
+      throw new ConflictException(
+        `Updated schedule overlaps "${conflictingEntry.siteLabel}".`,
+      );
+    }
+
+    const now = new Date().toISOString();
+    const durationHours = Math.max(
+      0.25,
+      Math.round(
+        ((toTimestamp(updated.scheduledEnd) -
+          toTimestamp(updated.scheduledStart)) /
+          3_600_000) *
+          4,
+      ) / 4,
+    );
+    const linkedHoursIds = this.findLinkedAssignmentHoursEntryIds(existing);
+
+    this.snapshot = {
+      ...this.snapshot,
+      history: this.snapshot.history.map((entry) =>
+        entry.id === entryId
+          ? { ...updated, hoursWorked: durationHours }
+          : entry,
+      ),
+      hours: this.snapshot.hours.map((entry) =>
+        linkedHoursIds.has(entry.id)
+          ? {
+              ...entry,
+              workDate: updated.scheduledStart.slice(0, 10),
+              siteLabel: updated.siteLabel,
+              hours: durationHours,
+              updatedByRole: actorRole,
+              updatedAt: now,
+            }
+          : entry,
+      ),
+      roster: this.snapshot.roster.map((employee) =>
+        employee.id === existing.employeeId
+          ? { ...employee, lastActivityAt: now }
+          : employee,
+      ),
+    };
+    await this.persistSnapshot();
+    return {
+      ...updated,
+      hoursWorked: durationHours,
+    };
+  }
+
+  async cancelScheduledHistoryEntry(
+    entryId: string,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeJobHistoryRecord> {
+    this.assertOwnerOrManager(actorRole);
+    const existing = this.snapshot.history.find(
+      (entry) => entry.id === entryId,
+    );
+    if (!existing) {
+      throw new NotFoundException(`Job history entry "${entryId}" not found.`);
+    }
+    if (existing.status !== 'scheduled') {
+      throw new ConflictException(
+        `Only scheduled entries can be cancelled (entry "${entryId}").`,
+      );
+    }
+    if (this.isRunActive(existing)) {
+      throw new ConflictException(
+        `Active runs cannot be cancelled (entry "${entryId}"). End the run first.`,
+      );
+    }
+
+    const cancelled: EmployeeJobHistoryRecord = {
+      ...existing,
+      status: 'cancelled',
+    };
+    const linkedHoursIds = this.findLinkedAssignmentHoursEntryIds(existing);
+    const now = new Date().toISOString();
+
+    this.snapshot = {
+      ...this.snapshot,
+      history: this.snapshot.history.map((entry) =>
+        entry.id === entryId ? cancelled : entry,
+      ),
+      hours: this.snapshot.hours.filter(
+        (entry) => !linkedHoursIds.has(entry.id),
+      ),
+      roster: this.snapshot.roster.map((employee) =>
+        employee.id === existing.employeeId
+          ? { ...employee, lastActivityAt: now }
+          : employee,
+      ),
+    };
+    await this.persistSnapshot();
+    return cancelled;
+  }
+
+  async reassignScheduledHistoryEntry(
+    entryId: string,
+    payload: ReassignScheduledHistoryDto,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeJobHistoryRecord> {
+    this.assertOwnerOrManager(actorRole);
+    const existing = this.snapshot.history.find(
+      (entry) => entry.id === entryId,
+    );
+    if (!existing) {
+      throw new NotFoundException(`Job history entry "${entryId}" not found.`);
+    }
+    if (existing.status !== 'scheduled') {
+      throw new ConflictException(
+        `Only scheduled entries can be reassigned (entry "${entryId}").`,
+      );
+    }
+    if (this.isRunActive(existing)) {
+      throw new ConflictException(
+        `Active runs cannot be reassigned (entry "${entryId}"). End the run first.`,
+      );
+    }
+
+    const nextEmployeeId = payload.employeeId.trim();
+    if (!nextEmployeeId) {
+      throw new BadRequestException('employeeId is required for reassignment.');
+    }
+    if (nextEmployeeId === existing.employeeId) {
+      throw new ConflictException(
+        `Job history entry "${entryId}" is already assigned to this employee.`,
+      );
+    }
+
+    const targetEmployee = this.requireEmployee(nextEmployeeId);
+    if (targetEmployee.status !== 'active') {
+      throw new ConflictException(
+        `Employee "${targetEmployee.fullName}" is inactive and cannot be assigned.`,
+      );
+    }
+
+    const startTimestamp = toTimestamp(existing.scheduledStart);
+    const endTimestamp = toTimestamp(existing.scheduledEnd);
+    const targetOverlap = this.snapshot.history.find(
+      (entry) =>
+        entry.id !== entryId &&
+        entry.employeeId === targetEmployee.id &&
+        entry.status === 'scheduled' &&
+        overlapsRange(
+          startTimestamp,
+          endTimestamp,
+          toTimestamp(entry.scheduledStart),
+          toTimestamp(entry.scheduledEnd),
+        ),
+    );
+    if (targetOverlap) {
+      throw new ConflictException(
+        `Target employee overlaps "${targetOverlap.siteLabel}" (${targetOverlap.scheduledStart} - ${targetOverlap.scheduledEnd}).`,
+      );
+    }
+
+    const reassigned: EmployeeJobHistoryRecord = {
+      ...existing,
+      employeeId: targetEmployee.id,
+    };
+    const linkedHoursIds = this.findLinkedAssignmentHoursEntryIds(existing);
+    const now = new Date().toISOString();
+
+    this.snapshot = {
+      ...this.snapshot,
+      history: this.snapshot.history.map((entry) =>
+        entry.id === entryId ? reassigned : entry,
+      ),
+      hours: this.snapshot.hours.map((entry) =>
+        linkedHoursIds.has(entry.id)
+          ? {
+              ...entry,
+              employeeId: targetEmployee.id,
+              updatedByRole: actorRole,
+              updatedAt: now,
+            }
+          : entry,
+      ),
+      roster: this.snapshot.roster.map((employee) => {
+        if (
+          employee.id === existing.employeeId ||
+          employee.id === targetEmployee.id
+        ) {
+          return { ...employee, lastActivityAt: now };
+        }
+        return employee;
+      }),
+    };
+    await this.persistSnapshot();
+    return reassigned;
+  }
+
+  async createEmployeeProfile(
+    payload: CreateEmployeeDto,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeProfileRecord> {
+    this.assertOwnerOrManager(actorRole);
+    const draft = this.normalizeProfileDraft(payload);
+    this.validateProfileDraft(draft);
+    this.assertNoDuplicateProfile(draft);
+
+    const created: EmployeeProfileRecord = {
+      id: this.createEmployeeId(draft.firstName, draft.lastName),
+      firstName: draft.firstName,
+      lastName: draft.lastName,
+      fullName: formatFullName(draft.firstName, draft.lastName),
+      phone: draft.phone,
+      email: draft.email ?? null,
+      role: draft.role,
+      hourlyRate: draft.hourlyRate,
+      notes: draft.notes ?? '',
+      status: 'active',
+      lastActivityAt: null,
+    };
+
+    this.snapshot = {
+      ...this.snapshot,
+      roster: [created, ...this.snapshot.roster],
+    };
+    await this.persistSnapshot();
+    return created;
+  }
+
+  async updateEmployeeProfile(
+    employeeId: string,
+    payload: UpdateEmployeeDto,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeProfileRecord> {
+    this.assertOwner(actorRole);
+    const existing = this.requireEmployee(employeeId);
+    const draft = this.normalizeProfileDraft({
+      firstName: payload.firstName ?? existing.firstName,
+      lastName: payload.lastName ?? existing.lastName,
+      phone: payload.phone ?? existing.phone,
+      email: payload.email ?? existing.email ?? undefined,
+      role: payload.role ?? existing.role,
+      hourlyRate: payload.hourlyRate ?? existing.hourlyRate,
+      notes: payload.notes ?? existing.notes,
+    });
+
+    this.validateProfileDraft(draft);
+    this.assertNoDuplicateProfile(draft, employeeId);
+
+    const updated: EmployeeProfileRecord = {
+      ...existing,
+      firstName: draft.firstName,
+      lastName: draft.lastName,
+      fullName: formatFullName(draft.firstName, draft.lastName),
+      phone: draft.phone,
+      email: draft.email ?? null,
+      role: draft.role,
+      hourlyRate: draft.hourlyRate,
+      notes: draft.notes ?? '',
+    };
+
+    this.snapshot = {
+      ...this.snapshot,
+      roster: this.snapshot.roster.map((employee) =>
+        employee.id === employeeId ? updated : employee,
+      ),
+    };
+    await this.persistSnapshot();
+    return updated;
+  }
+
+  async archiveEmployee(
+    employeeId: string,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeProfileRecord> {
+    this.assertOwner(actorRole);
+    const existing = this.requireEmployee(employeeId);
+    const archived: EmployeeProfileRecord =
+      existing.status === 'inactive'
+        ? existing
+        : {
+            ...existing,
+            status: 'inactive',
+          };
+    this.snapshot = {
+      ...this.snapshot,
+      roster: this.snapshot.roster.map((employee) =>
+        employee.id === employeeId ? archived : employee,
+      ),
+    };
+    await this.persistSnapshot();
+    return archived;
+  }
+
+  async restoreEmployee(
+    employeeId: string,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeProfileRecord> {
+    this.assertOwner(actorRole);
+    const existing = this.requireEmployee(employeeId);
+    const restored: EmployeeProfileRecord =
+      existing.status === 'active'
+        ? existing
+        : {
+            ...existing,
+            status: 'active',
+          };
+    this.snapshot = {
+      ...this.snapshot,
+      roster: this.snapshot.roster.map((employee) =>
+        employee.id === employeeId ? restored : employee,
+      ),
+    };
+    await this.persistSnapshot();
+    return restored;
+  }
+
+  async createHoursEntry(
+    payload: CreateHoursEntryDto,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeHoursRecord> {
+    this.assertOwnerOrManager(actorRole);
+    const employee = this.requireEmployee(payload.employeeId);
+    const selectedJob = this.resolveJobSelection(payload.jobEntryId);
+    const draft = this.normalizeHoursDraft({
+      workDate: payload.workDate,
+      siteLabel: payload.siteLabel,
+      hours: payload.hours,
+      correctionNote: payload.correctionNote,
+    });
+    this.validateHoursDraft(draft);
+    const now = new Date().toISOString();
+    const createdId = this.createHoursEntryId(payload.employeeId);
+    const linkedHistory = this.buildLinkedHistoryForHoursEntry({
+      hoursEntryId: createdId,
+      employeeId: payload.employeeId,
+      draft,
+      selectedJob,
+    });
+    const created: EmployeeHoursRecord = {
+      id: createdId,
+      employeeId: payload.employeeId,
+      workDate: draft.workDate,
+      siteLabel: selectedJob?.siteLabel ?? draft.siteLabel,
+      hours: draft.hours,
+      source: 'manual',
+      jobEntryId: selectedJob?.entryId ?? null,
+      correctionNote: selectedJob ? null : draft.correctionNote,
+      historyEntryId: linkedHistory?.id ?? null,
+      clockInAt: null,
+      clockOutAt: null,
+      updatedByRole: actorRole,
+      updatedAt: now,
+    };
+    this.snapshot = {
+      ...this.snapshot,
+      hours: [created, ...this.snapshot.hours],
+      history: linkedHistory
+        ? [linkedHistory, ...this.snapshot.history]
+        : this.snapshot.history,
+      roster: this.snapshot.roster.map((record) =>
+        record.id === employee.id ? { ...record, lastActivityAt: now } : record,
+      ),
+    };
+    await this.persistSnapshot();
+    return created;
+  }
+
+  async updateHoursEntry(
+    entryId: string,
+    payload: UpdateHoursEntryDto,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<EmployeeHoursRecord> {
+    this.assertOwnerOrManager(actorRole);
+    const existing = this.snapshot.hours.find((entry) => entry.id === entryId);
+    if (!existing) {
+      throw new NotFoundException(`Hours entry "${entryId}" not found.`);
+    }
+
+    const selectedJob = this.resolveJobSelection(payload.jobEntryId);
+    const draft = this.normalizeHoursDraft({
+      workDate: payload.workDate ?? existing.workDate,
+      siteLabel: payload.siteLabel ?? existing.siteLabel,
+      hours: payload.hours ?? existing.hours,
+      correctionNote:
+        payload.correctionNote ?? existing.correctionNote ?? undefined,
+    });
+    this.validateHoursDraft(draft);
+    const now = new Date().toISOString();
+    const nextJobEntryId = selectedJob?.entryId ?? null;
+    const shouldLinkToJob = Boolean(selectedJob);
+    const existingLinkedHistory = existing.historyEntryId
+      ? (this.snapshot.history.find(
+          (entry) => entry.id === existing.historyEntryId,
+        ) ?? null)
+      : null;
+    const shouldDetachLinkedHistory =
+      Boolean(existingLinkedHistory?.linkedHoursEntryId === existing.id) &&
+      !shouldLinkToJob;
+    const updatedLinkedHistory = shouldLinkToJob
+      ? this.buildLinkedHistoryForHoursEntry({
+          hoursEntryId: existing.id,
+          employeeId: existing.employeeId,
+          draft,
+          selectedJob: selectedJob ?? null,
+          currentHistoryId: existingLinkedHistory?.id ?? undefined,
+        })
+      : existingLinkedHistory?.linkedHoursEntryId === existing.id
+        ? null
+        : existingLinkedHistory;
+    const updated: EmployeeHoursRecord = {
+      ...existing,
+      workDate: draft.workDate,
+      siteLabel: selectedJob?.siteLabel ?? draft.siteLabel,
+      hours: draft.hours,
+      source: existing.source ?? 'manual',
+      jobEntryId: nextJobEntryId,
+      correctionNote: shouldLinkToJob ? null : draft.correctionNote,
+      historyEntryId: updatedLinkedHistory?.id ?? null,
+      clockInAt: existing.clockInAt ?? null,
+      clockOutAt: existing.clockOutAt ?? null,
+      updatedByRole: actorRole,
+      updatedAt: now,
+    };
+
+    this.snapshot = {
+      ...this.snapshot,
+      hours: this.snapshot.hours.map((entry) =>
+        entry.id === entryId ? updated : entry,
+      ),
+      history: this.snapshot.history
+        .filter((entry) =>
+          shouldDetachLinkedHistory
+            ? entry.id !== existingLinkedHistory?.id
+            : true,
+        )
+        .map((entry) =>
+          updatedLinkedHistory && entry.id === updatedLinkedHistory.id
+            ? updatedLinkedHistory
+            : entry,
+        )
+        .concat(
+          updatedLinkedHistory &&
+            !this.snapshot.history.some(
+              (entry) => entry.id === updatedLinkedHistory.id,
+            )
+            ? [updatedLinkedHistory]
+            : [],
+        ),
+      roster: this.snapshot.roster.map((record) =>
+        record.id === existing.employeeId
+          ? { ...record, lastActivityAt: now }
+          : record,
+      ),
+    };
+    await this.persistSnapshot();
+    return updated;
+  }
+
+  async removeHoursEntry(
+    entryId: string,
+    actorRole: EmployeeOperatorRole,
+  ): Promise<void> {
+    this.assertOwnerOrManager(actorRole);
+    const existing = this.snapshot.hours.find((entry) => entry.id === entryId);
+    if (!existing) {
+      throw new NotFoundException(`Hours entry "${entryId}" not found.`);
+    }
+    this.snapshot = {
+      ...this.snapshot,
+      hours: this.snapshot.hours.filter((entry) => entry.id !== entryId),
+      history: this.snapshot.history.filter(
+        (entry) => entry.linkedHoursEntryId !== existing.id,
+      ),
+    };
+    await this.persistSnapshot();
+  }
+
+  private assertOwner(role: EmployeeOperatorRole): void {
+    if (role !== 'owner') {
+      throw new ForbiddenException(
+        'Owner role required for this employees operation.',
+      );
+    }
+  }
+
+  private assertOwnerOrManager(role: EmployeeOperatorRole): void {
+    if (role !== 'owner' && role !== 'manager') {
+      throw new ForbiddenException('Invalid operator role.');
+    }
+  }
+
+  private requireEmployee(employeeId: string): EmployeeProfileRecord {
+    const existing = this.snapshot.roster.find(
+      (employee) => employee.id === employeeId,
+    );
+    if (!existing) {
+      throw new NotFoundException(`Employee "${employeeId}" not found.`);
+    }
+    return existing;
+  }
+
+  private normalizeProfileDraft(payload: CreateEmployeeDto): CreateEmployeeDto {
+    return {
+      firstName: payload.firstName.trim(),
+      lastName: payload.lastName.trim(),
+      phone: payload.phone.trim(),
+      email: payload.email?.trim() ?? undefined,
+      role: payload.role.trim(),
+      hourlyRate: Number(payload.hourlyRate),
+      notes: payload.notes?.trim() ?? '',
+    };
+  }
+
+  private validateProfileDraft(payload: CreateEmployeeDto): void {
+    const missingFields: string[] = [];
+    if (!payload.firstName) {
+      missingFields.push('firstName');
+    }
+    if (!payload.lastName) {
+      missingFields.push('lastName');
+    }
+    if (!payload.phone) {
+      missingFields.push('phone');
+    }
+    if (!payload.role) {
+      missingFields.push('role');
+    }
+    if (!Number.isFinite(payload.hourlyRate)) {
+      missingFields.push('hourlyRate');
+    }
+    if (missingFields.length) {
+      throw new BadRequestException(
+        `Missing required employee fields: ${missingFields.join(', ')}`,
+      );
+    }
+    if (!phonePattern.test(payload.phone)) {
+      throw new BadRequestException('Phone must use format "(###) ###-####".');
+    }
+    if (payload.email && !emailPattern.test(payload.email)) {
+      throw new BadRequestException('Email must be a valid address.');
+    }
+    if (payload.hourlyRate <= 0) {
+      throw new BadRequestException('Hourly rate must be greater than 0.');
+    }
+  }
+
+  private assertNoDuplicateProfile(
+    payload: CreateEmployeeDto,
+    ignoreEmployeeId?: string,
+  ): void {
+    const targetEmail = normalizeText(payload.email ?? '');
+    const targetName = normalizeName(payload.firstName, payload.lastName);
+    const targetPhoneDigits = digitsOnly(payload.phone);
+
+    const duplicate = this.snapshot.roster.find((employee) => {
+      if (ignoreEmployeeId && employee.id === ignoreEmployeeId) {
+        return false;
+      }
+      const emailMatch =
+        Boolean(targetEmail) &&
+        normalizeText(employee.email ?? '') === targetEmail;
+      const namePhoneMatch =
+        Boolean(targetPhoneDigits) &&
+        digitsOnly(employee.phone) === targetPhoneDigits &&
+        normalizeName(employee.firstName, employee.lastName) === targetName;
+      return emailMatch || namePhoneMatch;
+    });
+    if (duplicate) {
+      throw new ConflictException(
+        `Duplicate employee detected: ${duplicate.fullName}.`,
+      );
+    }
+  }
+
+  private normalizeHoursDraft(payload: {
+    workDate: string;
+    siteLabel?: string;
+    hours: number;
+    correctionNote?: string;
+  }): {
+    workDate: string;
+    siteLabel: string;
+    hours: number;
+    correctionNote: string | null;
+  } {
+    const normalizedSiteLabel = payload.siteLabel?.trim() ?? '';
+    return {
+      workDate: payload.workDate.trim(),
+      siteLabel: normalizedSiteLabel || MANUAL_CORRECTION_SITE_LABEL,
+      hours: Number(payload.hours),
+      correctionNote: payload.correctionNote?.trim() || null,
+    };
+  }
+
+  private validateHoursDraft(payload: {
+    workDate: string;
+    siteLabel: string;
+    hours: number;
+    correctionNote: string | null;
+  }): void {
+    const missingFields: string[] = [];
+    if (!payload.workDate) {
+      missingFields.push('workDate');
+    }
+    if (!payload.siteLabel) {
+      missingFields.push('siteLabel');
+    }
+    if (!Number.isFinite(payload.hours)) {
+      missingFields.push('hours');
+    }
+    if (missingFields.length) {
+      throw new BadRequestException(
+        `Missing required hours fields: ${missingFields.join(', ')}`,
+      );
+    }
+    if (payload.hours <= 0 || payload.hours > 24) {
+      throw new BadRequestException(
+        'Hours must be greater than 0 and less than or equal to 24.',
+      );
+    }
+  }
+
+  private createEmployeeId(firstName: string, lastName: string): string {
+    const slug = `${firstName}-${lastName}`.toLowerCase().replace(/\s+/g, '-');
+    return `emp-${slug}-${Date.now()}`;
+  }
+
+  private createHoursEntryId(employeeId: string): string {
+    return `hours-${employeeId}-${Date.now()}`;
+  }
+
+  private normalizeClockAction(value: string): EmployeeClockAction {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'clock_in' || normalized === 'clock_out') {
+      return normalized;
+    }
+    throw new BadRequestException(
+      'Clock action must be either "clock_in" or "clock_out".',
+    );
+  }
+
+  private normalizeClockSiteLabel(value: string | undefined): string {
+    const trimmed = value?.trim() ?? '';
+    return trimmed || 'Field shift';
+  }
+
+  private findOpenClockSession(employeeId: string): EmployeeHoursRecord | null {
+    const openSessions = this.snapshot.hours
+      .filter(
+        (entry) =>
+          entry.employeeId === employeeId &&
+          entry.source === 'clock' &&
+          Boolean(entry.clockInAt) &&
+          !entry.clockOutAt,
+      )
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+    return openSessions[0] ?? null;
+  }
+
+  private normalizeSnapshot(snapshot: EmployeesSnapshot): EmployeesSnapshot {
+    return {
+      ...snapshot,
+      hours: snapshot.hours.map((entry) => ({
+        ...entry,
+        source: entry.source ?? 'manual',
+        jobEntryId: entry.jobEntryId ?? null,
+        correctionNote: entry.correctionNote ?? null,
+        assignmentId: entry.assignmentId ?? null,
+        historyEntryId: entry.historyEntryId ?? null,
+        clockInAt: entry.clockInAt ?? null,
+        clockOutAt: entry.clockOutAt ?? null,
+      })),
+      history: snapshot.history.map((entry) => ({
+        ...entry,
+        runStartedAt: entry.runStartedAt ?? null,
+        runEndedAt: entry.runEndedAt ?? null,
+        runClockOutReason: entry.runClockOutReason ?? null,
+        continuitySourceHistoryEntryId:
+          entry.continuitySourceHistoryEntryId ?? null,
+        continuityCategory: entry.continuityCategory ?? null,
+        continuityReason: entry.continuityReason ?? null,
+        linkedHoursEntryId: entry.linkedHoursEntryId ?? null,
+        jobEntryId: entry.jobEntryId ?? null,
+        assignmentId: entry.assignmentId ?? null,
+      })),
+    };
+  }
+
+  private normalizeStartNextJobPayload(
+    payload: CreateStartNextJobAssignmentDto,
+  ): CreateStartNextJobAssignmentDto {
+    const normalizedJobEntryId = payload.jobEntryId?.trim() ?? '';
+    const normalizedContinuityReason = payload.continuityReason?.trim() ?? '';
+    return {
+      jobLabel: payload.jobLabel.trim(),
+      address: payload.address.trim(),
+      scheduledStart: this.toIsoDateTime(payload.scheduledStart),
+      scheduledEnd: this.toIsoDateTime(payload.scheduledEnd),
+      employeeIds: Array.from(
+        new Set(
+          payload.employeeIds
+            .map((employeeId) => employeeId.trim())
+            .filter(Boolean),
+        ),
+      ),
+      jobEntryId: normalizedJobEntryId || null,
+      continuityCategory: payload.continuityCategory ?? null,
+      continuityReason: normalizedContinuityReason || null,
+    };
+  }
+
+  private resolveAssignmentWindow(
+    payload: CreateStartNextJobAssignmentDto,
+    selectedJob: EmployeeLoggedJobOption | null,
+  ): Pick<
+    CreateStartNextJobAssignmentDto,
+    'jobLabel' | 'address' | 'scheduledStart' | 'scheduledEnd'
+  > {
+    if (!selectedJob) {
+      return {
+        jobLabel: payload.jobLabel,
+        address: payload.address,
+        scheduledStart: payload.scheduledStart,
+        scheduledEnd: payload.scheduledEnd,
+      };
+    }
+    return {
+      jobLabel: selectedJob.siteLabel,
+      address: selectedJob.address,
+      scheduledStart: selectedJob.scheduledStart,
+      scheduledEnd: selectedJob.scheduledEnd,
+    };
+  }
+
+  private validateStartNextJobPayload(
+    payload: CreateStartNextJobAssignmentDto,
+  ): void {
+    const missingFields: string[] = [];
+    if (!payload.jobLabel) {
+      missingFields.push('jobLabel');
+    }
+    if (!payload.address) {
+      missingFields.push('address');
+    }
+    if (!payload.scheduledStart) {
+      missingFields.push('scheduledStart');
+    }
+    if (!payload.scheduledEnd) {
+      missingFields.push('scheduledEnd');
+    }
+    if (!payload.employeeIds.length) {
+      missingFields.push('employeeIds');
+    }
+    if (missingFields.length) {
+      throw new BadRequestException(
+        `Missing required start-next-job fields: ${missingFields.join(', ')}`,
+      );
+    }
+
+    const startTimestamp = toTimestamp(payload.scheduledStart);
+    const endTimestamp = toTimestamp(payload.scheduledEnd);
+    if (!startTimestamp || !endTimestamp) {
+      throw new BadRequestException(
+        'Scheduled start/end must be valid datetimes.',
+      );
+    }
+    if (endTimestamp <= startTimestamp) {
+      throw new BadRequestException(
+        'Scheduled end must be after scheduled start.',
+      );
+    }
+  }
+
+  private collectAssignmentConflicts(
+    employeeIds: string[],
+    startTimestamp: number,
+    endTimestamp: number,
+  ): string[] {
+    const conflicts: string[] = [];
+    for (const employeeId of employeeIds) {
+      const employee = this.requireEmployee(employeeId);
+      if (employee.status === 'inactive') {
+        conflicts.push(`${employee.fullName} is inactive`);
+        continue;
+      }
+      const activeRun = this.snapshot.history.find(
+        (entry) =>
+          entry.employeeId === employeeId &&
+          entry.assignmentId &&
+          this.isRunActive(entry),
+      );
+      if (activeRun) {
+        conflicts.push(
+          `${employee.fullName} is active on "${activeRun.siteLabel}"`,
+        );
+        continue;
+      }
+
+      const overlappingScheduled = this.snapshot.history.find(
+        (entry) =>
+          entry.employeeId === employeeId &&
+          entry.status === 'scheduled' &&
+          overlapsRange(
+            startTimestamp,
+            endTimestamp,
+            toTimestamp(entry.scheduledStart),
+            toTimestamp(entry.scheduledEnd),
+          ),
+      );
+
+      if (overlappingScheduled) {
+        conflicts.push(
+          `${employee.fullName} overlaps "${overlappingScheduled.siteLabel}"`,
+        );
+      }
+    }
+    return conflicts;
+  }
+
+  private isRunActive(entry: EmployeeJobHistoryRecord): boolean {
+    if (entry.status !== 'scheduled') {
+      return false;
+    }
+    if (!entry.runStartedAt || entry.runEndedAt) {
+      return false;
+    }
+    return toTimestamp(entry.runStartedAt) > 0;
+  }
+
+  private toIsoDateTime(value: string): string {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return '';
+    }
+    const parsed = Date.parse(trimmed);
+    if (Number.isNaN(parsed)) {
+      return '';
+    }
+    return new Date(parsed).toISOString();
+  }
+
+  private normalizeLifecycleReportWindow(
+    filters: EmployeeLifecycleReportFilters,
+  ): { from: string | null; to: string | null } {
+    const from = this.normalizeLifecycleWindowBoundary(filters.from, 'from');
+    const to = this.normalizeLifecycleWindowBoundary(filters.to, 'to');
+    if (from && to && toTimestamp(from) > toTimestamp(to)) {
+      throw new BadRequestException(
+        'Lifecycle report "from" must be before or equal to "to".',
+      );
+    }
+    return { from, to };
+  }
+
+  private normalizeLifecycleWindowBoundary(
+    value: string | null | undefined,
+    label: 'from' | 'to',
+  ): string | null {
+    if (!value) {
+      return null;
+    }
+    const normalized = this.toIsoDateTime(value);
+    if (!normalized) {
+      throw new BadRequestException(
+        `Lifecycle report "${label}" must be a valid datetime.`,
+      );
+    }
+    return normalized;
+  }
+
+  private filterHistoryByLifecycleWindow(
+    history: readonly EmployeeJobHistoryRecord[],
+    window: { from: string | null; to: string | null },
+  ): EmployeeJobHistoryRecord[] {
+    const fromTimestamp = window.from ? toTimestamp(window.from) : null;
+    const toTimestampBoundary = window.to ? toTimestamp(window.to) : null;
+    if (fromTimestamp === null && toTimestampBoundary === null) {
+      return [...history];
+    }
+    return history.filter((entry) => {
+      const entryTimestamp = this.resolveLifecycleEntryTimestamp(entry);
+      if (!entryTimestamp) {
+        return false;
+      }
+      if (fromTimestamp !== null && entryTimestamp < fromTimestamp) {
+        return false;
+      }
+      if (
+        toTimestampBoundary !== null &&
+        entryTimestamp > toTimestampBoundary
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  private resolveLifecycleEntryTimestamp(
+    entry: EmployeeJobHistoryRecord,
+  ): number {
+    return toTimestamp(entry.scheduledStart) || toTimestamp(entry.scheduledEnd);
+  }
+
+  private normalizeScheduledHistoryPatch(
+    payload: UpdateScheduledHistoryDto,
+  ): UpdateScheduledHistoryDto {
+    return {
+      siteLabel: payload.siteLabel?.trim(),
+      address: payload.address?.trim(),
+      scheduledStart: payload.scheduledStart
+        ? this.toIsoDateTime(payload.scheduledStart)
+        : undefined,
+      scheduledEnd: payload.scheduledEnd
+        ? this.toIsoDateTime(payload.scheduledEnd)
+        : undefined,
+    };
+  }
+
+  private validateScheduledHistoryWindow(
+    entry: EmployeeJobHistoryRecord,
+  ): void {
+    if (!entry.siteLabel.trim() || !entry.address.trim()) {
+      throw new BadRequestException(
+        'Scheduled entry requires site label and address.',
+      );
+    }
+    const startTimestamp = toTimestamp(entry.scheduledStart);
+    const endTimestamp = toTimestamp(entry.scheduledEnd);
+    if (!startTimestamp || !endTimestamp) {
+      throw new BadRequestException(
+        'Scheduled start/end must be valid datetimes.',
+      );
+    }
+    if (endTimestamp <= startTimestamp) {
+      throw new BadRequestException(
+        'Scheduled end must be after scheduled start.',
+      );
+    }
+  }
+
+  private findLinkedAssignmentHoursEntryIds(
+    entry: EmployeeJobHistoryRecord,
+  ): Set<string> {
+    const linkedIds = new Set<string>();
+    const legacyHoursId = entry.id.includes('-history-')
+      ? entry.id.replace('-history-', '-hours-')
+      : null;
+    for (const hoursEntry of this.snapshot.hours) {
+      if (hoursEntry.source !== 'assignment') {
+        continue;
+      }
+      if (hoursEntry.historyEntryId === entry.id) {
+        linkedIds.add(hoursEntry.id);
+        continue;
+      }
+      if (
+        entry.assignmentId &&
+        hoursEntry.assignmentId === entry.assignmentId
+      ) {
+        if (hoursEntry.employeeId === entry.employeeId) {
+          linkedIds.add(hoursEntry.id);
+        }
+        continue;
+      }
+      if (legacyHoursId && hoursEntry.id === legacyHoursId) {
+        linkedIds.add(hoursEntry.id);
+      }
+    }
+    return linkedIds;
+  }
+
+  private resolveAssignmentContinuityContext(
+    selectedJob: EmployeeLoggedJobOption | null,
+    payload: CreateStartNextJobAssignmentDto,
+  ): AssignmentContinuityContext | null {
+    if (!selectedJob || selectedJob.status !== 'completed') {
+      return null;
+    }
+
+    const category = payload.continuityCategory ?? null;
+    const reason = payload.continuityReason?.trim() ?? '';
+    if (!category || !reason) {
+      throw new BadRequestException(
+        'Completed linked jobs require continuityCategory and continuityReason.',
+      );
+    }
+
+    const sourceHistoryEntry = this.findLatestCompletedHistoryForJobEntry(
+      selectedJob.entryId,
+    );
+    if (!sourceHistoryEntry) {
+      throw new ConflictException(
+        `Completed linked job "${selectedJob.entryId}" does not have a completed history entry to continue from.`,
+      );
+    }
+
+    return {
+      category,
+      reason,
+      sourceHistoryEntry,
+    };
+  }
+
+  private findLatestCompletedHistoryForJobEntry(
+    jobEntryId: string,
+  ): EmployeeJobHistoryRecord | null {
+    const matches = this.snapshot.history
+      .filter(
+        (entry) =>
+          entry.jobEntryId === jobEntryId && entry.status === 'completed',
+      )
+      .sort(sortByHistoryStartDesc);
+    return matches[0] ?? null;
+  }
+
+  private buildContinuityCorrectionNote(
+    continuityContext: AssignmentContinuityContext | null,
+  ): string | null {
+    if (!continuityContext) {
+      return null;
+    }
+    const label = continuityCategoryLabels[continuityContext.category];
+    return label
+      ? `Continuity (${label}): ${continuityContext.reason}`
+      : `Continuity: ${continuityContext.reason}`;
+  }
+
+  private resolveJobSelection(
+    jobEntryId: string | null | undefined,
+  ): EmployeeLoggedJobOption | null {
+    const normalizedEntryId = jobEntryId?.trim() ?? '';
+    if (!normalizedEntryId) {
+      return null;
+    }
+    const entry = this.entriesService
+      .listEntries()
+      .find((record) => record.id === normalizedEntryId);
+    if (!entry) {
+      throw new NotFoundException(
+        `Linked job "${normalizedEntryId}" not found.`,
+      );
+    }
+    return this.toLoggedJobOption(entry);
+  }
+
+  private toLoggedJobOption(entry: StoredEntry): EmployeeLoggedJobOption {
+    const scheduledStart = entry.calendar?.start ?? entry.createdAt;
+    const scheduledEnd =
+      entry.calendar?.end ?? this.deriveDefaultEndTimestamp(scheduledStart);
+    const linkedHistory = this.snapshot.history.filter(
+      (historyEntry) => historyEntry.jobEntryId === entry.id,
+    );
+    const status = this.resolveLoggedJobStatus({
+      scheduledStart,
+      scheduledEnd,
+      linkedHistory,
+    });
+    const clientName =
+      `${entry.form.firstName} ${entry.form.lastName}`.trim() ||
+      'Unknown client';
+    return {
+      entryId: entry.id,
+      clientName,
+      siteLabel: this.resolveJobSiteLabel(entry),
+      address: entry.form.address.trim(),
+      scheduledStart,
+      scheduledEnd,
+      status,
+    };
+  }
+
+  private resolveLoggedJobStatus(input: {
+    scheduledStart: string;
+    scheduledEnd: string;
+    linkedHistory: readonly EmployeeJobHistoryRecord[];
+  }): EmployeeLoggedJobStatus {
+    const nowTimestamp = Date.now();
+    const hasActiveRun = input.linkedHistory.some((entry) =>
+      this.isRunActive(entry),
+    );
+    if (hasActiveRun) {
+      return 'scheduled';
+    }
+    const scheduledEntries = input.linkedHistory.filter(
+      (entry) => entry.status === 'scheduled',
+    );
+    if (scheduledEntries.length) {
+      const hasUpcomingOrActiveWindow = scheduledEntries.some((entry) => {
+        const endTimestamp = toTimestamp(entry.scheduledEnd);
+        return endTimestamp > nowTimestamp;
+      });
+      return hasUpcomingOrActiveWindow ? 'scheduled' : 'late';
+    }
+
+    const hasCompletedEntry = input.linkedHistory.some(
+      (entry) => entry.status === 'completed',
+    );
+    const hasCancelledEntry = input.linkedHistory.some(
+      (entry) => entry.status === 'cancelled',
+    );
+    if (hasCompletedEntry || hasCancelledEntry) {
+      return 'completed';
+    }
+
+    const scheduledEndTimestamp = toTimestamp(input.scheduledEnd);
+    const scheduledStartTimestamp = toTimestamp(input.scheduledStart);
+    if (
+      scheduledEndTimestamp > 0 &&
+      scheduledStartTimestamp > 0 &&
+      scheduledEndTimestamp < nowTimestamp
+    ) {
+      return 'late';
+    }
+    return 'scheduled';
+  }
+
+  private resolveJobSiteLabel(entry: StoredEntry): string {
+    const jobType = entry.form.jobType?.trim();
+    if (jobType) {
+      return jobType;
+    }
+    const fallbackName =
+      `${entry.form.firstName} ${entry.form.lastName}`.trim();
+    return fallbackName ? `${fallbackName} job` : 'Client job';
+  }
+
+  private deriveDefaultEndTimestamp(startIso: string): string {
+    const startTimestamp = toTimestamp(startIso);
+    if (!startTimestamp) {
+      return startIso;
+    }
+    return new Date(startTimestamp + 3_600_000).toISOString();
+  }
+
+  private buildLinkedHistoryForHoursEntry(input: {
+    hoursEntryId: string;
+    employeeId: string;
+    draft: { workDate: string; siteLabel: string; hours: number };
+    selectedJob: EmployeeLoggedJobOption | null;
+    currentHistoryId?: string;
+  }): EmployeeJobHistoryRecord | null {
+    if (!input.selectedJob) {
+      return null;
+    }
+    const selectedJob = input.selectedJob;
+    const startDate = this.resolveHistoryStartFromHours(
+      input.draft.workDate,
+      selectedJob.scheduledStart,
+    );
+    const endDate = this.resolveHistoryEndFromHours(
+      startDate,
+      input.draft.hours,
+    );
+    return {
+      id:
+        input.currentHistoryId ?? `job-hours-${input.employeeId}-${Date.now()}`,
+      employeeId: input.employeeId,
+      siteLabel: selectedJob.siteLabel,
+      address: selectedJob.address,
+      scheduledStart: startDate,
+      scheduledEnd: endDate,
+      hoursWorked: input.draft.hours,
+      status: 'completed',
+      runClockOutReason: null,
+      continuitySourceHistoryEntryId: null,
+      continuityCategory: null,
+      continuityReason: null,
+      linkedHoursEntryId: input.hoursEntryId,
+      jobEntryId: selectedJob.entryId,
+      assignmentId: null,
+    };
+  }
+
+  private resolveHistoryStartFromHours(
+    workDate: string,
+    scheduledStart: string,
+  ): string {
+    const normalizedScheduledStart = toTimestamp(scheduledStart)
+      ? scheduledStart
+      : `${workDate}T12:00:00.000Z`;
+    if (!workDate) {
+      return normalizedScheduledStart;
+    }
+    if (!normalizedScheduledStart.startsWith(workDate)) {
+      return `${workDate}T12:00:00.000Z`;
+    }
+    return normalizedScheduledStart;
+  }
+
+  private resolveHistoryEndFromHours(startIso: string, hours: number): string {
+    const startTimestamp = toTimestamp(startIso);
+    if (!startTimestamp) {
+      return startIso;
+    }
+    return new Date(
+      startTimestamp + Math.max(0.25, hours) * 3_600_000,
+    ).toISOString();
+  }
+
+  private computeReadiness(
+    roster: EmployeeProfileRecord[],
+    history: EmployeeJobHistoryRecord[],
+  ): EmployeeStartNextJobReadiness[] {
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const nowTimestamp = now.getTime();
+    return roster
+      .map((employee) => {
+        const employeeHistory = history.filter(
+          (entry) => entry.employeeId === employee.id,
+        );
+        const completedEntries = employeeHistory
+          .filter((entry) => entry.status === 'completed')
+          .sort(sortByHistoryStartDesc);
+        const scheduledEntries = employeeHistory
+          .filter((entry) => entry.status === 'scheduled')
+          .sort(sortByHistoryStartAsc);
+        const activeRunEntries = scheduledEntries.filter((entry) =>
+          this.isRunActive(entry),
+        );
+        const upcomingEntries = scheduledEntries.filter(
+          (entry) =>
+            this.isRunActive(entry) ||
+            toTimestamp(entry.scheduledEnd) > nowTimestamp,
+        );
+        const activeEntries = activeRunEntries.length
+          ? activeRunEntries
+          : upcomingEntries.filter(
+              (entry) => toTimestamp(entry.scheduledStart) <= nowTimestamp,
+            );
+        const nextScheduledEntry = upcomingEntries[0];
+
+        const readinessState =
+          employee.status === 'inactive'
+            ? 'inactive'
+            : activeEntries.length
+              ? 'scheduled'
+              : 'available';
+        const nextAvailableAt =
+          employee.status === 'inactive'
+            ? null
+            : this.computeNextAvailableAt(
+                upcomingEntries,
+                activeEntries,
+                nowIso,
+              );
+
+        return {
+          employeeId: employee.id,
+          fullName: employee.fullName,
+          status: employee.status,
+          readinessState,
+          scheduledJobsCount: upcomingEntries.length,
+          completedJobsCount: completedEntries.length,
+          scheduledHours: upcomingEntries.reduce(
+            (sum, entry) => sum + entry.hoursWorked,
+            0,
+          ),
+          completedHours: completedEntries.reduce(
+            (sum, entry) => sum + entry.hoursWorked,
+            0,
+          ),
+          nextScheduledStart: nextScheduledEntry?.scheduledStart ?? null,
+          nextScheduledEnd: nextScheduledEntry?.scheduledEnd ?? null,
+          nextAvailableAt,
+          lastCompletedAt: completedEntries[0]?.scheduledEnd ?? null,
+          lastCompletedSite: completedEntries[0]?.siteLabel ?? null,
+          hasScheduleConflict: this.detectScheduleConflict(upcomingEntries),
+          upcomingWindows: upcomingEntries.map((entry) =>
+            this.toAvailabilityWindow(entry),
+          ),
+        } satisfies EmployeeStartNextJobReadiness;
+      })
+      .sort((left, right) => left.fullName.localeCompare(right.fullName));
+  }
+
+  private computeNextAvailableAt(
+    upcomingEntries: EmployeeJobHistoryRecord[],
+    activeEntries: EmployeeJobHistoryRecord[],
+    nowIso: string,
+  ): string {
+    if (!upcomingEntries.length) {
+      return nowIso;
+    }
+    if (!activeEntries.length) {
+      return nowIso;
+    }
+    let availabilityTimestamp = Math.max(
+      ...activeEntries.map((entry) => toTimestamp(entry.scheduledEnd)),
+    );
+    for (const entry of upcomingEntries) {
+      const start = toTimestamp(entry.scheduledStart);
+      if (start > availabilityTimestamp) {
+        break;
+      }
+      availabilityTimestamp = Math.max(
+        availabilityTimestamp,
+        toTimestamp(entry.scheduledEnd),
+      );
+    }
+    return new Date(availabilityTimestamp).toISOString();
+  }
+
+  private detectScheduleConflict(
+    upcomingEntries: EmployeeJobHistoryRecord[],
+  ): boolean {
+    if (upcomingEntries.length <= 1) {
+      return false;
+    }
+    for (let index = 1; index < upcomingEntries.length; index += 1) {
+      const previous = upcomingEntries[index - 1];
+      const current = upcomingEntries[index];
+      if (!previous || !current) {
+        continue;
+      }
+      if (
+        toTimestamp(current.scheduledStart) < toTimestamp(previous.scheduledEnd)
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private toAvailabilityWindow(
+    entry: EmployeeJobHistoryRecord,
+  ): EmployeeAvailabilityWindow {
+    return {
+      jobId: entry.id,
+      siteLabel: entry.siteLabel,
+      address: entry.address,
+      startAt: entry.scheduledStart,
+      endAt: entry.scheduledEnd,
+    };
+  }
+
+  private async syncLinkedEntryCompletion(
+    assignmentId: string,
+    endedAt: string,
+    actorRole: EmployeeOperatorRole,
+    completionNote: string | null,
+  ): Promise<void> {
+    const assignmentEntries = this.snapshot.history.filter(
+      (entry) => entry.assignmentId === assignmentId,
+    );
+    if (!assignmentEntries.length) {
+      return;
+    }
+
+    const linkedJobEntryId =
+      assignmentEntries
+        .find((entry) => Boolean(entry.jobEntryId?.trim()))
+        ?.jobEntryId?.trim() ?? null;
+    if (!linkedJobEntryId) {
+      return;
+    }
+
+    const completedEntries = assignmentEntries.filter(
+      (entry) => entry.status === 'completed',
+    );
+    if (!completedEntries.length) {
+      return;
+    }
+
+    const crewByEmployee = new Map<
+      string,
+      { employeeId: string; fullName: string; hoursWorked: number }
+    >();
+    for (const entry of completedEntries) {
+      const existingCrew = crewByEmployee.get(entry.employeeId);
+      const employeeName =
+        this.snapshot.roster.find(
+          (employee) => employee.id === entry.employeeId,
+        )?.fullName ?? entry.employeeId;
+      if (!existingCrew) {
+        crewByEmployee.set(entry.employeeId, {
+          employeeId: entry.employeeId,
+          fullName: employeeName,
+          hoursWorked: entry.hoursWorked,
+        });
+        continue;
+      }
+      existingCrew.hoursWorked += entry.hoursWorked;
+    }
+
+    const startedAt = completedEntries.reduce<string | null>(
+      (earliest, entry) => {
+        const candidate = entry.runStartedAt ?? entry.scheduledStart;
+        if (!earliest) {
+          return candidate;
+        }
+        return toTimestamp(candidate) < toTimestamp(earliest)
+          ? candidate
+          : earliest;
+      },
+      null,
+    );
+
+    const crew = Array.from(crewByEmployee.values()).map((member) => ({
+      ...member,
+      hoursWorked: Math.round(member.hoursWorked * 100) / 100,
+    }));
+
+    try {
+      await this.entriesService.applyExecutionCompletion(linkedJobEntryId, {
+        startedAt,
+        endedAt,
+        completionNote,
+        completedByRole: actorRole,
+        crew,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unknown completion sync error';
+      this.logger.warn(
+        `Could not sync completion details for linked entry "${linkedJobEntryId}" (${assignmentId}): ${message}`,
+      );
+    }
+  }
+
+  private async persistSnapshot(): Promise<void> {
+    await this.repository.saveSnapshot(this.snapshot);
+  }
+}

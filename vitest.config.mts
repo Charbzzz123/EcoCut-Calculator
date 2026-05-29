@@ -8,8 +8,15 @@ export default defineConfig({
     globals: true,
     coverage: {
       provider: 'v8',
-      reportsDirectory: './coverage',
-      reporter: ['text', 'html', 'lcov']
+      reportsDirectory: './coverage/ecocut-calculator',
+      reporter: ['text', 'html', 'lcov'],
+      thresholds: {
+        perFile: true,
+        statements: 99,
+        branches: 99,
+        functions: 99,
+        lines: 99
+      }
     }
   }
 });

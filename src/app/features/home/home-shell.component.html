@@ -1,0 +1,88 @@
+<section class="home-shell">
+  <article class="home-hero" aria-labelledby="home-hero-heading">
+    <app-brand-banner></app-brand-banner>
+
+    <div class="hero-header">
+      <div class="hero-copy">
+        <p class="eyebrow">Operations snapshot</p>
+        <h1 id="home-hero-heading">EcoCut Dashboard</h1>
+        <p>Review performance, jump into the next quote, or adjust your team in seconds.</p>
+        <div class="hero-cta">
+          <span class="hero-cta__hint">Speed-first workflow • Dark Evergreen theme</span>
+        </div>
+      </div>
+    </div>
+
+    <section class="weekly-hours" aria-label="This week's hours">
+      <div class="weekly-hours__header">
+        <div>
+          <p class="weekly-hours__title">This week's hours</p>
+          <small class="weekly-hours__hint">Live data coming soon</small>
+        </div>
+      </div>
+      <ul class="weekly-hours__list">
+        @if (weeklyHours().length) {
+          @for (summary of weeklyHours(); track summary.id) {
+            <li class="weekly-hours__item">
+              <span class="weekly-hours__name">{{ summary.employee }}</span>
+              <span class="weekly-hours__role">{{ summary.role }}</span>
+              <span class="weekly-hours__hours">{{ summary.hours }}</span>
+              <span class="weekly-hours__amount">{{ summary.amount }}</span>
+            </li>
+          }
+        } @else {
+          <li class="weekly-hours__item weekly-hours__item--empty">
+            <span>Hours summary loading...</span>
+          </li>
+        }
+      </ul>
+    </section>
+    <app-hero-metrics [metrics]="heroMetrics()" />
+  </article>
+
+  <article class="home-actions" aria-label="Quick actions">
+    <app-quick-actions [actions]="quickActions()" (actionSelected)="onQuickAction($event)" />
+  </article>
+
+  <div
+    #addEntryDropdown
+    class="cta-dropdown cta-dropdown--floating"
+    [class.cta-dropdown--open]="addEntryMenuOpen()"
+    (focusout)="handleDropdownFocusOut($event)"
+  >
+    <button
+      type="button"
+      class="floating-cta"
+      aria-haspopup="true"
+      [attr.aria-expanded]="addEntryMenuOpen()"
+      (click)="toggleAddEntryMenu()"
+    >
+      Add Entry
+    </button>
+    <ul class="cta-dropdown__menu" aria-label="Add entry options">
+      <li>
+        <button type="button" class="dropdown-btn dropdown-btn--warm" (click)="startWarmLead()">
+          + Warm Lead
+        </button>
+      </li>
+      <li>
+        <button
+          type="button"
+          class="dropdown-btn dropdown-btn--customer"
+          (click)="startCustomerClosed()"
+        >
+          + Customer / Closed
+        </button>
+      </li>
+    </ul>
+  </div>
+</section>
+
+@if (entryModalOpen()) {
+  <app-entry-modal
+    [open]="entryModalOpen()"
+    [variant]="entryModalVariant()"
+    (closed)="closeEntryModal()"
+    (saved)="handleEntrySaved($event)"
+  />
+}

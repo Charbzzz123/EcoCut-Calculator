@@ -1,0 +1,266 @@
+﻿<section class="chats-shell" [attr.aria-labelledby]="headingId">
+  <article class="chats-hero">
+    <app-brand-banner></app-brand-banner>
+
+    <header class="chats-shell__header">
+      <div class="hero-copy">
+        <p class="eyebrow">Client conversations</p>
+        <h1 [id]="headingId">Chats</h1>
+        <p class="subtitle">
+          Reply to mirrored Quo conversations from EcoCut while client contact links stay synced in
+          the background.
+        </p>
+      </div>
+      <app-back-chip routerLink="/home" label="Back to dashboard"></app-back-chip>
+    </header>
+  </article>
+
+  <section class="chats-summary" aria-label="Chats status">
+    <article class="summary-card">
+      <p class="summary-card__label">Provider</p>
+      <p class="summary-card__value">
+        @if (facade.health()?.connected) {
+          Connected
+        } @else if (facade.health()?.configured) {
+          Needs attention
+        } @else {
+          Not configured
+        }
+      </p>
+      <p class="summary-card__hint">
+        {{ facade.health()?.details ?? 'Checking Quo provider status...' }}
+      </p>
+    </article>
+    <article class="summary-card">
+      <p class="summary-card__label">Conversations</p>
+      <p class="summary-card__value">{{ facade.conversationTotal() }}</p>
+      <p class="summary-card__hint">{{ facade.unreadTotal() }} unread message(s).</p>
+    </article>
+    <article class="summary-card">
+      <p class="summary-card__label">Mirror</p>
+      <p class="summary-card__value">{{ facade.health()?.mirror?.messages ?? 0 }}</p>
+      <p class="summary-card__hint">Mirrored message records available for the inbox.</p>
+    </article>
+  </section>
+
+  @if (facade.error()) {
+    <p class="state-banner state-banner--error" role="alert">
+      {{ facade.error() }}
+      <button type="button" class="text-action" (click)="facade.refresh()">Retry</button>
+    </p>
+  }
+
+  <article
+    class="chats-workspace"
+    [class.chats-workspace--thread-open]="facade.hasActiveThread()"
+    aria-label="Chats inbox"
+  >
+    <section class="conversation-list" aria-label="Conversation list">
+      <header class="panel-header">
+        <div>
+          <p class="panel-eyebrow">Inbox</p>
+          <h2>Conversations</h2>
+        </div>
+        <div class="panel-actions">
+          <button
+            type="button"
+            class="refresh-btn refresh-btn--primary"
+            [disabled]="facade.syncState() === 'syncing'"
+            (click)="syncChats()"
+          >
+            @if (facade.syncState() === 'syncing') {
+              Syncing...
+            } @else {
+              Sync Quo chats
+            }
+          </button>
+          <button type="button" class="refresh-btn" (click)="facade.refresh()">Refresh</button>
+        </div>
+      </header>
+
+      @if (facade.syncState() === 'synced' && facade.syncSummary(); as summary) {
+        <p class="sync-status sync-status--success" role="status">
+          {{ summary }}
+        </p>
+      } @else if (facade.syncState() === 'failed') {
+        <p class="sync-status sync-status--error" role="alert">
+          Sync failed. Check Quo credentials or provider response, then try again.
+        </p>
+      }
+
+      <label class="search-field">
+        <span>Search chats</span>
+        <input
+          type="search"
+          [formControl]="facade.searchControl"
+          placeholder="Name, phone, or message"
+        />
+      </label>
+
+      @if (facade.conversationsState() === 'loading') {
+        <p class="empty-state">Loading conversations...</p>
+      } @else if (facade.conversationsState() === 'error') {
+        <p class="empty-state">Could not load conversations.</p>
+      } @else if (!facade.conversations().length) {
+        <div class="empty-state empty-state--actionable">
+          <p>No mirrored Quo conversations yet.</p>
+          <p>Run a sync to import existing Quo conversation history into EcoCut.</p>
+          <button
+            type="button"
+            class="refresh-btn refresh-btn--primary"
+            [disabled]="facade.syncState() === 'syncing'"
+            (click)="syncChats()"
+          >
+            Sync Quo chats
+          </button>
+        </div>
+      } @else {
+        <div class="conversation-list__items">
+          @for (conversation of facade.conversations(); track conversation.conversationId) {
+            <button
+              type="button"
+              class="conversation-card"
+              [class.conversation-card--active]="
+                facade.selectedConversationId() === conversation.conversationId
+              "
+              (click)="selectConversation(conversation)"
+            >
+              <span class="conversation-card__main">
+                <strong>{{ conversationTitle(conversation) }}</strong>
+                <small>{{ conversationSubtitle(conversation) }}</small>
+                <span>{{ conversation.lastMessagePreview || 'No recent preview.' }}</span>
+              </span>
+              <span class="conversation-card__meta">
+                @if (conversation.unreadCount > 0) {
+                  <span class="unread-pill">{{ conversation.unreadCount }}</span>
+                }
+                <small>{{ conversation.lastMessageAt | date: 'MMM d, h:mm a' }}</small>
+              </span>
+            </button>
+          }
+          @if (facade.hasMoreConversations()) {
+            <button
+              type="button"
+              class="load-more-btn"
+              [disabled]="facade.loadingMoreConversations()"
+              (click)="loadMoreConversations()"
+            >
+              {{
+                facade.loadingMoreConversations()
+                  ? 'Loading older conversations...'
+                  : 'Load older conversations'
+              }}
+            </button>
+          }
+        </div>
+      }
+    </section>
+
+    <section class="thread-panel" aria-label="Selected conversation">
+      @if (facade.selectedConversation(); as conversation) {
+        <header class="thread-header">
+          <button type="button" class="back-to-list" (click)="facade.clearThread()">
+            Back to inbox
+          </button>
+          <div>
+            <p class="panel-eyebrow">Thread</p>
+            <h2>{{ conversationTitle(conversation) }}</h2>
+            <p>{{ conversation.participantPhone ?? 'No phone number on this thread.' }}</p>
+          </div>
+        </header>
+
+        @if (facade.selectedClientContext(); as client) {
+          <section class="client-context" aria-label="Linked client context">
+            <div>
+              <p class="panel-eyebrow">Linked client</p>
+              <h3>{{ client.fullName }}</h3>
+              <p>{{ client.address }}</p>
+            </div>
+            <dl>
+              <div>
+                <dt>Jobs</dt>
+                <dd>{{ client.jobsCount }}</dd>
+              </div>
+              <div>
+                <dt>Last</dt>
+                <dd>
+                  @if (client.lastJobDate) {
+                    {{ client.lastJobDate | date: 'MMM d' }}
+                  } @else {
+                    --
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Next</dt>
+                <dd>
+                  @if (client.nextJobDate) {
+                    {{ client.nextJobDate | date: 'MMM d' }}
+                  } @else {
+                    --
+                  }
+                </dd>
+              </div>
+            </dl>
+            <a class="client-context__link" routerLink="/clients">Open client book</a>
+          </section>
+        }
+
+        @if (facade.threadState() === 'loading') {
+          <p class="empty-state">Loading messages...</p>
+        } @else if (facade.threadState() === 'error') {
+          <p class="empty-state">Could not load this thread.</p>
+        } @else {
+          <div #threadMessages class="thread-messages">
+            @if (!facade.messages().length) {
+              <p class="empty-state">No messages mirrored for this conversation yet.</p>
+            } @else {
+              @for (message of facade.messages(); track message.messageId) {
+                <article
+                  class="message-bubble"
+                  [class.message-bubble--outbound]="message.direction === 'outbound'"
+                  [class.message-bubble--inbound]="message.direction !== 'outbound'"
+                >
+                  <p>{{ messageBody(message) }}</p>
+                  <small>
+                    {{ message.createdAt | date: 'MMM d, h:mm a' }}
+                    @if (message.direction === 'outbound') {
+                      <span>Sent</span>
+                    }
+                  </small>
+                </article>
+              }
+            }
+          </div>
+        }
+
+        <form class="composer" (ngSubmit)="sendMessage()">
+          <label>
+            <span>Reply by SMS</span>
+            <textarea
+              [formControl]="facade.composerControl"
+              rows="3"
+              placeholder="Type a reply..."
+            ></textarea>
+          </label>
+          <div class="composer__actions">
+            @if (facade.sendState() === 'sent') {
+              <span class="send-status send-status--sent">Message sent.</span>
+            } @else if (facade.sendState() === 'failed') {
+              <span class="send-status send-status--failed">Send failed. Try again.</span>
+            } @else if (facade.sendState() === 'sending') {
+              <span class="send-status">Sending...</span>
+            }
+            <button type="submit" class="send-btn" [disabled]="!facade.canSend()">Send</button>
+          </div>
+        </form>
+      } @else {
+        <div class="thread-empty">
+          <p class="panel-eyebrow">Thread</p>
+          <h2>Select a conversation</h2>
+          <p>Choose a Quo conversation from the inbox to read history and reply from EcoCut.</p>
+        </div>
+      }
+    </section>
+  </article>
+</section>

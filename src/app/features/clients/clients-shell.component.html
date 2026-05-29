@@ -1,0 +1,86 @@
+<section class="clients-shell" aria-labelledby="{{ headingId }}">
+  <article class="clients-hero">
+    <app-brand-banner></app-brand-banner>
+
+    <header class="clients-shell__header">
+      <div class="hero-copy">
+        <p class="eyebrow">Client Relationship Manager</p>
+        <h1 id="{{ headingId }}">Client book</h1>
+        <p class="subtitle">
+          Review historical customers, jobs logged, and the last time they were serviced.
+        </p>
+      </div>
+      <app-back-chip routerLink="/home" label="Back to dashboard"></app-back-chip>
+    </header>
+  </article>
+
+  <section class="clients-summary" aria-label="Client metrics">
+    <article class="summary-card">
+      <p class="summary-card__label">Total clients</p>
+      <p class="summary-card__value">{{ statsSnapshot().totalClients }}</p>
+    </article>
+    <article class="summary-card">
+      <p class="summary-card__label">Jobs logged</p>
+      <p class="summary-card__value">{{ statsSnapshot().totalJobs }}</p>
+    </article>
+    <article class="summary-card">
+      <p class="summary-card__label">Last serviced</p>
+      <p class="summary-card__value">
+        @if (statsSnapshot().mostRecentDate) {
+          {{ statsSnapshot().mostRecentDate | date: 'MMM d, y, h:mm a' }}
+        } @else {
+          &mdash;
+        }
+      </p>
+    </article>
+    <article class="summary-card">
+      <p class="summary-card__label">Next job</p>
+      <p class="summary-card__value">
+        @if (statsSnapshot().nextJobDate) {
+          {{ statsSnapshot().nextJobDate | date: 'MMM d, y, h:mm a' }}
+        } @else {
+          &mdash;
+        }
+      </p>
+    </article>
+  </section>
+
+  <app-clients-toolbar
+    [queryControl]="queryControl"
+    (refresh)="loadClients()"
+  ></app-clients-toolbar>
+
+  <app-clients-roster
+    [loadState]="loadState()"
+    [clients]="filteredClientsSnapshot()"
+    [trackByClient]="trackByClientId"
+    (selectClient)="facade.openClientDrawer($event)"
+    (reload)="loadClients()"
+  ></app-clients-roster>
+
+  @if (drawerVisible()) {
+    <app-client-detail-overlay
+      [client]="activeClient()!"
+      [detail]="clientDetail()"
+      [state]="detailState()"
+      (closed)="facade.closeDrawer()"
+      (retry)="facade.reloadClientDetail()"
+      (updateClient)="facade.handleClientUpdate($event)"
+      (deleteClient)="facade.handleClientDelete()"
+      (editEntry)="facade.openEntryEditor($event)"
+      (deleteEntry)="facade.deleteHistoryEntry($event)"
+    ></app-client-detail-overlay>
+  }
+
+  @if (entryEditorOpen()) {
+    <app-entry-editor-overlay
+      [open]="entryEditorOpen()"
+      [variant]="entryEditorVariant()"
+      [headline]="entryEditorHeadline()"
+      [eyebrow]="entryEditorEyebrow()"
+      [payload]="entryEditorPayload()!"
+      (closed)="facade.closeEntryEditor()"
+      (saved)="facade.handleEntryEditorSaved($event)"
+    ></app-entry-editor-overlay>
+  }
+</section>

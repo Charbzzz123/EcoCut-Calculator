@@ -1,0 +1,1021 @@
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { FormControl } from '@angular/forms';
+import { provideRouter } from '@angular/router';
+import { signal } from '@angular/core';
+import { vi } from 'vitest';
+import type {
+  CrossRunTrendSnapshot,
+  CrewConflict,
+  EmployeeAssignmentTrendSnapshot,
+  OngoingRunSnapshot,
+  SelectedCrewHistoryItem,
+} from './start-next-job.types.js';
+import type { EmployeeStartNextJobReadiness } from '../employees/employees.types.js';
+import { StartNextJobFacade } from './start-next-job.facade.js';
+import { StartNextJobShellComponent } from './start-next-job-shell.component.js';
+
+const employee: EmployeeStartNextJobReadiness = {
+  employeeId: 'emp-1',
+  fullName: 'Alex North',
+  status: 'active',
+  readinessState: 'available',
+  scheduledJobsCount: 1,
+  completedJobsCount: 2,
+  scheduledHours: 3,
+  completedHours: 7,
+  nextScheduledStart: '2026-03-21T14:00:00.000Z',
+  nextScheduledEnd: '2026-03-21T17:00:00.000Z',
+  nextAvailableAt: '2026-03-21T17:00:00.000Z',
+  lastCompletedAt: '2026-03-20T12:00:00.000Z',
+  lastCompletedSite: 'Downtown',
+  hasScheduleConflict: true,
+  upcomingWindows: [],
+};
+
+const historyItem: SelectedCrewHistoryItem = {
+  id: 'job-1',
+  employeeId: 'emp-1',
+  employeeName: 'Alex North',
+  siteLabel: 'Downtown',
+  address: '1 Main St',
+  scheduledStart: '2026-03-21T14:00:00.000Z',
+  scheduledEnd: '2026-03-21T15:00:00.000Z',
+  hoursWorked: 1,
+  status: 'scheduled',
+  runStartedAt: null,
+  runEndedAt: null,
+};
+
+const conflict: CrewConflict = {
+  employeeId: 'emp-1',
+  employeeName: 'Alex North',
+  reason: 'Conflict',
+};
+
+const createFacadeStub = () => ({
+  headingId: 'start-next-job-heading',
+  manualJobModeValue: '__manual__',
+  queryControl: new FormControl('', { nonNullable: true }),
+  dispatchModeControl: new FormControl<'start_now' | 'schedule_later'>('start_now', {
+    nonNullable: true,
+  }),
+  linkedJobEntryIdControl: new FormControl('', { nonNullable: true }),
+  jobLabelControl: new FormControl('', { nonNullable: true }),
+  addressControl: new FormControl('', { nonNullable: true }),
+  scheduledStartControl: new FormControl('', { nonNullable: true }),
+  scheduledEndControl: new FormControl('', { nonNullable: true }),
+  continuityCategoryControl: new FormControl('', { nonNullable: true }),
+  continuityReasonControl: new FormControl('', { nonNullable: true }),
+  addressVerificationRequired: false,
+  addressSuggestions: signal([] as { id: string; primaryText: string; secondaryText?: string }[]),
+  showAddressSuggestions: signal(false),
+  addressLookupLoading: signal(false),
+  addressLookupMessage: signal<string | null>(null),
+  addressVerified: signal(false),
+  continuityCategoryOptions: [
+    { value: 'issue_return', label: 'Issue return' },
+    { value: 'touch_up', label: 'Touch-up' },
+    { value: 'client_change', label: 'Client change' },
+    { value: 'weather_delay', label: 'Weather delay' },
+    { value: 'access_issue', label: 'Access issue' },
+    { value: 'other', label: 'Other' },
+  ],
+  analyticsStartDateControl: new FormControl('', { nonNullable: true }),
+  analyticsEndDateControl: new FormControl('', { nonNullable: true }),
+  analyticsWindow: signal<'7d' | '30d' | '90d' | 'custom'>('30d'),
+  loadState: signal<'loading' | 'ready' | 'error'>('loading'),
+  errorMessage: signal('Unable to load Start Next Job data right now.'),
+  saveState: signal<'idle' | 'saving' | 'success' | 'error'>('idle'),
+  saveMessage: signal(''),
+  dismissSaveFeedback: vi.fn(),
+  editingHistoryEntryId: signal<string | null>(null),
+  loggedJobOptions: signal([
+    {
+      entryId: 'entry-1',
+      clientName: 'Alex North',
+      siteLabel: 'Downtown',
+      address: '1 Main St',
+      scheduledStart: '2026-03-21T14:00:00.000Z',
+      scheduledEnd: '2026-03-21T15:00:00.000Z',
+      status: 'scheduled' as const,
+    },
+  ]),
+  selectedLinkedJob: signal<{
+    entryId: string;
+    clientName: string;
+    siteLabel: string;
+    address: string;
+    scheduledStart: string;
+    scheduledEnd: string;
+    status: 'scheduled' | 'late' | 'completed';
+  } | null>(null),
+  hasJobModeSelection: signal(false),
+  isStartNowMode: signal(true),
+  isScheduleLaterMode: signal(false),
+  dispatchTimingSummary: signal(
+    'Starts now: Apr 7, 2026, 3:00 PM -> Apr 7, 2026, 4:00 PM (1h).',
+  ),
+  isManualJobSelection: signal(false),
+  hasLinkedJobSelection: signal(false),
+  requiresContinuityDetails: signal(false),
+  linkedScheduleReadOnly: signal(false),
+  visibleLoggedJobOptions: signal([
+    {
+      entryId: 'entry-1',
+      clientName: 'Alex North',
+      siteLabel: 'Downtown',
+      address: '1 Main St',
+      scheduledStart: '2026-03-21T14:00:00.000Z',
+      scheduledEnd: '2026-03-21T15:00:00.000Z',
+      status: 'scheduled' as const,
+    },
+  ]),
+  visibleDefaultLoggedJobOptions: signal([
+    {
+      entryId: 'entry-1',
+      clientName: 'Alex North',
+      siteLabel: 'Downtown',
+      address: '1 Main St',
+      scheduledStart: '2026-03-21T14:00:00.000Z',
+      scheduledEnd: '2026-03-21T15:00:00.000Z',
+      status: 'scheduled' as const,
+    },
+  ]),
+  visibleCompletedLoggedJobOptions: signal([]),
+  hasVisibleLoggedJobOptions: signal(true),
+  loggedJobStatusCounts: signal({ scheduled: 1, late: 0, completed: 0 }),
+  showCompletedJobOptions: signal(false),
+  filteredReadiness: signal<EmployeeStartNextJobReadiness[]>([]),
+  selectedCrew: signal<EmployeeStartNextJobReadiness[]>([]),
+  selectedCrewConflicts: signal<CrewConflict[]>([]),
+  draftValidation: signal({
+    isReady: false,
+    blockingReasons: ['Job label is required.'],
+  }),
+  selectedCrewHistory: signal<SelectedCrewHistoryItem[]>([]),
+  ongoingRuns: signal<OngoingRunSnapshot[]>([]),
+  scheduledHistoryEntries: signal<SelectedCrewHistoryItem[]>([]),
+  scheduledHistoryCount: signal(0),
+  selectedScheduledHistoryEntries: signal<SelectedCrewHistoryItem[]>([]),
+  selectedScheduledHistoryCount: signal(0),
+  assignmentAnalytics: signal({
+    totalTracked: 0,
+    scheduledCount: 0,
+    completedCount: 0,
+    cancelledCount: 0,
+    completedOnTimeCount: 0,
+    completedLateCount: 0,
+    scheduledLateCount: 0,
+    continuityCount: 0,
+    totalHours: 0,
+    averageHours: 0,
+    completionRate: 0,
+    cancellationRate: 0,
+    uniqueSites: 0,
+  }),
+  employeeTrendAnalytics: signal<EmployeeAssignmentTrendSnapshot[]>([
+    {
+      employeeId: 'emp-1',
+      employeeName: 'Alex North',
+      totalTracked: 0,
+      scheduledCount: 0,
+      completedCount: 0,
+      cancelledCount: 0,
+      totalHours: 0,
+      averageHours: 0,
+      completionRate: 0,
+      cancellationRate: 0,
+      lastScheduledStart: null,
+      lastSiteLabel: null,
+      lastAddress: null,
+    },
+  ]),
+  routeVarianceAnalytics: signal([
+    {
+      routeId: 'downtown|1-main-st',
+      siteLabel: 'Downtown',
+      address: '1 Main St',
+      totalTracked: 0,
+      scheduledCount: 0,
+      completedCount: 0,
+      cancelledCount: 0,
+      totalHours: 0,
+      averageHours: 0,
+      completionRate: 0,
+      cancellationRate: 0,
+      averageHoursVariance: 0,
+      lastScheduledStart: null as string | null,
+    },
+  ]),
+  crossRunTrends: signal<CrossRunTrendSnapshot[]>([
+    {
+      periodStart: '2026-03-21',
+      periodLabel: 'Mar 21',
+      totalTracked: 0,
+      completedCount: 0,
+      cancelledCount: 0,
+      scheduledCount: 0,
+      totalHours: 0,
+      completionRate: 0,
+      cancellationRate: 0,
+      hoursShare: 0,
+    },
+  ]),
+  analyticsRangeError: signal<string | null>(null),
+  canExportAssignmentAnalytics: signal(false),
+  createAssignmentAnalyticsExport: vi.fn().mockReturnValue(null),
+  clearAnalyticsDateRange: vi.fn(),
+  setAnalyticsWindow: vi.fn(),
+  markAnalyticsWindowCustom: vi.fn(),
+  applyLinkedJobSelection: vi.fn(),
+  setDispatchMode: vi.fn(),
+  handleAddressFocus: vi.fn(),
+  handleAddressBlur: vi.fn(),
+  selectAddressSuggestion: vi.fn().mockResolvedValue(undefined),
+  refreshStartNowSchedule: vi.fn(),
+  toggleCompletedJobOptions: vi.fn(),
+  loadBoard: vi.fn().mockResolvedValue(undefined),
+  submitAssignment: vi.fn().mockResolvedValue(true),
+  startHistoryRun: vi.fn().mockResolvedValue(true),
+  endHistoryRun: vi.fn().mockResolvedValue(true),
+  clockOutHistoryMember: vi.fn().mockResolvedValue(true),
+  completeHistoryEntry: vi.fn().mockResolvedValue(true),
+  completeSelectedHistoryEntries: vi.fn().mockResolvedValue(true),
+  beginHistoryEdit: vi.fn(),
+  cancelHistoryEdit: vi.fn(),
+  submitHistoryEdit: vi.fn().mockResolvedValue(true),
+  cancelScheduledHistoryEntry: vi.fn().mockResolvedValue(true),
+  cancelSelectedHistoryEntries: vi.fn().mockResolvedValue(true),
+  reassignHistoryEntry: vi.fn().mockResolvedValue(true),
+  resolveReassignTarget: vi.fn().mockReturnValue(null),
+  canStartHistoryRun: vi.fn().mockReturnValue(true),
+  canEndHistoryRun: vi.fn().mockReturnValue(false),
+  canSubmitHistoryEdit: vi.fn().mockReturnValue(true),
+  isEditingHistoryEntry: vi.fn().mockReturnValue(false),
+  isRunActive: vi.fn().mockReturnValue(false),
+  clearCrewSelection: vi.fn(),
+  clearHistorySelection: vi.fn(),
+  toggleEmployeeSelection: vi.fn(),
+  toggleHistoryEntrySelection: vi.fn(),
+  isEmployeeSelected: vi.fn().mockReturnValue(false),
+  isHistoryEntrySelected: vi.fn().mockReturnValue(false),
+  getReadinessPill: vi.fn().mockReturnValue({ text: 'Available', state: 'available' }),
+  trackByEmployeeId: (_: number, record: EmployeeStartNextJobReadiness) => record.employeeId,
+  trackByCrewConflict: (_: number, value: CrewConflict) => `${value.employeeId}:${value.reason}`,
+  trackByHistoryEntry: (_: number, value: SelectedCrewHistoryItem) => value.id,
+});
+
+describe('StartNextJobShellComponent', () => {
+  let fixture: ComponentFixture<StartNextJobShellComponent>;
+  let facade: ReturnType<typeof createFacadeStub>;
+  const setStepFocus = (
+    step: 'crew' | 'draft' | 'review' | 'history',
+    targetFixture: ComponentFixture<StartNextJobShellComponent>,
+  ): void => {
+    (
+      targetFixture.componentInstance as unknown as {
+        setStepFocus: (value: 'crew' | 'draft' | 'review' | 'history') => void;
+      }
+    ).setStepFocus(step);
+    targetFixture.detectChanges();
+  };
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  beforeEach(async () => {
+    facade = createFacadeStub();
+    await TestBed.configureTestingModule({
+      imports: [StartNextJobShellComponent],
+      providers: [provideRouter([])],
+    })
+      .overrideComponent(StartNextJobShellComponent, {
+        set: {
+          providers: [{ provide: StartNextJobFacade, useValue: facade }],
+        },
+      })
+      .compileComponents();
+
+    fixture = TestBed.createComponent(StartNextJobShellComponent);
+    fixture.detectChanges();
+  });
+
+  it('loads board data on init and renders loading state', () => {
+    expect(facade.loadBoard).toHaveBeenCalledTimes(1);
+    facade.hasJobModeSelection.set(true);
+    setStepFocus('crew', fixture);
+    expect(fixture.nativeElement.textContent).toContain('Start Next Job');
+    expect(fixture.nativeElement.textContent).toContain('Loading readiness data');
+    expect(facade.refreshStartNowSchedule).toHaveBeenCalled();
+  });
+
+  it('renders dispatch timing controls and forwards mode changes', () => {
+    facade.loadState.set('ready');
+    facade.hasJobModeSelection.set(true);
+    fixture.detectChanges();
+    setStepFocus('draft', fixture);
+
+    const modeButtons = fixture.nativeElement.querySelectorAll(
+      '.dispatch-mode__actions .ghost-btn',
+    ) as NodeListOf<HTMLButtonElement>;
+    expect(modeButtons.length).toBe(2);
+    modeButtons[1]?.click();
+    expect(facade.setDispatchMode).toHaveBeenCalledWith('schedule_later');
+  });
+
+  it('renders error state and allows retry', () => {
+    facade.loadState.set('error');
+    facade.hasJobModeSelection.set(true);
+    fixture.detectChanges();
+    setStepFocus('crew', fixture);
+
+    expect(fixture.nativeElement.textContent).toContain(
+      'Unable to load Start Next Job data right now.',
+    );
+    const retry = fixture.nativeElement.querySelector(
+      '.state--error .ghost-btn',
+    ) as HTMLButtonElement;
+    retry.click();
+    expect(facade.loadBoard).toHaveBeenCalledTimes(2);
+  });
+
+  it('renders ready state with empty crew list', () => {
+    facade.loadState.set('ready');
+    facade.hasJobModeSelection.set(true);
+    fixture.detectChanges();
+    setStepFocus('crew', fixture);
+    expect(fixture.nativeElement.textContent).toContain('No employees match this filter.');
+  });
+
+  it('renders crew cards, selected summary, conflicts, and history list', () => {
+    facade.loadState.set('ready');
+    facade.filteredReadiness.set([employee]);
+    facade.selectedCrew.set([employee]);
+    facade.selectedCrewConflicts.set([conflict]);
+    facade.selectedCrewHistory.set([historyItem]);
+    facade.scheduledHistoryEntries.set([historyItem]);
+    facade.scheduledHistoryCount.set(1);
+    facade.assignmentAnalytics.set({
+      totalTracked: 1,
+      scheduledCount: 1,
+      completedCount: 0,
+      cancelledCount: 0,
+      completedOnTimeCount: 0,
+      completedLateCount: 0,
+      scheduledLateCount: 1,
+      continuityCount: 0,
+      totalHours: 1,
+      averageHours: 1,
+      completionRate: 0,
+      cancellationRate: 0,
+      uniqueSites: 1,
+    });
+    facade.employeeTrendAnalytics.set([
+      {
+        employeeId: 'emp-1',
+        employeeName: 'Alex North',
+        totalTracked: 1,
+        scheduledCount: 1,
+        completedCount: 0,
+        cancelledCount: 0,
+        totalHours: 1,
+        averageHours: 1,
+        completionRate: 0,
+        cancellationRate: 0,
+        lastScheduledStart: '2026-03-21T14:00:00.000Z',
+        lastSiteLabel: 'Downtown',
+        lastAddress: '1 Main St',
+      },
+    ]);
+    facade.routeVarianceAnalytics.set([
+      {
+        routeId: 'downtown|1-main-st',
+        siteLabel: 'Downtown',
+        address: '1 Main St',
+        totalTracked: 1,
+        scheduledCount: 1,
+        completedCount: 0,
+        cancelledCount: 0,
+        totalHours: 1,
+        averageHours: 1,
+        completionRate: 0,
+        cancellationRate: 0,
+        averageHoursVariance: 0,
+        lastScheduledStart: '2026-03-21T14:00:00.000Z',
+      },
+    ]);
+    facade.crossRunTrends.set([
+      {
+        periodStart: '2026-03-21',
+        periodLabel: 'Mar 21',
+        totalTracked: 1,
+        completedCount: 0,
+        cancelledCount: 0,
+        scheduledCount: 1,
+        totalHours: 1,
+        completionRate: 0,
+        cancellationRate: 0,
+        hoursShare: 100,
+      },
+    ]);
+    facade.canExportAssignmentAnalytics.set(true);
+    facade.createAssignmentAnalyticsExport.mockReturnValue({
+      filename: 'start-next-job-assignment-analytics-2026-03-21.csv',
+      csvContent: 'Metric,Value',
+      rowCount: 1,
+    });
+    facade.draftValidation.set({ isReady: false, blockingReasons: ['Resolve conflicts'] });
+    facade.hasJobModeSelection.set(true);
+    facade.isEmployeeSelected.mockReturnValue(true);
+    facade.getReadinessPill.mockReturnValue({ text: 'Scheduled', state: 'scheduled' });
+    fixture.detectChanges();
+
+    setStepFocus('crew', fixture);
+    const select = fixture.nativeElement.querySelector('.crew-select-btn') as HTMLButtonElement;
+    select.click();
+    expect(facade.toggleEmployeeSelection).toHaveBeenCalledWith('emp-1');
+
+    setStepFocus('review', fixture);
+    expect(fixture.nativeElement.textContent).toContain('Resolve the following conflicts');
+    expect(fixture.nativeElement.textContent).toContain('Assignment analytics');
+    const analyticsContent = fixture.nativeElement.querySelector(
+      '#start-next-analytics-content',
+    ) as HTMLElement;
+    expect(analyticsContent.classList.contains('motion-collapse--expanded')).toBe(false);
+
+    const panelToggle = fixture.nativeElement.querySelector(
+      '.analytics-panel__collapse-btn',
+    ) as HTMLButtonElement;
+    expect(panelToggle.textContent).toContain('View analytics');
+    panelToggle.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Total tracked');
+    expect(fixture.nativeElement.textContent).toContain('Detailed trend cards are hidden');
+
+    const exportButton = fixture.nativeElement.querySelector(
+      '.analytics-panel__export-btn',
+    ) as HTMLButtonElement;
+    expect(exportButton.disabled).toBe(false);
+    const analyticsToggle = fixture.nativeElement.querySelector(
+      '.analytics-panel__detail-toggle-btn',
+    ) as HTMLButtonElement;
+    expect(analyticsToggle.textContent).toContain('Show detailed analytics');
+    analyticsToggle.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Per-employee trend');
+    expect(fixture.nativeElement.textContent).toContain('Route-level variance');
+    expect(fixture.nativeElement.textContent).toContain('Cross-run trend');
+    const expandedAnalyticsToggle = fixture.nativeElement.querySelector(
+      '.analytics-panel__detail-toggle-btn',
+    ) as HTMLButtonElement;
+    expect(expandedAnalyticsToggle.textContent).toContain('Hide detailed analytics');
+    const windowButtons = fixture.nativeElement.querySelectorAll(
+      '.analytics-window-buttons .analytics-window-btn',
+    ) as NodeListOf<HTMLButtonElement>;
+    windowButtons[0]?.click();
+    expect(facade.setAnalyticsWindow).toHaveBeenCalledWith('7d');
+
+    setStepFocus('history', fixture);
+    expect(fixture.nativeElement.textContent).toContain('Scheduled history');
+    expect(fixture.nativeElement.textContent).toContain('Downtown');
+
+    const selectHistory = fixture.nativeElement.querySelector(
+      '.history-card__actions .history-card__action--select',
+    ) as HTMLButtonElement;
+    selectHistory.click();
+    expect(facade.toggleHistoryEntrySelection).toHaveBeenCalledWith('job-1');
+
+    const startButton = fixture.nativeElement.querySelector(
+      '.history-card__actions .history-card__action--primary',
+    ) as HTMLButtonElement;
+    startButton.click();
+    expect(facade.startHistoryRun).toHaveBeenCalledWith('job-1');
+
+    const edit = fixture.nativeElement.querySelector(
+      '.history-card__actions .history-card__action:nth-of-type(3)',
+    ) as HTMLButtonElement;
+    edit.click();
+    expect(facade.beginHistoryEdit).toHaveBeenCalledWith(historyItem);
+
+    const reassignHintButton = fixture.nativeElement.querySelector(
+      '.history-card__action--info',
+    ) as HTMLButtonElement;
+    expect(reassignHintButton.disabled).toBe(true);
+
+    const cancelButton = fixture.nativeElement.querySelector(
+      '.history-card__actions .history-card__action--danger',
+    ) as HTMLButtonElement;
+    cancelButton.click();
+    expect(facade.cancelScheduledHistoryEntry).toHaveBeenCalledWith('job-1');
+  });
+
+  it('prompts for optional note before clocking out a run member', () => {
+    facade.loadState.set('ready');
+    facade.selectedCrewHistory.set([
+      {
+        ...historyItem,
+        runStartedAt: '2026-03-21T14:05:00.000Z',
+        runEndedAt: null,
+      },
+    ]);
+    facade.scheduledHistoryCount.set(1);
+    facade.canStartHistoryRun.mockReturnValue(false);
+    facade.canEndHistoryRun.mockReturnValue(true);
+    vi.stubGlobal('prompt', vi.fn().mockReturnValue('Left early'));
+    fixture.detectChanges();
+    setStepFocus('history', fixture);
+
+    const clockOutButton = fixture.nativeElement.querySelector(
+      '.history-card__action--warning',
+    ) as HTMLButtonElement;
+    clockOutButton.click();
+
+    expect(facade.clockOutHistoryMember).toHaveBeenCalledWith(
+      'job-1',
+      'Left early',
+    );
+  });
+
+  it('renders ongoing jobs section and forwards end action', () => {
+    facade.loadState.set('ready');
+    facade.ongoingRuns.set([
+      {
+        runKey: 'assignment-1',
+        primaryEntryId: 'job-1',
+        assignmentId: 'assignment-1',
+        displayJobLabel: 'Alex North - Downtown',
+        address: '1 Main St',
+        scheduledStart: '2026-03-21T14:00:00.000Z',
+        scheduledEnd: '2026-03-21T15:00:00.000Z',
+        runStartedAt: '2026-03-21T14:05:00.000Z',
+        activeCrewCount: 2,
+        activeCrewNames: ['Alex North', 'Dana Blue'],
+        state: 'late',
+      },
+    ]);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Ongoing jobs');
+    expect(fixture.nativeElement.textContent).toContain('Alex North - Downtown');
+    expect(fixture.nativeElement.textContent).toContain('Crew (2): Alex North, Dana Blue');
+    vi.stubGlobal('prompt', vi.fn().mockReturnValue('Wrapped up cleanly'));
+    vi.stubGlobal('confirm', vi.fn().mockReturnValue(true));
+
+    const endButton = fixture.nativeElement.querySelector(
+      '.ongoing-run-card__end-btn',
+    ) as HTMLButtonElement;
+    endButton.click();
+    expect(facade.endHistoryRun).toHaveBeenCalledWith(
+      'job-1',
+      'owner',
+      'Wrapped up cleanly',
+    );
+  });
+
+  it('keeps analytics export button disabled when no selected history exists', () => {
+    facade.loadState.set('ready');
+    facade.canExportAssignmentAnalytics.set(false);
+    facade.hasJobModeSelection.set(true);
+    facade.selectedCrew.set([employee]);
+    fixture.detectChanges();
+    setStepFocus('review', fixture);
+
+    const panelToggle = fixture.nativeElement.querySelector(
+      '.analytics-panel__collapse-btn',
+    ) as HTMLButtonElement;
+    panelToggle.click();
+    fixture.detectChanges();
+
+    const exportButton = fixture.nativeElement.querySelector(
+      '.analytics-panel__export-btn',
+    ) as HTMLButtonElement;
+    expect(exportButton.disabled).toBe(true);
+    const analyticsToggle = fixture.nativeElement.querySelector(
+      '.analytics-panel__detail-toggle-btn',
+    ) as HTMLButtonElement;
+    expect(analyticsToggle.disabled).toBe(true);
+  });
+
+  it('shows analytics range error and forwards clear-range action', () => {
+    facade.loadState.set('ready');
+    facade.hasJobModeSelection.set(true);
+    facade.selectedCrew.set([employee]);
+    facade.analyticsStartDateControl.setValue('2026-03-22');
+    facade.analyticsEndDateControl.setValue('2026-03-21');
+    facade.analyticsRangeError.set('Analytics start date must be before the end date.');
+    fixture.detectChanges();
+    setStepFocus('review', fixture);
+
+    const panelToggle = fixture.nativeElement.querySelector(
+      '.analytics-panel__collapse-btn',
+    ) as HTMLButtonElement;
+    panelToggle.click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain(
+      'Analytics start date must be before the end date.',
+    );
+    const clearRangeButton = fixture.nativeElement.querySelector(
+      '.analytics-panel__clear-btn',
+    ) as HTMLButtonElement;
+    expect(clearRangeButton.disabled).toBe(false);
+    clearRangeButton.click();
+    expect(facade.clearAnalyticsDateRange).toHaveBeenCalledTimes(1);
+
+    const dateInputs = fixture.nativeElement.querySelectorAll(
+      '.analytics-panel__filters input[type="date"]',
+    ) as NodeListOf<HTMLInputElement>;
+    dateInputs[0]?.dispatchEvent(new Event('change'));
+    expect(facade.markAnalyticsWindowCustom).toHaveBeenCalled();
+  });
+
+  it('exports assignment analytics as CSV when export payload is available', () => {
+    const createObjectURL = vi.fn().mockReturnValue('blob:analytics');
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal('URL', {
+      createObjectURL,
+      revokeObjectURL,
+    });
+    facade.createAssignmentAnalyticsExport.mockReturnValue({
+      filename: 'start-next-job-assignment-analytics-2026-03-21.csv',
+      csvContent: 'Metric,Value',
+      rowCount: 1,
+    });
+
+    (
+      fixture.componentInstance as unknown as { exportAssignmentAnalytics: () => void }
+    ).exportAssignmentAnalytics();
+
+    expect(facade.createAssignmentAnalyticsExport).toHaveBeenCalledTimes(1);
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:analytics');
+  });
+
+  it('does not start a CSV download when analytics export is unavailable', () => {
+    const createObjectURL = vi.fn();
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal('URL', {
+      createObjectURL,
+      revokeObjectURL,
+    });
+    facade.createAssignmentAnalyticsExport.mockReturnValue(null);
+
+    (
+      fixture.componentInstance as unknown as { exportAssignmentAnalytics: () => void }
+    ).exportAssignmentAnalytics();
+
+    expect(facade.createAssignmentAnalyticsExport).toHaveBeenCalledTimes(1);
+    expect(createObjectURL).not.toHaveBeenCalled();
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+  });
+
+  it('renders bulk actions for scheduled history and forwards button events', () => {
+    facade.loadState.set('ready');
+    facade.selectedCrewHistory.set([historyItem]);
+    facade.scheduledHistoryEntries.set([historyItem]);
+    facade.scheduledHistoryCount.set(1);
+    facade.selectedScheduledHistoryEntries.set([historyItem]);
+    facade.selectedScheduledHistoryCount.set(1);
+    fixture.detectChanges();
+    setStepFocus('history', fixture);
+
+    expect(fixture.nativeElement.textContent).toContain('1 of 1 scheduled selected');
+
+    const bulkButtons = fixture.nativeElement.querySelectorAll('.history-bulk-actions .ghost-btn');
+    (bulkButtons[0] as HTMLButtonElement).click();
+    expect(facade.clearHistorySelection).toHaveBeenCalled();
+
+    (bulkButtons[1] as HTMLButtonElement).click();
+    expect(facade.completeSelectedHistoryEntries).toHaveBeenCalled();
+
+    (bulkButtons[2] as HTMLButtonElement).click();
+    expect(facade.cancelSelectedHistoryEntries).toHaveBeenCalled();
+  });
+
+  it('triggers reassign action when a valid target is selected', () => {
+    facade.loadState.set('ready');
+    facade.selectedCrew.set([employee]);
+    facade.selectedCrewHistory.set([historyItem]);
+    facade.resolveReassignTarget.mockReturnValue({
+      employeeId: 'emp-2',
+      fullName: 'Bruno East',
+    });
+    fixture.detectChanges();
+    setStepFocus('history', fixture);
+
+    const reassignButton = fixture.nativeElement.querySelector(
+      '.history-card__action--info',
+    ) as HTMLButtonElement;
+    expect(reassignButton.disabled).toBe(false);
+    reassignButton.click();
+    expect(facade.reassignHistoryEntry).toHaveBeenCalledWith(historyItem);
+  });
+
+  it('renders draft-ready branch and clear crew action', () => {
+    facade.loadState.set('ready');
+    facade.hasJobModeSelection.set(true);
+    facade.filteredReadiness.set([employee]);
+    facade.selectedCrew.set([employee]);
+    facade.draftValidation.set({ isReady: true, blockingReasons: [] });
+    fixture.detectChanges();
+    setStepFocus('review', fixture);
+
+    const saveButton = fixture.nativeElement.querySelector('.primary-btn') as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(false);
+    saveButton.click();
+    expect(facade.submitAssignment).toHaveBeenCalled();
+    setStepFocus('draft', fixture);
+
+    const clearButton = fixture.nativeElement.querySelector(
+      '.draft-actions__secondary .ghost-btn:first-of-type',
+    ) as HTMLButtonElement;
+    clearButton.click();
+    expect(facade.clearCrewSelection).toHaveBeenCalled();
+  });
+
+  it('renders blocker affordance buttons and routes to the right step', () => {
+    facade.loadState.set('ready');
+    facade.hasJobModeSelection.set(true);
+    facade.selectedCrew.set([employee]);
+    facade.draftValidation.set({
+      isReady: false,
+      blockingReasons: [
+        'Select at least one employee for the crew.',
+        'Job label is required.',
+      ],
+    });
+    fixture.detectChanges();
+    setStepFocus('review', fixture);
+
+    const actionButtons = fixture.nativeElement.querySelectorAll(
+      '.validation-box__action',
+    ) as NodeListOf<HTMLButtonElement>;
+    expect(actionButtons.length).toBe(2);
+    expect(actionButtons[0]?.textContent).toContain('Go to Step 2');
+    expect(actionButtons[1]?.textContent).toContain('Fix in Step 1');
+
+    actionButtons[0]?.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Step 2 - Crew pool');
+
+    setStepFocus('review', fixture);
+    const refreshedButtons = fixture.nativeElement.querySelectorAll(
+      '.validation-box__action',
+    ) as NodeListOf<HTMLButtonElement>;
+    refreshedButtons[1]?.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Step 1 - Job details');
+  });
+
+  it('opens draft advanced controls from continuity blocker action', () => {
+    facade.loadState.set('ready');
+    facade.hasJobModeSelection.set(true);
+    facade.selectedCrew.set([employee]);
+    facade.draftValidation.set({
+      isReady: false,
+      blockingReasons: ['Continuity reason is required when using a completed linked job.'],
+    });
+    fixture.detectChanges();
+    setStepFocus('review', fixture);
+
+    const actionButton = fixture.nativeElement.querySelector(
+      '.validation-box__action',
+    ) as HTMLButtonElement;
+    expect(actionButton.textContent).toContain('Open continuity');
+    actionButton.click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Step 1 - Job details');
+    expect(fixture.nativeElement.textContent).toContain('Hide advanced');
+  });
+
+  it('renders linked job selector in draft step and forwards linked-job changes', () => {
+    facade.loadState.set('ready');
+    facade.hasJobModeSelection.set(true);
+    facade.hasLinkedJobSelection.set(true);
+    facade.selectedLinkedJob.set({
+      entryId: 'entry-1',
+      clientName: 'Alex North',
+      siteLabel: 'Downtown',
+      address: '1 Main St',
+      scheduledStart: '2026-03-21T14:00:00.000Z',
+      scheduledEnd: '2026-03-21T15:00:00.000Z',
+      status: 'scheduled',
+    });
+    fixture.detectChanges();
+    setStepFocus('draft', fixture);
+
+    const linkedJobSelect = fixture.nativeElement.querySelector(
+      '#start-next-draft select',
+    ) as HTMLSelectElement;
+    linkedJobSelect.value = linkedJobSelect.options[2]?.value ?? 'entry-1';
+    linkedJobSelect.dispatchEvent(new Event('change'));
+    expect(facade.applyLinkedJobSelection).toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain('Linked job selected:');
+  });
+
+  it('renders saving and feedback states for assignment submit', () => {
+    facade.loadState.set('ready');
+    facade.hasJobModeSelection.set(true);
+    facade.selectedCrew.set([employee]);
+    facade.draftValidation.set({ isReady: true, blockingReasons: [] });
+    facade.saveState.set('saving');
+    facade.saveMessage.set('Saving assignment...');
+    fixture.detectChanges();
+    setStepFocus('review', fixture);
+
+    const saveButton = fixture.nativeElement.querySelector('.primary-btn') as HTMLButtonElement;
+    expect(saveButton.textContent).toContain('Saving assignment');
+    expect(saveButton.disabled).toBe(true);
+    const toast = fixture.nativeElement.querySelector('.save-toast') as HTMLElement | null;
+    expect(toast?.textContent).toContain(
+      'Saving assignment',
+    );
+    expect(toast?.textContent).not.toContain('Dismiss');
+  });
+
+  it('shows dismiss action on non-saving feedback and forwards dismissal', () => {
+    facade.loadState.set('ready');
+    facade.saveState.set('success');
+    facade.saveMessage.set('Assignment saved.');
+    fixture.detectChanges();
+
+    const dismissButton = fixture.nativeElement.querySelector(
+      '.save-toast .save-toast__dismiss',
+    ) as HTMLButtonElement;
+    dismissButton.click();
+    expect(facade.dismissSaveFeedback).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps step navigation locked until prerequisites are met', () => {
+    facade.loadState.set('ready');
+    fixture.detectChanges();
+
+    const jumpButtons = fixture.nativeElement.querySelectorAll(
+      '.start-next-jump__actions .ghost-btn',
+    ) as NodeListOf<HTMLButtonElement>;
+    expect(jumpButtons[1]?.disabled).toBe(true);
+    expect(jumpButtons[2]?.disabled).toBe(true);
+    expect(jumpButtons[3]?.disabled).toBe(true);
+    expect(fixture.nativeElement.textContent).toContain('Choose linked job or manual mode');
+  });
+
+  it('unlocks step navigation and updates draft status once prerequisites are provided', () => {
+    facade.loadState.set('ready');
+    facade.hasJobModeSelection.set(true);
+    facade.selectedCrew.set([employee]);
+    facade.scheduledHistoryCount.set(1);
+    fixture.detectChanges();
+
+    const jumpButtons = fixture.nativeElement.querySelectorAll(
+      '.start-next-jump__actions .ghost-btn',
+    ) as NodeListOf<HTMLButtonElement>;
+    expect(jumpButtons[1]?.disabled).toBe(false);
+    expect(jumpButtons[2]?.disabled).toBe(false);
+    expect(jumpButtons[3]?.disabled).toBe(false);
+    expect(fixture.nativeElement.textContent).toContain('Linked job mode selected');
+
+    jumpButtons[1]?.click();
+    jumpButtons[2]?.click();
+    jumpButtons[3]?.click();
+    expect(fixture.nativeElement.textContent).toContain('Scheduled history');
+  });
+
+  it('uses edit mode actions when a history entry is being edited', () => {
+    facade.loadState.set('ready');
+    facade.hasJobModeSelection.set(true);
+    facade.selectedCrew.set([employee]);
+    facade.editingHistoryEntryId.set('job-1');
+    facade.canSubmitHistoryEdit.mockReturnValue(true);
+    fixture.detectChanges();
+    setStepFocus('review', fixture);
+
+    const primary = fixture.nativeElement.querySelector('.primary-btn') as HTMLButtonElement;
+    expect(primary.textContent).toContain('Save schedule update');
+    primary.click();
+    expect(facade.submitHistoryEdit).toHaveBeenCalled();
+    setStepFocus('draft', fixture);
+
+    const cancelEdit = fixture.nativeElement.querySelector(
+      '.draft-actions__secondary .ghost-btn:last-of-type',
+    ) as HTMLButtonElement;
+    cancelEdit.click();
+    expect(facade.cancelHistoryEdit).toHaveBeenCalled();
+  });
+
+  it('ignores locked step changes and only changes when prerequisites are met', () => {
+    facade.loadState.set('ready');
+    fixture.detectChanges();
+
+    setStepFocus('crew', fixture);
+    expect(fixture.nativeElement.textContent).toContain('Step 1 - Job details');
+
+    facade.hasJobModeSelection.set(true);
+    setStepFocus('crew', fixture);
+    expect(fixture.nativeElement.textContent).toContain('Step 2 - Crew pool');
+
+    setStepFocus('review', fixture);
+    expect(fixture.nativeElement.textContent).toContain('Step 2 - Crew pool');
+
+    facade.selectedCrew.set([employee]);
+    setStepFocus('review', fixture);
+    expect(fixture.nativeElement.textContent).toContain('Step 3 - Assignment summary');
+  });
+
+  it('supports reduced-motion save toast closing without waiting for timer', () => {
+    facade.loadState.set('ready');
+    vi.stubGlobal(
+      'window',
+      Object.assign(window, {
+        matchMedia: vi.fn().mockReturnValue({ matches: true }),
+      }),
+    );
+    facade.saveState.set('success');
+    facade.saveMessage.set('Saved.');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.save-toast')).not.toBeNull();
+
+    facade.saveState.set('idle');
+    facade.saveMessage.set('');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.save-toast')).toBeNull();
+  });
+
+  it('animates save toast close when reduced motion is disabled', () => {
+    vi.useFakeTimers();
+    facade.loadState.set('ready');
+    vi.stubGlobal(
+      'window',
+      Object.assign(window, {
+        matchMedia: vi.fn().mockReturnValue({ matches: false }),
+      }),
+    );
+    facade.saveState.set('success');
+    facade.saveMessage.set('Saved.');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.save-toast')).not.toBeNull();
+
+    facade.saveState.set('idle');
+    facade.saveMessage.set('');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.save-toast')).not.toBeNull();
+
+    vi.advanceTimersByTime(220);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.save-toast')).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it('does not end run when prompt is cancelled or confirm is declined', () => {
+    vi.stubGlobal('prompt', vi.fn().mockReturnValueOnce(null).mockReturnValueOnce('note'));
+    vi.stubGlobal('confirm', vi.fn().mockReturnValue(false));
+
+    (
+      fixture.componentInstance as unknown as {
+        endOngoingRun: (entryId: string) => void;
+      }
+    ).endOngoingRun('job-1');
+    (
+      fixture.componentInstance as unknown as {
+        endOngoingRun: (entryId: string) => void;
+      }
+    ).endOngoingRun('job-1');
+
+    expect(facade.endHistoryRun).not.toHaveBeenCalled();
+  });
+
+  it('returns workflow summaries for crew and review branches', () => {
+    facade.hasJobModeSelection.set(true);
+    setStepFocus('crew', fixture);
+    expect(
+      (
+        fixture.componentInstance as unknown as {
+          workflowProgressSummary: () => string;
+        }
+      ).workflowProgressSummary(),
+    ).toContain('Select at least 1 crew member');
+
+    facade.selectedCrew.set([employee]);
+    facade.draftValidation.set({ isReady: true, blockingReasons: [] });
+    setStepFocus('review', fixture);
+    expect(
+      (
+        fixture.componentInstance as unknown as {
+          workflowProgressSummary: () => string;
+        }
+      ).workflowProgressSummary(),
+    ).toContain('Ready to save');
+  });
+
+  it('returns state labels for all ongoing run states', () => {
+    const component = fixture.componentInstance as unknown as {
+      ongoingRunStateLabel: (state: 'on_schedule' | 'late' | 'early_start') => string;
+    };
+    expect(component.ongoingRunStateLabel('late')).toBe('Late');
+    expect(component.ongoingRunStateLabel('early_start')).toBe('Early start');
+    expect(component.ongoingRunStateLabel('on_schedule')).toBe('On schedule');
+  });
+});

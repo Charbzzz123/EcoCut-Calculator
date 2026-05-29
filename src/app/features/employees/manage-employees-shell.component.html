@@ -1,0 +1,1419 @@
+﻿<section class="employees-shell" aria-labelledby="{{ headingId }}">
+  <article class="employees-hero">
+    <app-brand-banner></app-brand-banner>
+
+    <header class="employees-shell__header">
+      <div class="hero-copy">
+        <p class="eyebrow">Workforce Operations</p>
+        <h1 id="{{ headingId }}">Manage employees</h1>
+        <p class="subtitle">
+          Monitor your roster, filter by availability status, and keep workforce operations clean
+          while owner/manager permissions stay explicit.
+        </p>
+      </div>
+      <app-back-chip routerLink="/home" label="Back to dashboard"></app-back-chip>
+    </header>
+  </article>
+
+  <article class="employees-toolbar" aria-label="Employee filters">
+    <section class="employees-toolbar__group employees-toolbar__group--primary">
+      <p class="employees-toolbar__group-label">Primary controls</p>
+      <div class="employees-toolbar__row">
+        <label class="field">
+          <span class="field__label">Search roster</span>
+          <input
+            class="field__input"
+            type="search"
+            placeholder="Name, role, email, or phone"
+            [formControl]="queryControl"
+          />
+        </label>
+
+        <div class="toolbar-actions">
+          <button type="button" class="refresh-btn" (click)="refreshRoster()">
+            Refresh roster
+          </button>
+          <button type="button" class="add-btn" (click)="openCreateProfile()">Add employee</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="employees-toolbar__group employees-toolbar__group--advanced">
+      <p class="employees-toolbar__group-label">Advanced controls</p>
+      <div class="employees-toolbar__advanced-grid">
+        <div class="role-mode" role="group" aria-label="Operator role">
+          <span class="role-mode__label">Operator mode</span>
+          <button
+            type="button"
+            class="status-pill"
+            [class.status-pill--active]="operatorRole() === 'owner'"
+            [attr.aria-pressed]="operatorRole() === 'owner'"
+            (click)="roleControl.setValue('owner')"
+          >
+            Owner
+          </button>
+          <button
+            type="button"
+            class="status-pill"
+            [class.status-pill--active]="operatorRole() === 'manager'"
+            [attr.aria-pressed]="operatorRole() === 'manager'"
+            (click)="roleControl.setValue('manager')"
+          >
+            Manager
+          </button>
+          <span class="role-mode__hint">
+            @if (operatorRole() === 'owner') {
+              Full profile and hours control.
+            } @else {
+              Add employees + edit hours only.
+            }
+          </span>
+        </div>
+
+        <div class="status-filters-block">
+          <span class="status-filters-block__label">Roster status</span>
+          <div class="status-filters" role="group" aria-label="Status filters">
+            <button
+              type="button"
+              class="status-pill"
+              [class.status-pill--active]="statusFilter() === 'all'"
+              [attr.aria-pressed]="statusFilter() === 'all'"
+              (click)="setStatusFilter('all')"
+            >
+              All
+            </button>
+            <button
+              type="button"
+              class="status-pill"
+              [class.status-pill--active]="statusFilter() === 'active'"
+              [attr.aria-pressed]="statusFilter() === 'active'"
+              (click)="setStatusFilter('active')"
+            >
+              Active
+            </button>
+            <button
+              type="button"
+              class="status-pill"
+              [class.status-pill--active]="statusFilter() === 'inactive'"
+              [attr.aria-pressed]="statusFilter() === 'inactive'"
+              (click)="setStatusFilter('inactive')"
+            >
+              Inactive
+            </button>
+          </div>
+        </div>
+      </div>
+      <p class="employees-toolbar__summary" aria-live="polite">
+        Showing {{ filteredRosterSnapshot().length }} employee(s) in current filter.
+      </p>
+      <section class="employees-summary" aria-label="Employee metrics">
+        <article class="summary-card">
+          <p class="summary-card__label">Total employees</p>
+          <p class="summary-card__value">{{ statsSnapshot().total }}</p>
+        </article>
+        <article class="summary-card">
+          <p class="summary-card__label">Active</p>
+          <p class="summary-card__value">{{ statsSnapshot().active }}</p>
+        </article>
+        <article class="summary-card">
+          <p class="summary-card__label">Inactive</p>
+          <p class="summary-card__value">{{ statsSnapshot().inactive }}</p>
+        </article>
+      </section>
+    </section>
+  </article>
+
+  <article class="employees-workspace" aria-label="Workspace mode">
+    <p class="employees-workspace__label">Workspace mode</p>
+    <div class="employees-workspace__actions">
+      <button
+        type="button"
+        class="status-pill"
+        [class.status-pill--active]="workspaceFocus() === 'roster'"
+        [attr.aria-pressed]="workspaceFocus() === 'roster'"
+        aria-controls="employees-roster"
+        (click)="setWorkspaceFocus('roster')"
+      >
+        Roster focus
+      </button>
+      <button
+        type="button"
+        class="status-pill"
+        [class.status-pill--active]="workspaceFocus() === 'clock'"
+        [attr.aria-pressed]="workspaceFocus() === 'clock'"
+        aria-controls="employees-clock"
+        (click)="setWorkspaceFocus('clock')"
+      >
+        Clock board
+      </button>
+      <button
+        type="button"
+        class="status-pill"
+        [class.status-pill--active]="workspaceFocus() === 'readiness'"
+        [attr.aria-pressed]="workspaceFocus() === 'readiness'"
+        aria-controls="employees-readiness"
+        (click)="setWorkspaceFocus('readiness')"
+      >
+        Assignment readiness
+      </button>
+    </div>
+    <p class="employees-workspace__hint">
+      Profile, hours, and history open from each employee card action.
+    </p>
+  </article>
+
+  @if (workspaceNotice()) {
+    <p class="workspace-notice" role="status" aria-live="polite">{{ workspaceNotice() }}</p>
+  }
+  @if (hoursSuccess()) {
+    <p class="workspace-notice workspace-notice--success" role="status" aria-live="polite">
+      {{ hoursSuccess() }}
+    </p>
+  }
+
+  @if (workspaceFocus() === 'clock') {
+    <article id="employees-clock" class="employees-clock" aria-label="Clock in and clock out">
+      <header class="employees-clock__header">
+        <div>
+          <p class="employees-clock__eyebrow">Payroll reconciliation</p>
+          <h2>Employee clock in/out</h2>
+        </div>
+      </header>
+
+      @if (!clockSummaries().length) {
+        <p class="roster-state workspace-state">No employees available for clock actions.</p>
+      } @else {
+        <ul class="clock-list">
+          @for (summary of clockSummaries(); track trackByClockEmployeeId($index, summary)) {
+            <li class="clock-card">
+              <header class="clock-card__header">
+                <h3>{{ summary.fullName }}</h3>
+                <span
+                  class="status-chip"
+                  [class.status-chip--inactive]="summary.state !== 'clocked_in'"
+                >
+                  @if (summary.state === 'clocked_in') {
+                    Clocked in
+                  } @else if (summary.state === 'inactive') {
+                    Inactive
+                  } @else {
+                    Clocked out
+                  }
+                </span>
+              </header>
+
+              <p class="clock-card__meta">
+                Last activity:
+                @if (summary.lastActivityAt) {
+                  {{ summary.lastActivityAt | date: 'MMM d, y, h:mm a' }}
+                } @else {
+                  &mdash;
+                }
+              </p>
+              <p class="clock-card__meta">
+                Site:
+                @if (summary.currentSiteLabel) {
+                  {{ summary.currentSiteLabel }}
+                } @else {
+                  &mdash;
+                }
+              </p>
+              <p class="clock-card__meta">
+                Clock-in:
+                @if (summary.clockInAt) {
+                  {{ summary.clockInAt | date: 'MMM d, y, h:mm a' }}
+                } @else {
+                  &mdash;
+                }
+              </p>
+              <p class="clock-card__meta">
+                Last clock-out:
+                @if (summary.clockOutAt) {
+                  {{ summary.clockOutAt | date: 'MMM d, y, h:mm a' }}
+                } @else {
+                  &mdash;
+                }
+              </p>
+              <p class="clock-card__meta">
+                Last duration:
+                @if (summary.lastDurationHours) {
+                  {{ summary.lastDurationHours }}h
+                } @else {
+                  &mdash;
+                }
+              </p>
+
+              <div class="employee-card__actions">
+                <button
+                  type="button"
+                  class="employee-action employee-action--primary"
+                  [disabled]="summary.state === 'clocked_in' || summary.state === 'inactive'"
+                  (click)="clockIn(summary.employeeId)"
+                >
+                  Clock in
+                </button>
+                <button
+                  type="button"
+                  class="employee-action"
+                  [disabled]="summary.state !== 'clocked_in'"
+                  (click)="clockOut(summary.employeeId)"
+                >
+                  Clock out
+                </button>
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    </article>
+  }
+
+  <article id="employees-roster" class="employees-roster" aria-live="polite">
+    <header class="employees-roster__header">
+      <h2>Employee roster</h2>
+      <p>Filtered list</p>
+    </header>
+
+    @if (loadState() === 'loading') {
+      <p class="roster-state workspace-state">Loading employee roster...</p>
+    } @else if (loadState() === 'error') {
+      <div class="roster-state roster-state--error workspace-state workspace-state--error">
+        <p>Unable to load employee roster right now.</p>
+        <button type="button" class="retry-btn" (click)="refreshRoster()">Retry</button>
+      </div>
+    } @else if (!filteredRosterSnapshot().length) {
+      <p class="roster-state workspace-state">No employees match this filter.</p>
+    } @else {
+      <ul class="roster-list">
+        @for (employee of filteredRosterSnapshot(); track trackByEmployeeId($index, employee)) {
+          <li
+            class="employee-card"
+            [class.employee-card--expanded]="isEmployeeExpanded(employee.id)"
+            role="button"
+            tabindex="0"
+            [attr.aria-expanded]="isEmployeeExpanded(employee.id)"
+            (click)="toggleEmployeeExpansion(employee.id, $event)"
+            (keydown)="handleEmployeeCardKeydown($event, employee.id)"
+          >
+            <header class="employee-card__header">
+              <h3>{{ employee.fullName }}</h3>
+              <span
+                class="status-chip"
+                [class.status-chip--inactive]="employee.status === 'inactive'"
+              >
+                {{ employee.status === 'active' ? 'Active' : 'Inactive' }}
+              </span>
+            </header>
+            <p class="employee-card__meta">{{ employee.role }} | ${{ employee.hourlyRate }}/hr</p>
+            <p class="employee-card__contact">
+              {{ employee.phone }}
+              @if (employee.email) {
+                | {{ employee.email }}
+              } @else {
+                | No email
+              }
+            </p>
+            <p class="employee-card__activity">
+              @if (employee.lastActivityAt) {
+                Last activity: {{ employee.lastActivityAt | date: 'MMM d, y, h:mm a' }}
+              } @else {
+                Last activity: &mdash;
+              }
+            </p>
+            @if (isEmployeeExpanded(employee.id)) {
+              <div class="employee-card__actions">
+                <button
+                  type="button"
+                  class="employee-action"
+                  (click)="$event.stopPropagation(); openJobHistory(employee.id)"
+                >
+                  History
+                </button>
+                <button
+                  type="button"
+                  class="employee-action employee-action--primary"
+                  (click)="$event.stopPropagation(); openHoursEditor(employee.id)"
+                >
+                  Hours
+                </button>
+                <button
+                  type="button"
+                  class="employee-action"
+                  [disabled]="!canEditExistingProfiles()"
+                  (click)="$event.stopPropagation(); openEditProfile(employee.id)"
+                >
+                  Edit
+                </button>
+                @if (employee.status === 'active') {
+                  <button
+                    type="button"
+                    class="employee-action employee-action--danger"
+                    [disabled]="!canArchiveProfiles()"
+                    (click)="$event.stopPropagation(); archiveEmployee(employee.id)"
+                  >
+                    Archive
+                  </button>
+                } @else {
+                  <button
+                    type="button"
+                    class="employee-action employee-action--restore"
+                    [disabled]="!canArchiveProfiles()"
+                    (click)="$event.stopPropagation(); restoreEmployee(employee.id)"
+                  >
+                    Restore
+                  </button>
+                }
+              </div>
+            } @else {
+              <p class="employee-card__hint">Click this employee to reveal actions.</p>
+            }
+
+            @if (
+              isInlinePanelOpen(employee.id, 'hours') && selectedHoursEmployee()?.id === employee.id
+            ) {
+              <section class="employee-inline-panel" aria-label="Employee hours editor">
+                <header class="employee-inline-panel__header">
+                  <h4>Hours editor</h4>
+                  <button type="button" class="employee-action" (click)="closeHoursEditor()">
+                    Close
+                  </button>
+                </header>
+
+                <p class="employee-inline-panel__meta">
+                  Entries: {{ selectedHoursTotals().entryCount }} | Total hours:
+                  {{ selectedHoursTotals().totalHours }}
+                </p>
+
+                <form
+                  class="hours-form"
+                  [formGroup]="hoursForm"
+                  (ngSubmit)="saveHoursEntry()"
+                  novalidate
+                >
+                  @if (hoursErrors().length) {
+                    <div
+                      id="employees-hours-errors-inline"
+                      class="error-summary"
+                      role="alert"
+                      aria-live="assertive"
+                    >
+                      <p>Fix the following before saving hours:</p>
+                      <ul>
+                        @for (error of hoursErrors(); track error) {
+                          <li>{{ error }}</li>
+                        }
+                      </ul>
+                    </div>
+                  }
+                  @if (hoursSuccess()) {
+                    <p class="success-summary" role="status" aria-live="polite">
+                      {{ hoursSuccess() }}
+                    </p>
+                  }
+
+                  @if (editingHoursEntry()) {
+                    <p class="editing-note">
+                      Editing hours entry from {{ editingHoursEntry()!.workDate }} at
+                      {{ editingHoursEntry()!.siteLabel }}.
+                    </p>
+                  }
+
+                  <div class="hours-grid">
+                    @if (isManualHoursSelection()) {
+                      <label class="field">
+                        <span class="field__label">Work date *</span>
+                        <input
+                          class="field__input"
+                          type="date"
+                          formControlName="workDate"
+                          required
+                          aria-required="true"
+                        />
+                      </label>
+                    } @else {
+                      <div class="field">
+                        <span class="field__label">Linked work date</span>
+                        <input
+                          class="field__input"
+                          type="text"
+                          [value]="selectedHoursJobOption()?.scheduledStart | date: 'MMM d, y'"
+                          readonly
+                        />
+                      </div>
+                    }
+                    <label class="field">
+                      <span class="field__label">Hours *</span>
+                      <input
+                        class="field__input"
+                        type="number"
+                        min="0.25"
+                        step="0.25"
+                        formControlName="hours"
+                        required
+                        aria-required="true"
+                      />
+                    </label>
+                    <label class="field field--wide">
+                      <span class="field__label">Linked client job *</span>
+                      <select class="field__input" formControlName="jobEntryId">
+                        <option value="__manual__">No linked job (manual correction)</option>
+                        @for (job of loggedJobOptions(); track job.entryId) {
+                          <option [value]="job.entryId">
+                            {{ job.clientName }} — {{ job.siteLabel }} ({{ job.address }})
+                          </option>
+                        }
+                      </select>
+                    </label>
+                    @if (selectedHoursJobOption()) {
+                      <div class="field field--wide">
+                        <span class="field__label">Linked site / address</span>
+                        <input
+                          class="field__input"
+                          type="text"
+                          [value]="
+                            selectedHoursJobOption()!.siteLabel +
+                            ' — ' +
+                            selectedHoursJobOption()!.address
+                          "
+                          readonly
+                        />
+                      </div>
+                    }
+                    @if (isManualHoursSelection()) {
+                      <label class="field field--wide">
+                        <span class="field__label">Manual correction note (optional)</span>
+                        <textarea
+                          class="field__input field__textarea"
+                          rows="2"
+                          formControlName="correctionNote"
+                          placeholder="Optional context for payroll correction."
+                        ></textarea>
+                      </label>
+                    }
+                  </div>
+
+                  <div class="editor-actions">
+                    <button
+                      type="submit"
+                      class="employee-action employee-action--primary"
+                      aria-describedby="employees-hours-errors-inline"
+                    >
+                      {{ editingHoursEntry() ? 'Update hours' : 'Save hours' }}
+                    </button>
+                  </div>
+                </form>
+
+                <ul class="hours-list">
+                  @for (entry of selectedHoursEntries(); track trackByHoursEntryId($index, entry)) {
+                    @let linkedJob = resolveHoursLinkedJob(entry);
+                    <li class="hours-card">
+                      <div class="hours-card__details">
+                        <div class="hours-card__context">
+                          <p class="hours-card__date">{{ entry.workDate | date: 'MMM d, y' }}</p>
+                          <span
+                            class="hours-card__source-badge"
+                            [class.hours-card__source-badge--manual]="!isLinkedHoursEntry(entry)"
+                          >
+                            {{ isLinkedHoursEntry(entry) ? 'Linked job' : 'Manual correction' }}
+                          </span>
+                        </div>
+                        <p class="hours-card__site">{{ entry.siteLabel }}</p>
+                        @if (linkedJob) {
+                          <p class="hours-card__linked">
+                            Client: {{ linkedJob.clientName }} | Address: {{ linkedJob.address }}
+                          </p>
+                          <p class="hours-card__slot">
+                            Scheduled:
+                            {{ linkedJob.scheduledStart | date: 'MMM d, y, h:mm a' }} -
+                            {{ linkedJob.scheduledEnd | date: 'h:mm a' }}
+                          </p>
+                        } @else if (isLinkedHoursEntry(entry)) {
+                          <p class="hours-card__linked hours-card__linked--missing">
+                            Linked job details unavailable.
+                          </p>
+                        }
+                        @if (entry.correctionNote) {
+                          <p class="hours-card__note">Note: {{ entry.correctionNote }}</p>
+                        }
+                        <p class="hours-card__meta">
+                          {{ entry.hours }}h | Updated by {{ entry.updatedByRole }} |
+                          {{ entry.updatedAt | date: 'MMM d, y, h:mm a' }}
+                        </p>
+                      </div>
+                      <div class="employee-card__actions">
+                        <button
+                          type="button"
+                          class="employee-action"
+                          (click)="editHoursEntry(entry.id)"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          class="employee-action employee-action--danger"
+                          (click)="removeHoursEntry(entry.id)"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </li>
+                  }
+                </ul>
+              </section>
+            }
+
+            @if (isInlinePanelOpen(employee.id, 'profile')) {
+              <section class="employee-inline-panel" aria-label="Employee profile editor">
+                <header class="employee-inline-panel__header">
+                  <h4>Profile editor</h4>
+                  <button type="button" class="employee-action" (click)="cancelProfileEditor()">
+                    Close
+                  </button>
+                </header>
+
+                @if (!profileEditorOpen() || activeEmployee()?.id !== employee.id) {
+                  <p class="editor-placeholder">
+                    Switch to <strong>Owner mode</strong> to edit existing profiles.
+                  </p>
+                } @else {
+                  <form
+                    class="profile-form"
+                    [formGroup]="profileForm"
+                    (ngSubmit)="saveProfile()"
+                    novalidate
+                  >
+                    @if (profileErrors().length) {
+                      <div
+                        id="employees-profile-errors-inline"
+                        class="error-summary"
+                        role="alert"
+                        aria-live="assertive"
+                      >
+                        <p>Fix the following before saving:</p>
+                        <ul>
+                          @for (error of profileErrors(); track error) {
+                            <li>{{ error }}</li>
+                          }
+                        </ul>
+                      </div>
+                    }
+
+                    <div class="profile-grid">
+                      <label class="field">
+                        <span class="field__label">First name *</span>
+                        <input
+                          class="field__input"
+                          type="text"
+                          formControlName="firstName"
+                          required
+                          aria-required="true"
+                        />
+                      </label>
+                      <label class="field">
+                        <span class="field__label">Last name *</span>
+                        <input
+                          class="field__input"
+                          type="text"
+                          formControlName="lastName"
+                          required
+                          aria-required="true"
+                        />
+                      </label>
+                      <label class="field">
+                        <span class="field__label">Phone (###) ###-#### *</span>
+                        <input
+                          class="field__input"
+                          type="text"
+                          formControlName="phone"
+                          required
+                          aria-required="true"
+                        />
+                      </label>
+                      <label class="field">
+                        <span class="field__label">Email</span>
+                        <input class="field__input" type="email" formControlName="email" />
+                      </label>
+                      <label class="field">
+                        <span class="field__label">Role *</span>
+                        <input
+                          class="field__input"
+                          type="text"
+                          formControlName="role"
+                          required
+                          aria-required="true"
+                        />
+                      </label>
+                      <label class="field">
+                        <span class="field__label">Hourly rate *</span>
+                        <input
+                          class="field__input"
+                          type="text"
+                          formControlName="hourlyRate"
+                          required
+                          aria-required="true"
+                        />
+                      </label>
+                    </div>
+
+                    <label class="field">
+                      <span class="field__label">Notes</span>
+                      <textarea
+                        class="field__input field__textarea"
+                        rows="3"
+                        formControlName="notes"
+                      ></textarea>
+                    </label>
+
+                    <div class="editor-actions">
+                      <button
+                        type="submit"
+                        class="employee-action employee-action--primary"
+                        aria-describedby="employees-profile-errors-inline"
+                      >
+                        Save profile
+                      </button>
+                    </div>
+                  </form>
+                }
+              </section>
+            }
+
+            @if (
+              isInlinePanelOpen(employee.id, 'history') &&
+              selectedHistoryEmployee()?.id === employee.id
+            ) {
+              <section class="employee-inline-panel" aria-label="Employee history timeline">
+                <header class="employee-inline-panel__header">
+                  <h4>Job history timeline</h4>
+                  <button type="button" class="employee-action" (click)="closeJobHistory()">
+                    Close
+                  </button>
+                </header>
+
+                <p class="employee-inline-panel__meta">
+                  Jobs: {{ selectedHistorySummary().jobsCount }} | Completed:
+                  {{ selectedHistorySummary().completedCount }} | Scheduled:
+                  {{ selectedHistorySummary().scheduledCount }} | Total hours:
+                  {{ selectedHistorySummary().totalHours }}
+                </p>
+                <p class="employee-inline-panel__meta">
+                  Scheduled and completed entries can be edited. Cancelled entries stay read-only.
+                </p>
+                @if (selectedHistorySummary().jobsCount > 0) {
+                  <div class="history-quick-actions">
+                    <button
+                      type="button"
+                      class="employee-action employee-action--primary"
+                      (click)="editFirstScheduledHistoryEntry()"
+                    >
+                      Edit next editable entry
+                    </button>
+                  </div>
+                }
+
+                @if (historyErrors().length) {
+                  <div class="error-summary" role="alert" aria-live="assertive">
+                    <p>Fix the following before saving history edits:</p>
+                    <ul>
+                      @for (error of historyErrors(); track error) {
+                        <li>{{ error }}</li>
+                      }
+                    </ul>
+                  </div>
+                }
+                @if (historySuccess()) {
+                  <p class="success-summary" role="status" aria-live="polite">
+                    {{ historySuccess() }}
+                  </p>
+                }
+
+                @if (historyEditorOpen() && editingHistoryEntry()) {
+                  <form
+                    class="history-form"
+                    [formGroup]="historyForm"
+                    (ngSubmit)="saveHistoryEdit()"
+                    novalidate
+                  >
+                    <p class="editing-note">
+                      Editing schedule for {{ editingHistoryEntry()!.siteLabel }}.
+                    </p>
+                    <div class="history-grid">
+                      <label class="field">
+                        <span class="field__label">Site label *</span>
+                        <input
+                          class="field__input"
+                          type="text"
+                          formControlName="siteLabel"
+                          required
+                          aria-required="true"
+                        />
+                      </label>
+                      <div class="field">
+                        <span class="field__label">Address *</span>
+                        <app-address-autocomplete-field
+                          [control]="historyForm.controls.address"
+                          [required]="true"
+                          [showSuggestions]="
+                            historyEditorOpen() && facade.showHistoryAddressSuggestions()
+                          "
+                          [suggestions]="facade.historyAddressSuggestions()"
+                          [loading]="facade.historyAddressLookupLoading()"
+                          (focused)="facade.handleHistoryAddressFocus()"
+                          (blurred)="facade.handleHistoryAddressBlur()"
+                          (suggestionSelected)="facade.selectHistoryAddressSuggestion($event)"
+                        ></app-address-autocomplete-field>
+                      </div>
+                      <label class="field">
+                        <span class="field__label">Scheduled start *</span>
+                        <input
+                          class="field__input"
+                          type="datetime-local"
+                          formControlName="scheduledStart"
+                          required
+                          aria-required="true"
+                        />
+                      </label>
+                      <label class="field">
+                        <span class="field__label">Scheduled end *</span>
+                        <input
+                          class="field__input"
+                          type="datetime-local"
+                          formControlName="scheduledEnd"
+                          required
+                          aria-required="true"
+                        />
+                      </label>
+                    </div>
+                    @if (
+                      historyForm.controls.address.touched &&
+                      historyForm.controls.address.hasError('required')
+                    ) {
+                      <p class="field__hint field__hint--error">Address is required.</p>
+                    } @else if (
+                      historyForm.controls.address.touched &&
+                      facade.addressVerificationRequired &&
+                      historyForm.controls.address.value.trim().length > 0 &&
+                      !facade.historyAddressVerified()
+                    ) {
+                      <p class="field__hint field__hint--error">
+                        Select a verified address from suggestions.
+                      </p>
+                    } @else if (facade.historyAddressLookupMessage(); as addressMessage) {
+                      <p class="field__hint">{{ addressMessage }}</p>
+                    } @else if (facade.historyAddressVerified()) {
+                      <p class="field__hint">Address verified.</p>
+                    }
+                    <div class="editor-actions">
+                      <button type="button" class="employee-action" (click)="cancelHistoryEdit()">
+                        Cancel
+                      </button>
+                      <button type="submit" class="employee-action employee-action--primary">
+                        Save schedule
+                      </button>
+                    </div>
+                  </form>
+                }
+
+                @if (!selectedEmployeeJobHistory().length) {
+                  <p class="roster-state workspace-state">
+                    No job history found for this employee yet.
+                  </p>
+                } @else {
+                  <ol class="history-list">
+                    @for (
+                      historyEntry of selectedEmployeeJobHistory();
+                      track trackByHistoryEntryId($index, historyEntry)
+                    ) {
+                      <li
+                        class="history-card"
+                        [class.history-card--editing]="
+                          editingHistoryEntry()?.id === historyEntry.id
+                        "
+                      >
+                        <header class="history-card__header">
+                          <p class="history-card__site">{{ historyEntry.siteLabel }}</p>
+                          <div class="history-card__header-actions">
+                            <span
+                              class="status-chip"
+                              [class.status-chip--inactive]="historyEntry.status === 'scheduled'"
+                            >
+                              {{ historyEntry.status === 'completed' ? 'Completed' : 'Scheduled' }}
+                            </span>
+                            <div class="history-card__actions">
+                              <button
+                                type="button"
+                                class="employee-action"
+                                [disabled]="
+                                  historyEntry.status === 'cancelled' ||
+                                  editingHistoryEntry()?.id === historyEntry.id
+                                "
+                                (click)="startHistoryEdit(historyEntry.id)"
+                              >
+                                @if (editingHistoryEntry()?.id === historyEntry.id) {
+                                  Editing schedule
+                                } @else if (historyEntry.status === 'cancelled') {
+                                  Cancelled (read-only)
+                                } @else {
+                                  Edit schedule
+                                }
+                              </button>
+                              <button
+                                type="button"
+                                class="employee-action employee-action--danger"
+                                [disabled]="!facade.canDeleteHistoryEntry(historyEntry)"
+                                (click)="removeHistoryEntry(historyEntry.id)"
+                              >
+                                Delete entry
+                              </button>
+                            </div>
+                          </div>
+                        </header>
+                        <p class="history-card__address">{{ historyEntry.address }}</p>
+                        <p class="history-card__window">
+                          {{ historyEntry.scheduledStart | date: 'MMM d, y, h:mm a' }} -
+                          {{ historyEntry.scheduledEnd | date: 'h:mm a' }}
+                        </p>
+                        <p class="history-card__hours">
+                          Hours on job: {{ historyEntry.hoursWorked }}
+                        </p>
+                      </li>
+                    }
+                  </ol>
+                }
+              </section>
+            }
+          </li>
+        }
+      </ul>
+    }
+  </article>
+
+  @if (workspaceFocus() === 'profile') {
+    <article id="employees-profile" class="employees-editor" aria-label="Employee profile editor">
+      <header class="employees-editor__header">
+        <div>
+          <p class="employees-editor__eyebrow">
+            {{ operatorRole() === 'owner' ? 'Owner mode' : 'Manager mode' }}
+          </p>
+          <h2>
+            @if (profileEditorMode() === 'create') {
+              Add employee profile
+            } @else {
+              Edit employee profile
+            }
+          </h2>
+        </div>
+      </header>
+
+      @if (!profileEditorOpen()) {
+        <p class="editor-placeholder">
+          Choose <strong>Add employee</strong> or click <strong>Edit</strong> on a roster card to
+          update profile data.
+        </p>
+      } @else {
+        <form class="profile-form" [formGroup]="profileForm" (ngSubmit)="saveProfile()" novalidate>
+          @if (profileErrors().length) {
+            <div
+              id="employees-profile-errors"
+              class="error-summary"
+              role="alert"
+              aria-live="assertive"
+            >
+              <p>Fix the following before saving:</p>
+              <ul>
+                @for (error of profileErrors(); track error) {
+                  <li>{{ error }}</li>
+                }
+              </ul>
+            </div>
+          }
+
+          @if (profileEditorMode() === 'edit' && activeEmployee()) {
+            <p class="editing-note">Editing: {{ activeEmployee()!.fullName }}</p>
+          }
+
+          <div class="profile-grid">
+            <label class="field">
+              <span class="field__label">First name *</span>
+              <input
+                class="field__input"
+                type="text"
+                formControlName="firstName"
+                required
+                aria-required="true"
+              />
+            </label>
+            <label class="field">
+              <span class="field__label">Last name *</span>
+              <input
+                class="field__input"
+                type="text"
+                formControlName="lastName"
+                required
+                aria-required="true"
+              />
+            </label>
+            <label class="field">
+              <span class="field__label">Phone (###) ###-#### *</span>
+              <input
+                class="field__input"
+                type="text"
+                formControlName="phone"
+                required
+                aria-required="true"
+              />
+            </label>
+            <label class="field">
+              <span class="field__label">Email</span>
+              <input class="field__input" type="email" formControlName="email" />
+            </label>
+            <label class="field">
+              <span class="field__label">Role *</span>
+              <input
+                class="field__input"
+                type="text"
+                formControlName="role"
+                required
+                aria-required="true"
+              />
+            </label>
+            <label class="field">
+              <span class="field__label">Hourly rate *</span>
+              <input
+                class="field__input"
+                type="text"
+                formControlName="hourlyRate"
+                required
+                aria-required="true"
+              />
+            </label>
+          </div>
+
+          <label class="field">
+            <span class="field__label">Notes</span>
+            <textarea
+              class="field__input field__textarea"
+              rows="3"
+              formControlName="notes"
+            ></textarea>
+          </label>
+
+          <div class="editor-actions">
+            <button type="button" class="employee-action" (click)="cancelProfileEditor()">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="employee-action employee-action--primary"
+              aria-describedby="employees-profile-errors"
+            >
+              Save profile
+            </button>
+          </div>
+        </form>
+      }
+    </article>
+  }
+
+  @if (workspaceFocus() === 'hours') {
+    <article id="employees-hours" class="employees-hours" aria-label="Employee hours editor">
+      <header class="employees-hours__header">
+        <div>
+          <p class="employees-hours__eyebrow">Hours workflow</p>
+          <h2>Employee hours editor</h2>
+        </div>
+        @if (hoursEditorOpen()) {
+          <button type="button" class="employee-action" (click)="closeHoursEditor()">Close</button>
+        }
+      </header>
+
+      @if (!hoursEditorOpen()) {
+        <p class="editor-placeholder">
+          Click <strong>Hours</strong> on an employee card to log or update worked hours.
+        </p>
+      } @else {
+        <div class="hours-context">
+          <p class="hours-context__employee">{{ selectedHoursEmployee()!.fullName }}</p>
+          <p class="hours-context__meta">
+            Entries: {{ selectedHoursTotals().entryCount }} | Total hours:
+            {{ selectedHoursTotals().totalHours }}
+          </p>
+        </div>
+
+        <form class="hours-form" [formGroup]="hoursForm" (ngSubmit)="saveHoursEntry()" novalidate>
+          @if (hoursErrors().length) {
+            <div
+              id="employees-hours-errors"
+              class="error-summary"
+              role="alert"
+              aria-live="assertive"
+            >
+              <p>Fix the following before saving hours:</p>
+              <ul>
+                @for (error of hoursErrors(); track error) {
+                  <li>{{ error }}</li>
+                }
+              </ul>
+            </div>
+          }
+          @if (editingHoursEntry()) {
+            <p class="editing-note">
+              Editing hours entry from {{ editingHoursEntry()!.workDate }} at
+              {{ editingHoursEntry()!.siteLabel }}.
+            </p>
+          }
+
+          <div class="hours-grid">
+            @if (isManualHoursSelection()) {
+              <label class="field">
+                <span class="field__label">Work date *</span>
+                <input
+                  class="field__input"
+                  type="date"
+                  formControlName="workDate"
+                  required
+                  aria-required="true"
+                />
+              </label>
+            } @else {
+              <div class="field">
+                <span class="field__label">Linked work date</span>
+                <input
+                  class="field__input"
+                  type="text"
+                  [value]="selectedHoursJobOption()?.scheduledStart | date: 'MMM d, y'"
+                  readonly
+                />
+              </div>
+            }
+            <label class="field">
+              <span class="field__label">Hours *</span>
+              <input
+                class="field__input"
+                type="number"
+                min="0.25"
+                step="0.25"
+                formControlName="hours"
+                required
+                aria-required="true"
+              />
+            </label>
+            <label class="field field--wide">
+              <span class="field__label">Linked client job *</span>
+              <select class="field__input" formControlName="jobEntryId">
+                <option value="__manual__">No linked job (manual correction)</option>
+                @for (job of loggedJobOptions(); track job.entryId) {
+                  <option [value]="job.entryId">
+                    {{ job.clientName }} — {{ job.siteLabel }} ({{ job.address }})
+                  </option>
+                }
+              </select>
+            </label>
+            @if (selectedHoursJobOption()) {
+              <div class="field field--wide">
+                <span class="field__label">Linked site / address</span>
+                <input
+                  class="field__input"
+                  type="text"
+                  [value]="
+                    selectedHoursJobOption()!.siteLabel + ' — ' + selectedHoursJobOption()!.address
+                  "
+                  readonly
+                />
+              </div>
+            }
+            @if (isManualHoursSelection()) {
+              <label class="field field--wide">
+                <span class="field__label">Manual correction note (optional)</span>
+                <textarea
+                  class="field__input field__textarea"
+                  rows="2"
+                  formControlName="correctionNote"
+                  placeholder="Optional context for payroll correction."
+                ></textarea>
+              </label>
+            }
+          </div>
+
+          <div class="editor-actions">
+            <button
+              type="submit"
+              class="employee-action employee-action--primary"
+              aria-describedby="employees-hours-errors"
+            >
+              {{ editingHoursEntry() ? 'Update hours' : 'Save hours' }}
+            </button>
+          </div>
+          @if (hoursSuccess()) {
+            <p class="success-summary" role="status" aria-live="polite">{{ hoursSuccess() }}</p>
+          }
+        </form>
+
+        <ul class="hours-list">
+          @for (entry of selectedHoursEntries(); track trackByHoursEntryId($index, entry)) {
+            @let linkedJob = resolveHoursLinkedJob(entry);
+            <li class="hours-card">
+              <div class="hours-card__details">
+                <div class="hours-card__context">
+                  <p class="hours-card__date">{{ entry.workDate | date: 'MMM d, y' }}</p>
+                  <span
+                    class="hours-card__source-badge"
+                    [class.hours-card__source-badge--manual]="!isLinkedHoursEntry(entry)"
+                  >
+                    {{ isLinkedHoursEntry(entry) ? 'Linked job' : 'Manual correction' }}
+                  </span>
+                </div>
+                <p class="hours-card__site">{{ entry.siteLabel }}</p>
+                @if (linkedJob) {
+                  <p class="hours-card__linked">
+                    Client: {{ linkedJob.clientName }} | Address: {{ linkedJob.address }}
+                  </p>
+                  <p class="hours-card__slot">
+                    Scheduled:
+                    {{ linkedJob.scheduledStart | date: 'MMM d, y, h:mm a' }} -
+                    {{ linkedJob.scheduledEnd | date: 'h:mm a' }}
+                  </p>
+                } @else if (isLinkedHoursEntry(entry)) {
+                  <p class="hours-card__linked hours-card__linked--missing">
+                    Linked job details unavailable.
+                  </p>
+                }
+                @if (entry.correctionNote) {
+                  <p class="hours-card__note">Note: {{ entry.correctionNote }}</p>
+                }
+                <p class="hours-card__meta">
+                  {{ entry.hours }}h | Updated by {{ entry.updatedByRole }} |
+                  {{ entry.updatedAt | date: 'MMM d, y, h:mm a' }}
+                </p>
+              </div>
+              <div class="employee-card__actions">
+                <button type="button" class="employee-action" (click)="editHoursEntry(entry.id)">
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  class="employee-action employee-action--danger"
+                  (click)="removeHoursEntry(entry.id)"
+                >
+                  Remove
+                </button>
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    </article>
+  }
+
+  @if (workspaceFocus() === 'history') {
+    <article
+      id="employees-history"
+      class="employees-history"
+      aria-label="Employee job history timeline"
+    >
+      <header class="employees-history__header">
+        <div>
+          <p class="employees-history__eyebrow">Operations timeline</p>
+          <h2>Per-employee job history</h2>
+        </div>
+        @if (historyPanelOpen()) {
+          <button type="button" class="employee-action" (click)="closeJobHistory()">Close</button>
+        }
+      </header>
+
+      @if (!historyPanelOpen()) {
+        <p class="editor-placeholder">
+          Click <strong>History</strong> on an employee card to review sites, scheduled slots, and
+          job-by-job hours.
+        </p>
+      } @else {
+        <div class="history-context">
+          <p class="history-context__employee">{{ selectedHistoryEmployee()!.fullName }}</p>
+          <p class="history-context__meta">
+            Recent site: {{ selectedHistorySummary().recentSite }}
+          </p>
+          <p class="history-context__meta">
+            Scheduled and completed entries can be edited. Cancelled entries stay read-only.
+          </p>
+          <p class="history-context__meta">
+            On-time: {{ selectedHistoryLifecycleSummary().completedOnTime }} | Late:
+            {{ selectedHistoryLifecycleSummary().completedLate }} | Scheduled late:
+            {{ selectedHistoryLifecycleSummary().scheduledLate }} | Continuity:
+            {{ selectedHistoryLifecycleSummary().continuity }}
+          </p>
+          @if (selectedHistorySummary().jobsCount > 0) {
+            <div class="history-quick-actions">
+              <button
+                type="button"
+                class="employee-action employee-action--primary"
+                (click)="editFirstScheduledHistoryEntry()"
+              >
+                Edit next editable entry
+              </button>
+            </div>
+          }
+        </div>
+
+        <section class="history-summary" aria-label="History totals">
+          <article class="summary-card">
+            <p class="summary-card__label">Jobs tracked</p>
+            <p class="summary-card__value">{{ selectedHistorySummary().jobsCount }}</p>
+          </article>
+          <article class="summary-card">
+            <p class="summary-card__label">Completed</p>
+            <p class="summary-card__value">{{ selectedHistorySummary().completedCount }}</p>
+          </article>
+          <article class="summary-card">
+            <p class="summary-card__label">Scheduled</p>
+            <p class="summary-card__value">{{ selectedHistorySummary().scheduledCount }}</p>
+          </article>
+          <article class="summary-card">
+            <p class="summary-card__label">Total hours</p>
+            <p class="summary-card__value">{{ selectedHistorySummary().totalHours }}</p>
+          </article>
+        </section>
+
+        @if (!selectedEmployeeJobHistory().length) {
+          <p class="roster-state workspace-state">No job history found for this employee yet.</p>
+        } @else {
+          <ol class="history-list">
+            @for (
+              historyEntry of selectedEmployeeJobHistory();
+              track trackByHistoryEntryId($index, historyEntry)
+            ) {
+              <li class="history-card">
+                <header class="history-card__header">
+                  <p class="history-card__site">{{ historyEntry.siteLabel }}</p>
+                  <div class="history-card__header-actions">
+                    <span
+                      class="status-chip"
+                      [class.status-chip--inactive]="historyEntry.status === 'scheduled'"
+                    >
+                      {{ historyEntry.status === 'completed' ? 'Completed' : 'Scheduled' }}
+                    </span>
+                    <div class="history-card__actions">
+                      <button
+                        type="button"
+                        class="employee-action"
+                        [disabled]="
+                          historyEntry.status === 'cancelled' ||
+                          editingHistoryEntry()?.id === historyEntry.id
+                        "
+                        (click)="startHistoryEdit(historyEntry.id)"
+                      >
+                        @if (editingHistoryEntry()?.id === historyEntry.id) {
+                          Editing schedule
+                        } @else if (historyEntry.status === 'cancelled') {
+                          Cancelled (read-only)
+                        } @else {
+                          Edit schedule
+                        }
+                      </button>
+                      <button
+                        type="button"
+                        class="employee-action employee-action--danger"
+                        [disabled]="!facade.canDeleteHistoryEntry(historyEntry)"
+                        (click)="removeHistoryEntry(historyEntry.id)"
+                      >
+                        Delete entry
+                      </button>
+                    </div>
+                  </div>
+                </header>
+                <p class="history-card__address">{{ historyEntry.address }}</p>
+                <p class="history-card__window">
+                  {{ historyEntry.scheduledStart | date: 'MMM d, y, h:mm a' }} -
+                  {{ historyEntry.scheduledEnd | date: 'h:mm a' }}
+                </p>
+                <p class="history-card__hours">Hours on job: {{ historyEntry.hoursWorked }}</p>
+              </li>
+            }
+          </ol>
+        }
+      }
+    </article>
+  }
+
+  @if (workspaceFocus() === 'readiness') {
+    <article
+      id="employees-readiness"
+      class="employees-readiness"
+      aria-label="Start Next Job readiness contract"
+    >
+      <header class="employees-readiness__header">
+        <div>
+          <p class="employees-readiness__eyebrow">Start Next Job readiness</p>
+          <h2>Assignment data contract preview</h2>
+        </div>
+      </header>
+
+      @if (!startNextJobReadiness().length) {
+        <p class="roster-state workspace-state">No readiness data available yet.</p>
+      } @else {
+        <ul class="readiness-list">
+          @for (
+            readiness of startNextJobReadiness();
+            track trackByReadinessEmployeeId($index, readiness)
+          ) {
+            <li class="readiness-card">
+              <header class="readiness-card__header">
+                <h3>{{ readiness.fullName }}</h3>
+                <span
+                  class="status-chip"
+                  [class.status-chip--inactive]="readiness.readinessState !== 'available'"
+                >
+                  @if (readiness.readinessState === 'available') {
+                    Available now
+                  } @else if (readiness.readinessState === 'scheduled') {
+                    On scheduled work
+                  } @else {
+                    Inactive
+                  }
+                </span>
+              </header>
+
+              <p class="readiness-card__meta">
+                Scheduled jobs: {{ readiness.scheduledJobsCount }} | Completed jobs:
+                {{ readiness.completedJobsCount }}
+              </p>
+              <p class="readiness-card__meta">
+                Scheduled hours: {{ readiness.scheduledHours }} | Completed hours:
+                {{ readiness.completedHours }}
+              </p>
+              <p class="readiness-card__meta">
+                Next scheduled:
+                @if (readiness.nextScheduledStart) {
+                  {{ readiness.nextScheduledStart | date: 'MMM d, y, h:mm a' }}
+                } @else {
+                  —
+                }
+              </p>
+              <p class="readiness-card__meta">
+                Next available:
+                @if (readiness.nextAvailableAt) {
+                  {{ readiness.nextAvailableAt | date: 'MMM d, y, h:mm a' }}
+                } @else {
+                  —
+                }
+              </p>
+              <p class="readiness-card__meta">
+                Last completed site:
+                @if (readiness.lastCompletedSite) {
+                  {{ readiness.lastCompletedSite }}
+                } @else {
+                  —
+                }
+              </p>
+
+              @if (readiness.hasScheduleConflict) {
+                <p class="readiness-card__conflict" role="status">
+                  Schedule conflict detected in upcoming windows.
+                </p>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </article>
+  }
+</section>

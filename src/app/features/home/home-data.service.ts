@@ -1,0 +1,139 @@
+import { Injectable, inject } from '@angular/core';
+import type { EntryModalPayload } from '@shared/domain/entry/entry-modal.models.js';
+import type { HeroMetric, QuickAction, WeeklyHourSummary } from './home.models.js';
+import { CalendarEventsService } from '@shared/domain/entry/calendar-events.service.js';
+import { EntryRepositoryService } from '@shared/domain/entry/entry-repository.service.js';
+import { buildCalendarEventRequest } from '@shared/domain/entry/calendar-event.builder.js';
+
+@Injectable({ providedIn: 'root' })
+export class HomeDataService {
+  private readonly calendar = inject(CalendarEventsService);
+  private readonly entries = inject(EntryRepositoryService);
+
+  getHeroMetrics(): HeroMetric[] {
+    return [
+      { id: 'jobs-today', label: 'Jobs today', value: '4', deltaLabel: '+1 vs avg', trend: 'up' },
+      {
+        id: 'gross-today',
+        label: "Today's gross (pre-tax)",
+        value: '$5,240',
+        deltaLabel: '+$320',
+        trend: 'up',
+      },
+      {
+        id: 'prf-balance',
+        label: 'PRF balance',
+        value: '$32,410',
+        deltaLabel: 'steady',
+        trend: 'flat',
+      },
+      {
+        id: 'charbel-owed',
+        label: 'Charbel owed',
+        value: '$8,150',
+        deltaLabel: '-$450',
+        trend: 'down',
+      },
+    ];
+  }
+
+  getQuickActions(): QuickAction[] {
+    return [
+      {
+        id: 'start-next-job',
+        label: 'Start Next Job',
+        description: 'Resume the next queued job',
+        icon: '\u25B6\uFE0F',
+        command: 'start-next-job',
+      },
+      {
+        id: 'manage-employees',
+        label: 'Manage Employees',
+        description: 'Update availability & rates',
+        icon: '\u{1F465}',
+        command: 'manage-employees',
+      },
+      {
+        id: 'clients',
+        label: 'Clients',
+        description: 'Review client accounts',
+        icon: '\u{1F4D8}',
+        command: 'view-clients',
+      },
+      {
+        id: 'schedule',
+        label: 'Schedule',
+        description: 'See upcoming work',
+        icon: '\u{1F5D3}\uFE0F',
+        command: 'view-schedule',
+      },
+      {
+        id: 'finances',
+        label: 'Finances',
+        description: 'Check cashflow & funds',
+        icon: '\u{1F4B2}',
+        command: 'view-finances',
+      },
+      {
+        id: 'performance',
+        label: 'Performance Stats',
+        description: 'Trend dashboards & KPIs',
+        icon: '\u{1F4AA}',
+        command: 'view-performance',
+      },
+      {
+        id: 'broadcast',
+        label: 'Client Broadcast',
+        description: 'Send announcement to all clients',
+        icon: '\u{1F4AC}',
+        command: 'broadcast-clients',
+      },
+      {
+        id: 'chats',
+        label: 'Chats',
+        description: 'Reply to client texts',
+        icon: '\u{1F4F1}',
+        command: 'open-chats',
+      },
+      {
+        id: 'advanced-options',
+        label: 'Advanced Options',
+        description: 'Adjust calculation rules',
+        icon: '\u2699\uFE0F',
+        command: 'advanced-options',
+      },
+    ];
+  }
+
+  getWeeklyHourSummaries(): WeeklyHourSummary[] {
+    return [
+      { id: 'emp-karam', employee: 'Karam', hours: '32h', role: 'Lead tech', amount: '$1,240' },
+      { id: 'emp-nassif', employee: 'Nassif', hours: '28h', role: 'Crew', amount: '$1,010' },
+      { id: 'emp-adlane', employee: 'Adlane', hours: '24h', role: 'Crew', amount: '$870' },
+      { id: 'emp-marco', employee: 'Marco', hours: '18h', role: 'Support', amount: '$620' },
+    ];
+  }
+
+  async saveEntry(payload: EntryModalPayload): Promise<void> {
+    const calendarRequest = buildCalendarEventRequest(payload);
+    let payloadToPersist = payload;
+    if (calendarRequest && payload.calendar) {
+      if (payload.calendar.eventId) {
+        await this.calendar.updateEvent(payload.calendar.eventId, calendarRequest);
+      } else {
+        const created = await this.calendar.createEvent(calendarRequest);
+        if (created?.id) {
+          payloadToPersist = {
+            ...payload,
+            calendar: {
+              ...payload.calendar,
+              eventId: created.id,
+            },
+          };
+        }
+      }
+    }
+
+    await this.entries.create(payloadToPersist);
+  }
+}

@@ -1,0 +1,267 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem 1.25rem;
+}
+
+label,
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+
+label span,
+.field > span {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+input,
+textarea {
+  background: var(--surface-input);
+  border: 1px solid var(--border-soft);
+  border-radius: 0.8rem;
+  padding: 0.8rem 1rem;
+  color: inherit;
+  font-size: 0.95rem;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.wide {
+  grid-column: span 2;
+}
+
+@media (max-width: 900px) {
+  .wide {
+    grid-column: span 1;
+  }
+}
+
+.error {
+  color: var(--accent-error);
+  font-size: 0.75rem;
+}
+
+.hint {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.hedge-error {
+  display: inline-block;
+  margin-bottom: 0.5rem;
+}
+
+.job-type {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.job-type p {
+  margin: 0;
+  font-weight: 600;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--border-muted-strong);
+  border-radius: 999px;
+  padding: 0.35rem 1rem;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 500;
+}
+
+.chip input {
+  accent-color: var(--accent-primary);
+}
+
+.hedge-canvas {
+  border: 1px solid var(--border-soft);
+  border-radius: 1rem;
+  padding: 1rem;
+  background: var(--surface-card-deep);
+}
+
+.section-title {
+  margin: 0 0 0.75rem;
+  font-weight: 600;
+}
+
+.canvas-wrapper {
+  position: relative;
+  overflow: visible;
+  width: min(960px, 100%);
+  margin-inline: auto;
+
+  &.compact {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+
+    .hedge-panel {
+      position: static;
+      width: 100%;
+      max-width: 420px;
+      margin-top: 0;
+      touch-action: auto;
+    }
+
+    .panel-header {
+      cursor: default;
+    }
+  }
+}
+
+.canvas-surface {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1.5;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border-soft);
+  overflow: hidden;
+  box-shadow: var(--shadow-inset-canvas);
+}
+
+.canvas-surface svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+.hedge {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 3;
+  cursor: pointer;
+  transition:
+    stroke var(--motion-duration-base) var(--motion-ease-standard),
+    fill var(--motion-duration-base) var(--motion-ease-standard),
+    filter var(--motion-duration-base) var(--motion-ease-standard);
+}
+
+.hedge:hover {
+  stroke: var(--text-accent-strong);
+}
+
+.hedge.trim {
+  fill: var(--hedge-trim-fill);
+  stroke: var(--hedge-trim-stroke);
+}
+
+.hedge.rabattage {
+  fill: var(--hedge-rabattage-fill);
+  stroke: var(--hedge-rabattage-stroke);
+}
+
+.hedge.has-config {
+  filter: drop-shadow(0 0 6px var(--hedge-config-glow));
+}
+
+.hedge-panel {
+  position: absolute;
+  width: clamp(170px, 24vw, 260px);
+  background: var(--surface-overlay);
+  border-radius: 1rem;
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-panel);
+  padding: 0.85rem;
+  color: var(--text-primary);
+  pointer-events: auto;
+  z-index: 5;
+  touch-action: none;
+  max-height: min(70vh, 320px);
+  overflow-y: auto;
+}
+
+@media (max-width: 640px) {
+  .hedge-panel {
+    width: min(190px, 70vw);
+    font-size: 0.9rem;
+  }
+}
+
+.panel-header {
+  cursor: grab;
+}
+
+.panel-header:active {
+  cursor: grabbing;
+}
+
+.panel-title {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+}
+
+.trim-options,
+.trim-presets,
+.rabattage-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.trim-options label,
+.trim-presets label,
+.rabattage-options label,
+.partial-input {
+  font-size: 0.8rem;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.partial-input textarea {
+  min-height: 60px;
+}
+
+.hedge-panel footer {
+  margin-top: 0.75rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.pricing {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem 1.25rem;
+}
+
+button:not(.address-suggestion) {
+  border: none;
+  border-radius: 999px;
+  padding: 0.65rem 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.ghost {
+  background: var(--surface-card-soft);
+  color: inherit;
+}

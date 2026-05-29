@@ -1,0 +1,21 @@
+@if (routerLink) {
+  <a
+    [routerLink]="routerLink"
+    class="back-chip"
+    [attr.aria-label]="computedAriaLabel"
+    (click)="emitBack()"
+  >
+    <span aria-hidden="true">{{ icon }}</span>
+    {{ label }}
+  </a>
+} @else {
+  <button
+    type="button"
+    class="back-chip"
+    [attr.aria-label]="computedAriaLabel"
+    (click)="emitBack()"
+  >
+    <span aria-hidden="true">{{ icon }}</span>
+    {{ label }}
+  </button>
+}

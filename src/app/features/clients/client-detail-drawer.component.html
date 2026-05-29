@@ -1,0 +1,218 @@
+<article
+  class="client-drawer"
+  role="dialog"
+  aria-modal="true"
+  [attr.aria-labelledby]="'client-drawer-' + client.clientId"
+>
+  <header class="client-drawer__header">
+    <div>
+      <p class="client-drawer__eyebrow">Client detail</p>
+      <h2 id="{{ 'client-drawer-' + client.clientId }}">{{ client.fullName }}</h2>
+      <p class="client-drawer__subtitle">
+        {{ client.address }}
+      </p>
+    </div>
+    <div class="client-drawer__header-actions">
+      @if (!editingClient) {
+        <a
+          class="ghost"
+          routerLink="/communications/chats"
+          [queryParams]="{ clientId: client.clientId }"
+        >
+          Open chat
+        </a>
+        <button type="button" class="ghost" (click)="startClientEdit()">Edit client</button>
+        <button type="button" class="ghost danger" (click)="requestClientDelete()">
+          Delete client
+        </button>
+      } @else {
+        <button type="button" class="ghost" (click)="cancelClientEdit()">Cancel</button>
+        <button type="button" class="primary" (click)="submitClientEdits()">Save client</button>
+      }
+    </div>
+    <button
+      type="button"
+      class="client-drawer__close"
+      (click)="closed.emit()"
+      aria-label="Close details"
+    >
+      &times;
+    </button>
+  </header>
+
+  <section class="client-drawer__section">
+    <h3>Contact</h3>
+    @if (editingClient) {
+      <form class="client-form" [formGroup]="clientForm" (ngSubmit)="submitClientEdits()">
+        <label>
+          <span>First name</span>
+          <input formControlName="firstName" />
+        </label>
+        <label>
+          <span>Last name</span>
+          <input formControlName="lastName" />
+        </label>
+        <label>
+          <span>Address</span>
+          <input formControlName="address" />
+        </label>
+        <label>
+          <span>Phone</span>
+          <input formControlName="phone" />
+        </label>
+        <label>
+          <span>Email</span>
+          <input formControlName="email" />
+        </label>
+      </form>
+    } @else {
+      <dl>
+        <div>
+          <dt>Phone</dt>
+          <dd>{{ client.phone }}</dd>
+        </div>
+        @if (client.email) {
+          <div>
+            <dt>Email</dt>
+            <dd>{{ client.email }}</dd>
+          </div>
+        }
+        <div>
+          <dt>Jobs logged</dt>
+          <dd>{{ client.jobsCount }}</dd>
+        </div>
+        <div>
+          <dt>Last job</dt>
+          <dd>
+            @if (client.lastJobDate) {
+              {{ client.lastJobDate | date: 'MMM d, y, h:mm a' }}
+            } @else {
+              &mdash;
+            }
+          </dd>
+        </div>
+        <div>
+          <dt>Next job</dt>
+          <dd>
+            @if (client.nextJobDate) {
+              {{ client.nextJobDate | date: 'MMM d, y, h:mm a' }}
+            } @else {
+              &mdash;
+            }
+          </dd>
+        </div>
+      </dl>
+    }
+  </section>
+
+  <section class="client-drawer__section">
+    <div class="client-drawer__section-heading">
+      <h3>Job history</h3>
+      @if (state === 'error') {
+        <button type="button" class="ghost" (click)="retry.emit()">Retry</button>
+      }
+    </div>
+
+    @switch (state) {
+      @case ('loading') {
+        <p class="client-drawer__state">Loading job history&hellip;</p>
+      }
+      @case ('error') {
+        <p class="client-drawer__state client-drawer__state--error">Could not load job history.</p>
+      }
+      @case ('ready') {
+        @if ((detail?.history?.length ?? 0) > 0) {
+          <ul class="client-drawer__history">
+            @for (history of detail?.history ?? []; track trackHistory($index, history)) {
+              <li>
+                <div class="history__header">
+                  <p class="history__date">{{ history.createdAt | date: 'MMM d, y, h:mm a' }}</p>
+                  <span class="history__badge" [attr.data-variant]="history.variant">{{
+                    history.variant
+                  }}</span>
+                </div>
+                <p class="history__job">
+                  {{ history.jobType }}
+                  &middot;
+                  {{ formatCurrency(history.jobValue) }}
+                </p>
+                <p class="history__calendar">
+                  @if (history.calendar; as calendar) {
+                    <span class="history__calendar-label">Scheduled</span>
+                    <strong>{{ calendar.start | date: 'MMM d, y, h:mm a' }}</strong>
+                    &mdash;
+                    <strong>{{ calendar.end | date: 'h:mm a' }}</strong>
+                    <span class="history__tz">
+                      {{ calendar.timeZone || 'Local time' }}
+                    </span>
+                  } @else {
+                    Schedule TBD
+                  }
+                </p>
+                @if (history.execution; as execution) {
+                  <div class="history__execution">
+                    <p class="history__execution-meta">
+                      <span class="history__calendar-label">Run</span>
+                      <strong>{{ formatExecutionStatus(execution.status) }}</strong>
+                      @if (execution.startedAt) {
+                        <span>Started {{ execution.startedAt | date: 'MMM d, y, h:mm a' }}</span>
+                      }
+                      @if (execution.endedAt) {
+                        <span>Ended {{ execution.endedAt | date: 'MMM d, y, h:mm a' }}</span>
+                      }
+                      <span>Total tracked: {{ formatHours(execution.totalHours) }}</span>
+                    </p>
+                    @if (execution.completionNote) {
+                      <p class="history__note">Completion note: {{ execution.completionNote }}</p>
+                    }
+                    @if (execution.crew.length) {
+                      <div class="history__execution-crew">
+                        <p>Crew on job</p>
+                        <ul>
+                          @for (member of execution.crew; track member.employeeId) {
+                            <li>
+                              {{ member.fullName }} &middot; {{ formatHours(member.hoursWorked) }}
+                            </li>
+                          }
+                        </ul>
+                      </div>
+                    }
+                  </div>
+                }
+                @if (history.hedgePlan.length) {
+                  <div class="history__hedges">
+                    <p>Hedge plan</p>
+                    <ul>
+                      @for (plan of history.hedgePlan; track $index) {
+                        <li>{{ plan }}</li>
+                      }
+                    </ul>
+                  </div>
+                }
+                @if (history.desiredBudget) {
+                  <p class="history__note">
+                    Desired budget:
+                    {{ formatCurrency(history.desiredBudget) }}
+                  </p>
+                }
+                @if (history.additionalDetails) {
+                  <p class="history__note">{{ history.additionalDetails }}</p>
+                }
+                <div class="history__actions">
+                  <button type="button" class="ghost" (click)="requestEntryEdit(history)">
+                    Edit job
+                  </button>
+                  <button type="button" class="ghost danger" (click)="requestEntryDelete(history)">
+                    Delete job
+                  </button>
+                </div>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="client-drawer__state">No jobs recorded yet.</p>
+        }
+      }
+    }
+  </section>
+</article>

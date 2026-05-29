@@ -1,0 +1,51 @@
+:host {
+  display: block;
+}
+
+.merge-token-editor__surface {
+  min-height: 2.5rem;
+  border-radius: 0.8rem;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font: inherit;
+  padding: 0.6rem 0.75rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.merge-token-editor__surface:focus {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.merge-token-editor__surface:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+}
+
+.merge-token-editor__chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-accent);
+  border-radius: 999px;
+  background: var(--surface-chip);
+  color: var(--text-accent);
+  padding: 0.18rem 0.62rem;
+  font-size: 0.88rem;
+  line-height: 1.2;
+  margin: 0 0.12rem;
+  vertical-align: baseline;
+}
+
+.merge-token-editor__chip--dragging {
+  opacity: 0.55;
+}
+
+:host(.merge-drop-target) .merge-token-editor__surface {
+  border-color: var(--border-accent-strong);
+  box-shadow:
+    0 0 0 2px var(--focus-ring-glow),
+    0 0 0 1px var(--focus-ring-inner) inset;
+  background: var(--surface-focus);
+}

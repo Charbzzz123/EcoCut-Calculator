@@ -1,7 +1,30 @@
 @use './styles/theme';
+@use './styles/brand';
 
 * {
   box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb-solid) var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar {
+  width: 0.55rem;
+  height: 0.55rem;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+  border: 1px solid var(--scrollbar-thumb-border);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
 }
 
 body {
@@ -25,4 +48,222 @@ button {
 :focus-visible {
   outline: 2px solid var(--accent-amber);
   outline-offset: 2px;
+}
+
+/* Shared motion baseline for interactive controls across features. */
+:where(
+  button,
+  input:not([type='checkbox']):not([type='radio']),
+  textarea,
+  select,
+  .field__input,
+  .refresh-btn,
+  .add-btn,
+  .retry-btn,
+  .status-pill,
+  .employee-action,
+  .chip,
+  .merge-chip,
+  .address-suggestion,
+  .select-dropdown__trigger,
+  .select-dropdown__option,
+  .client-card,
+  .employee-card,
+  .quick-action,
+  .slot-chip
+) {
+  transition:
+    transform var(--motion-duration-fast) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-base) var(--motion-ease-standard),
+    filter var(--motion-duration-base) var(--motion-ease-standard),
+    border-color var(--motion-duration-base) var(--motion-ease-standard),
+    background-color var(--motion-duration-base) var(--motion-ease-standard),
+    color var(--motion-duration-base) var(--motion-ease-standard),
+    opacity var(--motion-duration-base) var(--motion-ease-standard);
+}
+
+:where(.refresh-btn, .add-btn, .retry-btn, .status-pill, .employee-action):not(:disabled):hover {
+  transform: translateY(var(--motion-lift-distance));
+  filter: brightness(1.06);
+  box-shadow: 0 8px 20px rgba(2, 12, 9, 0.45);
+}
+
+:where(.refresh-btn, .add-btn, .retry-btn, .status-pill, .employee-action):not(:disabled):active {
+  transform: translateY(0);
+  filter: brightness(0.97);
+  box-shadow: inset 0 0 0 1px rgba(6, 26, 19, 0.35);
+}
+
+:where(.refresh-btn, .add-btn, .retry-btn, .status-pill, .employee-action):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px var(--focus-ring-glow);
+}
+
+:where(.refresh-btn, .add-btn, .retry-btn, .status-pill, .employee-action):disabled {
+  filter: saturate(0.72);
+}
+
+:where(.motion-enter-panel) {
+  animation: motion-panel-enter var(--motion-duration-panel) var(--motion-ease-standard);
+}
+
+/* Shared collapse/expand motion for progressive-disclosure panels. */
+:where(.motion-collapse) {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px);
+  pointer-events: none;
+  transition:
+    grid-template-rows var(--motion-duration-panel) var(--motion-ease-standard),
+    opacity var(--motion-duration-base) var(--motion-ease-standard),
+    transform var(--motion-duration-base) var(--motion-ease-standard),
+    visibility 0ms linear var(--motion-duration-base);
+}
+
+:where(.motion-collapse--expanded) {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+  transition-delay: 0ms, 0ms, 0ms, 0ms;
+}
+
+:where(.motion-collapse__inner) {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Shared alert/toast motion utility for validation, state, and feedback surfaces. */
+:where(.motion-alert, .validation-banner, .state-banner, .workspace-state--error, .save-toast) {
+  animation: motion-alert-enter var(--motion-duration-base) var(--motion-ease-standard);
+  transition:
+    opacity var(--motion-duration-base) var(--motion-ease-standard),
+    transform var(--motion-duration-base) var(--motion-ease-standard);
+  will-change: opacity, transform;
+}
+
+:where(.motion-alert--closing) {
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+}
+
+/* Shared surface transitions so cards/panels/banners feel consistent when states change. */
+:where(
+  [class$='-card'],
+  [class*='-card '],
+  [class$='__card'],
+  [class*='__card '],
+  [class$='-panel'],
+  [class*='-panel '],
+  [class$='__panel'],
+  [class*='__panel '],
+  [class$='-banner'],
+  [class*='-banner '],
+  [class$='__banner'],
+  [class*='__banner ']
+) {
+  transition:
+    border-color var(--motion-duration-base) var(--motion-ease-standard),
+    background-color var(--motion-duration-base) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-base) var(--motion-ease-standard),
+    transform var(--motion-duration-fast) var(--motion-ease-standard),
+    opacity var(--motion-duration-base) var(--motion-ease-standard);
+}
+
+@keyframes motion-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes motion-alert-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(
+    button,
+    input:not([type='checkbox']):not([type='radio']),
+    textarea,
+    select,
+    .field__input,
+    .refresh-btn,
+    .add-btn,
+    .retry-btn,
+    .status-pill,
+    .employee-action,
+    .chip,
+    .merge-chip,
+    .address-suggestion,
+    .select-dropdown__trigger,
+    .select-dropdown__option,
+    .client-card,
+    .employee-card,
+    .quick-action,
+    .slot-chip
+  ) {
+    transition: none;
+  }
+
+  :where(
+    [class$='-card'],
+    [class*='-card '],
+    [class$='__card'],
+    [class*='__card '],
+    [class$='-panel'],
+    [class*='-panel '],
+    [class$='__panel'],
+    [class*='__panel '],
+    [class$='-banner'],
+    [class*='-banner '],
+    [class$='__banner'],
+    [class*='__banner ']
+  ) {
+    transition: none;
+  }
+
+  :where(.motion-enter-panel) {
+    animation: none;
+  }
+
+  :where(.motion-collapse) {
+    transition: none;
+    transform: none;
+  }
+
+  :where(.motion-alert, .validation-banner, .state-banner, .workspace-state--error, .save-toast) {
+    animation: none;
+    transition: none;
+  }
+}
+
+.workspace-state {
+  margin: 0;
+  color: var(--text-muted);
+  padding: 0.5rem 0;
+}
+
+.workspace-state--error {
+  border-radius: 0.9rem;
+  border: 1px solid var(--border-danger-soft);
+  background: var(--surface-danger-ghost);
+  color: var(--text-danger-soft);
+  padding: 0.6rem 0.75rem;
 }

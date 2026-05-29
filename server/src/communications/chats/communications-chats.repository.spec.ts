@@ -1,0 +1,368 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { CommunicationsChatsRepository } from './communications-chats.repository';
+
+describe('CommunicationsChatsRepository', () => {
+  const originalDbPath = process.env.COMMUNICATIONS_DB_PATH;
+
+  let tempDir: string;
+  let repository: CommunicationsChatsRepository;
+
+  beforeEach(() => {
+    tempDir = mkdtempSync(join(tmpdir(), 'ecocut-chats-'));
+    process.env.COMMUNICATIONS_DB_PATH = join(tempDir, 'communications.db');
+    repository = new CommunicationsChatsRepository();
+  });
+
+  afterEach(() => {
+    repository.onModuleDestroy();
+    rmSync(tempDir, { recursive: true, force: true });
+    if (originalDbPath) {
+      process.env.COMMUNICATIONS_DB_PATH = originalDbPath;
+      return;
+    }
+    delete process.env.COMMUNICATIONS_DB_PATH;
+  });
+
+  it('upserts conversations and messages idempotently', () => {
+    expect(
+      repository.upsertConversations([
+        {
+          id: 'conv-1',
+          displayName: 'Client thread',
+          lastMessageAt: '2026-04-23T10:00:00.000Z',
+        },
+      ]),
+    ).toBe(1);
+    expect(
+      repository.upsertConversations([
+        {
+          id: 'conv-1',
+          displayName: 'Client thread (renamed)',
+          lastMessageAt: '2026-04-23T11:00:00.000Z',
+        },
+      ]),
+    ).toBe(1);
+
+    expect(
+      repository.upsertMessages('conv-1', [
+        {
+          id: 'msg-1',
+          conversationId: 'conv-1',
+          content: 'hello',
+          createdAt: '2026-04-23T10:00:00.000Z',
+        },
+      ]),
+    ).toBe(1);
+    expect(
+      repository.upsertMessages('conv-1', [
+        {
+          id: 'msg-1',
+          conversationId: 'conv-1',
+          content: 'updated',
+          createdAt: '2026-04-23T10:00:00.000Z',
+        },
+      ]),
+    ).toBe(1);
+
+    expect(repository.getMirrorStats()).toEqual({
+      conversations: 1,
+      messages: 1,
+      clientLinks: 0,
+      cursors: 0,
+    });
+  });
+
+  it('stores client links and sync cursors', () => {
+    repository.upsertClientContactLink({
+      clientId: 'client-1',
+      quoContactId: 'contact-1',
+      source: 'auto',
+    });
+    repository.upsertClientContactLink({
+      clientId: 'client-1',
+      quoContactId: 'contact-2',
+      source: 'manual',
+    });
+
+    expect(repository.getClientContactLink('client-1')).toMatchObject({
+      clientId: 'client-1',
+      quoContactId: 'contact-2',
+      source: 'manual',
+    });
+    expect(repository.getClientLinkByContactId('contact-2')).toMatchObject({
+      clientId: 'client-1',
+      quoContactId: 'contact-2',
+    });
+    expect(repository.listClientContactLinks()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          clientId: 'client-1',
+          quoContactId: 'contact-2',
+        }),
+      ]),
+    );
+
+    repository.saveSyncCursor('conversations:global', 'cursor-123');
+    expect(repository.getSyncCursor('conversations:global')).toBe('cursor-123');
+
+    expect(repository.getMirrorStats()).toEqual({
+      conversations: 0,
+      messages: 0,
+      clientLinks: 1,
+      cursors: 1,
+    });
+
+    repository.removeClientContactLink('client-1');
+    expect(repository.getClientContactLink('client-1')).toBeNull();
+    expect(repository.getMirrorStats().clientLinks).toBe(0);
+  });
+
+  it('stores Quo contact cache rows for conversation name hydration', () => {
+    expect(
+      repository.upsertQuoContacts([
+        {
+          id: 'contact-1',
+          displayName: 'Fresh Client',
+          email: 'fresh@example.com',
+          externalId: 'client-1',
+          phones: ['+15145550000'],
+          payload: { id: 'contact-1' },
+          syncedAt: '2026-04-23T12:00:00.000Z',
+        },
+      ]),
+    ).toBe(1);
+    expect(
+      repository.upsertQuoContacts([
+        {
+          id: 'contact-1',
+          displayName: 'Fresh Client Updated',
+          email: 'fresh@example.com',
+          externalId: 'client-1',
+          phones: ['+15145550001'],
+          payload: { id: 'contact-1', name: 'Fresh Client Updated' },
+          syncedAt: '2026-04-23T13:00:00.000Z',
+        },
+      ]),
+    ).toBe(1);
+
+    expect(repository.getQuoContactCacheStats()).toEqual({
+      contacts: 1,
+      phoneNumbers: 1,
+      lastSyncedAt: '2026-04-23T13:00:00.000Z',
+    });
+    expect(repository.listQuoContactLookupRows()).toEqual([
+      expect.objectContaining({
+        contact_id: 'contact-1',
+        display_name: 'Fresh Client Updated',
+        email: 'fresh@example.com',
+        phone: '+15145550001',
+      }),
+    ]);
+    expect(
+      repository.markMissingQuoContactsStale(
+        ['contact-1'],
+        '2026-04-23T14:00:00.000Z',
+      ),
+    ).toBe(0);
+    expect(
+      repository.markMissingQuoContactsStale([], '2026-04-23T15:00:00.000Z'),
+    ).toBe(1);
+    expect(repository.getQuoContactCacheStats()).toEqual({
+      contacts: 0,
+      phoneNumbers: 0,
+      lastSyncedAt: null,
+    });
+    expect(repository.listQuoContactLookupRows()).toEqual([]);
+  });
+
+  it('reassigns an existing quo contact link to a new client id', () => {
+    repository.upsertClientContactLink({
+      clientId: 'client-old',
+      quoContactId: 'contact-1',
+      source: 'entries-auto-sync',
+    });
+    repository.upsertClientContactLink({
+      clientId: 'client-new',
+      quoContactId: 'contact-1',
+      source: 'client-update',
+    });
+
+    expect(repository.getClientContactLink('client-old')).toBeNull();
+    expect(repository.getClientContactLink('client-new')).toMatchObject({
+      clientId: 'client-new',
+      quoContactId: 'contact-1',
+      source: 'client-update',
+    });
+  });
+
+  it('clears mirror rows and optionally preserves client links', () => {
+    repository.upsertConversations([
+      { id: 'conv-1', lastMessageAt: '2026-04-23T10:00:00.000Z' },
+    ]);
+    repository.upsertMessages('conv-1', [
+      {
+        id: 'msg-1',
+        conversationId: 'conv-1',
+        createdAt: '2026-04-23T10:01:00.000Z',
+      },
+    ]);
+    repository.upsertClientContactLink({
+      clientId: 'client-1',
+      quoContactId: 'contact-1',
+      source: 'auto',
+    });
+    repository.saveSyncCursor('cursor-key', 'cursor-value');
+
+    repository.clearMirrorData({ preserveClientLinks: true });
+    expect(repository.getMirrorStats()).toEqual({
+      conversations: 0,
+      messages: 0,
+      clientLinks: 1,
+      cursors: 0,
+    });
+
+    repository.clearMirrorData({ preserveClientLinks: false });
+    expect(repository.getMirrorStats()).toEqual({
+      conversations: 0,
+      messages: 0,
+      clientLinks: 0,
+      cursors: 0,
+    });
+  });
+
+  it('deduplicates webhook events by provider event id', () => {
+    const first = repository.recordWebhookEvent({
+      provider: 'quo',
+      providerEventId: 'evt-1',
+      eventType: 'message.received',
+      messageId: 'msg-1',
+      conversationId: 'conv-1',
+      occurredAt: '2026-04-23T12:00:00.000Z',
+      payload: { event: 'message.received' },
+    });
+    const second = repository.recordWebhookEvent({
+      provider: 'quo',
+      providerEventId: 'evt-1',
+      eventType: 'message.received',
+      messageId: 'msg-1',
+      conversationId: 'conv-1',
+      occurredAt: '2026-04-23T12:00:00.000Z',
+      payload: { event: 'message.received' },
+    });
+
+    expect(first.inserted).toBe(true);
+    expect(second.inserted).toBe(false);
+  });
+
+  it('lists conversations/messages and tracks read state', () => {
+    repository.upsertConversations([
+      {
+        id: 'conv-1',
+        displayName: 'Karam',
+        lastMessageAt: '2026-04-23T13:00:00.000Z',
+      },
+      {
+        id: 'conv-2',
+        displayName: 'Maryam',
+        lastMessageAt: '2026-04-23T14:00:00.000Z',
+      },
+    ]);
+    repository.upsertMessages('conv-1', [
+      {
+        id: 'msg-1',
+        conversationId: 'conv-1',
+        direction: 'inbound',
+        from: '+15145550000',
+        content: 'Hi',
+        createdAt: '2026-04-23T13:00:00.000Z',
+      },
+    ]);
+    repository.upsertMessages('conv-2', [
+      {
+        id: 'msg-2',
+        conversationId: 'conv-2',
+        direction: 'outbound',
+        to: '+15145551111',
+        content: 'Hello',
+        createdAt: '2026-04-23T14:00:00.000Z',
+      },
+    ]);
+
+    expect(repository.countMirrorConversations('')).toBe(2);
+    expect(
+      repository.listMirrorConversations({
+        limit: 10,
+        offset: 0,
+        query: 'karam',
+      }),
+    ).toHaveLength(1);
+    expect(
+      repository.listMirrorMessages({
+        conversationId: 'conv-1',
+        limit: 10,
+        offset: 0,
+      }),
+    ).toHaveLength(1);
+    expect(repository.countMirrorMessages('conv-1')).toBe(1);
+    expect(repository.hasConversation('conv-1')).toBe(true);
+    expect(repository.hasConversation('conv-missing')).toBe(false);
+
+    repository.markConversationRead('conv-1', '2026-04-23T13:10:00.000Z');
+    const row = repository.getMirrorConversationById('conv-1');
+    expect(row?.unread_count).toBe(0);
+  });
+
+  it('lists unlinked conversations that are not mapped to a client link', () => {
+    repository.upsertConversations([
+      {
+        id: 'conv-1',
+        contactId: 'contact-linked',
+        displayName: 'Linked contact',
+        lastMessageAt: '2026-04-24T12:00:00.000Z',
+      },
+      {
+        id: 'conv-2',
+        contactId: 'contact-unlinked',
+        displayName: 'Unlinked contact',
+        lastMessageAt: '2026-04-24T13:00:00.000Z',
+      },
+    ]);
+    repository.upsertClientContactLink({
+      clientId: 'client-1',
+      quoContactId: 'contact-linked',
+      source: 'manual-link',
+    });
+    repository.upsertMessages('conv-1', [
+      {
+        id: 'msg-1',
+        conversationId: 'conv-1',
+        direction: 'inbound',
+        from: '+15145550000',
+        content: 'Linked',
+        createdAt: '2026-04-24T12:01:00.000Z',
+      },
+    ]);
+    repository.upsertMessages('conv-2', [
+      {
+        id: 'msg-2',
+        conversationId: 'conv-2',
+        direction: 'inbound',
+        from: '+15145551111',
+        content: 'Unlinked',
+        createdAt: '2026-04-24T13:01:00.000Z',
+      },
+    ]);
+
+    const unlinked = repository.listUnlinkedConversations({
+      limit: 10,
+      offset: 0,
+      query: '',
+    });
+
+    expect(unlinked).toHaveLength(1);
+    expect(unlinked[0]?.conversation_id).toBe('conv-2');
+    expect(repository.countUnlinkedConversations('')).toBe(1);
+  });
+});
