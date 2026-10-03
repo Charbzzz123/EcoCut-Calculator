@@ -150,11 +150,12 @@ describe('ClientsFacade', () => {
     expect(facade.drawerVisible()).toBe(false);
   });
 
-  it('keeps active selection untouched when roster refresh no longer includes it', async () => {
+  it('closes the drawer when its client disappears from the refreshed roster', async () => {
     await facade.openClientDrawer(baseClients[0]);
     repository.listClients.mockResolvedValueOnce([baseClients[1], baseClients[2]]);
     await facade.loadClients();
-    expect(facade.activeClient()?.clientId).toBe('alex@example.com');
+    expect(facade.drawerVisible()).toBe(false);
+    expect(facade.clientDetail()).toBeNull();
   });
 
   it('filters clients from the query control', async () => {
@@ -193,7 +194,9 @@ describe('ClientsFacade', () => {
   it('handles client updates/deletes', async () => {
     await facade.openClientDrawer(baseClients[0]);
     await facade.handleClientUpdate({ firstName: 'Alexis' });
-    expect(repository.updateClient).toHaveBeenCalledWith('alex@example.com', { firstName: 'Alexis' });
+    expect(repository.updateClient).toHaveBeenCalledWith('alex@example.com', {
+      firstName: 'Alexis',
+    });
 
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     await facade.handleClientDelete();

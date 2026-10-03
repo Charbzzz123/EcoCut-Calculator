@@ -139,6 +139,13 @@ Living checklist for in-flight feature work so we never lose track of what€™
 | Broadcast UX polish (audience + safety workflow)                     | 2026-03-17 | Added recipient eligibility badges, cleaner themed scroll/checkbox controls, preview next/previous navigation, mandatory Step 2 channel confirmation, send-readiness checklist + blocking reasons, and a live pre-send cost estimate panel (CAD) for email/SMS campaigns.                                                              |
 | CH-9 client-aware chat header + deep-link                            | 2026-05-08 | Added client-book chat links, linked client ids on mirrored chat summaries, route query auto-open for `/communications/chats?clientId=...`, and a thread header context card with client job totals/last/next context.                                                                                                                 |
 
+## Browser verification (2026-09-30)
+
+- Added Playwright Chromium checks for dashboard navigation, entries, clients, calendar scheduling with an isolated provider mock, employees, manual and linked job assignments and run lifecycle (including early crew exit), broadcast preparation and dispatch confirmation, Chats, and mobile layouts.
+- Runs use temporary SQLite databases and independent frontend/backend ports. CI runs the suite and uploads traces on failure.
+- Browser checks exposed and fixed stale client drawers after last-job deletion and native form submission during chat replies.
+- Live Google Calendar, Quo, SMTP, and production authentication still require staging verification with configured credentials.
+
 ## In Progress / Backlog
 
 | Step   | Task                                | Owner | Notes                                                                                                                                                                                                                         |
