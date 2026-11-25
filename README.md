@@ -1,6 +1,8 @@
 # EcoCut-Calculator
 
-Our own custom calculator for our own business
+EcoCut's internal operations app for client intake, scheduling, crew work, and communications. The financial calculator described in older planning documents is future scope.
+
+Start with the [documentation map](docs/README.md) for product scope, current architecture, production roadmap, and active work.
 
 ## Browser end-to-end checks
 
