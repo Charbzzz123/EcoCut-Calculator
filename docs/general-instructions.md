@@ -1,5 +1,7 @@
 # Project Working Agreement
 
+> Historical working agreement. Use [AGENTS.md](../AGENTS.md), the [documentation map](README.md), and the [engineering workflow](engineering-workflow.md) for current repository practice. Reconcile this file before treating old tool versions, coverage goals, or branch names as binding.
+
 ## Mission
 
 Build and maintain the EcoCut Calculator, an Angular 21 single-page app (SPA) that helps EcoCut estimate jobs quickly with a **speed-first ethos**—performance and snappy UX take priority while still delivering polished visuals.
