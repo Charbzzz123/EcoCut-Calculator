@@ -8,6 +8,10 @@ Status: draft for business review. Last checked against the repository: 2026-10-
 
 EcoCut is an internal operations workspace for recording leads and customers, scheduling jobs and crews, tracking employee hours, and reviewing customer conversations. Likely users are owners, managers, and field crew; their exact access needs still need confirmation.
 
+## Lead and customer stages
+
+The existing entry form already distinguishes **Warm Lead** (the customer has not accepted and is still considering) from **Customer / Closed** (the customer agreed to proceed). It currently asks the operator to choose the variant when creating an entry. **Agreed requirement.** When a lead accepts, the operator can change that existing record to Customer / Closed while keeping its details and history. Calendar scheduling remains a separate step.
+
 ## Company workspaces
 
 **Approved direction.** EcoCut and EcoAir will use one CRM with a company switcher. Authorized staff can use the same login to switch between the companies they have access to. Each company can have its own settings, service catalog, and integrations.
