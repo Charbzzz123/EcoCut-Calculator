@@ -8,6 +8,12 @@ Status: draft for business review. Last checked against the repository: 2026-10-
 
 EcoCut is an internal operations workspace for recording leads and customers, scheduling jobs and crews, tracking employee hours, and reviewing customer conversations. Likely users are owners, managers, and field crew; their exact access needs still need confirmation.
 
+## Company workspaces
+
+**Approved direction.** EcoCut and EcoAir will use one CRM with a company switcher. Authorized staff can use the same login to switch between the companies they have access to. Each company can have its own settings, service catalog, and integrations.
+
+The proposed default is separate customer, job, and conversation records for each company, with access enforced by the server. Example: an EcoAir-only user cannot open an EcoCut customer or conversation, even through a direct link. Confirm which staff work across companies, whether any records or calendars should be shared, and when EcoAir needs access. Resolve those questions before agreeing on permissions, data migration, and provider setup.
+
 ## Current usable scope
 
 The app has routes for Home, Clients, Manage Employees, Start Next Job, Broadcast, and Chats. It has a Nest API and local SQLite persistence. Calendar, address lookup, email, and Quo integrations depend on external configuration. The original financial calculator, funds, invoice sequence, and undo workflow described in the [functionality catalog](app-functionality.md) are **planned scope**, not an accepted claim about the current application.

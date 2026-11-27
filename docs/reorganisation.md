@@ -30,18 +30,39 @@ Use a private project called **EcoCut development**, linked to the existing repo
 
 Use an issue for an epic, a child issue for a story, and a checklist for its tasks. Search by existing ID before creating anything. After setup, read back the parent, iteration and status of one sample story. Replace the temporary queue only after checking the count and links.
 
+## CRM direction
+
+EcoCut and EcoAir will use one app with a company switcher. The [Product Guide](product-brief.md#company-workspaces) holds the approved direction, proposed data rules, and open questions.
+
+The first CRM candidate is the lead-to-completed-job journey. Establish the baseline with sample data, then turn the gaps into stories. Confirm which features the team needs at launch while the baseline review runs. Use the dependency order below to choose sprint scope after the stories are ready.
+
 ## First ranked stories
 
 | Rank / sprint | Epic and story | Tasks and acceptance | Depends on |
 | --- | --- | --- | --- |
-| 1 / 0 | E0 Resume work · S01 reconcile local baseline | Owner identifies which Desktop changes and local commit belong together. Compare both worktrees before integration. | Owner's active rebase |
-| 2 / 0 | E0 · S03 document read-only history | Record the decision and replace outbound rollout goals. Wording distinguishes current code from the approved target. Draft delivered here. | Ready for owner review |
-| 3 / 0 | E0 · S02 prove the local pilot journey | Use temporary data. Save a client, assign a crew, refresh and find the same job. Capture the commands and result. | S01 |
-| 4 / 1 | E1 Read-only communications · S11 stop all outbound delivery | Trace replies, broadcast, test sends and queued work after restart. Verify zero transport calls with a fake provider. | S03 |
-| 5 / 1 | E1 · S12 show history only | Remove sending actions. Verify search, thread reading and client links on desktop and mobile. | S11 |
-| 6 / 2 | E2 Pilot access · PROD-3 enforce operator roles | Agree the role matrix. Verify allowed and denied API access independently of the browser. | Pilot roles agreed under PROD-1 |
-| 7 / 3 | E3 Recovery · PROD-4 restore business records | Agree recovery targets, restore all stores in a fresh environment, verify cross-store links. | PROD-1, DATA-2 |
-| 8 / 4 | E4 Online pilot · PROD-5 rehearse release | Measure a small VM, verify persistent storage, rollback and provider fallbacks. Choose release promotion with owner. | PROD-2, PROD-3, PROD-4 |
+| 1 / 0 | E0 Resume work · S01 reconcile local baseline | Walkthrough baseline approved. Reconciliation of original edits and the rebase remains open. See the review below. | — |
+| 2 / 0 | E0 · S02 walk through the CRM with sample data | Complete for desktop with sample data. See the walkthrough results below. | Approved DEV baseline |
+| Parallel | PROD-1 define the first release | Agree the customer journey, release scope, roles, company access, and whether any records can be shared. | Owner input |
+| After S02 | CRM · Lead to booked job (proposed) | Find a lead, see its owner and next follow-up, and book a job with the lead history intact. | S02, PROD-1 workflow |
+| After S02 | CRM · Schedule and complete work (proposed) | Assign or reschedule a job and record completion. Reuse working crew and job flows. | S02, PROD-1 roles; use the lead story for the full journey |
+| Parallel | E1 Read-only communications · S03, S11, S12 | Review the documented decision, then disable outbound delivery and remove send actions. Verify history, search, and client links. | S03 before S11; S11 before S12 |
+| Before pilot | E2 Pilot access · PROD-3 enforce login and company access | Authorized users switch companies. Direct requests for another company's records are denied without membership. | PROD-1 roles and company rules |
+| Before pilot | E3 Recovery · PROD-4 restore business records | Prove backup and restore preserve records, their company ownership, and cross-store links. | PROD-1, DATA-2 |
+| Before launch | E4 Online pilot · PROD-5 rehearse release | Verify the agreed CRM journey, provider fallbacks, persistent storage, and rollback in staging. | Core pilot stories, PROD-2, PROD-3, PROD-4 |
+
+After the walkthrough, consider a Today view for overdue follow-ups and jobs needing attention, recurring services, and crew handoff notes, photos, or checklists. Pull quotes, invoices, or payment tracking into the first release if the owner needs them for the daily workflow.
+
+### S01 baseline review
+
+Local `DEV` at `eeefdd4e` contains the end-to-end coverage commit and is the candidate baseline. The reorganisation branch adds documentation and skills on top of it. The original checkout has separate uncommitted edits and an active rebase. A queued rebase commit includes a calendar credential file and generated dependencies. Review the useful changes separately before integrating anything from that rebase. The owner approved this baseline for the sample walkthrough. Reconciliation of the original checkout remains open.
+
+### S02 walkthrough results
+
+Desktop Chromium ran on local DEV at `eeefdd4e` with temporary SQLite files and mocked Calendar. Seven existing tests passed across Entries and Clients, Linked Job, and Jobs. A separate same-customer Playwright walkthrough also passed: save and reopen a warm lead, assign a crew through Start Next Job, complete the linked run, and verify the completion and original lead note after a refresh.
+
+- **Lead to booked job:** The client drawer had edit and delete actions. The walkthrough could schedule the lead from Start Next Job, but the original entry still showed as a warm lead after the work was completed. Define what “booked” should mean and how the client record should show the transition.
+- **Schedule and complete work:** Saving the assignment cleared the crew selection and disabled Scheduled history. Reselecting the crew made the saved job available to start and finish. Consider a direct route from the saved assignment to its history.
+- **Repository setup:** DEV still tracks files under `server/node_modules`. Installing server dependencies changes tracked files in a fresh worktree. Triage dependency cleanup separately from the CRM stories.
 
 ## Trial and removal
 
