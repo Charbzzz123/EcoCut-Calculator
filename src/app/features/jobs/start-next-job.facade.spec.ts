@@ -820,11 +820,13 @@ describe('StartNextJobFacade', () => {
     expect(facade.draftValidation().isReady).toBe(true);
 
     await expect(facade.submitAssignment('owner')).resolves.toBe(true);
-    expect(dataService.assignmentPayloads[dataService.assignmentPayloads.length - 1]).toMatchObject({
-      jobEntryId: 'entry-completed',
-      continuityCategory: 'issue_return',
-      continuityReason: 'Customer reported missed section.',
-    });
+    expect(dataService.assignmentPayloads[dataService.assignmentPayloads.length - 1]).toMatchObject(
+      {
+        jobEntryId: 'entry-completed',
+        continuityCategory: 'issue_return',
+        continuityReason: 'Customer reported missed section.',
+      },
+    );
   });
 
   it('accepts explicit manual job mode and submits payload without linked job id', async () => {
@@ -839,10 +841,12 @@ describe('StartNextJobFacade', () => {
     facade.scheduledEndControl.setValue('2026-03-21T10:00');
 
     await expect(facade.submitAssignment('owner')).resolves.toBe(true);
-    expect(dataService.assignmentPayloads[dataService.assignmentPayloads.length - 1]).toMatchObject({
-      jobLabel: 'Manual follow-up',
-      jobEntryId: null,
-    });
+    expect(dataService.assignmentPayloads[dataService.assignmentPayloads.length - 1]).toMatchObject(
+      {
+        jobLabel: 'Manual follow-up',
+        jobEntryId: null,
+      },
+    );
   });
 
   it('reacts to job-mode control changes after initial reads', async () => {
@@ -1019,7 +1023,7 @@ describe('StartNextJobFacade', () => {
       },
     ];
     await facade.loadBoard();
-    facade.setAnalyticsWindow('90d');
+    facade.setAnalyticsWindow('90d', new Date('2026-03-21T10:00:00.000Z'));
     facade.toggleEmployeeSelection('emp-b');
 
     expect(facade.assignmentAnalytics()).toEqual({
@@ -1041,7 +1045,7 @@ describe('StartNextJobFacade', () => {
 
   it('builds an analytics CSV export for the selected crew context', async () => {
     await facade.loadBoard();
-    facade.setAnalyticsWindow('90d');
+    facade.setAnalyticsWindow('90d', new Date('2026-03-21T10:00:00.000Z'));
     facade.toggleEmployeeSelection('emp-b');
 
     const exportPayload = facade.createAssignmentAnalyticsExport(
@@ -1563,9 +1567,7 @@ describe('StartNextJobFacade', () => {
     expect(facade.saveMessage()).toBe('Run started. Crew clock-in is now active.');
 
     await expect(facade.endHistoryRun('hist-2', 'owner')).resolves.toBe(true);
-    expect(dataService.endRunCalls).toEqual([
-      { entryId: 'hist-2', completionNote: null },
-    ]);
+    expect(dataService.endRunCalls).toEqual([{ entryId: 'hist-2', completionNote: null }]);
     expect(facade.saveState()).toBe('success');
     expect(facade.saveMessage()).toBe('Run ended. Remaining crew members were clocked out.');
   });
@@ -1600,9 +1602,7 @@ describe('StartNextJobFacade', () => {
     );
     await expect(clockOutPromise).resolves.toBe(false);
     expect(facade.saveState()).toBe('error');
-    expect(facade.saveMessage()).toBe(
-      'Unable to clock out this crew member right now.',
-    );
+    expect(facade.saveMessage()).toBe('Unable to clock out this crew member right now.');
     expect(facade.selectedCrewHistory().find((entry) => entry.id === 'hist-2')?.status).toBe(
       'scheduled',
     );

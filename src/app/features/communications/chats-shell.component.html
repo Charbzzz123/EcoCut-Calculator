@@ -234,7 +234,7 @@
           </div>
         }
 
-        <form class="composer" (ngSubmit)="sendMessage()">
+        <form class="composer" (submit)="sendMessage(); $event.preventDefault()">
           <label>
             <span>Reply by SMS</span>
             <textarea

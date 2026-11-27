@@ -1,4 +1,4 @@
-﻿# Work Tracker
+# Work Tracker
 
 Living checklist for in-flight feature work so we never lose track of what€™s done vs. still active. Update this document in the same PR as the related code change.
 
@@ -139,17 +139,37 @@ Living checklist for in-flight feature work so we never lose track of what€™
 | Broadcast UX polish (audience + safety workflow)                     | 2026-03-17 | Added recipient eligibility badges, cleaner themed scroll/checkbox controls, preview next/previous navigation, mandatory Step 2 channel confirmation, send-readiness checklist + blocking reasons, and a live pre-send cost estimate panel (CAD) for email/SMS campaigns.                                                              |
 | CH-9 client-aware chat header + deep-link                            | 2026-05-08 | Added client-book chat links, linked client ids on mirrored chat summaries, route query auto-open for `/communications/chats?clientId=...`, and a thread header context card with client job totals/last/next context.                                                                                                                 |
 
+## Browser verification (2026-09-30)
+
+- Added Playwright Chromium checks for dashboard navigation, entries, clients, calendar scheduling with an isolated provider mock, employees, manual and linked job assignments and run lifecycle (including early crew exit), broadcast preparation and dispatch confirmation, Chats, and mobile layouts.
+- Runs use temporary SQLite databases and independent frontend/backend ports. CI runs the suite and uploads traces on failure.
+- Browser checks exposed and fixed stale client drawers after last-job deletion and native form submission during chat replies.
+- Production authentication is not implemented. Verify Google Calendar, Maps, Quo, and SMTP configuration, data handling, costs, and live failure behavior before launch; see [provider boundaries](provider-boundaries.md).
+
+## Production readiness — next work in order
+
+The [production roadmap](production-roadmap.md) holds milestone gates. Keep this table as the short, active queue.
+
+| ID     | Priority | Task                                                                    | Done when                                                       |
+| ------ | -------- | ----------------------------------------------------------------------- | --------------------------------------------------------------- |
+| PROD-1 | P0       | Confirm release journeys, retention, RPO/RTO, and maximum monthly spend | Product brief has named business approval                       |
+| PROD-2 | P0       | Inventory provider data flows, credentials, costs, and failure modes    | Provider matrix has owners and runtime guardrails               |
+| PROD-3 | P0       | Implement authenticated server-side roles                               | API rejects unauthenticated/spoofed-role requests               |
+| PROD-4 | P0       | Choose durable storage and prove backup/restore                         | ADR accepted and restore drill meets RPO/RTO                    |
+| PROD-5 | P1       | Build staging and release pipeline                                      | Same artifact passes CI, staging checks, and rollback rehearsal |
+| PROD-6 | P1       | Add operations dashboards and provider cost monitoring                  | Alerts, quotas, and on-call/runbook owner tested                |
+
 ## In Progress / Backlog
 
 | Step   | Task                                | Owner | Notes                                                                                                                                                                                                                         |
 | ------ | ----------------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| CH-10  | Rate/cost guardrails for chats      | —     | Enforce queue/throttle (10 rps key limit), outbound pacing, usage counters, and optional auto-pause threshold for safe operations.                                                                                            |
-| CH-11  | Test + rollout hardening            | —     | Add unit/integration/e2e coverage for sync/send/webhook/linking flows, then run full quality gates before staged rollout.                                                                                                     |
+| CH-10  | Rate/cost guardrails for chats      | —     | Bound read and sync traffic. S11 owns removal of all outbound customer delivery.                                                                                            |
+| CH-11  | Test + rollout hardening            | —     | Add unit/integration/e2e coverage for history sync, webhooks, client links and zero outbound deliveries, then run full quality gates before staged rollout.                                                                                                     |
 | CH-12  | Final docs + runbook                | —     | Document architecture, env/setup, webhook ops, failure modes, and support runbook across app docs and release checklist.                                                                                                      |
-| ADDR-1 | Address strict-mode rollout         | —     | Keep `enforceVerifiedAddress=false` in development until provider credentials are configured, then run staging validation and switch strict-mode to `true` in production configs.                                             |
+| ADDR-1 | Address provider rollout            | —     | Verify Google Places credentials, quota, cost, validation, and manual-entry fallback with staging data before launch.                                                                                                         |
 | ADDR-2 | Address usage + quota UI in Finance | —     | Backend usage ledger, monthly caps, and threshold guardrails are shipped (`/addresses/usage`). Remaining work: surface this in the future Finance section with monthly cost/threshold widgets and optional auto-pause toggle. |
 | DATA-1 | Centralize job display labels       | —     | Add canonical `displayLabel` read model (client + job type) and optional `clientNameSnapshot` on history rows so labels stay consistent across Start Next Job, history, and reports even if client names change later.        |
-| DATA-2 | Migrate EntriesRepository database  | —     | Replace file-based persistence with SQLite/Postgres via a managed ORM (e.g., Prisma) when ready.                                                                                                                              |
+| DATA-2 | Define storage migration path       | —     | Entries already use SQLite. Normalize paths, schema migrations, backup/restore, and compare managed PostgreSQL against a single VM before changing engines.                                                                   |
 
 ### JX Plan Detail (freeze this before coding)
 
@@ -247,7 +267,7 @@ Use this as the source of truth if chat context resets.
 - **Done when**
   - User can execute full flow with no ambiguous state and docs match shipped behavior.
 
-### Broadcast Requirements (locked for implementation)
+### Historical broadcast requirements (delivery retired from product scope)
 
 - No AI-generated campaign copy required for MVP; operators write templates manually.
 - Personalization is merge-field based, not bot-generated, and must support per-client values.
@@ -461,13 +481,13 @@ Use this as the source of truth if chat context resets.
 
 #### CH-10 - Guardrails (rate/cost/reliability)
 
-- Enforce queue + throttles (respect Quo 10 rps per key).
+- Apply provider limits to history and contact reads. Confirm the current limit before configuring pacing.
 - Add monthly usage counters + threshold warnings.
 - Optional auto-pause on threshold breach for safe operations.
 
 #### CH-11 - Test + rollout hardening
 
-- Add unit/integration/e2e coverage for sync/webhook/send/link flows.
+- Add unit/integration/e2e coverage for history sync, webhooks, client links and zero outbound deliveries.
 - Run full quality gates before rollout.
 - Validate failure-mode UX (provider down, auth failure, rate limit).
 

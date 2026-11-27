@@ -88,7 +88,12 @@ export class ClientsFacade {
   }
   /* c8 ignore stop */
 
-  statsSnapshot(): { totalClients: number; totalJobs: number; mostRecentDate: string | null; nextJobDate: string | null } {
+  statsSnapshot(): {
+    totalClients: number;
+    totalJobs: number;
+    mostRecentDate: string | null;
+    nextJobDate: string | null;
+  } {
     return this.stats();
   }
 
@@ -111,6 +116,8 @@ export class ClientsFacade {
         const refreshed = clients.find((client) => client.clientId === active.clientId);
         if (refreshed) {
           this.activeClientSignal.set(refreshed);
+        } else {
+          this.closeDrawer();
         }
       }
     } catch (error) {
