@@ -30,7 +30,7 @@
 
 ### Warm Lead / Customer Entry Modal
 
-- Launched from the â€œAdd Entryâ€ dropdown (floating CTA). Two variants reuse the same component: **Warm Lead** (default) and **Customer / Closed** (used for future scheduling + client conversion work).
+- **Entry variants:** `Warm Lead` starts an open opportunity; `Customer / Closed` starts an accepted opportunity and opens the scheduling flow. These choices set initial sales status only. Later outcome changes use the structured `salesStatus` field. Client relationship is derived from current statuses: Customer if any opportunity is currently accepted, otherwise Lead if any opportunity is open, otherwise Inactive when all opportunities are not proceeding.
 - **Required form fields**: first name, last name, home address, phone number, job type (Hedge Trimming, Rabattage, Both), job value. Optional: desired budget, additional details textarea.
 - **Address verification (rollout in progress)**:
   - Address entry uses debounced provider suggestions (3000ms) and requires selecting a provider suggestion when strict mode is enabled.
@@ -47,7 +47,7 @@
   - **Selected-hedge configuration guard**: any selected hedge must be fully configured before save. Trim requires either custom checkboxes (Inside/Top/Outside) or a preset (Normal/Total), and Rabattage partial requires the amount text.
 - **Panel UX safeguards**: only one panel open at a time, Cancel resets transient edits, OK persists the config. Inline errors are shown for missing partial text.
 - **Submission flow**: emitting the modal payload returns `variant`, `form` data, and the per-hedge config record for domain services/undo. Successful save resets the modal and closes it; Close/Cancel also reset state without emitting.
-- **Roadmap hooks**: Customer variant will later add calendar scheduling + warm-lead ? customer conversion. Keep the shared component evolutive (theme tokens, signal-driven state, full test coverage).
+- **Lifecycle**: the entry variant remains for form/calendar behavior. The CRM stores opportunity outcome separately as `salesStatus` (`open`, `accepted`, `not-proceeding`) and derives the client relationship as Lead or Customer. Scheduling and execution remain separate. See the [Product Guide](product-brief.md#lead-and-customer-stages).
 - **Customer scheduling requirements**:
   - Customer variant now surfaces a **Schedule on EcoCut Calendar** block. Date, start time, and end time are mandatory; the Save button remains disabled until theyâ€™re valid.
   - The calendar block displays a live availability feed pulled from EcoCutâ€™s Google Calendar (via the Nest proxy). Users can see existing jobs for the selected date (times shown in the browserâ€™s timezone) and pick an open slot without leaving the modal. Loading and error states are clearly messaged.
