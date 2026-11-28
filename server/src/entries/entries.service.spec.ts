@@ -102,10 +102,11 @@ describe('EntriesService', () => {
       createdAt: created.createdAt,
       variant: 'warm-lead',
       salesStatus: 'accepted',
-      acceptedAt: expect.any(String),
       form: created.form,
       execution: created.execution,
     });
+    expect(typeof accepted.acceptedAt).toBe('string');
+    expect(accepted.acceptedAt).not.toBe('');
     expect(repository.snapshot).toHaveLength(1);
     expect(
       service.getClientDetails('4385551111::123 pine').history[0].salesStatus,
