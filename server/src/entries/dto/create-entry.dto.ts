@@ -1,4 +1,6 @@
 export type EntryVariant = 'warm-lead' | 'customer';
+export const SALES_STATUSES = ['open', 'accepted', 'not-proceeding'] as const;
+export type SalesStatus = (typeof SALES_STATUSES)[number];
 
 export type HedgeState = 'none' | 'trim' | 'rabattage';
 
@@ -63,4 +65,5 @@ export interface CreateEntryDto {
   hedges: Record<string, HedgeConfigDto>;
   calendar?: EntryCalendarDto;
   execution?: EntryExecutionDto;
+  followUpNote?: string;
 }

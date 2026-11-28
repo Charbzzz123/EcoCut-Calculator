@@ -28,6 +28,8 @@ export class EntryEditorOverlayComponent implements OnDestroy {
   @Input({ required: true }) headline = 'Update job';
   @Input({ required: true }) eyebrow = '';
   @Input() payload: EntryModalPayload | null = null;
+  @Input() scheduleOnly = false;
+  @Input() primaryActionLabel = 'Update job';
 
   @Output() closed = new EventEmitter<void>();
   @Output() saved = new EventEmitter<EntryModalPayload>();

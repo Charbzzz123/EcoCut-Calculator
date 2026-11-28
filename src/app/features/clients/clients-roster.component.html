@@ -16,8 +16,40 @@
             <li>
               <button type="button" class="client-card" (click)="selectClient.emit(client)">
                 <div class="client-card__header">
-                  <p class="client-card__name">{{ client.fullName }}</p>
-                  <p class="client-card__jobs">{{ client.jobsCount }} job(s)</p>
+                  <div class="client-card__identity">
+                    <p class="client-card__name">{{ client.fullName }}</p>
+                    <span
+                      class="relationship-badge"
+                      [attr.data-relationship]="client.relationshipStatus ?? 'lead'"
+                    >
+                      {{
+                        client.relationshipStatus === 'customer'
+                          ? 'Customer'
+                          : client.relationshipStatus === 'inactive'
+                            ? 'Inactive'
+                            : 'Lead'
+                      }}
+                    </span>
+                  </div>
+                  <div class="client-card__indicators">
+                    <p class="client-card__jobs">{{ client.jobsCount }} job(s)</p>
+                    @if ((client.openOpportunityCount ?? 0) > 0) {
+                      <span
+                        class="open-count-badge"
+                        [attr.aria-label]="client.openOpportunityCount + ' open opportunities'"
+                      >
+                        {{ client.openOpportunityCount }} open
+                      </span>
+                    }
+                    @if ((client.toScheduleCount ?? 0) > 0) {
+                      <span
+                        class="open-count-badge open-count-badge--schedule"
+                        [attr.aria-label]="client.toScheduleCount + ' accepted jobs to schedule'"
+                      >
+                        {{ client.toScheduleCount }} to schedule
+                      </span>
+                    }
+                  </div>
                 </div>
                 <p class="client-card__contact">
                   <span>{{ client.phone }}</span>

@@ -23,6 +23,14 @@
       <p class="summary-card__label">Jobs logged</p>
       <p class="summary-card__value">{{ statsSnapshot().totalJobs }}</p>
     </article>
+    <article class="summary-card summary-card--open">
+      <p class="summary-card__label">Open opportunities</p>
+      <p class="summary-card__value">{{ statsSnapshot().openOpportunities }}</p>
+    </article>
+    <article class="summary-card summary-card--schedule">
+      <p class="summary-card__label">To schedule</p>
+      <p class="summary-card__value">{{ statsSnapshot().toSchedule }}</p>
+    </article>
     <article class="summary-card">
       <p class="summary-card__label">Last serviced</p>
       <p class="summary-card__value">
@@ -63,12 +71,16 @@
       [client]="activeClient()!"
       [detail]="clientDetail()"
       [state]="detailState()"
+      [updatingSalesStatusEntryId]="facade.updatingSalesStatusEntryId()"
+      [salesStatusError]="facade.salesStatusError()"
       (closed)="facade.closeDrawer()"
       (retry)="facade.reloadClientDetail()"
       (updateClient)="facade.handleClientUpdate($event)"
       (deleteClient)="facade.handleClientDelete()"
       (editEntry)="facade.openEntryEditor($event)"
       (deleteEntry)="facade.deleteHistoryEntry($event)"
+      (duplicateEntry)="facade.copyCompletedEntry($event)"
+      (changeSalesStatus)="facade.changeSalesStatus($event.history, $event.salesStatus)"
     ></app-client-detail-overlay>
   }
 
@@ -76,6 +88,8 @@
     <app-entry-editor-overlay
       [open]="entryEditorOpen()"
       [variant]="entryEditorVariant()"
+      [scheduleOnly]="facade.entryEditorScheduleOnly()"
+      [primaryActionLabel]="facade.entryEditorPrimaryActionLabel()"
       [headline]="entryEditorHeadline()"
       [eyebrow]="entryEditorEyebrow()"
       [payload]="entryEditorPayload()!"

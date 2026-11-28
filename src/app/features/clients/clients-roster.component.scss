@@ -49,6 +49,56 @@
   flex-wrap: wrap;
 }
 
+.client-card__identity,
+.client-card__indicators {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.relationship-badge,
+.open-count-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.45rem;
+  padding: 0.12rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.open-count-badge--schedule {
+  color: var(--text-status-sms);
+  border-color: var(--border-status-sms);
+  background: var(--surface-status-sms);
+}
+
+.relationship-badge {
+  color: var(--text-muted);
+  border: 1px solid var(--border-muted);
+  background: var(--surface-card-muted);
+}
+
+.relationship-badge[data-relationship='customer'] {
+  color: var(--text-accent-strong);
+  border-color: var(--border-accent);
+  background: var(--surface-status-both);
+}
+
+.relationship-badge[data-relationship='inactive'] {
+  color: var(--text-muted);
+  border-color: var(--border-muted);
+  background: var(--surface-card-muted);
+}
+
+.open-count-badge {
+  color: var(--text-status-sms);
+  border: 1px solid var(--border-status-sms);
+  background: var(--surface-status-sms);
+}
+
 .client-card__name {
   font-size: 1.2rem;
   margin: 0;

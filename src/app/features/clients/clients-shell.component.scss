@@ -92,6 +92,19 @@
   font-variant-numeric: tabular-nums;
 }
 
+.summary-card--open {
+  border-color: var(--border-warning);
+}
+
+.summary-card--schedule {
+  border-color: var(--border-status-sms);
+  background: var(--surface-status-sms);
+}
+
+.summary-card--open .summary-card__value {
+  color: var(--text-warning);
+}
+
 @media (max-width: 900px) {
   .clients-shell {
     padding: 1rem;

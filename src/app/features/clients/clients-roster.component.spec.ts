@@ -12,6 +12,9 @@ const clients: ClientSummary[] = [
     address: '123 Pine',
     phone: '555-1111',
     jobsCount: 2,
+    relationshipStatus: 'customer',
+    openOpportunityCount: 2,
+    toScheduleCount: 1,
     email: 'alex@example.com',
     lastJobDate: '2026-03-01T12:00:00Z',
     nextJobDate: '2026-03-05T12:00:00Z',
@@ -29,7 +32,10 @@ describe('ClientsRosterComponent', () => {
     fixture = TestBed.createComponent(ClientsRosterComponent);
     fixture.componentRef.setInput('loadState', 'ready');
     fixture.componentRef.setInput('clients', clients);
-    fixture.componentRef.setInput('trackByClient', (_: number, client: ClientSummary) => client.clientId);
+    fixture.componentRef.setInput(
+      'trackByClient',
+      (_: number, client: ClientSummary) => client.clientId,
+    );
     fixture.detectChanges();
   });
 
@@ -41,12 +47,24 @@ describe('ClientsRosterComponent', () => {
     expect(spy).toHaveBeenCalledWith(clients[0]);
   });
 
+  it('shows relationship and open opportunity markers beside the client name', () => {
+    expect(
+      fixture.nativeElement.querySelector('[data-relationship="customer"]')?.textContent,
+    ).toContain('Customer');
+    expect(fixture.nativeElement.querySelector('.open-count-badge')?.textContent).toContain(
+      '2 open',
+    );
+    expect(fixture.nativeElement.textContent).toContain('1 to schedule');
+  });
+
   it('shows error state and reload button', () => {
     fixture.componentRef.setInput('loadState', 'error');
     fixture.detectChanges();
     const spy = vi.fn();
     fixture.componentInstance.reload.subscribe(spy);
-    const button = fixture.nativeElement.querySelector('.clients-roster__state--error button') as HTMLButtonElement;
+    const button = fixture.nativeElement.querySelector(
+      '.clients-roster__state--error button',
+    ) as HTMLButtonElement;
     button.click();
     expect(spy).toHaveBeenCalled();
   });

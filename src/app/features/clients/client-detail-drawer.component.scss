@@ -1,6 +1,8 @@
 .client-drawer {
   width: min(420px, 90vw);
-  max-height: 100vh;
+  box-sizing: border-box;
+  max-height: 100dvh;
+  overflow-y: auto;
   background: var(--surface-card);
   border-left: 1px solid var(--border-soft);
   box-shadow: var(--shadow-elevated);
@@ -16,6 +18,43 @@
   justify-content: space-between;
   gap: 1rem;
   align-items: flex-start;
+}
+
+.client-drawer__identity {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.client-drawer__identity h2 {
+  margin: 0;
+}
+
+.client-drawer__identity .relationship-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.45rem;
+  padding: 0.12rem 0.6rem;
+  border-radius: 999px;
+  color: var(--text-muted);
+  border: 1px solid var(--border-muted);
+  background: var(--surface-card-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.client-drawer__identity .relationship-badge[data-relationship='customer'] {
+  color: var(--text-accent-strong);
+  border-color: var(--border-accent);
+  background: var(--surface-status-both);
+}
+
+.client-drawer__identity .relationship-badge[data-relationship='inactive'] {
+  color: var(--text-muted);
+  border-color: var(--border-muted);
+  background: var(--surface-card-muted);
 }
 
 .client-drawer__header-actions {
@@ -174,6 +213,30 @@
   margin-bottom: 0.5rem;
 }
 
+.client-drawer__history-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.client-drawer__history-title h3 {
+  margin: 0;
+}
+
+.client-drawer__history-title .open-count-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.45rem;
+  padding: 0.12rem 0.6rem;
+  border-radius: 999px;
+  color: var(--text-status-sms);
+  border: 1px solid var(--border-status-sms);
+  background: var(--surface-status-sms);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .client-drawer__section-heading .ghost {
   --btn-bg: var(--surface-card-deep);
   --btn-border: var(--border-muted-strong);
@@ -196,8 +259,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  max-height: 45vh;
-  overflow: auto;
+  overflow: visible;
 }
 
 .client-drawer__history li {
@@ -228,9 +290,26 @@
   border: 1px solid var(--border-accent);
 }
 
-.history__badge[data-variant='customer'] {
+.history__badge[data-sales-status='accepted'] {
   background: var(--surface-status-sms);
   border-color: var(--border-status-sms);
+}
+
+.history__badge[data-sales-status='not-proceeding'] {
+  color: var(--text-muted);
+  background: var(--surface-card-muted);
+  border-color: var(--border-muted);
+}
+
+.history__badge--finished {
+  color: var(--text-status-sms);
+  background: var(--surface-status-sms);
+  border: 1px solid var(--border-status-sms);
+}
+
+.history__action-secondary {
+  border-color: var(--border-status-sms) !important;
+  color: var(--text-status-sms) !important;
 }
 
 .history__job,
@@ -297,6 +376,12 @@
   margin-top: 0.75rem;
 }
 
+.history__locked-status {
+  align-self: center;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
 .history__calendar-label {
   text-transform: uppercase;
   font-size: 0.7rem;
@@ -314,7 +399,7 @@
 @media (max-width: 900px) {
   .client-drawer {
     width: 100vw;
-    max-height: 100vh;
+    max-height: 100dvh;
     border-left: none;
   }
 }

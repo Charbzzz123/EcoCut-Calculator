@@ -2,7 +2,7 @@
 
 **Approved product rule.** Customer communications in EcoCut are permanently read-only. Operators can search and read conversations and open them from client records. Replies, test deliveries and broadcast delivery happen outside EcoCut. Existing send paths are implementation debt. Contact-record sync is a separate provider-data decision.
 
-Status: draft for business review. Last checked against the repository: 2026-10-02. Confirmed constraints: 4–10 occasional internal users and the lowest practical operating cost. There is no Canada-only hosting or processing requirement; future tax calculations must use the applicable jurisdiction.
+Status: draft for business review. Last checked against the repository: 2026-11-27. Confirmed constraints: 4–10 occasional internal users and the lowest practical operating cost. There is no Canada-only hosting or processing requirement; future tax calculations must use the applicable jurisdiction.
 
 ## Purpose and users
 
@@ -10,7 +10,17 @@ EcoCut is an internal operations workspace for recording leads and customers, sc
 
 ## Lead and customer stages
 
-The existing entry form already distinguishes **Warm Lead** (the customer has not accepted and is still considering) from **Customer / Closed** (the customer agreed to proceed). It currently asks the operator to choose the variant when creating an entry. **Agreed requirement.** When a lead accepts, the operator can change that existing record to Customer / Closed while keeping its details and history. Calendar scheduling remains a separate step.
+An opportunity has one current `salesStatus`: **Open**, **Accepted**, or **Not proceeding**. Reopening changes its current status to Open; the client book does not keep a customer-facing timeline of status changes. Detailed change logs, if needed, belong in application audit logs. Execution states (**Scheduled**, **In progress**, **Completed**) remain separate.
+
+The client relationship is derived from current opportunity statuses: **Customer** if any opportunity is Accepted; otherwise **Lead** if at least one is Open; otherwise **Inactive** when all are Not proceeding. Reopening changes the relationship dynamically. A completed job cannot be reopened; create a new copy for next year instead. The copy reuses the existing job form with prior details prefilled and editable, and creates a separate accepted, scheduled job.
+
+**Client Book:** Show Lead / Customer / Inactive beside each name, an open-opportunity count, a total Open opportunities stat, and a **To schedule** stat/count for accepted jobs without a date. In History, show each job's current status and a separate Finished marker only when explicitly completed in Jobs Finished; a past date alone does not mean the work is finished. Show follow-up notes on accepted jobs awaiting a date.
+
+**Acceptance and scheduling:** Mark accepted opens a choice to schedule now or accept with date TBD. Schedule now uses the same calendar scheduler component as the Add Customer page and saves the calendar event. Accepted without a date shows **To schedule**, stores an optional follow-up note, and creates no calendar event. Reopening a scheduled, unfinished job removes its linked calendar event. Past-dated or completed jobs cannot be reopened. Status changes do not send customer communications.
+
+**Migration:** Existing `variant: customer` entries start as Accepted; existing `variant: warm-lead` entries start as Open. Preserve `variant` for entry-form/calendar compatibility, but use current `salesStatus` as the opportunity lifecycle source of truth. Backfill old local records on service startup without provider calls. Derive client `relationshipStatus` (`lead`, `customer`, `inactive`) and pending scheduling from current opportunity data.
+
+**Acceptance examples:** A new lead has `salesStatus=open`, shows Lead, and increments the open count. Marking its only opportunity Not proceeding changes the client to Inactive; reopening it changes the client to Lead. Accepting one of two opportunities changes only that opportunity to Accepted, changes the client label to Customer, and leaves one open. Reopening it changes its current status back to Open; if no other job is accepted, the client becomes a Lead. Accepting without a date keeps the client a Customer and increments To schedule.
 
 ## Company workspaces
 

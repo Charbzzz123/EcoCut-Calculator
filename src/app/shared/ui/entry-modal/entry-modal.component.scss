@@ -585,3 +585,70 @@ button:hover {
   border-color: var(--border-accent);
   color: var(--accent-primary);
 }
+.acceptance-scheduling {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin: 0;
+  padding: 1.25rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 1rem;
+  background: var(--surface-card-soft);
+  color: var(--text-primary);
+}
+
+.acceptance-scheduling legend {
+  padding: 0 0.45rem;
+  color: var(--text-accent);
+  font-weight: 700;
+}
+
+.acceptance-scheduling > label:not(.acceptance-scheduling__note) {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 3rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--border-muted);
+  border-radius: 0.75rem;
+  background: var(--surface-card-deep);
+  cursor: pointer;
+}
+
+.acceptance-scheduling input[type='radio'] {
+  accent-color: var(--accent-primary);
+}
+
+.acceptance-scheduling__note {
+  display: grid;
+  gap: 0.4rem;
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.acceptance-scheduling__note textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  border: 1px solid var(--border-muted-strong);
+  border-radius: 0.65rem;
+  padding: 0.7rem 0.85rem;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.acceptance-scheduling__note textarea:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+  .acceptance-scheduling {
+    grid-template-columns: 1fr;
+  }
+  .acceptance-scheduling__note {
+    grid-column: auto;
+  }
+}

@@ -1,5 +1,6 @@
 import {
   Injectable,
+  BadRequestException,
   Logger,
   NotFoundException,
   OnModuleInit,
@@ -7,11 +8,13 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { CommunicationsChatsService } from '../communications/chats/communications-chats.service';
+import { SALES_STATUSES } from './dto/create-entry.dto';
 import type {
   CreateEntryDto,
   EntryFormDto,
   HedgeConfigDto,
   RabattageConfigDto,
+  SalesStatus,
   TrimConfigDto,
 } from './dto/create-entry.dto';
 import type { UpdateClientDto } from './dto/update-client.dto';
@@ -23,6 +26,7 @@ import type {
   ClientMatchResult,
   ClientSummary,
   StoredEntry,
+  UpdateSalesStatusDto,
 } from './entries.types';
 
 const HEDGE_IDS = [
@@ -64,15 +68,34 @@ export class EntriesService implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     const stored = await this.repository.loadEntries();
-    this.entries = stored;
+    this.entries = stored.map((entry) => this.withSalesLifecycle(entry));
+    if (
+      stored.some(
+        (entry, index) =>
+          entry.salesStatus !== this.entries[index].salesStatus ||
+          entry.salesStatusChangedAt !==
+            this.entries[index].salesStatusChangedAt ||
+          entry.acceptedAt !== this.entries[index].acceptedAt ||
+          (entry as StoredEntry & { everAccepted?: boolean }).everAccepted !==
+            undefined,
+      )
+    ) {
+      await this.repository.saveEntries(this.entries);
+    }
     this.rebuildClientSummaries();
   }
 
   async createEntry(payload: CreateEntryDto): Promise<StoredEntry> {
+    const createdAt = new Date().toISOString();
+    const salesStatus: SalesStatus =
+      payload.variant === 'customer' ? 'accepted' : 'open';
     const created: StoredEntry = {
       ...payload,
       id: randomUUID(),
-      createdAt: new Date().toISOString(),
+      createdAt,
+      salesStatus,
+      salesStatusChangedAt: createdAt,
+      acceptedAt: salesStatus === 'accepted' ? createdAt : null,
     };
     this.entries.push(created);
     this.upsertClientSummary(created);
@@ -81,8 +104,14 @@ export class EntriesService implements OnModuleInit {
     return created;
   }
 
-  listEntries(): StoredEntry[] {
-    return [...this.entries];
+  listEntries(salesStatus?: string): StoredEntry[] {
+    if (salesStatus === undefined) {
+      return [...this.entries];
+    }
+    if (!SALES_STATUSES.includes(salesStatus as SalesStatus)) {
+      throw new BadRequestException(`Invalid salesStatus: ${salesStatus}`);
+    }
+    return this.entries.filter((entry) => entry.salesStatus === salesStatus);
   }
 
   listClients(): ClientSummary[] {
@@ -192,6 +221,9 @@ export class EntriesService implements OnModuleInit {
         entryId: entry.id,
         createdAt: this.resolveJobTimestamp(entry),
         variant: entry.variant,
+        salesStatus: this.resolveSalesStatus(entry),
+        salesStatusChangedAt: entry.salesStatusChangedAt,
+        followUpNote: entry.followUpNote,
         jobValue: entry.form.jobValue,
         jobType: entry.form.jobType,
         location: entry.form.address,
@@ -224,11 +256,92 @@ export class EntriesService implements OnModuleInit {
       id: preserved.id,
       createdAt: preserved.createdAt,
       execution: payload.execution ?? preserved.execution,
+      salesStatus: this.resolveSalesStatus(preserved),
+      salesStatusChangedAt: preserved.salesStatusChangedAt,
+      acceptedAt:
+        this.resolveSalesStatus(preserved) === 'accepted'
+          ? (preserved.acceptedAt ?? null)
+          : null,
+      followUpNote: payload.followUpNote ?? preserved.followUpNote,
     };
     this.entries[index] = updated;
     await this.repository.saveEntries(this.entries);
     this.rebuildClientSummaries();
     await this.syncClientContactFromEntry(updated, 'entries-update');
+    return updated;
+  }
+
+  async updateSalesStatus(
+    entryId: string,
+    update: UpdateSalesStatusDto,
+  ): Promise<StoredEntry> {
+    const index = this.entries.findIndex((entry) => entry.id === entryId);
+    if (index === -1) {
+      throw new NotFoundException(`Entry ${entryId} not found`);
+    }
+    const targetStatus = update?.salesStatus;
+    if (!SALES_STATUSES.includes(targetStatus)) {
+      throw new BadRequestException(`Invalid salesStatus: ${targetStatus}`);
+    }
+    const current = this.entries[index];
+    if (
+      current.execution?.status === 'completed' &&
+      this.resolveSalesStatus(current) !== targetStatus
+    ) {
+      throw new BadRequestException(
+        'Completed jobs cannot change status. Create a new job instead.',
+      );
+    }
+    if (
+      this.resolveSalesStatus(current) === targetStatus &&
+      update.calendar === undefined &&
+      update.followUpNote === undefined
+    ) {
+      return current;
+    }
+    if (
+      targetStatus === 'open' &&
+      this.resolveSalesStatus(current) !== 'open'
+    ) {
+      if (current.execution?.status === 'completed') {
+        throw new BadRequestException(
+          'Completed jobs cannot be reopened. Create a new job instead.',
+        );
+      }
+      const scheduledStart = current.calendar?.start
+        ? new Date(current.calendar.start).getTime()
+        : null;
+      if (scheduledStart !== null && scheduledStart <= Date.now()) {
+        throw new BadRequestException(
+          'Past scheduled jobs cannot be reopened. Create a new job instead.',
+        );
+      }
+    }
+    const changedAt = new Date().toISOString();
+    const nextCalendar =
+      targetStatus === 'accepted'
+        ? update.calendar === undefined
+          ? current.calendar
+          : (update.calendar ?? undefined)
+        : undefined;
+    const updated: StoredEntry = {
+      ...current,
+      salesStatus: targetStatus,
+      salesStatusChangedAt:
+        this.resolveSalesStatus(current) === targetStatus
+          ? current.salesStatusChangedAt
+          : changedAt,
+      acceptedAt:
+        targetStatus === 'accepted' ? (current.acceptedAt ?? changedAt) : null,
+      calendar: nextCalendar,
+      followUpNote:
+        targetStatus === 'accepted'
+          ? (update.followUpNote?.trim() ?? current.followUpNote)
+          : undefined,
+    };
+    this.entries[index] = updated;
+    await this.repository.saveEntries(this.entries);
+    this.rebuildClientSummaries();
     return updated;
   }
 
@@ -357,6 +470,8 @@ export class EntriesService implements OnModuleInit {
     const jobTimestamp = this.resolveJobTimestamp(entry);
     const now = new Date().toISOString();
     const isPast = jobTimestamp <= now;
+    const salesStatus = this.resolveSalesStatus(entry);
+    const isAccepted = salesStatus === 'accepted';
     if (existing) {
       const updated: ClientSummary = {
         ...existing,
@@ -367,6 +482,18 @@ export class EntriesService implements OnModuleInit {
         phone: entry.form.phone,
         email: entry.form.email,
         jobsCount: existing.jobsCount + 1,
+        openOpportunityCount:
+          (existing.openOpportunityCount ?? 0) +
+          (salesStatus === 'open' ? 1 : 0),
+        toScheduleCount:
+          (existing.toScheduleCount ?? 0) +
+          (isAccepted &&
+          !entry.calendar &&
+          entry.execution?.status !== 'completed'
+            ? 1
+            : 0),
+        acceptedOpportunityCount:
+          (existing.acceptedOpportunityCount ?? 0) + (isAccepted ? 1 : 0),
         lastJobDate: existing.lastJobDate,
         nextJobDate: existing.nextJobDate ?? null,
         lastCalendarEventId:
@@ -380,6 +507,10 @@ export class EntriesService implements OnModuleInit {
           jobTimestamp,
         );
       }
+      updated.relationshipStatus = this.resolveRelationshipStatus(
+        updated.acceptedOpportunityCount ?? 0,
+        updated.openOpportunityCount ?? 0,
+      );
       this.clients.set(key, updated);
       return;
     }
@@ -392,6 +523,16 @@ export class EntriesService implements OnModuleInit {
       phone: entry.form.phone,
       email: entry.form.email,
       jobsCount: 1,
+      relationshipStatus: this.resolveRelationshipStatus(
+        isAccepted ? 1 : 0,
+        salesStatus === 'open' ? 1 : 0,
+      ),
+      openOpportunityCount: salesStatus === 'open' ? 1 : 0,
+      toScheduleCount:
+        isAccepted && !entry.calendar && entry.execution?.status !== 'completed'
+          ? 1
+          : 0,
+      acceptedOpportunityCount: isAccepted ? 1 : 0,
       lastJobDate: isPast ? jobTimestamp : null,
       nextJobDate: isPast ? null : jobTimestamp,
       lastCalendarEventId: entry.calendar?.eventId,
@@ -399,8 +540,41 @@ export class EntriesService implements OnModuleInit {
     this.clients.set(key, summary);
   }
 
+  private resolveRelationshipStatus(
+    acceptedOpportunityCount: number,
+    openOpportunityCount: number,
+  ): ClientSummary['relationshipStatus'] {
+    if (acceptedOpportunityCount > 0) {
+      return 'customer';
+    }
+    return openOpportunityCount > 0 ? 'lead' : 'inactive';
+  }
+
   private resolveJobTimestamp(entry: StoredEntry): string {
     return entry.calendar?.start ?? entry.createdAt;
+  }
+
+  private resolveSalesStatus(entry: StoredEntry): SalesStatus {
+    return entry.salesStatus && SALES_STATUSES.includes(entry.salesStatus)
+      ? entry.salesStatus
+      : entry.variant === 'customer'
+        ? 'accepted'
+        : 'open';
+  }
+
+  private withSalesLifecycle(entry: StoredEntry): StoredEntry {
+    const salesStatus = this.resolveSalesStatus(entry);
+    const currentEntry = { ...entry } as StoredEntry & {
+      everAccepted?: boolean;
+    };
+    delete currentEntry.everAccepted;
+    return {
+      ...currentEntry,
+      salesStatus,
+      salesStatusChangedAt: entry.salesStatusChangedAt ?? entry.createdAt,
+      acceptedAt:
+        salesStatus === 'accepted' ? (entry.acceptedAt ?? null) : null,
+    };
   }
 
   private computeClientKey(entry: StoredEntry): string {

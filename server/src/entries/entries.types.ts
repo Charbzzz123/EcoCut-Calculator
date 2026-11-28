@@ -4,12 +4,17 @@ import type {
   EntryExecutionDto,
   EntryFormDto,
   EntryVariant,
+  SalesStatus,
   HedgeConfigDto,
 } from './dto/create-entry.dto';
 
 export interface StoredEntry extends CreateEntryDto {
   id: string;
   createdAt: string;
+  /** Optional only while migrating records written before the lifecycle field existed. */
+  salesStatus?: SalesStatus;
+  salesStatusChangedAt?: string;
+  acceptedAt?: string | null;
 }
 
 export interface ClientSummary {
@@ -21,6 +26,10 @@ export interface ClientSummary {
   phone: string;
   email?: string;
   jobsCount: number;
+  relationshipStatus?: 'lead' | 'customer' | 'inactive';
+  openOpportunityCount?: number;
+  toScheduleCount?: number;
+  acceptedOpportunityCount?: number;
   lastJobDate: string | null;
   nextJobDate?: string | null;
   lastCalendarEventId?: string;
@@ -30,6 +39,9 @@ export interface ClientHistoryEntry {
   entryId: string;
   createdAt: string;
   variant: EntryVariant;
+  salesStatus?: SalesStatus;
+  salesStatusChangedAt?: string;
+  followUpNote?: string;
   jobValue: string;
   jobType: string;
   location: string;
@@ -58,6 +70,12 @@ export interface ClientMatchResult {
   client: ClientSummary;
   matchedBy: ClientMatchReason;
   descriptor: string;
+}
+
+export interface UpdateSalesStatusDto {
+  salesStatus: SalesStatus;
+  calendar?: EntryCalendarDto | null;
+  followUpNote?: string | null;
 }
 
 export interface EntryExecutionCompletionPayload {

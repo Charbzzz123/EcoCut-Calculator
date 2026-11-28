@@ -70,6 +70,8 @@ class ClientsFacadeStub {
   statsSnapshot = vi.fn(() => ({
     totalClients: baseClients.length,
     totalJobs: 2,
+    openOpportunities: 3,
+    toSchedule: 0,
     mostRecentDate: baseClients[0].lastJobDate,
     nextJobDate: baseClients[0].nextJobDate,
   }));
@@ -91,6 +93,10 @@ class ClientsFacadeStub {
   openClientDrawer = vi.fn();
   openEntryEditor = vi.fn();
   deleteHistoryEntry = vi.fn();
+  copyCompletedEntry = vi.fn();
+  changeSalesStatus = vi.fn();
+  updatingSalesStatusEntryId = signal<string | null>(null).asReadonly();
+  salesStatusError = signal<string | null>(null).asReadonly();
   private entryEditorOpenSignal = signal(false);
   entryEditorOpen = this.entryEditorOpenSignal.asReadonly();
   private entryEditorPayloadSignal = signal<EntryModalPayload | null>(null);
@@ -101,6 +107,8 @@ class ClientsFacadeStub {
   entryEditorHeadline = this.entryEditorHeadlineSignal.asReadonly();
   private entryEditorEyebrowSignal = signal('Client job');
   entryEditorEyebrow = this.entryEditorEyebrowSignal.asReadonly();
+  entryEditorScheduleOnly = signal(false).asReadonly();
+  entryEditorPrimaryActionLabel = vi.fn(() => 'Update job');
   closeEntryEditor = vi.fn();
   handleEntryEditorSaved = vi.fn();
 
@@ -216,6 +224,8 @@ describe('ClientsShellComponent', () => {
     expect(facade.openEntryEditor).toHaveBeenCalledWith(history);
     overlayCmp.deleteEntry.emit(history);
     expect(facade.deleteHistoryEntry).toHaveBeenCalledWith(history);
+    overlayCmp.changeSalesStatus.emit({ history, salesStatus: 'accepted' });
+    expect(facade.changeSalesStatus).toHaveBeenCalledWith(history, 'accepted');
   });
 
   it('renders the entry editor overlay when open', () => {
@@ -251,6 +261,8 @@ describe('ClientsShellComponent', () => {
     facade.statsSnapshot.mockReturnValue({
       totalClients: 0,
       totalJobs: 0,
+      openOpportunities: 0,
+      toSchedule: 0,
       mostRecentDate: null,
       nextJobDate: null,
     });
@@ -260,7 +272,9 @@ describe('ClientsShellComponent', () => {
     const values = Array.from(
       fixture.nativeElement.querySelectorAll('.summary-card__value') as NodeListOf<HTMLElement>,
     ).map((el) => el.textContent?.trim());
-    expect(values[2]).toBe('—');
-    expect(values[3]).toBe('—');
+    expect(values[2]).toBe('0');
+    expect(values[3]).toBe('0');
+    expect(values[4]).toBe('—');
+    expect(values[5]).toBe('—');
   });
 });

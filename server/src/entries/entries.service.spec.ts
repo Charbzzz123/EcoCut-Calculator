@@ -76,6 +76,163 @@ describe('EntriesService', () => {
     );
   });
 
+  it('marks an existing opportunity accepted without changing its details or execution', async () => {
+    const created = await service.createEntry(
+      createPayload({
+        variant: 'warm-lead',
+        form: {
+          ...createPayload().form,
+          additionalDetails: 'Call after acceptance',
+        },
+        execution: {
+          status: 'scheduled',
+          startedAt: '2026-03-05T10:00:00Z',
+          endedAt: '2026-03-05T11:00:00Z',
+          totalHours: 1,
+          crew: [],
+          updatedAt: '2026-03-05T11:00:00Z',
+        },
+      }),
+    );
+    const accepted = await service.updateSalesStatus(created.id, {
+      salesStatus: 'accepted',
+    });
+    expect(accepted).toMatchObject({
+      id: created.id,
+      createdAt: created.createdAt,
+      variant: 'warm-lead',
+      salesStatus: 'accepted',
+      acceptedAt: expect.any(String),
+      form: created.form,
+      execution: created.execution,
+    });
+    expect(repository.snapshot).toHaveLength(1);
+    expect(
+      service.getClientDetails('4385551111::123 pine').history[0].salesStatus,
+    ).toBe('accepted');
+    expect(service.listClients()[0].relationshipStatus).toBe('customer');
+    expect(service.listClients()[0].openOpportunityCount).toBe(0);
+    expect(syncClientContact).toHaveBeenCalledTimes(1);
+  });
+
+  it('derives Lead, Customer, and Inactive from current opportunity statuses', async () => {
+    const created = await service.createEntry(
+      createPayload({ variant: 'warm-lead' }),
+    );
+    syncClientContact.mockClear();
+
+    await service.updateSalesStatus(created.id, {
+      salesStatus: 'not-proceeding',
+    });
+    expect(service.listClients()[0]).toMatchObject({
+      relationshipStatus: 'inactive',
+      openOpportunityCount: 0,
+    });
+    expect(service.listEntries('not-proceeding')).toHaveLength(1);
+
+    await service.updateSalesStatus(created.id, { salesStatus: 'open' });
+    expect(service.listClients()[0]).toMatchObject({
+      relationshipStatus: 'lead',
+      openOpportunityCount: 1,
+    });
+    await service.updateSalesStatus(created.id, { salesStatus: 'accepted' });
+    const acceptedAt = service.listEntries()[0].acceptedAt;
+    await service.updateSalesStatus(created.id, { salesStatus: 'open' });
+
+    expect(service.listEntries('accepted')).toHaveLength(0);
+    expect(service.listEntries('open')[0].acceptedAt).toBeNull();
+    expect(service.listClients()[0]).toMatchObject({
+      relationshipStatus: 'lead',
+      openOpportunityCount: 1,
+    });
+    expect(acceptedAt).toEqual(expect.any(String));
+    expect(syncClientContact).not.toHaveBeenCalled();
+  });
+
+  it('backfills legacy entry variants into structured sales lifecycle fields', async () => {
+    const legacyWarm = {
+      ...createPayload({ variant: 'warm-lead' }),
+      id: 'legacy-warm',
+      createdAt: '2026-01-01T10:00:00.000Z',
+    } as StoredEntry;
+    const legacyCustomer = {
+      ...createPayload({ variant: 'customer' }),
+      id: 'legacy-customer',
+      createdAt: '2026-01-02T10:00:00.000Z',
+    } as StoredEntry;
+    repository.snapshot = [legacyWarm, legacyCustomer];
+
+    const freshService = new EntriesService(
+      repository as unknown as EntriesRepository,
+    );
+    await freshService.onModuleInit();
+
+    expect(freshService.listEntries()).toEqual([
+      expect.objectContaining({
+        id: 'legacy-warm',
+        salesStatus: 'open',
+        salesStatusChangedAt: legacyWarm.createdAt,
+        acceptedAt: null,
+      }),
+      expect.objectContaining({
+        id: 'legacy-customer',
+        salesStatus: 'accepted',
+        salesStatusChangedAt: legacyCustomer.createdAt,
+        acceptedAt: null,
+      }),
+    ]);
+    expect(freshService.listClients()[0].relationshipStatus).toBe('customer');
+    await freshService.updateSalesStatus('legacy-customer', {
+      salesStatus: 'open',
+    });
+    expect(freshService.listClients()[0].relationshipStatus).toBe('lead');
+  });
+
+  it('counts accepted jobs without dates as To schedule and stores their notes', async () => {
+    const created = await service.createEntry(
+      createPayload({ variant: 'warm-lead' }),
+    );
+    await service.updateSalesStatus(created.id, {
+      salesStatus: 'accepted',
+      followUpNote: 'Prefers next month; call back.',
+    });
+    expect(service.listClients()[0]).toMatchObject({
+      relationshipStatus: 'customer',
+      toScheduleCount: 1,
+    });
+    expect(
+      service.getClientDetails('4385551111::123 pine').history[0].followUpNote,
+    ).toBe('Prefers next month; call back.');
+    await service.updateSalesStatus(created.id, {
+      salesStatus: 'accepted',
+      calendar: {
+        start: '2027-03-05T10:00:00Z',
+        end: '2027-03-05T12:00:00Z',
+        eventId: 'calendar-job',
+      },
+    });
+    expect(service.listClients()[0].toScheduleCount).toBe(0);
+  });
+
+  it('rejects unsupported sales statuses and filters entries by stable status values', async () => {
+    const open = await service.createEntry(
+      createPayload({ variant: 'warm-lead' }),
+    );
+    const accepted = await service.createEntry(
+      createPayload({ variant: 'customer' }),
+    );
+    expect(service.listEntries('open').map((entry) => entry.id)).toEqual([
+      open.id,
+    ]);
+    expect(service.listEntries('accepted').map((entry) => entry.id)).toEqual([
+      accepted.id,
+    ]);
+    expect(() => service.listEntries('maybe')).toThrow('Invalid salesStatus');
+    await expect(
+      service.updateSalesStatus(open.id, { salesStatus: 'maybe' as never }),
+    ).rejects.toThrow('Invalid salesStatus');
+  });
+
   it('deduplicates clients by email/phone when listing summaries', async () => {
     await service.createEntry(
       createPayload({
