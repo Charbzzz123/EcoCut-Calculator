@@ -7,6 +7,8 @@ import type {
   ClientSummary,
 } from '@shared/domain/entry/entry-repository.service.js';
 import { EntryRepositoryService } from '@shared/domain/entry/entry-repository.service.js';
+import { CalendarEventsService } from '@shared/domain/entry/calendar-events.service.js';
+import { HomeDataService } from '@features/home/home-data.service.js';
 import { createEmptyHedgeConfigs } from '@shared/domain/entry/entry-modal.models.js';
 import { EntryModalPayload } from '@shared/domain/entry/entry-modal.models.js';
 import { ClientsFacade } from './clients.facade.js';
@@ -21,6 +23,8 @@ const baseClients: ClientSummary[] = [
     phone: '(438) 555-1111',
     email: 'alex@example.com',
     jobsCount: 2,
+    relationshipStatus: 'customer',
+    openOpportunityCount: 1,
     lastJobDate: '2026-03-04T12:00:00Z',
     nextJobDate: '2026-03-10T12:00:00Z',
   },
@@ -33,6 +37,8 @@ const baseClients: ClientSummary[] = [
     phone: '(438) 555-2222',
     email: 'lana@example.com',
     jobsCount: 1,
+    relationshipStatus: 'lead',
+    openOpportunityCount: 2,
     lastJobDate: '2026-02-10T15:00:00Z',
     nextJobDate: '2026-03-20T12:00:00Z',
   },
@@ -44,6 +50,8 @@ const baseClients: ClientSummary[] = [
     address: 'Near HQ',
     phone: '(438) 555-3333',
     jobsCount: 1,
+    relationshipStatus: 'lead',
+    openOpportunityCount: 0,
     lastJobDate: '',
     nextJobDate: '',
   },
@@ -56,6 +64,7 @@ const clientDetail: ClientDetail = {
       entryId: 'job-1',
       createdAt: '2026-03-04T12:00:00Z',
       variant: 'customer',
+      salesStatus: 'accepted',
       jobType: 'Hedge Trimming',
       jobValue: '$850',
       location: '123 Pine Ave',
@@ -92,6 +101,7 @@ const secondClientDetail: ClientDetail = {
       entryId: 'job-2',
       createdAt: '2026-03-10T14:00:00Z',
       variant: 'customer',
+      salesStatus: 'accepted',
       jobType: 'Rabattage',
       jobValue: '$1,250',
       location: '55 Cedar St',
@@ -121,6 +131,7 @@ class EntryRepositoryServiceStub {
   updateClient = vi.fn(() => Promise.resolve<ClientSummary>(baseClients[0]));
   deleteClient = vi.fn(() => Promise.resolve());
   updateEntry = vi.fn(() => Promise.resolve());
+  updateSalesStatus = vi.fn(() => Promise.resolve({}));
   deleteEntry = vi.fn(() => Promise.resolve());
 }
 
@@ -129,11 +140,17 @@ describe('ClientsFacade', () => {
   let repository: EntryRepositoryServiceStub;
 
   beforeEach(() => {
+    const calendarStub = {
+      createEvent: vi.fn(() => Promise.resolve({ id: 'calendar-event' })),
+      deleteEvent: vi.fn(() => Promise.resolve()),
+    };
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
         ClientsFacade,
         { provide: EntryRepositoryService, useClass: EntryRepositoryServiceStub },
+        { provide: CalendarEventsService, useValue: calendarStub },
+        { provide: HomeDataService, useValue: { saveEntry: vi.fn(() => Promise.resolve()) } },
       ],
     });
     facade = TestBed.inject(ClientsFacade);
@@ -145,6 +162,8 @@ describe('ClientsFacade', () => {
     expect(repository.listClients).toHaveBeenCalled();
     expect(facade.statsSnapshot().totalClients).toBe(3);
     expect(facade.statsSnapshot().totalJobs).toBe(4);
+    expect(facade.statsSnapshot().openOpportunities).toBe(3);
+    expect(facade.statsSnapshot().toSchedule).toBe(0);
     expect(facade.loadStateSnapshot()).toBe('ready');
     expect(facade.trackByClientId(0, baseClients[0])).toBe('alex@example.com');
     expect(facade.drawerVisible()).toBe(false);
@@ -341,6 +360,46 @@ describe('ClientsFacade', () => {
     await facade.deleteHistoryEntry(clientDetail.history[0] as ClientHistoryEntry);
     expect(repository.deleteEntry).toHaveBeenCalledWith('job-1');
     confirmSpy.mockRestore();
+  });
+
+  it('opens the shared acceptance scheduler and saves accepted without a date', async () => {
+    await facade.openClientDrawer(baseClients[0]);
+    await facade.changeSalesStatus(
+      { ...clientDetail.history[0], salesStatus: 'open', variant: 'warm-lead' },
+      'accepted',
+    );
+    expect(facade.entryEditorScheduleOnly()).toBe(true);
+    await facade.handleEntryEditorSaved({
+      variant: 'customer',
+      form: clientDetail.history[0].form!,
+      hedges: clientDetail.history[0].hedges,
+      followUpNote: 'Call back next month.',
+    });
+    expect(repository.updateSalesStatus).toHaveBeenCalledWith('job-1', {
+      salesStatus: 'accepted',
+      calendar: null,
+      followUpNote: 'Call back next month.',
+    });
+    expect(repository.getClientDetail).toHaveBeenCalledTimes(2);
+    expect(facade.entryEditorOpen()).toBe(false);
+  });
+
+  it('does not change an opportunity when its status confirmation is cancelled', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    await facade.changeSalesStatus(clientDetail.history[0], 'not-proceeding');
+    expect(repository.updateSalesStatus).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
+  it('shows an operator-facing error if sales status update fails', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    repository.updateSalesStatus.mockRejectedValueOnce(new Error('offline'));
+    await facade.changeSalesStatus(clientDetail.history[0], 'not-proceeding');
+    expect(facade.salesStatusError()).toContain('Check your connection');
+    expect(facade.updatingSalesStatusEntryId()).toBeNull();
+    confirmSpy.mockRestore();
+    warnSpy.mockRestore();
   });
 
   it('warns when entry operations fail', async () => {

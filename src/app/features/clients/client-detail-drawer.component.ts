@@ -15,6 +15,7 @@ import type {
   ClientSummary,
   UpdateClientPayload,
 } from '@shared/domain/entry/entry-repository.service.js';
+import type { SalesStatus } from '@shared/domain/entry/entry-modal.models.js';
 import type { ClientDetailState } from './clients.types.js';
 
 @Component({
@@ -29,12 +30,19 @@ export class ClientDetailDrawerComponent {
   @Input({ required: true }) client!: ClientSummary;
   @Input() detail: ClientDetail | null = null;
   @Input() state: ClientDetailState = 'loading';
+  @Input() updatingSalesStatusEntryId: string | null = null;
+  @Input() salesStatusError: string | null = null;
   @Output() closed = new EventEmitter<void>();
   @Output() retry = new EventEmitter<void>();
   @Output() updateClient = new EventEmitter<UpdateClientPayload>();
   @Output() deleteClient = new EventEmitter<void>();
   @Output() editEntry = new EventEmitter<ClientHistoryEntry>();
   @Output() deleteEntry = new EventEmitter<ClientHistoryEntry>();
+  @Output() duplicateEntry = new EventEmitter<ClientHistoryEntry>();
+  @Output() changeSalesStatus = new EventEmitter<{
+    history: ClientHistoryEntry;
+    salesStatus: SalesStatus;
+  }>();
 
   private readonly fb = inject(NonNullableFormBuilder);
   readonly clientForm = this.fb.group({
@@ -45,6 +53,10 @@ export class ClientDetailDrawerComponent {
     email: [''],
   });
   protected editingClient = false;
+
+  protected get drawerHeadingId(): string {
+    return `client-drawer-${encodeURIComponent(this.client.clientId)}`;
+  }
 
   trackHistory(_: number, history: ClientHistoryEntry): string {
     return history.entryId;
@@ -122,6 +134,14 @@ export class ClientDetailDrawerComponent {
     this.deleteEntry.emit(history);
   }
 
+  protected requestEntryDuplicate(history: ClientHistoryEntry): void {
+    this.duplicateEntry.emit(history);
+  }
+
+  protected requestSalesStatusChange(history: ClientHistoryEntry, salesStatus: SalesStatus): void {
+    this.changeSalesStatus.emit({ history, salesStatus });
+  }
+
   protected formatExecutionStatus(
     status: 'scheduled' | 'running' | 'completed' | undefined,
   ): string {
@@ -139,5 +159,51 @@ export class ClientDetailDrawerComponent {
 
   protected formatHours(value: number): string {
     return Number.isInteger(value) ? `${value}h` : `${value.toFixed(2)}h`;
+  }
+
+  protected getSalesStatus(history: ClientHistoryEntry): SalesStatus {
+    return history.salesStatus ?? (history.variant === 'customer' ? 'accepted' : 'open');
+  }
+
+  protected formatSalesStatus(status: SalesStatus): string {
+    switch (status) {
+      case 'accepted':
+        return 'Accepted';
+      case 'not-proceeding':
+        return 'Not proceeding';
+      default:
+        return 'Open';
+    }
+  }
+
+  protected getSalesStatusLabel(history: ClientHistoryEntry): string {
+    const status = this.getSalesStatus(history);
+    return status === 'accepted' && !history.calendar && history.execution?.status !== 'completed'
+      ? 'Accepted · To schedule'
+      : this.formatSalesStatus(status);
+  }
+
+  protected canReopen(history: ClientHistoryEntry): boolean {
+    if (history.execution?.status === 'completed') return false;
+    if (!history.calendar?.start) return true;
+    const start = new Date(history.calendar.start).getTime();
+    return Number.isFinite(start) && start > Date.now();
+  }
+
+  protected isPastScheduled(history: ClientHistoryEntry): boolean {
+    if (!history.calendar?.start) return false;
+    const start = new Date(history.calendar.start).getTime();
+    return Number.isFinite(start) && start <= Date.now();
+  }
+
+  protected getRelationshipLabel(): string {
+    switch (this.client.relationshipStatus) {
+      case 'customer':
+        return 'Customer';
+      case 'inactive':
+        return 'Inactive';
+      default:
+        return 'Lead';
+    }
   }
 }

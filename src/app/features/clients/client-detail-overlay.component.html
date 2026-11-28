@@ -13,11 +13,15 @@
     [client]="client"
     [detail]="detail"
     [state]="state"
+    [updatingSalesStatusEntryId]="updatingSalesStatusEntryId"
+    [salesStatusError]="salesStatusError"
     (closed)="requestClose()"
     (retry)="retry.emit()"
     (updateClient)="updateClient.emit($event)"
     (deleteClient)="deleteClient.emit()"
     (editEntry)="editEntry.emit($event)"
     (deleteEntry)="deleteEntry.emit($event)"
+    (duplicateEntry)="duplicateEntry.emit($event)"
+    (changeSalesStatus)="changeSalesStatus.emit($event)"
   ></app-client-detail-drawer>
 </div>

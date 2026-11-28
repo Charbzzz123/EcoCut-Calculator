@@ -2,12 +2,20 @@
   class="client-drawer"
   role="dialog"
   aria-modal="true"
-  [attr.aria-labelledby]="'client-drawer-' + client.clientId"
+  [attr.aria-labelledby]="drawerHeadingId"
 >
   <header class="client-drawer__header">
     <div>
       <p class="client-drawer__eyebrow">Client detail</p>
-      <h2 id="{{ 'client-drawer-' + client.clientId }}">{{ client.fullName }}</h2>
+      <div class="client-drawer__identity">
+        <h2 [id]="drawerHeadingId">{{ client.fullName }}</h2>
+        <span
+          class="relationship-badge"
+          [attr.data-relationship]="client.relationshipStatus ?? 'lead'"
+        >
+          {{ getRelationshipLabel() }}
+        </span>
+      </div>
       <p class="client-drawer__subtitle">
         {{ client.address }}
       </p>
@@ -107,18 +115,30 @@
 
   <section class="client-drawer__section">
     <div class="client-drawer__section-heading">
-      <h3>Job history</h3>
+      <div class="client-drawer__history-title">
+        <h3>History</h3>
+        @if ((client.openOpportunityCount ?? 0) > 0) {
+          <span class="open-count-badge" aria-label="Open opportunities for this client">
+            {{ client.openOpportunityCount }} open
+          </span>
+        }
+      </div>
       @if (state === 'error') {
         <button type="button" class="ghost" (click)="retry.emit()">Retry</button>
       }
     </div>
+    @if (salesStatusError) {
+      <p class="client-drawer__state client-drawer__state--error" role="alert">
+        {{ salesStatusError }}
+      </p>
+    }
 
     @switch (state) {
       @case ('loading') {
-        <p class="client-drawer__state">Loading job history&hellip;</p>
+        <p class="client-drawer__state">Loading history&hellip;</p>
       }
       @case ('error') {
-        <p class="client-drawer__state client-drawer__state--error">Could not load job history.</p>
+        <p class="client-drawer__state client-drawer__state--error">Could not load history.</p>
       }
       @case ('ready') {
         @if ((detail?.history?.length ?? 0) > 0) {
@@ -127,9 +147,12 @@
               <li>
                 <div class="history__header">
                   <p class="history__date">{{ history.createdAt | date: 'MMM d, y, h:mm a' }}</p>
-                  <span class="history__badge" [attr.data-variant]="history.variant">{{
-                    history.variant
-                  }}</span>
+                  <span class="history__badge" [attr.data-sales-status]="getSalesStatus(history)">
+                    {{ getSalesStatusLabel(history) }}
+                  </span>
+                  @if (history.execution?.status === 'completed') {
+                    <span class="history__badge history__badge--finished">Finished</span>
+                  }
                 </div>
                 <p class="history__job">
                   {{ history.jobType }}
@@ -146,9 +169,23 @@
                       {{ calendar.timeZone || 'Local time' }}
                     </span>
                   } @else {
-                    Schedule TBD
+                    @if (
+                      getSalesStatus(history) === 'accepted' &&
+                      history.execution?.status !== 'completed'
+                    ) {
+                      <span class="history__calendar-label">To schedule</span>
+                    } @else if (history.execution?.status === 'completed') {
+                      Completed
+                    } @else {
+                      Schedule TBD
+                    }
                   }
                 </p>
+                @if (getSalesStatus(history) === 'accepted' && history.followUpNote) {
+                  <p class="history__note">
+                    <strong>Follow-up:</strong> {{ history.followUpNote }}
+                  </p>
+                }
                 @if (history.execution; as execution) {
                   <div class="history__execution">
                     <p class="history__execution-meta">
@@ -199,6 +236,74 @@
                   <p class="history__note">{{ history.additionalDetails }}</p>
                 }
                 <div class="history__actions">
+                  @if (history.execution?.status === 'completed') {
+                    <button
+                      type="button"
+                      class="ghost"
+                      (click)="requestEntryDuplicate(history)"
+                      [attr.aria-label]="'Create next year copy of ' + history.jobType"
+                    >
+                      Create next year's copy
+                    </button>
+                  } @else if (getSalesStatus(history) === 'open') {
+                    <button
+                      type="button"
+                      class="ghost"
+                      [disabled]="updatingSalesStatusEntryId === history.entryId"
+                      (click)="requestSalesStatusChange(history, 'accepted')"
+                      [attr.aria-label]="'Mark ' + history.jobType + ' accepted'"
+                    >
+                      {{
+                        updatingSalesStatusEntryId === history.entryId
+                          ? 'Updating…'
+                          : 'Mark accepted'
+                      }}
+                    </button>
+                    <button
+                      type="button"
+                      class="ghost history__action-secondary"
+                      [disabled]="updatingSalesStatusEntryId === history.entryId"
+                      (click)="requestSalesStatusChange(history, 'not-proceeding')"
+                      [attr.aria-label]="'Mark ' + history.jobType + ' not proceeding'"
+                    >
+                      Not proceeding
+                    </button>
+                  } @else if (getSalesStatus(history) === 'accepted' && !history.calendar) {
+                    <button
+                      type="button"
+                      class="ghost"
+                      [disabled]="updatingSalesStatusEntryId === history.entryId"
+                      (click)="requestSalesStatusChange(history, 'accepted')"
+                      [attr.aria-label]="'Schedule ' + history.jobType"
+                    >
+                      To schedule · choose date
+                    </button>
+                    @if (canReopen(history)) {
+                      <button
+                        type="button"
+                        class="ghost"
+                        [disabled]="updatingSalesStatusEntryId === history.entryId"
+                        (click)="requestSalesStatusChange(history, 'open')"
+                        [attr.aria-label]="'Reopen ' + history.jobType"
+                      >
+                        Reopen
+                      </button>
+                    }
+                  } @else if (canReopen(history)) {
+                    <button
+                      type="button"
+                      class="ghost"
+                      [disabled]="updatingSalesStatusEntryId === history.entryId"
+                      (click)="requestSalesStatusChange(history, 'open')"
+                      [attr.aria-label]="'Reopen ' + history.jobType"
+                    >
+                      {{ updatingSalesStatusEntryId === history.entryId ? 'Updating…' : 'Reopen' }}
+                    </button>
+                  } @else if (isPastScheduled(history)) {
+                    <span class="history__locked-status">
+                      Past job · create a new copy to schedule again
+                    </span>
+                  }
                   <button type="button" class="ghost" (click)="requestEntryEdit(history)">
                     Edit job
                   </button>

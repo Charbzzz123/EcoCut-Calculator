@@ -14,6 +14,7 @@ import type {
   ClientHistoryEntry,
   UpdateClientPayload,
 } from '@shared/domain/entry/entry-repository.service.js';
+import type { SalesStatus } from '@shared/domain/entry/entry-modal.models.js';
 import type { ClientDetailState } from './clients.types.js';
 import { ClientDetailDrawerComponent } from './client-detail-drawer.component.js';
 
@@ -32,6 +33,8 @@ export class ClientDetailOverlayComponent implements OnDestroy {
   @Input({ required: true }) client!: ClientSummary;
   @Input() detail: ClientDetail | null = null;
   @Input() state: ClientDetailState = 'loading';
+  @Input() updatingSalesStatusEntryId: string | null = null;
+  @Input() salesStatusError: string | null = null;
 
   @Output() closed = new EventEmitter<void>();
   @Output() retry = new EventEmitter<void>();
@@ -39,6 +42,11 @@ export class ClientDetailOverlayComponent implements OnDestroy {
   @Output() deleteClient = new EventEmitter<void>();
   @Output() editEntry = new EventEmitter<ClientHistoryEntry>();
   @Output() deleteEntry = new EventEmitter<ClientHistoryEntry>();
+  @Output() duplicateEntry = new EventEmitter<ClientHistoryEntry>();
+  @Output() changeSalesStatus = new EventEmitter<{
+    history: ClientHistoryEntry;
+    salesStatus: SalesStatus;
+  }>();
 
   protected requestClose(): void {
     if (this.closing()) {

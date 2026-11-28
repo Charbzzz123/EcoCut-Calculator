@@ -3,9 +3,10 @@
   <app-entry-modal
     [open]="open"
     [variant]="variant"
+    [scheduleOnly]="scheduleOnly"
     [headline]="headline"
     [eyebrow]="eyebrow"
-    primaryActionLabel="Update job"
+    [primaryActionLabel]="primaryActionLabel"
     [initialEntry]="payload!"
     (closed)="requestClose()"
     (saved)="saved.emit($event)"

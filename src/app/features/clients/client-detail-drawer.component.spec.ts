@@ -21,6 +21,7 @@ const detail: ClientDetail = {
       entryId: 'job-1',
       createdAt: '2026-03-04T12:00:00Z',
       variant: 'customer',
+      salesStatus: 'accepted',
       jobType: 'Hedge Trimming',
       jobValue: '$920',
       location: '123 Pine Ave',
@@ -74,7 +75,7 @@ describe('ClientDetailDrawerComponent', () => {
   it('shows loading state when requested', () => {
     fixture.componentInstance.state = 'loading';
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('Loading job history');
+    expect(fixture.nativeElement.textContent).toContain('Loading history');
   });
 
   it('renders the edit form when toggled', () => {
@@ -83,7 +84,7 @@ describe('ClientDetailDrawerComponent', () => {
     expect(fixture.nativeElement.querySelector('.client-form')).toBeTruthy();
   });
 
-  it('renders job history entries', () => {
+  it('renders history entries and identifies finished work', () => {
     fixture.componentInstance.state = 'ready';
     fixture.componentInstance.detail = detail;
     fixture.detectChanges();
@@ -91,6 +92,19 @@ describe('ClientDetailDrawerComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('(438) 555-1111');
     expect(fixture.nativeElement.textContent).toContain('Crew on job');
     expect(fixture.nativeElement.textContent).toContain('Gate cleanup done.');
+    expect(fixture.nativeElement.textContent).toContain('Finished');
+  });
+
+  it('keeps the drawer heading reference valid when the client id contains spaces', () => {
+    fixture.componentInstance.client = {
+      ...detail,
+      clientId: 'demo::lead::123 demo lane',
+    };
+    fixture.detectChanges();
+    const dialog = fixture.nativeElement.querySelector('[role="dialog"]') as HTMLElement;
+    const heading = fixture.nativeElement.querySelector('h2') as HTMLHeadingElement;
+    expect(dialog.getAttribute('aria-labelledby')).toBe(heading.id);
+    expect(heading.id).not.toMatch(/\s/);
   });
 
   it('emits retry when error state button is clicked', () => {
@@ -129,11 +143,142 @@ describe('ClientDetailDrawerComponent', () => {
     fixture.componentInstance.deleteEntry.subscribe(deleteSpy);
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Front Trim');
-    const actionButtons = fixture.nativeElement.querySelectorAll('.history__actions button');
-    (actionButtons[0] as HTMLButtonElement).click();
-    (actionButtons[1] as HTMLButtonElement).click();
+    expect(fixture.nativeElement.textContent).toContain('Accepted');
+    const buttons = Array.from(
+      fixture.nativeElement.querySelectorAll('.history__actions button'),
+    ) as HTMLButtonElement[];
+    buttons.find((button) => button.textContent?.includes('Edit job'))?.click();
+    buttons.find((button) => button.textContent?.includes('Delete job'))?.click();
     expect(editSpy).toHaveBeenCalledWith(detail.history[0]);
     expect(deleteSpy).toHaveBeenCalledWith(detail.history[0]);
+  });
+
+  it('offers outcome actions for open opportunities and emits stable statuses', () => {
+    const statusSpy = vi.fn();
+    fixture.componentInstance.state = 'ready';
+    fixture.componentInstance.detail = {
+      ...detail,
+      relationshipStatus: 'lead',
+      openOpportunityCount: 1,
+      history: [
+        { ...detail.history[0], variant: 'warm-lead', salesStatus: 'open', execution: undefined },
+      ],
+    };
+    fixture.componentInstance.changeSalesStatus.subscribe(statusSpy);
+    fixture.detectChanges();
+    const acceptedButton = fixture.nativeElement.querySelector(
+      '[aria-label="Mark Hedge Trimming accepted"]',
+    ) as HTMLButtonElement;
+    const notProceedingButton = fixture.nativeElement.querySelector(
+      '[aria-label="Mark Hedge Trimming not proceeding"]',
+    ) as HTMLButtonElement;
+    expect(acceptedButton).toBeTruthy();
+    expect(notProceedingButton).toBeTruthy();
+    acceptedButton.click();
+    notProceedingButton.click();
+    expect(statusSpy).toHaveBeenNthCalledWith(1, {
+      history: fixture.componentInstance.detail!.history[0],
+      salesStatus: 'accepted',
+    });
+    expect(statusSpy).toHaveBeenNthCalledWith(2, {
+      history: fixture.componentInstance.detail!.history[0],
+      salesStatus: 'not-proceeding',
+    });
+  });
+
+  it('offers reopen for closed opportunities and shows the client open count', () => {
+    fixture.componentInstance.state = 'ready';
+    fixture.componentInstance.client = {
+      ...detail,
+      relationshipStatus: 'inactive',
+      openOpportunityCount: 0,
+    };
+    fixture.componentInstance.detail = {
+      ...detail,
+      history: [
+        {
+          ...detail.history[0],
+          salesStatus: 'not-proceeding',
+          execution: undefined,
+          calendar: undefined,
+        },
+      ],
+    };
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Inactive');
+    expect(fixture.nativeElement.textContent).toContain('Not proceeding');
+    expect(
+      fixture.nativeElement.querySelector('[aria-label="Reopen Hedge Trimming"]'),
+    ).toBeTruthy();
+  });
+
+  it('shows Inactive when every opportunity was not proceeding', () => {
+    fixture.componentInstance.client = { ...detail, relationshipStatus: 'inactive' };
+    fixture.componentInstance.state = 'ready';
+    fixture.componentInstance.detail = {
+      ...detail,
+      relationshipStatus: 'inactive',
+      history: [
+        {
+          ...detail.history[0],
+          salesStatus: 'not-proceeding',
+          execution: undefined,
+          calendar: undefined,
+        },
+      ],
+    };
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Inactive');
+    expect(
+      fixture.nativeElement.querySelector('[aria-label="Reopen Hedge Trimming"]'),
+    ).toBeTruthy();
+  });
+
+  it('marks accepted jobs without a date as To schedule', () => {
+    fixture.componentInstance.state = 'ready';
+    fixture.componentInstance.client = {
+      ...detail,
+      relationshipStatus: 'customer',
+      toScheduleCount: 1,
+    };
+    fixture.componentInstance.detail = {
+      ...detail,
+      history: [
+        {
+          ...detail.history[0],
+          salesStatus: 'accepted',
+          calendar: undefined,
+          execution: undefined,
+          followUpNote: 'Call back next month.',
+        },
+      ],
+    };
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Accepted · To schedule');
+    expect(fixture.nativeElement.textContent).toContain('Follow-up: Call back next month.');
+    expect(
+      fixture.nativeElement.querySelector('[aria-label="Schedule Hedge Trimming"]'),
+    ).toBeTruthy();
+  });
+
+  it('does not flag a finished accepted job as needing scheduling', () => {
+    fixture.componentInstance.state = 'ready';
+    fixture.componentInstance.client = { ...detail, relationshipStatus: 'customer' };
+    fixture.componentInstance.detail = {
+      ...detail,
+      history: [
+        {
+          ...detail.history[0],
+          salesStatus: 'accepted',
+          calendar: undefined,
+          execution: { ...detail.history[0].execution!, status: 'completed' },
+        },
+      ],
+    };
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Finished');
+    expect(fixture.nativeElement.textContent).toContain('Completed');
+    expect(fixture.nativeElement.textContent).not.toContain('To schedule');
   });
 
   it('emits client updates when editing form is saved', () => {
@@ -241,7 +386,9 @@ describe('ClientDetailDrawerComponent', () => {
     const closedSpy = vi.fn();
     fixture.componentInstance.closed.subscribe(closedSpy);
     fixture.detectChanges();
-    const closeButton = fixture.nativeElement.querySelector('.client-drawer__close') as HTMLButtonElement;
+    const closeButton = fixture.nativeElement.querySelector(
+      '.client-drawer__close',
+    ) as HTMLButtonElement;
     closeButton.click();
     expect(closedSpy).toHaveBeenCalled();
   });
@@ -253,6 +400,8 @@ describe('ClientDetailDrawerComponent', () => {
         {
           ...detail.history[0],
           calendar: undefined,
+          salesStatus: 'open',
+          execution: undefined,
         },
       ],
     };

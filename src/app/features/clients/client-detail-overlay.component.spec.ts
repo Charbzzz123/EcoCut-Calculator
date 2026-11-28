@@ -44,7 +44,9 @@ describe('ClientDetailOverlayComponent', () => {
     vi.useFakeTimers();
     const spy = vi.fn();
     fixture.componentInstance.closed.subscribe(spy);
-    const backdrop = fixture.nativeElement.querySelector('.client-detail-overlay__backdrop') as HTMLButtonElement;
+    const backdrop = fixture.nativeElement.querySelector(
+      '.client-detail-overlay__backdrop',
+    ) as HTMLButtonElement;
     backdrop.click();
     vi.advanceTimersByTime(220);
     expect(spy).toHaveBeenCalled();
@@ -59,12 +61,14 @@ describe('ClientDetailOverlayComponent', () => {
     const deleteClientSpy = vi.fn();
     const editSpy = vi.fn();
     const deleteEntrySpy = vi.fn();
+    const changeSalesStatusSpy = vi.fn();
     fixture.componentInstance.closed.subscribe(closeSpy);
     fixture.componentInstance.retry.subscribe(retrySpy);
     fixture.componentInstance.updateClient.subscribe(updateSpy);
     fixture.componentInstance.deleteClient.subscribe(deleteClientSpy);
     fixture.componentInstance.editEntry.subscribe(editSpy);
     fixture.componentInstance.deleteEntry.subscribe(deleteEntrySpy);
+    fixture.componentInstance.changeSalesStatus.subscribe(changeSalesStatusSpy);
     const drawerRef = fixture.debugElement.query(By.css('app-client-detail-drawer'));
     const drawerInstance = drawerRef.componentInstance as ClientDetailDrawerComponent;
     drawerInstance.closed.emit();
@@ -91,6 +95,10 @@ describe('ClientDetailOverlayComponent', () => {
       contactPhone: '',
       hedges: createEmptyHedgeConfigs(),
     } as ClientHistoryEntry);
+    drawerInstance.changeSalesStatus.emit({
+      history: detail.history[0] as ClientHistoryEntry,
+      salesStatus: 'accepted',
+    });
     vi.advanceTimersByTime(220);
     expect(closeSpy).toHaveBeenCalled();
     expect(retrySpy).toHaveBeenCalled();
@@ -98,6 +106,10 @@ describe('ClientDetailOverlayComponent', () => {
     expect(deleteClientSpy).toHaveBeenCalled();
     expect(editSpy).toHaveBeenCalled();
     expect(deleteEntrySpy).toHaveBeenCalled();
+    expect(changeSalesStatusSpy).toHaveBeenCalledWith({
+      history: detail.history[0],
+      salesStatus: 'accepted',
+    });
     vi.useRealTimers();
   });
 
@@ -105,7 +117,9 @@ describe('ClientDetailOverlayComponent', () => {
     vi.useFakeTimers();
     const spy = vi.fn();
     fixture.componentInstance.closed.subscribe(spy);
-    const backdrop = fixture.nativeElement.querySelector('.client-detail-overlay__backdrop') as HTMLButtonElement;
+    const backdrop = fixture.nativeElement.querySelector(
+      '.client-detail-overlay__backdrop',
+    ) as HTMLButtonElement;
     backdrop.click();
     backdrop.click();
     vi.advanceTimersByTime(220);
@@ -115,7 +129,9 @@ describe('ClientDetailOverlayComponent', () => {
 
   it('clears pending close timer on destroy', () => {
     vi.useFakeTimers();
-    const backdrop = fixture.nativeElement.querySelector('.client-detail-overlay__backdrop') as HTMLButtonElement;
+    const backdrop = fixture.nativeElement.querySelector(
+      '.client-detail-overlay__backdrop',
+    ) as HTMLButtonElement;
     backdrop.click();
     expect(() => fixture.destroy()).not.toThrow();
     vi.useRealTimers();
