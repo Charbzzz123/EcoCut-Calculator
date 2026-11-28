@@ -79,6 +79,7 @@ export abstract class EntryModalFacade implements OnDestroy {
   @Input() eyebrow?: string;
   @Input() subcopy?: string;
   @Input() primaryActionLabel?: string;
+  @Input() scheduleOnly = false;
   @Input()
   set initialEntry(value: EntryModalPayload | null) {
     /* c8 ignore next */
@@ -105,6 +106,8 @@ export abstract class EntryModalFacade implements OnDestroy {
     jobValue: ['', Validators.required],
     desiredBudget: [''],
     additionalDetails: [''],
+    followUpNote: [''],
+    acceptanceMode: this.fb.control<'schedule-now' | 'to-schedule'>('schedule-now'),
     calendar: this.fb.group({
       date: [''],
       startTime: [''],
@@ -144,9 +147,7 @@ export abstract class EntryModalFacade implements OnDestroy {
   protected readonly conflictConfirmed = this.scheduleController.conflictConfirmedSignal();
   protected readonly currentTimeMinutes = this.scheduleController.currentTimeMinutesSignal();
   protected readonly editingCalendarEvent = this.scheduleController.editingCalendarEventSignal();
-  private readonly duplicateGuard = new EntryModalDuplicateGuard(
-    inject(EntryRepositoryService),
-  );
+  private readonly duplicateGuard = new EntryModalDuplicateGuard(inject(EntryRepositoryService));
   protected readonly duplicateMatch = this.duplicateGuard.match;
   protected readonly duplicateMatchError = this.duplicateGuard.error;
   protected readonly duplicateCheckLoading = this.duplicateGuard.loading;
@@ -171,10 +172,7 @@ export abstract class EntryModalFacade implements OnDestroy {
   private addressInputFocused = false;
   private addressSuggestionsSuppressed = false;
   private addressSessionToken: string = this.generateSessionToken();
-  private readonly addressSuggestionCache = new Map<
-    string,
-    AddressSuggestResponse
-  >();
+  private readonly addressSuggestionCache = new Map<string, AddressSuggestResponse>();
   private addressAutoFillInProgress = false;
   private readonly enforceVerifiedAddress = environment.enforceVerifiedAddress;
   private modalCloseTimer: ReturnType<typeof setTimeout> | null = null;
@@ -426,9 +424,7 @@ export abstract class EntryModalFacade implements OnDestroy {
         this.addressVerified.set(false);
         this.addressSelectionId = null;
         this.verifiedAddressValue = null;
-        this.applyAddressVerificationError(
-          this.form.controls.address.value.trim().length > 0,
-        );
+        this.applyAddressVerificationError(this.form.controls.address.value.trim().length > 0);
         this.addressLookupMessage.set(
           result.message ?? 'Select a valid address from the suggestions.',
         );
@@ -451,7 +447,20 @@ export abstract class EntryModalFacade implements OnDestroy {
   }
 
   protected requiresCalendar(): boolean {
-    return this.variant === 'customer';
+    return (
+      this.variant === 'customer' &&
+      (!this.scheduleOnly || this.form.controls.acceptanceMode.value === 'schedule-now')
+    );
+  }
+
+  protected setAcceptanceMode(mode: 'schedule-now' | 'to-schedule'): void {
+    this.form.controls.acceptanceMode.setValue(mode);
+    if (mode === 'schedule-now') {
+      this.scheduleController.ensureCalendarDefaults();
+    } else {
+      this.scheduleController.reset();
+    }
+    this.syncCalendarValidators();
   }
 
   protected onCanvasHostChange(ref: ElementRef<HTMLElement> | undefined): void {
@@ -546,6 +555,10 @@ export abstract class EntryModalFacade implements OnDestroy {
   }
 
   protected async submitEntry(): Promise<void> {
+    if (this.scheduleOnly) {
+      this.submitAcceptance();
+      return;
+    }
     this.requiredFieldErrors.set([]);
     this.hedgeSelectionError.set(null);
     this.syncCalendarValidators();
@@ -556,7 +569,9 @@ export abstract class EntryModalFacade implements OnDestroy {
       this.form.markAllAsTouched();
       return;
     }
-    if (!this.validationService.validateCalendarRange(this.calendarGroup, this.requiresCalendar())) {
+    if (
+      !this.validationService.validateCalendarRange(this.calendarGroup, this.requiresCalendar())
+    ) {
       this.requiredFieldErrors.set(this.collectRequiredFieldErrors());
       return;
     }
@@ -570,7 +585,8 @@ export abstract class EntryModalFacade implements OnDestroy {
       this.requiredFieldErrors.set(this.collectRequiredFieldErrors());
       return;
     }
-    const hedgeConfigurationErrors = this.validationService.listIncompleteHedgeConfigs(hedgesPayload);
+    const hedgeConfigurationErrors =
+      this.validationService.listIncompleteHedgeConfigs(hedgesPayload);
     if (hedgeConfigurationErrors.length > 0) {
       this.hedgeSelectionError.set(hedgeConfigurationErrors[0] ?? null);
       this.requiredFieldErrors.set(this.collectRequiredFieldErrors(hedgesPayload));
@@ -580,6 +596,7 @@ export abstract class EntryModalFacade implements OnDestroy {
     const formValue = this.form.getRawValue();
     const payload: EntryModalPayload = {
       variant: this.variant,
+      followUpNote: formValue.followUpNote.trim() || undefined,
       form: {
         firstName: formValue.firstName,
         lastName: formValue.lastName,
@@ -609,6 +626,53 @@ export abstract class EntryModalFacade implements OnDestroy {
       return;
     }
 
+    this.finalizeSubmission(payload);
+  }
+
+  private submitAcceptance(): void {
+    this.requiredFieldErrors.set([]);
+    const scheduleNow = this.form.controls.acceptanceMode.value === 'schedule-now';
+    if (!this.validationService.validateCalendarRange(this.calendarGroup, scheduleNow)) {
+      const errors: string[] = [];
+      if (this.calendarGroup.controls.date.invalid) errors.push('Date');
+      if (this.calendarGroup.controls.startTime.invalid) errors.push('Start time');
+      if (this.calendarGroup.controls.endTime.hasError('timeOrder')) {
+        errors.push('End time must be after start time');
+      } else if (this.calendarGroup.controls.endTime.invalid) {
+        errors.push('End time');
+      }
+      this.requiredFieldErrors.set(errors);
+      return;
+    }
+    if (scheduleNow && this.scheduleController.hasBlockingConflict()) {
+      return;
+    }
+
+    const formValue = this.form.getRawValue();
+    const payload: EntryModalPayload = {
+      variant: 'customer',
+      form: {
+        firstName: formValue.firstName,
+        lastName: formValue.lastName,
+        address: formValue.address,
+        phone: formValue.phone,
+        email: formValue.email || undefined,
+        jobType: formValue.jobType,
+        jobValue: formValue.jobValue,
+        desiredBudget: formValue.desiredBudget || undefined,
+        additionalDetails: formValue.additionalDetails || undefined,
+      },
+      hedges: this.panelStore.buildHedgePayload(),
+      followUpNote: formValue.followUpNote.trim() || undefined,
+    };
+    if (scheduleNow) {
+      const calendar = this.scheduleController.buildCalendarPayload();
+      if (!calendar) {
+        this.requiredFieldErrors.set(['Date', 'Start time', 'End time']);
+        return;
+      }
+      payload.calendar = calendar;
+    }
     this.finalizeSubmission(payload);
   }
 
@@ -813,7 +877,11 @@ export abstract class EntryModalFacade implements OnDestroy {
 
   private syncCalendarValidators(): void {
     const calendar = this.calendarGroup;
-    const controls = [calendar.controls.date, calendar.controls.startTime, calendar.controls.endTime];
+    const controls = [
+      calendar.controls.date,
+      calendar.controls.startTime,
+      calendar.controls.endTime,
+    ];
     if (this.requiresCalendar()) {
       controls.forEach((control) => {
         control.addValidators(Validators.required);
@@ -828,9 +896,7 @@ export abstract class EntryModalFacade implements OnDestroy {
     });
   }
 
-  private collectRequiredFieldErrors(
-    hedges = this.panelStore.buildHedgePayload(),
-  ): string[] {
+  private collectRequiredFieldErrors(hedges = this.panelStore.buildHedgePayload()): string[] {
     const errors: string[] = [];
     const addError = (message: string): void => {
       if (!errors.includes(message)) {
@@ -932,14 +998,18 @@ export abstract class EntryModalFacade implements OnDestroy {
         jobValue: payload.form.jobValue,
         desiredBudget: payload.form.desiredBudget ?? '',
         additionalDetails: payload.form.additionalDetails ?? '',
+        followUpNote: payload.followUpNote ?? '',
+        acceptanceMode: 'schedule-now',
       },
       { emitEvent: false },
     );
     this.panelStore.loadFromConfigs(payload.hedges);
     this.hedgeSelectionError.set(null);
-    const calendarPayload =
-      payload.variant === 'customer' ? payload.calendar ?? null : null;
+    const calendarPayload = payload.variant === 'customer' ? (payload.calendar ?? null) : null;
     this.scheduleController.applyCalendarPayload(calendarPayload);
+    if (this.scheduleOnly && !calendarPayload) {
+      this.setAcceptanceMode('schedule-now');
+    }
     this.addressSelectionId = null;
     this.verifiedAddressValue = this.form.controls.address.value.trim();
     this.addressVerified.set(this.verifiedAddressValue.length > 0);
@@ -1020,6 +1090,11 @@ export abstract class EntryModalFacade implements OnDestroy {
 
   /* c8 ignore next */
   protected get primaryLabelText(): string {
+    if (this.scheduleOnly) {
+      return this.form.controls.acceptanceMode.value === 'to-schedule'
+        ? 'Accept · To schedule'
+        : 'Accept and schedule';
+    }
     if (this.primaryActionLabel) {
       return this.primaryActionLabel;
     }
@@ -1042,9 +1117,11 @@ export abstract class EntryModalFacade implements OnDestroy {
     return (index / totalMarks) * 100;
   }
 
-  protected timelineSelectionStyle():
-    | { topPercent: number; heightPercent: number; conflict: boolean }
-    | null {
+  protected timelineSelectionStyle(): {
+    topPercent: number;
+    heightPercent: number;
+    conflict: boolean;
+  } | null {
     return this.scheduleController.buildViewModel().timelineSelectionStyle;
   }
 
@@ -1084,7 +1161,10 @@ export abstract class EntryModalFacade implements OnDestroy {
     this.scheduleController.applyTimelineSelectionMinutes(startMinutes, endMinutes);
   }
 
-  protected applySelectionOffset(startMinutes: number, endMinutes: number): { start: number; end: number } {
+  protected applySelectionOffset(
+    startMinutes: number,
+    endMinutes: number,
+  ): { start: number; end: number } {
     return this.scheduleController.applySelectionOffset(startMinutes, endMinutes);
   }
 

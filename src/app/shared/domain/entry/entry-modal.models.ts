@@ -14,6 +14,8 @@ export type HedgeState = 'none' | 'trim' | 'rabattage';
 export type TrimPreset = 'normal' | 'total';
 export type RabattageOption = 'partial' | 'total' | 'total_no_roots';
 export type EntryVariant = 'warm-lead' | 'customer';
+export type SalesStatus = 'open' | 'accepted' | 'not-proceeding';
+export type ClientRelationshipStatus = 'lead' | 'customer' | 'inactive';
 
 export interface EntryCalendarPayload {
   start: string;
@@ -43,6 +45,7 @@ export interface HedgeConfig {
 
 export interface EntryModalPayload {
   variant: EntryVariant;
+  followUpNote?: string;
   form: {
     firstName: string;
     lastName: string;

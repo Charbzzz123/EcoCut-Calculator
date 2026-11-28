@@ -25,28 +25,62 @@
       </header>
 
       <form class="content" [formGroup]="form" (ngSubmit)="submitEntry()">
-        <app-entry-details-form
-          [form]="form"
-          [variant]="variant"
-          [hedgeSelectionError]="hedgeSelectionError()"
-          [hedges]="hedges"
-          [hedgePoints]="hedgePoints"
-          [panelState]="panelState"
-          [panelPosition]="panelPosition"
-          [panelError]="panelError"
-          [panelFloats]="panelFloatsFn"
-          [trimHasCustomSelections]="trimHasCustomSelectionsFn"
-          [trimPresetSelected]="trimPresetSelectedFn"
-          [hasSavedConfig]="hasSavedConfigFn"
-          [getHedgeState]="getHedgeStateFn"
-          [addressSuggestions]="addressSuggestions()"
-          [showAddressSuggestions]="showAddressSuggestions()"
-          [addressLookupLoading]="addressLookupLoading()"
-          [addressLookupMessage]="addressLookupMessage()"
-          [addressVerified]="addressVerified()"
-          [handlers]="detailsHandlers"
-          (canvasHostChange)="onCanvasHostChange($event)"
-        ></app-entry-details-form>
+        @if (scheduleOnly) {
+          <fieldset class="acceptance-scheduling">
+            <legend>When should we schedule this job?</legend>
+            <label>
+              <input
+                type="radio"
+                name="acceptanceMode"
+                [checked]="form.controls.acceptanceMode.value === 'schedule-now'"
+                (change)="setAcceptanceMode('schedule-now')"
+              />
+              <span>Schedule now</span>
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="acceptanceMode"
+                [checked]="form.controls.acceptanceMode.value === 'to-schedule'"
+                (change)="setAcceptanceMode('to-schedule')"
+              />
+              <span>To schedule</span>
+            </label>
+            @if (form.controls.acceptanceMode.value === 'to-schedule') {
+              <label class="acceptance-scheduling__note">
+                <span>Follow-up note (optional)</span>
+                <textarea
+                  rows="3"
+                  formControlName="followUpNote"
+                  placeholder="For example: prefers next month; call back."
+                ></textarea>
+              </label>
+            }
+          </fieldset>
+        } @else {
+          <app-entry-details-form
+            [form]="form"
+            [variant]="variant"
+            [hedgeSelectionError]="hedgeSelectionError()"
+            [hedges]="hedges"
+            [hedgePoints]="hedgePoints"
+            [panelState]="panelState"
+            [panelPosition]="panelPosition"
+            [panelError]="panelError"
+            [panelFloats]="panelFloatsFn"
+            [trimHasCustomSelections]="trimHasCustomSelectionsFn"
+            [trimPresetSelected]="trimPresetSelectedFn"
+            [hasSavedConfig]="hasSavedConfigFn"
+            [getHedgeState]="getHedgeStateFn"
+            [addressSuggestions]="addressSuggestions()"
+            [showAddressSuggestions]="showAddressSuggestions()"
+            [addressLookupLoading]="addressLookupLoading()"
+            [addressLookupMessage]="addressLookupMessage()"
+            [addressVerified]="addressVerified()"
+            [handlers]="detailsHandlers"
+            (canvasHostChange)="onCanvasHostChange($event)"
+          ></app-entry-details-form>
+        }
 
         @if (requiresCalendar()) {
           <app-entry-schedule-section

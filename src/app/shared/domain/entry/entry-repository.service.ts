@@ -1,12 +1,19 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import type { EntryModalPayload } from './entry-modal.models.js';
+import type {
+  ClientRelationshipStatus,
+  EntryModalPayload,
+  SalesStatus,
+} from './entry-modal.models.js';
 import { environment } from '../../../../environments/environment';
 
 export interface StoredEntry extends EntryModalPayload {
   id: string;
   createdAt: string;
+  salesStatus?: SalesStatus;
+  salesStatusChangedAt?: string;
+  followUpNote?: string;
 }
 
 export interface ClientSummary {
@@ -18,6 +25,10 @@ export interface ClientSummary {
   phone: string;
   email?: string;
   jobsCount: number;
+  relationshipStatus?: ClientRelationshipStatus;
+  openOpportunityCount?: number;
+  toScheduleCount?: number;
+  acceptedOpportunityCount?: number;
   lastJobDate: string | null;
   nextJobDate?: string | null;
   lastCalendarEventId?: string;
@@ -27,6 +38,9 @@ export interface ClientHistoryEntry {
   entryId: string;
   createdAt: string;
   variant: EntryModalPayload['variant'];
+  salesStatus?: SalesStatus;
+  salesStatusChangedAt?: string;
+  followUpNote?: string;
   jobValue: string;
   jobType: string;
   location: string;
@@ -66,11 +80,7 @@ export interface UpdateClientPayload {
   email?: string;
 }
 
-export type ClientMatchReason =
-  | 'email'
-  | 'phone-address'
-  | 'phone-name'
-  | 'name-address';
+export type ClientMatchReason = 'email' | 'phone-address' | 'phone-name' | 'name-address';
 
 export interface ClientMatchResult {
   client: ClientSummary;
@@ -88,8 +98,19 @@ export class EntryRepositoryService {
   }
 
   async updateEntry(entryId: string, payload: EntryModalPayload): Promise<StoredEntry> {
+    return firstValueFrom(this.http.patch<StoredEntry>(`${this.baseUrl}/${entryId}`, payload));
+  }
+
+  async updateSalesStatus(
+    entryId: string,
+    update: {
+      salesStatus: SalesStatus;
+      calendar?: EntryModalPayload['calendar'] | null;
+      followUpNote?: string | null;
+    },
+  ): Promise<StoredEntry> {
     return firstValueFrom(
-      this.http.patch<StoredEntry>(`${this.baseUrl}/${entryId}`, payload),
+      this.http.patch<StoredEntry>(`${this.baseUrl}/${entryId}/sales-status`, update),
     );
   }
 
@@ -111,10 +132,7 @@ export class EntryRepositoryService {
     );
   }
 
-  async updateClient(
-    clientId: string,
-    payload: UpdateClientPayload,
-  ): Promise<ClientSummary> {
+  async updateClient(clientId: string, payload: UpdateClientPayload): Promise<ClientSummary> {
     return firstValueFrom(
       this.http.patch<ClientSummary>(`${this.baseUrl}/clients/${clientId}`, payload),
     );
