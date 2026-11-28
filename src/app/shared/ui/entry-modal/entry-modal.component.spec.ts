@@ -1235,7 +1235,7 @@ describe('EntryModalComponent', () => {
   it('clears current time minutes when outside the timeline window', () => {
     vi.useFakeTimers();
     const today = '2026-03-05';
-    vi.setSystemTime(new Date(`${today}T05:15:00-05:00`));
+    vi.setSystemTime(new Date(2026, 2, 5, 5, 15));
     component.variant = 'customer';
     component.form.get('calendar.date')?.setValue(today);
     component['currentTimeMinutes'].set(9 * 60);
