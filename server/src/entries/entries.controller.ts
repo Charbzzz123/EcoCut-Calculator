@@ -6,11 +6,13 @@ import {
   Param,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { EntriesService } from './entries.service';
 import type { CreateEntryDto } from './dto/create-entry.dto';
 import type { UpdateClientDto } from './dto/update-client.dto';
 import type { FindClientMatchDto } from './dto/find-client-match.dto';
+import type { UpdateSalesStatusDto } from './entries.types';
 
 @Controller('entries')
 export class EntriesController {
@@ -22,12 +24,20 @@ export class EntriesController {
   }
 
   @Get()
-  listEntries() {
-    return this.entries.listEntries();
+  listEntries(@Query('salesStatus') salesStatus?: string) {
+    return this.entries.listEntries(salesStatus);
   }
   @Patch(':entryId')
   updateEntry(@Param('entryId') entryId: string, @Body() body: CreateEntryDto) {
     return this.entries.updateEntry(entryId, body);
+  }
+
+  @Patch(':entryId/sales-status')
+  updateSalesStatus(
+    @Param('entryId') entryId: string,
+    @Body() body: UpdateSalesStatusDto,
+  ) {
+    return this.entries.updateSalesStatus(entryId, body);
   }
 
   @Delete(':entryId')
